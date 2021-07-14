@@ -1,1 +1,3 @@
 /nginx/
+/CMakeLists.txt
+/nginx_build_info.json

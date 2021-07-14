@@ -114,18 +114,22 @@ def parse_include_directories(shell_snippet: str):
             yield arg
 
 
-def all_incs_and_c_sources(makefile):
+def all_incs_and_c_sources(makefile: Path):
     assignments, rules = assignments_and_rules(makefile)
     all_incs_var, = filter_assignments(assignments, 'ALL_INCS')
-    all_incs = list(parse_include_directories(all_incs_var))
-    c_sources = list(filter_dependencies(rules, '.c'))
+    all_incs = [
+        str(directory) for directory in parse_include_directories(all_incs_var)
+    ]
+    c_sources = [str(file) for file in filter_dependencies(rules, '.c')]
     return all_incs, c_sources
 
 
 if __name__ == '__main__':
     import sys
-    all_incs, c_sources = all_incs_and_c_sources(sys.argv[1])
+    all_incs, c_sources = all_incs_and_c_sources(Path(sys.argv[1]))
     json.dump({
         'all_incs': all_incs,
         'c_sources': c_sources
-    }, sys.stdout, indent=2)
+    },
+              sys.stdout,
+              indent=2)
