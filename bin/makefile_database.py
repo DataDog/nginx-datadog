@@ -47,7 +47,7 @@ _assignment_pattern = r'(\S+)\s*(=|:=|::=|\?=)\s*(.*)'
 
 
 def is_assignment(line):
-    return re.match(_assignment_pattern, line)
+    return re.match(_assignment_pattern, line) is not None
 
 
 def parse_line(line):

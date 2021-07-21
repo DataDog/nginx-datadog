@@ -8,6 +8,7 @@ CMakeLists.txt: nginx_build_info.json bin/generate_cmakelists.py
 nginx_build_info.json: nginx/objs/Makefile bin/makefile_database.py
 	bin/makefile_database.py nginx/objs/Makefile >$@
 
+# TODO: via Caleb: auto/configure takes signature-specific arguments.
 nginx/objs/Makefile: nginx/ module/config
 	cd nginx && auto/configure --add-dynamic-module=$(MODULE_PATH) --with-compat
 
