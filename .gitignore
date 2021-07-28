@@ -1,3 +1,11 @@
+# cloned repositories
 /nginx/
-/CMakeLists.txt
+/nginx-opentracing/
+
+# generated build info
+/ngx-module.cmake
 /nginx_build_info.json
+/module/config
+
+# built arifacts
+*.so

@@ -1,0 +1,30 @@
+version: "3.2"
+services:
+  traced-nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "nginx", "service": "traced-nginx"}]'
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=dd-agent
+    volumes:
+      - './nginx.conf:/etc/nginx/nginx.conf:ro'
+      - './dd-config.json:/etc/nginx/dd-config.json:ro'
+      - './index.html:/usr/share/nginx/html/index.html:ro'
+    ports:
+      - "8080:80"
+
+  dd-agent:
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - '/proc/:/host/proc/:ro'
+      - '/sys/fs/cgroup/:/host/sys/fs/cgroup:ro'
+    environment:
+      - DD_API_KEY
+      - DD_APM_ENABLED=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_AC_EXCLUDE=name:datadog-agent
+    image: 'datadog/agent'

@@ -29,10 +29,11 @@ cmake_minimum_required(VERSION 3.7)
 project({module_name})
 
 add_library({module_name} STATIC)
+set_property(TARGET {module_name} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_sources({module_name}
     PRIVATE
-{sources_indent}{sources}
+{sources_indent}{nginx}/objs/ngx_http_opentracing_module_modules.c
 )
 
 include_directories(
@@ -47,6 +48,6 @@ includes_indent = sources_indent
 print(
     template.format(module_name=module_name,
                     sources_indent=sources_indent,
-                    sources=('\n' + sources_indent).join(c_sources),
+                    nginx=str(nginx),
                     includes_indent=includes_indent,
                     includes=('\n' + includes_indent).join(all_incs)))
