@@ -5,7 +5,7 @@ MODULE_NAME = ngx_http_opentracing_module
 CLONE = git -c advice.detachedHead=false clone
 
 .PHONY: all
-all: nginx-opentracing/ nginx-module.cmake
+all: nginx-module.cmake
 
 nginx-module.cmake: nginx_build_info.json bin/generate_cmakelists.py
 	bin/generate_cmakelists.py nginx_module >$@ <$<
@@ -21,9 +21,6 @@ $(MODULE_PATH)/config:
 
 nginx/:
 	$(CLONE) --depth 1 --branch release-$(NGINX_VERSION) https://github.com/nginx/nginx
-
-nginx-opentracing/:
-	$(CLONE) --depth 1 --branch v$(NGINX_OPENTRACING_VERSION) https://github.com/opentracing-contrib/nginx-opentracing
 
 .PHONY: format
 format:

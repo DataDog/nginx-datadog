@@ -1,6 +1,5 @@
 # cloned repositories
 /nginx/
-/nginx-opentracing/
 
 # generated build info
 /nginx-module.cmake
