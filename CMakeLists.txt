@@ -14,7 +14,8 @@ include(./nginx-opentracing.cmake)
 add_subdirectory(./opentracing-cpp EXCLUDE_FROM_ALL)
 
 # The dd-opentracing-cpp library sources
-SET(BUILD_TESTING OFF "There are conflicts among the test targets.  I should probably use multiple projects.")
+# TODO: Build targets have conflicting names
+# TODO: Need to use IMPORT or something
 SET(BUILD_OBJECT ON CACHE BOOL "Build dd-opentracing-cpp objects")
 SET(BUILD_SHARED OFF CACHE BOOL "Don't build dd-opentracing-cpp shared library")
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/dd-opentracing-cpp/3rd_party/sanitizers-cmake" ${CMAKE_MODULE_PATH})
