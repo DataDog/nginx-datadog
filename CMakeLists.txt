@@ -2,13 +2,13 @@ cmake_minimum_required(VERSION 3.7)
 
 project(ngx_http_opentracing_module)
 
-include(./ngx-module.cmake)
+include(./nginx-module.cmake)
 include(./nginx-opentracing.cmake)
 
 add_library(ngx_http_opentracing_module SHARED)
 target_sources(ngx_http_opentracing_module
     PRIVATE
-        $<TARGET_OBJECTS:ngx_module>
+        $<TARGET_OBJECTS:nginx_module>
         $<TARGET_OBJECTS:nginx_opentracing>
 )
 

@@ -3,8 +3,8 @@ NGINX_OPENTRACING_VERSION = 0.19.0
 MODULE_PATH := $(realpath module/)
 MODULE_NAME = ngx_http_opentracing_module
 
-ngx-module.cmake: nginx_build_info.json bin/generate_cmakelists.py
-	bin/generate_cmakelists.py ngx_module >$@ <$<
+nginx-module.cmake: nginx_build_info.json bin/generate_cmakelists.py
+	bin/generate_cmakelists.py nginx_module >$@ <$<
 
 nginx_build_info.json: nginx/objs/Makefile bin/makefile_database.py
 	bin/makefile_database.py nginx/objs/Makefile >$@
@@ -27,4 +27,4 @@ format:
 
 .PHONY: clean
 clean:
-	rm -rf nginx nginx-opentracing nginx_build_info.json .build ngx-module.cmake
+	rm -rf nginx nginx-opentracing nginx_build_info.json .build mginx-module.cmake

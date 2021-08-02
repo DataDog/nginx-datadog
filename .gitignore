@@ -1,9 +1,10 @@
 # cloned repositories
 /nginx/
 /nginx-opentracing/
+/opentracing-cpp/
 
 # generated build info
-/ngx-module.cmake
+/nginx-module.cmake
 /nginx_build_info.json
 /module/config
 

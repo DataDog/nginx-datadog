@@ -78,6 +78,8 @@ def parse_rule(line):
 def parse_make_database(makefile: Path):
     with from_make(makefile) as lines:
         for line in lines:
+            parsed_line = parse_line(line)
+            print(parsed_line, file=sys.stderr) # TODO: no
             yield parse_line(line)
 
 
