@@ -5,7 +5,13 @@ MODULE_NAME = ngx_http_opentracing_module
 CLONE = git -c advice.detachedHead=false clone
 
 .PHONY: all
-all: nginx-module.cmake
+all: nginx-module.cmake dd-opentracing-cpp-deps
+
+.PHONY: dd-opentracing-cpp-deps
+dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack
+
+dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack:
+	cd dd-opentracing-cpp && ./scripts/install_dependencies.sh not-opentracing
 
 nginx-module.cmake: nginx_build_info.json bin/generate_cmakelists.py
 	bin/generate_cmakelists.py nginx_module >$@ <$<
