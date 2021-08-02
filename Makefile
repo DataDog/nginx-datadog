@@ -1,5 +1,5 @@
 NGINX_VERSION = 1.18.0
-NGINX_OPENTRACING_VERSION = 0.19.0
+# TODO: Consider renaming the module/ directory.
 MODULE_PATH := $(realpath module/)
 MODULE_NAME = ngx_http_opentracing_module
 CLONE = git -c advice.detachedHead=false clone
@@ -28,4 +28,4 @@ format:
 
 .PHONY: clean
 clean:
-	rm -rf nginx nginx-opentracing nginx_build_info.json .build nginx-module.cmake
+	rm -rf nginx nginx_build_info.json .build nginx-module.cmake
