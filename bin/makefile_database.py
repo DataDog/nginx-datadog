@@ -9,7 +9,6 @@ Assumptions:
 """
 
 import contextlib
-import json
 from pathlib import Path
 import re
 import subprocess
@@ -17,6 +16,7 @@ import subprocess
 
 @contextlib.contextmanager
 def from_make(makefile: Path):
+    """TODO: document"""
     pipe = subprocess.PIPE
     null = subprocess.DEVNULL
     command = [
@@ -47,6 +47,10 @@ _assignment_pattern = r'(\S+)\s*(=|:=|::=|\?=)\s*(.*)'
 
 
 def is_assignment(line):
+    # FOO = bar
+    # FOO := bar
+    # FOO ::= bar
+    # FOO ?= bar
     return re.match(_assignment_pattern, line) is not None
 
 
@@ -64,6 +68,10 @@ def parse_line(line):
 
 
 def parse_assignment(line):
+    # FOO = bar
+    # FOO := bar
+    # FOO ::= bar
+    # FOO ?= bar
     variable, assignment_operator, value = re.match(_assignment_pattern,
                                                     line).groups()
     return variable, assignment_operator, value
@@ -79,59 +87,69 @@ def parse_make_database(makefile: Path):
     with from_make(makefile) as lines:
         for line in lines:
             parsed_line = parse_line(line)
-            print(parsed_line, file=sys.stderr) # TODO: no
             yield parse_line(line)
 
 
-def assignments_and_rules(makefile: Path):
-    assignments = []
-    rules = []
-    for line_type, parsed_value in parse_make_database(makefile):
-        if line_type == 'assignment':
-            assignments.append(parsed_value)
-        elif line_type == 'rule':
-            rules.append(parsed_value)
+def direct_dependencies(rules):
+    # [foo: bar baz, bar: baz]  ->  {foo: {bar, baz}, bar: {baz}}
+    deps_dict = {}
+    for targets, deps in rules:
+        for target in targets:
+            deps_dict.setdefault(target, set()).update(deps)
 
-    return assignments, rules
+    return deps_dict
 
 
-def filter_dependencies(rules, file_extension: str):
-    for _, dependencies in rules:
-        for dependency in dependencies:
-            if dependency.endswith(file_extension):
-                yield dependency
+def depth_first(deps_dict, root):
+    """TODO: document"""
+    for dep in deps_dict.get(root, []):
+        yield from depth_first(deps_dict, dep)
+    yield root
 
 
-def filter_assignments(assignments, variable_name: str):
-    for variable, _, value in assignments:
-        if variable == variable_name:
-            yield value
-
-
-def parse_include_directories(shell_snippet: str):
-    for chunk in shell_snippet.split():
-        flag, arg = re.match(r'(-I|-iquote|-isystem|-idirafter)?(.*)',
-                             chunk).groups()
-        if arg:
-            yield arg
-
-
-def all_incs_and_c_sources(makefile: Path):
-    assignments, rules = assignments_and_rules(makefile)
-    all_incs_var, = filter_assignments(assignments, 'ALL_INCS')
-    all_incs = [
-        str(directory) for directory in parse_include_directories(all_incs_var)
-    ]
-    c_sources = [str(file) for file in filter_dependencies(rules, '.c')]
-    return all_incs, c_sources
+def parse_include_args(args):
+    """TODO: document"""
+    for arg in args:
+        flag, path = re.match(r'^(-I|-iquote|-isystem|-idirafter)?(.*)$', arg).groups()
+        if path:
+            yield path
 
 
 if __name__ == '__main__':
+    """TODO: document"""
+    import json
     import sys
-    all_incs, c_sources = all_incs_and_c_sources(Path(sys.argv[1]))
+
+    makefile = Path(sys.argv[1])
+    module_name = sys.argv[2]
+
+    all_incs = []
+    rules = []
+    for element in parse_make_database(makefile):
+        kind, value = element
+        if kind == 'rule':
+            rules.append(value)
+        elif kind == 'assignment':
+            variable_name, _, variable_value = value
+            if variable_name == 'ALL_INCS':
+                for path in parse_include_args(variable_value.split()):
+                    # Parse as Path and then stringify, so the value is canonical.
+                    # It allows us to mix these values with other Path-derived
+                    # strings.
+                    all_incs.append(str(Path(path)))
+
+    deps_dict = direct_dependencies(rules)
+
+    include_directories = set(all_incs)
+    c_sources = set()
+    for file in depth_first(deps_dict, f'objs/{module_name}.so'):
+        path = Path(file)
+        if path.suffix == '.h':
+            include_directories.add(str(path.parent))
+        elif path.suffix == '.c':
+            c_sources.add(file)
+
     json.dump({
-        'all_incs': all_incs,
-        'c_sources': c_sources
-    },
-              sys.stdout,
-              indent=2)
+        'include_directories': list(include_directories),
+        'c_sources': list(c_sources)
+    }, sys.stdout, indent=2)

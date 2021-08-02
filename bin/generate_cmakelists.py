@@ -16,11 +16,11 @@ import sys
 
 target_name = sys.argv[1]
 build_info = json.load(sys.stdin)
-all_incs, c_sources = build_info['all_incs'], build_info['c_sources']
+include_directories, c_sources = build_info['include_directories'], build_info['c_sources']
 
 # Prefix the paths with the path to the nginx repository directory (./nginx).
 nginx = Path('nginx')
-all_incs = [str(nginx / path) for path in all_incs]
+include_directories = [str(nginx / path) for path in include_directories]
 c_sources = [str(nginx / path) for path in c_sources]
 
 template = """\
@@ -50,4 +50,4 @@ print(
                     sources_indent=sources_indent,
                     nginx=str(nginx),
                     includes_indent=includes_indent,
-                    includes=('\n' + includes_indent).join(all_incs)))
+                    includes=('\n' + includes_indent).join(include_directories)))

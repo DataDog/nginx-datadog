@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 
+# TODO: document
+
 add_library(nginx_opentracing OBJECT)
 set_property(TARGET nginx_opentracing PROPERTY POSITION_INDEPENDENT_CODE ON)
 
