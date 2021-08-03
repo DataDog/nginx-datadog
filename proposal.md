@@ -43,7 +43,7 @@ http {
     }
 }
 ```
-Implementor Configuration
+Implementer Configuration
 -------------------------
 ```c++
 namespace nginxtracing {
@@ -75,7 +75,7 @@ class TracingLibrary {
     bool ConfigureTracerJSONInline() const = 0;
 };
 
-// A tracing library implementor must provide a definition for the `library`
+// A tracing library implementer must provide a definition for the `library`
 // function.
 extern const TracingLibrary& library();
 
