@@ -7,6 +7,10 @@ CLONE = git -c advice.detachedHead=false clone
 .PHONY: all
 all: nginx-module.cmake dd-opentracing-cpp-deps
 
+.PHONY: build
+build: all
+	mkdir -p .build && cd .build && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
+
 .PHONY: dd-opentracing-cpp-deps
 dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack
 
@@ -35,4 +39,14 @@ format:
 
 .PHONY: clean
 clean:
-	rm -rf nginx nginx_build_info.json .build nginx-module.cmake
+	rm -rf \
+		$(MODULE_PATH)/config \
+		nginx_build_info.json \
+		.build \
+		nginx-module.cmake \
+	
+.PHONY: clobber
+clobber: clean
+	rm -rf \
+	    nginx \
+		dd-opentracing-cpp/deps
