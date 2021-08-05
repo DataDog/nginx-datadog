@@ -8,3 +8,5 @@
 
 # built arifacts
 *.so
+/.build
+/.docker-build

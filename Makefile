@@ -50,3 +50,12 @@ clobber: clean
 	rm -rf \
 	    nginx \
 		dd-opentracing-cpp/deps
+
+.PHONY: build-in-docker
+build-in-docker: all
+	docker build --tag nginx-module-cmake-build .
+	bin/run_in_build_image.sh bin/cmake_build.sh .docker-build
+
+.PHONY: test
+test: build-in-docker
+	cd test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) $(MAKE) up
