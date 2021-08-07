@@ -9,6 +9,7 @@ services:
     environment:
       - DD_ENV=prod
       - DD_AGENT_HOST=dd-agent
+      - FISH_FLAVOR=salmon
     volumes:
       - './nginx.conf:/etc/nginx/nginx.conf:ro'
       - './dd-config.json:/etc/nginx/dd-config.json:ro'
