@@ -25,7 +25,10 @@ nginx_build_info.json: nginx/objs/Makefile bin/makefile_database.py
 	bin/makefile_database.py nginx/objs/Makefile $(MODULE_NAME) >$@
 
 nginx/objs/Makefile: nginx/ $(MODULE_PATH)/config
-	cd nginx && auto/configure --add-dynamic-module=$(MODULE_PATH) --with-compat
+	cd nginx && auto/configure --add-dynamic-module=$(MODULE_PATH)\
+	                           --with-compat \
+							   --without-http_rewrite_module \
+							   --without-http_gzip_module
 	
 $(MODULE_PATH)/config:
 	bin/module_config.sh $(MODULE_NAME) >$@

@@ -2,7 +2,18 @@ cmake_minimum_required(VERSION 3.7)
 
 # TODO: document
 
+# TODO
+# set(CMAKE_OSX_SYSROOT /)
+
 project(ngx_http_opentracing_module)
+
+# The C code doesn't care about the C++ version.
+# opentracing-cpp works with C++11 or newer.
+# dd-opentracing-cpp works with C++14 or newer.
+set(CMAKE_CXX_STANDARD 14)
+
+# TODO: brew osx pcre weirdness
+# include_directories(AFTER SYSTEM /usr/local/include)
 
 # Nginx module boilerplate (code within the nginx repository)
 include(./nginx-module.cmake)
