@@ -25,12 +25,9 @@ nginx_build_info.json: nginx/objs/Makefile bin/makefile_database.py
 	bin/makefile_database.py nginx/objs/Makefile $(MODULE_NAME) >$@
 
 nginx/objs/Makefile: nginx/ $(MODULE_PATH)/config
-	cd nginx && auto/configure --add-dynamic-module=$(MODULE_PATH)\
-	                           --with-compat \
-							   --without-http_rewrite_module \
-							   --without-http_gzip_module
+	cd nginx && auto/configure --add-dynamic-module=$(MODULE_PATH) --with-compat
 	
-$(MODULE_PATH)/config:
+$(MODULE_PATH)/config: bin/module_config.sh
 	bin/module_config.sh $(MODULE_NAME) >$@
 
 nginx/:
@@ -60,5 +57,9 @@ build-in-docker: all
 	bin/run_in_build_image.sh bin/cmake_build.sh .docker-build
 
 .PHONY: test
-test: build-in-docker
+# test: build-in-docker
+test: .build/libngx_http_opentracing_module.so
 	cd test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) $(MAKE) up
+
+.build/libngx_http_opentracing_module.so: all
+	bin/cmake_build.sh

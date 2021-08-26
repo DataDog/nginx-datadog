@@ -29,3 +29,10 @@ services:
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_AC_EXCLUDE=name:datadog-agent
     image: 'datadog/agent'
+
+  downstream:
+    build:
+      context: .
+      dockerfile: downstream.dockerfile
+    volumes:
+      - './downstream.js:/app/downstream.js:ro'

@@ -1,4 +1,5 @@
-ngx_http_opentracing_module.so: ../.docker-build/libngx_http_opentracing_module.so
+# ngx_http_opentracing_module.so: ../.docker-build/libngx_http_opentracing_module.so
+ngx_http_opentracing_module.so: ../.build/libngx_http_opentracing_module.so
 	cp $< $@
 	
 .PHONY: up
