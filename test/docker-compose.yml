@@ -34,5 +34,8 @@ services:
     build:
       context: .
       dockerfile: downstream.dockerfile
+    environment:
+      - DD_AGENT_HOST=dd-agent
+      - DD_SERVICE=downstream
     volumes:
       - './downstream.js:/app/downstream.js:ro'
