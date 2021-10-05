@@ -1,0 +1,8 @@
+#!/bin/sh
+
+set -e
+
+docker-compose build
+docker-compose up --detach
+trap 'docker-compose down' EXIT INT HUP
+docker-compose logs --follow traced-nginx || exit 0

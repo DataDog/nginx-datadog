@@ -10,6 +10,7 @@ all: nginx-module.cmake dd-opentracing-cpp-deps
 .PHONY: build
 build: all
 	mkdir -p .build && cd .build && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
+	@echo 'build successful 👍'
 
 .PHONY: dd-opentracing-cpp-deps
 dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack
