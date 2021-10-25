@@ -98,3 +98,17 @@ repo dd-nginx-module/
 ├── submodule nginxtracing (fork nginx-opentracing)
 └── submodule opentracing-cpp
 ```
+
+How about this?
+```text
+repo nginx-datadog/
+├── bin
+├── .build
+│   └── libngx_http_datadog_module
+├── CMakeLists.txt
+├── Makefile
+├── * nginx
+├── * nginx-module.cmake
+├── submodule dd-opentracing-cpp
+└── submodule opentracing-cpp
+```

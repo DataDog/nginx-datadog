@@ -1,14 +1,11 @@
-NGINX_VERSION = 1.18.0
+NGINX_VERSION ?= 1.18
 # TODO: Consider renaming the module/ directory.
 MODULE_PATH := $(realpath module/)
 MODULE_NAME = ngx_http_opentracing_module
 CLONE = git -c advice.detachedHead=false clone
 
-.PHONY: all
-all: nginx-module.cmake dd-opentracing-cpp-deps
-
 .PHONY: build
-build: all
+build: nginx-module.cmake dd-opentracing-cpp-deps
 	mkdir -p .build && cd .build && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
 	@echo 'build successful 👍'
 
@@ -32,7 +29,7 @@ $(MODULE_PATH)/config: bin/module_config.sh
 	bin/module_config.sh $(MODULE_NAME) >$@
 
 nginx/:
-	$(CLONE) --depth 1 --branch release-$(NGINX_VERSION) https://github.com/nginx/nginx
+	$(CLONE) --depth 1 --branch branches/stable-$(NGINX_VERSION) https://github.com/nginx/nginx
 
 .PHONY: format
 format:
