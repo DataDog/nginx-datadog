@@ -101,14 +101,26 @@ def direct_dependencies(rules):
 
 
 def depth_first(deps_dict, root):
-    """TODO: document"""
+    """Iterate through the specified dependency graph depth-first, starting at
+    the specified `root`.  `deps_dict` maps a vertex to a sequence of its
+    successors.
+    """
     for dep in deps_dict.get(root, []):
         yield from depth_first(deps_dict, dep)
     yield root
 
 
 def parse_include_args(args):
-    """TODO: document"""
+    """Yield parts of the specified list-of-str `args` that indicate include
+    directories on a compiler command line, e.g.
+        ["-I/foo/bar", "-isystem", "/usr/include", "-I", "./include"]
+    yields the following values:
+        "/foo/bar"
+        "/usr/include"
+        "./include"
+    `args` must already contain only command line arguments relevant to
+    includes (e.g. "--verbose" will be considered a directory by this function).
+    """
     for arg in args:
         flag, path = re.match(r'^(-I|-iquote|-isystem|-idirafter)?(.*)$', arg).groups()
         if path:
