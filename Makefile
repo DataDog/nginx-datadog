@@ -5,9 +5,12 @@ MODULE_NAME = ngx_http_opentracing_module
 CLONE = git -c advice.detachedHead=false clone
 
 .PHONY: build
-build: nginx-module.cmake dd-opentracing-cpp-deps
+build: prebuild
 	mkdir -p .build && cd .build && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
 	@echo 'build successful 👍'
+
+.PHONY: prebuild
+prebuild: nginx-module.cmake dd-opentracing-cpp-deps
 
 .PHONY: dd-opentracing-cpp-deps
 dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack
@@ -50,7 +53,7 @@ clobber: clean
 		dd-opentracing-cpp/deps
 
 .PHONY: build-in-docker
-build-in-docker: all
+build-in-docker: prebuild
 	docker build --tag nginx-module-cmake-build .
 	bin/run_in_build_image.sh bin/cmake_build.sh .docker-build
 
@@ -59,5 +62,5 @@ build-in-docker: all
 test: .build/libngx_http_opentracing_module.so
 	cd test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) $(MAKE) up
 
-.build/libngx_http_opentracing_module.so: all
+.build/libngx_http_opentracing_module.so: prebuild
 	bin/cmake_build.sh
