@@ -4,7 +4,7 @@
 const http = require('http');
 
 const requestListener = function (request, response) {
-  response.writeHead(200);
+  response.writeHead(200, {'X-You-Better-Believe-It': 'foobar bearclaw'});
   response.end('You hit the node script, congrats. Here are your headers:\n\n'
       + JSON.stringify(request.headers, null, 2));
 }
