@@ -19,10 +19,11 @@
 #include <string>
 
 extern "C" {
-extern ngx_module_t ngx_http_opentracing_module;
+extern ngx_module_t ngx_http_datadog_module;
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // set_script
 //------------------------------------------------------------------------------
@@ -131,7 +132,7 @@ char *propagate_opentracing_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
   std::cout << "propagate_opentracing_context called\n";
   // end TODO
   auto main_conf = static_cast<opentracing_main_conf_t *>(
-      ngx_http_conf_get_module_main_conf(cf, ngx_http_opentracing_module));
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
   if (!main_conf->tracer_library.data) {
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                   "opentracing_propagate_context before tracer loaded");
@@ -207,7 +208,7 @@ char *propagate_fastcgi_opentracing_context(ngx_conf_t *cf,
                                             ngx_command_t *command,
                                             void *conf) noexcept try {
   auto main_conf = static_cast<opentracing_main_conf_t *>(
-      ngx_http_conf_get_module_main_conf(cf, ngx_http_opentracing_module));
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
   if (!main_conf->tracer_library.data) {
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                   "opentracing_fastcgi_propagate_context before tracer loaded");
@@ -251,7 +252,7 @@ char *propagate_fastcgi_opentracing_context(ngx_conf_t *cf,
 char *propagate_grpc_opentracing_context(ngx_conf_t *cf, ngx_command_t *command,
                                          void *conf) noexcept try {
   auto main_conf = static_cast<opentracing_main_conf_t *>(
-      ngx_http_conf_get_module_main_conf(cf, ngx_http_opentracing_module));
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
   if (!main_conf->tracer_library.data) {
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                   "opentracing_grpc_propagate_context before tracer loaded");
@@ -363,7 +364,7 @@ char *set_opentracing_location_operation_name(ngx_conf_t *cf,
 char *set_tracer(ngx_conf_t *cf, ngx_command_t *command,
                  void *conf) noexcept try {
   auto main_conf = static_cast<opentracing_main_conf_t *>(
-      ngx_http_conf_get_module_main_conf(cf, ngx_http_opentracing_module));
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
   auto values = static_cast<ngx_str_t *>(cf->args->elts);
   main_conf->tracer_library = values[1];
   main_conf->tracer_conf_file = values[2];
@@ -386,4 +387,5 @@ char *set_tracer(ngx_conf_t *cf, ngx_command_t *command,
   ngx_log_error(NGX_LOG_ERR, cf->log, 0, "set_tracer failed: %s", e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

@@ -19,7 +19,7 @@ extern "C" {
 #include <ngx_core.h>
 #include <ngx_http.h>
 
-extern ngx_module_t ngx_http_opentracing_module;
+extern ngx_module_t ngx_http_datadog_module;
 extern ngx_atomic_t *ngx_stat_reading;  // TODO: does it work?
 }
 
@@ -33,7 +33,7 @@ static void *create_opentracing_loc_conf(ngx_conf_t *conf) noexcept;
 static char *merge_opentracing_loc_conf(ngx_conf_t *, void *parent, void *child) noexcept;
 // clang-format on
 
-using namespace ngx_opentracing;
+using namespace datadog::nginx;
 
 // When OpenTracing is used with Lua, some of the objects generated (e.g. spans, etc) may not
 // be finalized until after opentracing_exit_worker is called. If we dlclose, the tracing library
@@ -166,9 +166,9 @@ static ngx_http_module_t opentracing_module_ctx = {
 };
 
 //------------------------------------------------------------------------------
-// ngx_http_opentracing_module
+// ngx_http_datadog_module
 //------------------------------------------------------------------------------
-ngx_module_t ngx_http_opentracing_module = {
+ngx_module_t ngx_http_datadog_module = {
     NGX_MODULE_V1,
     &opentracing_module_ctx, /* module context */
     opentracing_commands,    /* module directives */
@@ -245,7 +245,7 @@ static ngx_int_t opentracing_module_init(ngx_conf_t *cf) noexcept {
   auto core_main_config = static_cast<ngx_http_core_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module));
   auto main_conf = static_cast<opentracing_main_conf_t *>(
-      ngx_http_conf_get_module_main_conf(cf, ngx_http_opentracing_module));
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
   // Add handlers to create tracing data.
   auto handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
@@ -277,7 +277,7 @@ static ngx_int_t opentracing_module_init(ngx_conf_t *cf) noexcept {
 //------------------------------------------------------------------------------
 static ngx_int_t opentracing_init_worker(ngx_cycle_t *cycle) noexcept try {
   auto main_conf = static_cast<opentracing_main_conf_t *>(
-      ngx_http_cycle_get_module_main_conf(cycle, ngx_http_opentracing_module));
+      ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
   if (!main_conf || !main_conf->tracer_library.data) {
     return NGX_OK;
   }
@@ -285,7 +285,7 @@ static ngx_int_t opentracing_init_worker(ngx_cycle_t *cycle) noexcept try {
   std::unique_ptr<opentracing::DynamicTracingLibraryHandle> handle{
       new opentracing::DynamicTracingLibraryHandle{}};
   std::shared_ptr<opentracing::Tracer> tracer;
-  auto result = ngx_opentracing::load_tracer(
+  auto result = load_tracer(
       cycle->log, to_string(main_conf->tracer_library).data(),
       to_string(main_conf->tracer_conf_file).data(), *handle, tracer);
   if (result != NGX_OK) {

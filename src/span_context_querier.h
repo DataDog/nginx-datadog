@@ -14,7 +14,8 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 class SpanContextQuerier {
  public:
   SpanContextQuerier() noexcept {}
@@ -31,4 +32,5 @@ class SpanContextQuerier {
   void expand_span_context_values(ngx_http_request_t* request,
                                   const opentracing::Span& span);
 };
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

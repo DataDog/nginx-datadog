@@ -4,7 +4,8 @@
 #include <ios>
 #include <limits>
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 namespace {
 
 // Read a single-quoted string without escapes from the specified `input` and
@@ -138,4 +139,5 @@ std::istream& scan_config_block(std::istream& input, std::string& output,
   return input;
 }
 
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

@@ -14,7 +14,8 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 class RequestTracing {
  public:
   RequestTracing(ngx_http_request_t *request,
@@ -51,4 +52,5 @@ class RequestTracing {
   void on_exit_block(std::chrono::steady_clock::time_point finish_timestamp =
                          std::chrono::steady_clock::now());
 };
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

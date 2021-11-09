@@ -12,7 +12,8 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // NgxHeaderCarrierReader
 //------------------------------------------------------------------------------
@@ -61,4 +62,5 @@ std::unique_ptr<opentracing::SpanContext> extract_span_context(
                  "extraced opentracing span context from request %p", request);
   return std::move(*span_context_maybe);
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

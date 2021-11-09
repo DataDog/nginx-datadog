@@ -13,7 +13,8 @@ extern "C" {
 #include <utility>
 #include <vector>
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // opentracing_context_variable_name
 //------------------------------------------------------------------------------
@@ -23,4 +24,5 @@ extern const opentracing::string_view opentracing_context_variable_name;
 // add_variables
 //------------------------------------------------------------------------------
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept;
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

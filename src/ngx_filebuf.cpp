@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <cassert>
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 namespace {
 
 // Nginx uses `unsigned char`, while C++ streams prefer `char` (signedness is
@@ -81,4 +82,5 @@ std::streambuf::int_type NgxFileBuf::underflow() {
   return traits_type::to_int_type(*gptr());
 }
 
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

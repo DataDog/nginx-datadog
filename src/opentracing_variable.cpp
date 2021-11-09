@@ -14,10 +14,11 @@
 #include <stdexcept>
 
 extern "C" {
-extern ngx_module_t ngx_http_opentracing_module;
+extern ngx_module_t ngx_http_datadog_module;
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // opentracing_context_variable_name
 //------------------------------------------------------------------------------
@@ -133,4 +134,5 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
 
   return NGX_OK;
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

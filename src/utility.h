@@ -13,7 +13,8 @@ extern "C" {
 #include <ngx_core.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // to_string
 //------------------------------------------------------------------------------
@@ -92,4 +93,5 @@ inline char header_transform(char c) {
   if (c == '-') return '_';
   return static_cast<char>(std::tolower(c));
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

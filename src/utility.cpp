@@ -3,7 +3,8 @@
 #include <cctype>
 #include <string>
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // to_ngx_str
 //------------------------------------------------------------------------------
@@ -39,4 +40,5 @@ std::chrono::system_clock::time_point to_system_timestamp(
   return std::chrono::system_clock::from_time_t(std::time_t{0}) +
          epoch_duration;
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

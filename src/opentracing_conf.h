@@ -9,7 +9,8 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 struct opentracing_tag_t {
   NgxScript key_script;
   NgxScript value_script;
@@ -31,4 +32,5 @@ struct opentracing_loc_conf_t {
   ngx_array_t *tags;
   NgxScript response_info_script;
 };
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

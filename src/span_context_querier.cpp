@@ -10,7 +10,8 @@
 #include <iterator>
 #include <new>
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // lookup_value
 //------------------------------------------------------------------------------
@@ -77,4 +78,5 @@ void SpanContextQuerier::expand_span_context_values(
                   was_successful.error().message().c_str());
   }
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

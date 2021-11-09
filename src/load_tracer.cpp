@@ -4,7 +4,8 @@
 #include <cerrno>
 #include <fstream>
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 ngx_int_t load_tracer(ngx_log_t* log, const char* tracer_library,
                       const char* config_file,
                       opentracing::DynamicTracingLibraryHandle& handle,
@@ -61,4 +62,5 @@ ngx_int_t load_tracer(ngx_log_t* log, const char* tracer_library,
 
   return NGX_OK;
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

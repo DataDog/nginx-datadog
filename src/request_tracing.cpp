@@ -6,10 +6,11 @@
 #include <iostream> // TODO: hack
 
 extern "C" {
-extern ngx_module_t ngx_http_opentracing_module;
+extern ngx_module_t ngx_http_datadog_module;
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 std::unique_ptr<opentracing::SpanContext> extract_span_context(
     const opentracing::Tracer &tracer, const ngx_http_request_t *request);
 
@@ -91,7 +92,7 @@ RequestTracing::RequestTracing(
     : request_{request},
       main_conf_{
           static_cast<opentracing_main_conf_t *>(ngx_http_get_module_main_conf(
-              request_, ngx_http_opentracing_module))},
+              request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
   auto tracer = opentracing::Tracer::Global();
@@ -245,4 +246,5 @@ ngx_str_t RequestTracing::get_binary_context() const {
   }
   return to_ngx_str(request_->pool, oss.str());
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

@@ -5,10 +5,11 @@
 #include <stdexcept>
 
 extern "C" {
-extern ngx_module_t ngx_http_opentracing_module;
+extern ngx_module_t ngx_http_datadog_module;
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 std::unique_ptr<opentracing::SpanContext> extract_span_context(
     const opentracing::Tracer &tracer, const ngx_http_request_t *request);
 
@@ -118,7 +119,7 @@ static ngx_pool_cleanup_t *find_opentracing_cleanup(
 OpenTracingContext *get_opentracing_context(
     ngx_http_request_t *request) noexcept {
   auto context = static_cast<OpenTracingContext *>(
-      ngx_http_get_module_ctx(request, ngx_http_opentracing_module));
+      ngx_http_get_module_ctx(request, ngx_http_datadog_module));
   if (context != nullptr || !request->internal) {
     return context;
   }
@@ -136,7 +137,7 @@ OpenTracingContext *get_opentracing_context(
   // to loop through the cleanup handlers again.
   if (context != nullptr) {
     ngx_http_set_ctx(request, static_cast<void *>(context),
-                     ngx_http_opentracing_module);
+                     ngx_http_datadog_module);
   }
 
   return context;
@@ -165,7 +166,7 @@ void set_opentracing_context(ngx_http_request_t *request,
   cleanup->data = static_cast<void *>(context);
   cleanup->handler = cleanup_opentracing_context;
   ngx_http_set_ctx(request, static_cast<void *>(context),
-                   ngx_http_opentracing_module);
+                   ngx_http_datadog_module);
 }
 
 //------------------------------------------------------------------------------
@@ -183,6 +184,7 @@ void destroy_opentracing_context(ngx_http_request_t *request) noexcept {
   }
   delete static_cast<OpenTracingContext *>(cleanup->data);
   cleanup->data = nullptr;
-  ngx_http_set_ctx(request, nullptr, ngx_http_opentracing_module);
+  ngx_http_set_ctx(request, nullptr, ngx_http_datadog_module);
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

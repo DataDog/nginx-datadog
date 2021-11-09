@@ -16,7 +16,8 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // OpenTracingContext
 //------------------------------------------------------------------------------
@@ -61,4 +62,5 @@ void set_opentracing_context(ngx_http_request_t* request,
 // destroy_opentracing_context
 //------------------------------------------------------------------------------
 void destroy_opentracing_context(ngx_http_request_t* request) noexcept;
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

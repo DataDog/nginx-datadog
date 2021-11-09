@@ -7,7 +7,8 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 struct NgxScript {
   bool is_valid() const noexcept { return pattern_.data; }
 
@@ -18,4 +19,5 @@ struct NgxScript {
   ngx_array_t *lengths_;
   ngx_array_t *values_;
 };
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

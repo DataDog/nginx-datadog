@@ -1,7 +1,8 @@
 #include "ngx_script.h"
 #include <cassert>
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // compile
 //------------------------------------------------------------------------------
@@ -54,4 +55,5 @@ ngx_str_t NgxScript::run(ngx_http_request_t *request) const noexcept {
   }
   return result;
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

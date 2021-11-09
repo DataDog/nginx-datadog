@@ -3,10 +3,11 @@
 #include "opentracing_context.h"
 
 extern "C" {
-extern ngx_module_t ngx_http_opentracing_module;
+extern ngx_module_t ngx_http_datadog_module;
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 //------------------------------------------------------------------------------
 // is_opentracing_enabled
 //------------------------------------------------------------------------------
@@ -30,7 +31,7 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
   auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
       ngx_http_get_module_loc_conf(request, ngx_http_core_module));
   auto loc_conf = static_cast<opentracing_loc_conf_t *>(
-      ngx_http_get_module_loc_conf(request, ngx_http_opentracing_module));
+      ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
   if (!is_opentracing_enabled(request, core_loc_conf, loc_conf))
     return NGX_DECLINED;
 
@@ -72,4 +73,5 @@ ngx_int_t on_log_request(ngx_http_request_t *request) noexcept {
   }
   return NGX_DECLINED;
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

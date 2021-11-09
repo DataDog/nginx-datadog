@@ -11,14 +11,14 @@
 // input.  `NgxFileBuf` allows a `std::istream` to use a `ngx_file_t`, backed
 // by a `ngx_buf_t`, as a source:
 //
-//     ngx_opentracing::NgxFileBuf buffer(...);
+//     datadog::nginx::NgxFileBuf buffer(...);
 //     std::istream input(&buffer);
 //     auto result = some::json_library::parse(input);
 //     ...
 //
 // In particular, `NgxFileBuf` is used in conjunction with
-// `ngx_opentracing::scan_config_block` to read a tracer's configuration
-// as JSON directly from the nginx configuration file.  See `configure` in
+// `datadog::nginx::scan_config_block` to read a tracer's configuration as JSON
+// directly from the nginx configuration file.  See `configure` in
 // `opentracing_directive.cpp` for more information.
 
 #include <streambuf>
@@ -28,7 +28,8 @@ extern "C" {
 #include <ngx_core.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 
 // `NgxFileBuf` is a `std::streambuf` that uses a specified `ngx_file_t` as the
 // source of data for read operations, and that uses a specified `ngx_buf_t`
@@ -76,4 +77,5 @@ class NgxFileBuf : public std::streambuf {
   int_type underflow() override;
 };
 
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

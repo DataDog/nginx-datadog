@@ -1,10 +1,11 @@
 #include "opentracing_conf_handler.h"
 
 // TODO: hack hack
-extern ngx_module_t ngx_http_opentracing_module;
+extern ngx_module_t ngx_http_datadog_module;
 // end TODO
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 /* The eight fixed arguments */
 
 static ngx_uint_t argument_number[] = {
@@ -32,7 +33,7 @@ ngx_int_t opentracing_conf_handler(ngx_conf_t *cf, ngx_int_t last) noexcept {
     }
 
     // TODO: hack hack
-    if (cf->cycle->modules[i] == &ngx_http_opentracing_module) {
+    if (cf->cycle->modules[i] == &ngx_http_datadog_module) {
       continue;
     }
     // end TODO
@@ -153,4 +154,5 @@ invalid:
 
   return NGX_ERROR;
 }
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

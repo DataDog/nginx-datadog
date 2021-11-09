@@ -11,7 +11,7 @@ target_sources(nginx_datadog
         src/load_tracer.cpp
         src/discover_span_context_keys.cpp
         src/opentracing_handler.cpp
-        src/ngx_http_opentracing_module.cpp
+        src/ngx_http_datadog_module.cpp
         src/opentracing_context.cpp
         src/span_context_querier.cpp
         src/ngx_filebuf.cpp

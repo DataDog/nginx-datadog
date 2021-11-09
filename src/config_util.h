@@ -6,7 +6,8 @@
 #include <istream>
 #include <string>
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 
 // `CommentPolicy` is used to specify to `scan_config_block` whether to
 // ignore comments as it scans the configuration file.
@@ -40,4 +41,5 @@ std::istream& scan_config_block(std::istream& input, std::string& output,
                                      std::string& error,
                                      CommentPolicy comment_policy);
 
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog

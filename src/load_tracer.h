@@ -9,9 +9,11 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-namespace ngx_opentracing {
+namespace datadog {
+namespace nginx {
 ngx_int_t load_tracer(ngx_log_t* log, const char* tracer_library,
                       const char* config_file,
                       opentracing::DynamicTracingLibraryHandle& handle,
                       std::shared_ptr<opentracing::Tracer>& tracer);
-}  // namespace ngx_opentracing
+}  // namespace nginx
+}  // namespace datadog
