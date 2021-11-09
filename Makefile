@@ -1,7 +1,7 @@
 NGINX_VERSION ?= 1.18
 # TODO: Consider renaming the module/ directory.
 MODULE_PATH := $(realpath module/)
-MODULE_NAME = ngx_http_opentracing_module
+MODULE_NAME = ngx_http_datadog_module
 CLONE = git -c advice.detachedHead=false clone
 
 .PHONY: build
@@ -58,9 +58,9 @@ build-in-docker: prebuild
 	bin/run_in_build_image.sh bin/cmake_build.sh .docker-build
 
 .PHONY: test
-# test: build-in-docker
-test: .build/libngx_http_opentracing_module.so
+test: build-in-docker
+# test: .build/libngx_http_datadog_module.so
 	cd test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) $(MAKE) up
 
-.build/libngx_http_opentracing_module.so: prebuild
+.build/libngx_http_datadog_module.so: prebuild
 	bin/cmake_build.sh

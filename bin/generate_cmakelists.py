@@ -35,7 +35,7 @@ set_property(TARGET {target_name} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_sources({target_name}
     PRIVATE
-{sources_indent}{nginx}/objs/ngx_http_opentracing_module_modules.c
+{sources_indent}{nginx}/objs/ngx_http_datadog_module_modules.c
 )
 
 include_directories(

@@ -7,6 +7,6 @@ RUN apt-get update && \
       tar \
       nginx
 
-COPY ngx_http_opentracing_module.so /usr/lib/nginx/modules
+COPY ngx_http_datadog_module.so /usr/lib/nginx/modules
 
 CMD ["nginx", "-g", "daemon off;"]

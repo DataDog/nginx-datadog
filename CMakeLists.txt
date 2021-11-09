@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.7)
 # TODO
 # set(CMAKE_OSX_SYSROOT /)
 
-project(ngx_http_opentracing_module)
+project(ngx_http_datadog_module)
 
 # The C code doesn't care about the C++ version.
 # opentracing-cpp works with C++11 or newer.
@@ -18,8 +18,8 @@ set(CMAKE_CXX_STANDARD 14)
 # Nginx module boilerplate (code within the nginx repository)
 include(./nginx-module.cmake)
 
-# The nginx-opentracing nginx module sources
-include(./nginx-opentracing.cmake)
+# The actual source code of this repo
+include(./nginx-datadog.cmake)
 
 # The opentracing-cpp library sources
 add_subdirectory(./opentracing-cpp EXCLUDE_FROM_ALL)
@@ -39,20 +39,20 @@ include_directories(opentracing-cpp/3rd_party/include)
 add_subdirectory(./dd-opentracing-cpp EXCLUDE_FROM_ALL)
 
 # The shared library (nginx module) that we are building.
-add_library(ngx_http_opentracing_module SHARED)
-target_sources(ngx_http_opentracing_module
+add_library(ngx_http_datadog_module SHARED)
+target_sources(ngx_http_datadog_module
     PRIVATE
         $<TARGET_OBJECTS:nginx_module>
-        $<TARGET_OBJECTS:nginx_opentracing>
+        $<TARGET_OBJECTS:nginx_datadog>
         $<TARGET_OBJECTS:opentracing-object>
         $<TARGET_OBJECTS:dd_opentracing-object>
 )
 
-add_dependencies(ngx_http_opentracing_module 
+add_dependencies(ngx_http_datadog_module 
     nginx_module 
-    nginx_opentracing 
+    nginx_datadog
     opentracing-object
     dd_opentracing-object
 )
 
-target_link_libraries(ngx_http_opentracing_module dd_opentracing-object)
+target_link_libraries(ngx_http_datadog_module dd_opentracing-object)

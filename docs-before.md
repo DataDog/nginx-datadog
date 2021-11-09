@@ -38,7 +38,7 @@ The NGINX configuration must load the OpenTracing module.
 
 ```nginx
 # Load OpenTracing module
-load_module modules/ngx_http_opentracing_module.so;
+load_module modules/ngx_http_datadog_module.so;
 ```
 
 The `http` block enables the OpenTracing module and loads the Datadog tracer:
