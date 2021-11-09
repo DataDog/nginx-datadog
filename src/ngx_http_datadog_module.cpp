@@ -1,4 +1,6 @@
 #include "load_tracer.h"
+#include "ot.h"
+
 #include "opentracing_conf.h"
 #include "opentracing_directive.h"
 #include "opentracing_handler.h"
@@ -43,7 +45,7 @@ using namespace datadog::nginx;
 // As a solution, we use a plain pointer and never free and instead rely on the OS to clean up the
 // resources when the process exits. This is a pattern proposed on 
 // https://google.github.io/styleguide/cppguide.html#Static_and_Global_Variables
-static const opentracing::DynamicTracingLibraryHandle*
+static const ot::DynamicTracingLibraryHandle*
     opentracing_library_handle;
 
 //------------------------------------------------------------------------------
@@ -282,9 +284,9 @@ static ngx_int_t opentracing_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  std::unique_ptr<opentracing::DynamicTracingLibraryHandle> handle{
-      new opentracing::DynamicTracingLibraryHandle{}};
-  std::shared_ptr<opentracing::Tracer> tracer;
+  std::unique_ptr<ot::DynamicTracingLibraryHandle> handle{
+      new ot::DynamicTracingLibraryHandle{}};
+  std::shared_ptr<ot::Tracer> tracer;
   auto result = load_tracer(
       cycle->log, to_string(main_conf->tracer_library).data(),
       to_string(main_conf->tracer_conf_file).data(), *handle, tracer);
@@ -293,7 +295,7 @@ static ngx_int_t opentracing_init_worker(ngx_cycle_t *cycle) noexcept try {
   }
 
   opentracing_library_handle = handle.release();
-  opentracing::Tracer::InitGlobal(std::move(tracer));
+  ot::Tracer::InitGlobal(std::move(tracer));
   return NGX_OK;
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s",
@@ -308,7 +310,7 @@ static void opentracing_exit_worker(ngx_cycle_t *cycle) noexcept {
   // Close the global tracer if it's set and release the reference so as to
   // ensure that any dynamically loaded tracer is destructed before the library
   // handle is closed.
-  auto tracer = opentracing::Tracer::InitGlobal(nullptr);
+  auto tracer = ot::Tracer::InitGlobal(nullptr);
   if (tracer != nullptr) {
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, cycle->log, 0,
                    "closing opentracing tracer");

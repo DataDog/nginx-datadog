@@ -1,4 +1,6 @@
 #include "opentracing_variable.h"
+#include "ot.h"
+
 
 #include "opentracing_context.h"
 #include "utility.h"
@@ -22,13 +24,13 @@ namespace nginx {
 //------------------------------------------------------------------------------
 // opentracing_context_variable_name
 //------------------------------------------------------------------------------
-const opentracing::string_view opentracing_context_variable_name{
+const ot::string_view opentracing_context_variable_name{
     "opentracing_context_"};
 
 //------------------------------------------------------------------------------
 // opentracing_binary_context_variable_name
 //------------------------------------------------------------------------------
-static const opentracing::string_view opentracing_binary_context_variable_name{
+static const ot::string_view opentracing_binary_context_variable_name{
     "opentracing_binary_context"};
 
 //------------------------------------------------------------------------------
@@ -44,7 +46,7 @@ static ngx_int_t expand_opentracing_context_variable(
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
   auto prefix_length = opentracing_context_variable_name.size();
 
-  opentracing::string_view key{variable_name.data() + prefix_length,
+  ot::string_view key{variable_name.data() + prefix_length,
                                variable_name.size() - prefix_length};
 
   auto context = get_opentracing_context(request);

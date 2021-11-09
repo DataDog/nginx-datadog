@@ -1,6 +1,8 @@
 #pragma once
 
 #include "opentracing_conf.h"
+#include "ot.h"
+
 
 #include <opentracing/span.h>
 
@@ -21,16 +23,16 @@ class SpanContextQuerier {
   SpanContextQuerier() noexcept {}
 
   ngx_str_t lookup_value(ngx_http_request_t* request,
-                         const opentracing::Span& span,
-                         opentracing::string_view key);
+                         const ot::Span& span,
+                         ot::string_view key);
 
  private:
-  const opentracing::Span* values_span_ = nullptr;
+  const ot::Span* values_span_ = nullptr;
 
   std::vector<std::pair<std::string, std::string>> span_context_expansion_;
 
   void expand_span_context_values(ngx_http_request_t* request,
-                                  const opentracing::Span& span);
+                                  const ot::Span& span);
 };
 }  // namespace nginx
 }  // namespace datadog

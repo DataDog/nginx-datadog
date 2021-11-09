@@ -1,4 +1,6 @@
 #include "span_context_querier.h"
+#include "ot.h"
+
 
 #include "utility.h"
 
@@ -16,8 +18,8 @@ namespace nginx {
 // lookup_value
 //------------------------------------------------------------------------------
 ngx_str_t SpanContextQuerier::lookup_value(ngx_http_request_t* request,
-                                           const opentracing::Span& span,
-                                           opentracing::string_view key) {
+                                           const ot::Span& span,
+                                           ot::string_view key) {
   if (&span != values_span_) {
     expand_span_context_values(request, span);
   }
@@ -40,15 +42,15 @@ ngx_str_t SpanContextQuerier::lookup_value(ngx_http_request_t* request,
 // SpanContextValueExpander
 //------------------------------------------------------------------------------
 namespace {
-class SpanContextValueExpander : public opentracing::HTTPHeadersWriter {
+class SpanContextValueExpander : public ot::HTTPHeadersWriter {
  public:
   explicit SpanContextValueExpander(
       std::vector<std::pair<std::string, std::string>>& span_context_expansion)
       : span_context_expansion_(span_context_expansion) {}
 
-  opentracing::expected<void> Set(
-      opentracing::string_view key,
-      opentracing::string_view value) const override {
+  ot::expected<void> Set(
+      ot::string_view key,
+      ot::string_view value) const override {
     std::string key_copy;
     key_copy.reserve(key.size());
     std::transform(std::begin(key), std::end(key), std::back_inserter(key_copy),
@@ -67,7 +69,7 @@ class SpanContextValueExpander : public opentracing::HTTPHeadersWriter {
 // expand_span_context_values
 //------------------------------------------------------------------------------
 void SpanContextQuerier::expand_span_context_values(
-    ngx_http_request_t* request, const opentracing::Span& span) {
+    ngx_http_request_t* request, const ot::Span& span) {
   values_span_ = &span;
   span_context_expansion_.clear();
   SpanContextValueExpander carrier{span_context_expansion_};

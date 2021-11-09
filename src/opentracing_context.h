@@ -1,6 +1,8 @@
 #pragma once
 
 #include "opentracing_conf.h"
+#include "ot.h"
+
 #include "request_tracing.h"
 #include "span_context_querier.h"
 
@@ -34,7 +36,7 @@ class OpenTracingContext {
   void on_log_request(ngx_http_request_t* request);
 
   ngx_str_t lookup_span_context_value(ngx_http_request_t* request,
-                                      opentracing::string_view key);
+                                      ot::string_view key);
 
   ngx_str_t get_binary_context(ngx_http_request_t* request) const;
 

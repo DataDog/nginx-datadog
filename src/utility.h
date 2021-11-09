@@ -3,6 +3,8 @@
 #pragma once
 
 #include <opentracing/string_view.h>
+#include "ot.h"
+
 
 #include <algorithm>
 #include <cctype>
@@ -26,7 +28,7 @@ inline std::string to_string(const ngx_str_t &ngx_str) {
 //------------------------------------------------------------------------------
 // to_string_view
 //------------------------------------------------------------------------------
-inline opentracing::string_view to_string_view(ngx_str_t s) {
+inline ot::string_view to_string_view(ngx_str_t s) {
   return {reinterpret_cast<char *>(s.data), s.len};
 }
 
@@ -36,7 +38,7 @@ inline opentracing::string_view to_string_view(ngx_str_t s) {
 // Convert a std::string to an ngx_str_t
 ngx_str_t to_ngx_str(ngx_pool_t *pool, const std::string &s);
 
-inline ngx_str_t to_ngx_str(opentracing::string_view s) {
+inline ngx_str_t to_ngx_str(ot::string_view s) {
   ngx_str_t result;
   result.len = s.size();
   result.data = reinterpret_cast<unsigned char *>(const_cast<char *>(s.data()));

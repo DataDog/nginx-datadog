@@ -1,6 +1,8 @@
 #pragma once
 
 #include "opentracing_conf.h"
+#include "ot.h"
+
 #include "span_context_querier.h"
 
 #include <opentracing/tracer.h>
@@ -21,18 +23,18 @@ class RequestTracing {
   RequestTracing(ngx_http_request_t *request,
                  ngx_http_core_loc_conf_t *core_loc_conf,
                  opentracing_loc_conf_t *loc_conf,
-                 const opentracing::SpanContext *parent_span_context = nullptr);
+                 const ot::SpanContext *parent_span_context = nullptr);
 
   void on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                        opentracing_loc_conf_t *loc_conf);
 
   void on_log_request();
 
-  ngx_str_t lookup_span_context_value(opentracing::string_view key);
+  ngx_str_t lookup_span_context_value(ot::string_view key);
 
   ngx_str_t get_binary_context() const;
 
-  const opentracing::SpanContext &context() const {
+  const ot::SpanContext &context() const {
     return request_span_->context();
   }
 
@@ -44,10 +46,10 @@ class RequestTracing {
   ngx_http_core_loc_conf_t *core_loc_conf_;
   opentracing_loc_conf_t *loc_conf_;
   SpanContextQuerier span_context_querier_;
-  std::unique_ptr<opentracing::Span> request_span_;
-  std::unique_ptr<opentracing::Span> span_;
+  std::unique_ptr<ot::Span> request_span_;
+  std::unique_ptr<ot::Span> span_;
 
-  const opentracing::Span &active_span() const;
+  const ot::Span &active_span() const;
 
   void on_exit_block(std::chrono::steady_clock::time_point finish_timestamp =
                          std::chrono::steady_clock::now());

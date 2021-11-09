@@ -1,4 +1,6 @@
 #include "opentracing_directive.h"
+#include "ot.h"
+
 
 #include "config_util.h"
 #include "discover_span_context_keys.h"
@@ -44,7 +46,7 @@ static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
 // make_span_context_value_variable
 //------------------------------------------------------------------------------
 static ngx_str_t make_span_context_value_variable(
-    ngx_pool_t *pool, opentracing::string_view key) {
+    ngx_pool_t *pool, ot::string_view key) {
   auto size = 1 + opentracing_context_variable_name.size() + key.size();
   auto data = static_cast<char *>(ngx_palloc(pool, size));
   if (data == nullptr) throw std::bad_alloc{};
@@ -68,8 +70,8 @@ static ngx_str_t make_span_context_value_variable(
 //------------------------------------------------------------------------------
 // Converts keys to match the naming convention used by CGI parameters.
 static ngx_str_t make_fastcgi_span_context_key(ngx_pool_t *pool,
-                                               opentracing::string_view key) {
-  static const opentracing::string_view http_prefix = "HTTP_";
+                                               ot::string_view key) {
+  static const ot::string_view http_prefix = "HTTP_";
   auto size = http_prefix.size() + key.size();
   auto data = static_cast<char *>(ngx_palloc(pool, size));
   if (data == nullptr) throw std::bad_alloc{};
@@ -141,7 +143,7 @@ char *propagate_opentracing_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
   }
-  auto keys = static_cast<opentracing::string_view *>(
+  auto keys = static_cast<ot::string_view *>(
       main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
@@ -217,7 +219,7 @@ char *propagate_fastcgi_opentracing_context(ngx_conf_t *cf,
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
   }
-  auto keys = static_cast<opentracing::string_view *>(
+  auto keys = static_cast<ot::string_view *>(
       main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
@@ -261,7 +263,7 @@ char *propagate_grpc_opentracing_context(ngx_conf_t *cf, ngx_command_t *command,
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
   }
-  auto keys = static_cast<opentracing::string_view *>(
+  auto keys = static_cast<ot::string_view *>(
       main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 

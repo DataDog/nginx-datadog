@@ -1,6 +1,8 @@
 #pragma once
 
 #include <opentracing/dynamic_load.h>
+#include "ot.h"
+
 
 extern "C" {
 #include <nginx.h>
@@ -13,7 +15,7 @@ namespace datadog {
 namespace nginx {
 ngx_int_t load_tracer(ngx_log_t* log, const char* tracer_library,
                       const char* config_file,
-                      opentracing::DynamicTracingLibraryHandle& handle,
-                      std::shared_ptr<opentracing::Tracer>& tracer);
+                      ot::DynamicTracingLibraryHandle& handle,
+                      std::shared_ptr<ot::Tracer>& tracer);
 }  // namespace nginx
 }  // namespace datadog

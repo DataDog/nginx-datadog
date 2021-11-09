@@ -1,6 +1,8 @@
 #pragma once
 
 #include <opentracing/string_view.h>
+#include "ot.h"
+
 
 extern "C" {
 #include <nginx.h>
@@ -18,7 +20,7 @@ namespace nginx {
 //------------------------------------------------------------------------------
 // opentracing_context_variable_name
 //------------------------------------------------------------------------------
-extern const opentracing::string_view opentracing_context_variable_name;
+extern const ot::string_view opentracing_context_variable_name;
 
 //------------------------------------------------------------------------------
 // add_variables

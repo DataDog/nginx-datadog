@@ -1,9 +1,11 @@
 #include <opentracing/propagation.h>
+#include "ot.h"
+
 #include <opentracing/tracer.h>
 #include "utility.h"
-using opentracing::expected;
-using opentracing::make_unexpected;
-using opentracing::string_view;
+using ot::expected;
+using ot::make_unexpected;
+using ot::string_view;
 
 extern "C" {
 #include <nginx.h>
@@ -18,7 +20,7 @@ namespace nginx {
 // NgxHeaderCarrierReader
 //------------------------------------------------------------------------------
 namespace {
-class NgxHeaderCarrierReader : public opentracing::HTTPHeadersReader {
+class NgxHeaderCarrierReader : public ot::HTTPHeadersReader {
  public:
   explicit NgxHeaderCarrierReader(const ngx_http_request_t *request)
       : request_{request} {}
@@ -47,8 +49,8 @@ class NgxHeaderCarrierReader : public opentracing::HTTPHeadersReader {
 //------------------------------------------------------------------------------
 // extract_span_context
 //------------------------------------------------------------------------------
-std::unique_ptr<opentracing::SpanContext> extract_span_context(
-    const opentracing::Tracer &tracer, const ngx_http_request_t *request) {
+std::unique_ptr<ot::SpanContext> extract_span_context(
+    const ot::Tracer &tracer, const ngx_http_request_t *request) {
   auto carrier_reader = NgxHeaderCarrierReader{request};
   auto span_context_maybe = tracer.Extract(carrier_reader);
   if (!span_context_maybe) {

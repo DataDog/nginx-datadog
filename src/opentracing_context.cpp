@@ -1,4 +1,6 @@
 #include "opentracing_context.h"
+#include "ot.h"
+
 #include "utility.h"
 
 #include <sstream>
@@ -10,8 +12,8 @@ extern ngx_module_t ngx_http_datadog_module;
 
 namespace datadog {
 namespace nginx {
-std::unique_ptr<opentracing::SpanContext> extract_span_context(
-    const opentracing::Tracer &tracer, const ngx_http_request_t *request);
+std::unique_ptr<ot::SpanContext> extract_span_context(
+    const ot::Tracer &tracer, const ngx_http_request_t *request);
 
 //------------------------------------------------------------------------------
 // OpenTracingContext
@@ -53,7 +55,7 @@ void OpenTracingContext::on_log_request(ngx_http_request_t *request) {
 // lookup_span_context_value
 //------------------------------------------------------------------------------
 ngx_str_t OpenTracingContext::lookup_span_context_value(
-    ngx_http_request_t *request, opentracing::string_view key) {
+    ngx_http_request_t *request, ot::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{

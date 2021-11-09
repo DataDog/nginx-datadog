@@ -1,20 +1,23 @@
 #include "load_tracer.h"
+#include "ot.h"
+
 
 #include <opentracing/dynamic_load.h>
 #include <cerrno>
 #include <fstream>
+#include <datadog/opentracing.h>
 
 namespace datadog {
 namespace nginx {
 ngx_int_t load_tracer(ngx_log_t* log, const char* tracer_library,
                       const char* config_file,
-                      opentracing::DynamicTracingLibraryHandle& handle,
-                      std::shared_ptr<opentracing::Tracer>& tracer) {
+                      ot::DynamicTracingLibraryHandle& handle,
+                      std::shared_ptr<ot::Tracer>& tracer) {
   std::string error_message;
 
   // Open the library handle
   auto handle_maybe =
-      opentracing::DynamicallyLoadTracingLibrary(tracer_library, error_message);
+      ot::DynamicallyLoadTracingLibrary(tracer_library, error_message);
   if (!handle_maybe) {
     if (!error_message.empty()) {
       ngx_log_error(NGX_LOG_ERR, log, 0,

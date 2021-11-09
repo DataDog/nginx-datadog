@@ -1,4 +1,6 @@
 #include "request_tracing.h"
+#include "ot.h"
+
 #include "utility.h"
 
 #include <sstream>
@@ -11,8 +13,8 @@ extern ngx_module_t ngx_http_datadog_module;
 
 namespace datadog {
 namespace nginx {
-std::unique_ptr<opentracing::SpanContext> extract_span_context(
-    const opentracing::Tracer &tracer, const ngx_http_request_t *request);
+std::unique_ptr<ot::SpanContext> extract_span_context(
+    const ot::Tracer &tracer, const ngx_http_request_t *request);
 
 //------------------------------------------------------------------------------
 // get_loc_operation_name
@@ -42,7 +44,7 @@ static std::string get_request_operation_name(
 // add_script_tags
 //------------------------------------------------------------------------------
 static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request,
-                            opentracing::Span &span) {
+                            ot::Span &span) {
   if (!tags) return;
   auto add_tag = [&](const opentracing_tag_t &tag) {
     auto key = tag.key_script.run(request);
@@ -56,7 +58,7 @@ static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request,
 // add_status_tags
 //------------------------------------------------------------------------------
 static void add_status_tags(const ngx_http_request_t *request,
-                            opentracing::Span &span) {
+                            ot::Span &span) {
   // Check for errors.
   auto status = request->headers_out.status;
   auto status_line = to_string(request->headers_out.status_line);
@@ -73,7 +75,7 @@ static void add_status_tags(const ngx_http_request_t *request,
 // add_upstream_name
 //------------------------------------------------------------------------------
 static void add_upstream_name(const ngx_http_request_t *request,
-                              opentracing::Span &span) {
+                              ot::Span &span) {
   if (!request->upstream || !request->upstream->upstream ||
       !request->upstream->upstream->host.data)
     return;
@@ -88,17 +90,17 @@ static void add_upstream_name(const ngx_http_request_t *request,
 RequestTracing::RequestTracing(
     ngx_http_request_t *request, ngx_http_core_loc_conf_t *core_loc_conf,
     opentracing_loc_conf_t *loc_conf,
-    const opentracing::SpanContext *parent_span_context)
+    const ot::SpanContext *parent_span_context)
     : request_{request},
       main_conf_{
           static_cast<opentracing_main_conf_t *>(ngx_http_get_module_main_conf(
               request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
-  auto tracer = opentracing::Tracer::Global();
+  auto tracer = ot::Tracer::Global();
   if (!tracer) throw std::runtime_error{"no global tracer set"};
 
-  std::unique_ptr<opentracing::SpanContext> extracted_context = nullptr;
+  std::unique_ptr<ot::SpanContext> extracted_context = nullptr;
   if (parent_span_context == nullptr && loc_conf_->trust_incoming_span) {
     extracted_context = extract_span_context(*tracer, request_);
     parent_span_context = extracted_context.get();
@@ -108,8 +110,8 @@ RequestTracing::RequestTracing(
                  "starting opentracing request span for %p", request_);
   request_span_ = tracer->StartSpan(
       get_request_operation_name(request_, core_loc_conf_, loc_conf_),
-      {opentracing::ChildOf(parent_span_context),
-       opentracing::StartTimestamp{
+      {ot::ChildOf(parent_span_context),
+       ot::StartTimestamp{
            to_system_timestamp(request->start_sec, request->start_msec)}});
   if (!request_span_) throw std::runtime_error{"tracer->StartSpan failed"};
 
@@ -120,7 +122,7 @@ RequestTracing::RequestTracing(
         &core_loc_conf->name, loc_conf_, request_);
     span_ = tracer->StartSpan(
         get_loc_operation_name(request_, core_loc_conf_, loc_conf_),
-        {opentracing::ChildOf(&request_span_->context())});
+        {ot::ChildOf(&request_span_->context())});
     if (!span_) throw std::runtime_error{"tracer->StartSpan failed"};
   }
 }
@@ -141,7 +143,7 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
         &core_loc_conf->name, loc_conf_, request_);
     span_ = request_span_->tracer().StartSpan(
         get_loc_operation_name(request_, core_loc_conf, loc_conf),
-        {opentracing::ChildOf(&request_span_->context())});
+        {ot::ChildOf(&request_span_->context())});
     if (!span_) throw std::runtime_error{"tracer->StartSpan failed"};
   }
 }
@@ -149,7 +151,7 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
 //------------------------------------------------------------------------------
 // active_span
 //------------------------------------------------------------------------------
-const opentracing::Span &RequestTracing::active_span() const {
+const ot::Span &RequestTracing::active_span() const {
   if (loc_conf_->enable_locations) {
     return *span_;
   } else {
@@ -182,7 +184,7 @@ void RequestTracing::on_exit_block(
     span_->SetOperationName(
         get_loc_operation_name(request_, core_loc_conf_, loc_conf_));
 
-    span_->Finish({opentracing::FinishTimestamp{finish_timestamp}});
+    span_->Finish({ot::FinishTimestamp{finish_timestamp}});
   } else {
     add_script_tags(loc_conf_->tags, request_, *request_span_);
   }
@@ -216,7 +218,7 @@ void RequestTracing::on_log_request() {
   std::cout << "[][][][][][][][][][][][] response script result: " << to_string(loc_conf_->response_info_script.run(request_)) << std::endl;
   // end TODO
 
-  request_span_->Finish({opentracing::FinishTimestamp{finish_timestamp}});
+  request_span_->Finish({ot::FinishTimestamp{finish_timestamp}});
 }
 
 //------------------------------------------------------------------------------
@@ -230,7 +232,7 @@ void RequestTracing::on_log_request() {
 //
 // See propagate_opentracing_context
 ngx_str_t RequestTracing::lookup_span_context_value(
-    opentracing::string_view key) {
+    ot::string_view key) {
   return span_context_querier_.lookup_value(request_, active_span(), key);
 }
 

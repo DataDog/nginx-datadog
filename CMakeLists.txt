@@ -37,6 +37,7 @@ include_directories(opentracing-cpp/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/opentracing-cpp/include)
 include_directories(opentracing-cpp/3rd_party/include)
 add_subdirectory(./dd-opentracing-cpp EXCLUDE_FROM_ALL)
+include_directories(dd-opentracing-cpp/include)
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
