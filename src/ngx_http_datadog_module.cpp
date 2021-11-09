@@ -37,17 +37,6 @@ static char *merge_opentracing_loc_conf(ngx_conf_t *, void *parent, void *child)
 
 using namespace datadog::nginx;
 
-// When OpenTracing is used with Lua, some of the objects generated (e.g. spans, etc) may not
-// be finalized until after opentracing_exit_worker is called. If we dlclose, the tracing library
-// there, then we can segfault if those destructors invoke code that has been unloaded. See
-// https://github.com/opentracing/lua-bridge-tracer/issues/6
-//
-// As a solution, we use a plain pointer and never free and instead rely on the OS to clean up the
-// resources when the process exits. This is a pattern proposed on 
-// https://google.github.io/styleguide/cppguide.html#Static_and_Global_Variables
-static const ot::DynamicTracingLibraryHandle*
-    opentracing_library_handle;
-
 //------------------------------------------------------------------------------
 // kDefaultOpentracingTags
 //------------------------------------------------------------------------------
@@ -284,17 +273,15 @@ static ngx_int_t opentracing_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  std::unique_ptr<ot::DynamicTracingLibraryHandle> handle{
-      new ot::DynamicTracingLibraryHandle{}};
+  ot::DynamicTracingLibraryHandle dummy_handle;
   std::shared_ptr<ot::Tracer> tracer;
   auto result = load_tracer(
       cycle->log, to_string(main_conf->tracer_library).data(),
-      to_string(main_conf->tracer_conf_file).data(), *handle, tracer);
+      to_string(main_conf->tracer_conf_file).data(), dummy_handle, tracer);
   if (result != NGX_OK) {
     return result;
   }
 
-  opentracing_library_handle = handle.release();
   ot::Tracer::InitGlobal(std::move(tracer));
   return NGX_OK;
 } catch (const std::exception &e) {

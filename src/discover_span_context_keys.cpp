@@ -54,10 +54,10 @@ class HeaderKeyWriter : public ot::HTTPHeadersWriter {
 ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
                                         const char* tracing_library,
                                         const char* tracer_config_file) {
-  ot::DynamicTracingLibraryHandle handle;
+  ot::DynamicTracingLibraryHandle dummy_handle;
   std::shared_ptr<ot::Tracer> tracer;
   auto rcode =
-      load_tracer(log, tracing_library, tracer_config_file, handle, tracer);
+      load_tracer(log, tracing_library, tracer_config_file, dummy_handle, tracer);
   if (rcode != NGX_OK) {
     return nullptr;
   }
