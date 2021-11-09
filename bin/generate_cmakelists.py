@@ -35,7 +35,7 @@ set_property(TARGET {target_name} PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_sources({target_name}
     PRIVATE
-{sources_indent}{nginx}/objs/ngx_http_datadog_module_modules.c
+{sources_indent}{sources}
 )
 
 include_directories(
@@ -50,6 +50,6 @@ includes_indent = sources_indent
 print(
     template.format(target_name=target_name,
                     sources_indent=sources_indent,
-                    nginx=str(nginx),
+                    sources=('\n' + sources_indent).join(c_sources),
                     includes_indent=includes_indent,
                     includes=('\n' + includes_indent).join(include_directories)))

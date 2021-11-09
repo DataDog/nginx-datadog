@@ -2,7 +2,6 @@
 
 set -e
 
-docker-compose build
-docker-compose up --detach
+docker-compose up --detach --build --remove-orphans
 trap 'docker-compose down' EXIT INT HUP
 docker-compose logs --follow traced-nginx downstream || exit 0
