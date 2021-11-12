@@ -1,4 +1,9 @@
 #include "opentracing_handler.h"
+#include "ngx_http_datadog_module.h"
+
+extern "C" {
+#include <ngx_config.h>
+}
 
 #include "opentracing_context.h"
 

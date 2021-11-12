@@ -1,6 +1,6 @@
 #include "opentracing_directive.h"
 #include "ot.h"
-
+#include "ngx_http_datadog_module.h"
 
 #include "config_util.h"
 #include "discover_span_context_keys.h"
@@ -19,10 +19,6 @@
 #include <iostream> // TODO: no
 #include <istream>
 #include <string>
-
-extern "C" {
-extern ngx_module_t ngx_http_datadog_module;
-}
 
 namespace datadog {
 namespace nginx {

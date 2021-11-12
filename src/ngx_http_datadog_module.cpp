@@ -1,5 +1,6 @@
 #include "load_tracer.h"
 #include "ot.h"
+#include "ngx_http_datadog_module.h"
 
 #include "opentracing_conf.h"
 #include "opentracing_directive.h"
@@ -21,7 +22,6 @@ extern "C" {
 #include <ngx_core.h>
 #include <ngx_http.h>
 
-extern ngx_module_t ngx_http_datadog_module;
 extern ngx_atomic_t *ngx_stat_reading;  // TODO: does it work?
 }
 

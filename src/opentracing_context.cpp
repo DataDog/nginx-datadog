@@ -1,14 +1,11 @@
 #include "opentracing_context.h"
 #include "ot.h"
+#include "ngx_http_datadog_module.h"
 
 #include "utility.h"
 
 #include <sstream>
 #include <stdexcept>
-
-extern "C" {
-extern ngx_module_t ngx_http_datadog_module;
-}
 
 namespace datadog {
 namespace nginx {

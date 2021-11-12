@@ -1,6 +1,6 @@
 #include "opentracing_variable.h"
 #include "ot.h"
-
+#include "ngx_http_datadog_module.h"
 
 #include "opentracing_context.h"
 #include "utility.h"
@@ -14,10 +14,6 @@
 #include <iostream> // TODO: no
 #include <limits>
 #include <stdexcept>
-
-extern "C" {
-extern ngx_module_t ngx_http_datadog_module;
-}
 
 namespace datadog {
 namespace nginx {

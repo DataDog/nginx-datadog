@@ -1,7 +1,6 @@
 #include "opentracing_conf_handler.h"
-
 // TODO: hack hack
-extern ngx_module_t ngx_http_datadog_module;
+#include "ngx_http_datadog_module.h"
 // end TODO
 
 namespace datadog {

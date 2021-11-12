@@ -1,15 +1,12 @@
 #include "request_tracing.h"
 #include "ot.h"
+#include "ngx_http_datadog_module.h"
 
 #include "utility.h"
 
 #include <sstream>
 #include <stdexcept>
 #include <iostream> // TODO: hack
-
-extern "C" {
-extern ngx_module_t ngx_http_datadog_module;
-}
 
 namespace datadog {
 namespace nginx {
