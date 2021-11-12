@@ -21,8 +21,6 @@ extern "C" {
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
-
-extern ngx_atomic_t *ngx_stat_reading;  // TODO: does it work?
 }
 
 // clang-format off
@@ -367,8 +365,6 @@ static void *create_opentracing_loc_conf(ngx_conf_t *conf) noexcept {
   // TODO hack
   examine_conf_args(conf);
   peek_conf_file(conf);
-  ngx_atomic_int_t dummy = *ngx_stat_reading;
-  std::cout << "Here's the count of reads: " << dummy << "\n";
   // end TODO
 
   loc_conf->enable = NGX_CONF_UNSET;
