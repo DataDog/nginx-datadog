@@ -19,7 +19,7 @@
 // In particular, `NgxFileBuf` is used in conjunction with
 // `datadog::nginx::scan_config_block` to read a tracer's configuration as JSON
 // directly from the nginx configuration file.  See `configure` in
-// `opentracing_directive.cpp` for more information.
+// `datadog_directive.cpp` for more information.
 
 #include <streambuf>
 #include <string>

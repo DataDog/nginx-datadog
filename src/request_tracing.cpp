@@ -18,7 +18,7 @@ std::unique_ptr<ot::SpanContext> extract_span_context(
 //------------------------------------------------------------------------------
 static std::string get_loc_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
-    const opentracing_loc_conf_t *loc_conf) {
+    const datadog_loc_conf_t *loc_conf) {
   if (loc_conf->loc_operation_name_script.is_valid())
     return to_string(loc_conf->loc_operation_name_script.run(request));
   else
@@ -30,7 +30,7 @@ static std::string get_loc_operation_name(
 //------------------------------------------------------------------------------
 static std::string get_request_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
-    const opentracing_loc_conf_t *loc_conf) {
+    const datadog_loc_conf_t *loc_conf) {
   if (loc_conf->operation_name_script.is_valid())
     return to_string(loc_conf->operation_name_script.run(request));
   else
@@ -43,12 +43,12 @@ static std::string get_request_operation_name(
 static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request,
                             ot::Span &span) {
   if (!tags) return;
-  auto add_tag = [&](const opentracing_tag_t &tag) {
+  auto add_tag = [&](const datadog_tag_t &tag) {
     auto key = tag.key_script.run(request);
     auto value = tag.value_script.run(request);
     if (key.data && value.data) span.SetTag(to_string(key), to_string(value));
   };
-  for_each<opentracing_tag_t>(*tags, add_tag);
+  for_each<datadog_tag_t>(*tags, add_tag);
 }
 
 //------------------------------------------------------------------------------
@@ -86,11 +86,11 @@ static void add_upstream_name(const ngx_http_request_t *request,
 //------------------------------------------------------------------------------
 RequestTracing::RequestTracing(
     ngx_http_request_t *request, ngx_http_core_loc_conf_t *core_loc_conf,
-    opentracing_loc_conf_t *loc_conf,
+    datadog_loc_conf_t *loc_conf,
     const ot::SpanContext *parent_span_context)
     : request_{request},
       main_conf_{
-          static_cast<opentracing_main_conf_t *>(ngx_http_get_module_main_conf(
+          static_cast<datadog_main_conf_t *>(ngx_http_get_module_main_conf(
               request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
@@ -104,7 +104,7 @@ RequestTracing::RequestTracing(
   }
 
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-                 "starting opentracing request span for %p", request_);
+                 "starting Datadog request span for %p", request_);
   request_span_ = tracer->StartSpan(
       get_request_operation_name(request_, core_loc_conf_, loc_conf_),
       {ot::ChildOf(parent_span_context),
@@ -115,7 +115,7 @@ RequestTracing::RequestTracing(
   if (loc_conf_->enable_locations) {
     ngx_log_debug3(
         NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-        "starting opentracing location span for \"%V\"(%p) in request %p",
+        "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     span_ = tracer->StartSpan(
         get_loc_operation_name(request_, core_loc_conf_, loc_conf_),
@@ -128,7 +128,7 @@ RequestTracing::RequestTracing(
 // on_change_block
 //------------------------------------------------------------------------------
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
-                                     opentracing_loc_conf_t *loc_conf) {
+                                     datadog_loc_conf_t *loc_conf) {
   on_exit_block();
   core_loc_conf_ = core_loc_conf;
   loc_conf_ = loc_conf;
@@ -136,7 +136,7 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   if (loc_conf->enable_locations) {
     ngx_log_debug3(
         NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-        "starting opentracing location span for \"%V\"(%p) in request %p",
+        "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     span_ = request_span_->tracer().StartSpan(
         get_loc_operation_name(request_, core_loc_conf, loc_conf),
@@ -166,7 +166,7 @@ void RequestTracing::on_exit_block(
   // exited instead.
   if (loc_conf_->enable_locations) {
     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-                   "finishing opentracing location span for %p in request %p",
+                   "finishing Datadog location span for %p in request %p",
                    loc_conf_, request_);
     add_script_tags(main_conf_->tags, request_, *span_);
     add_script_tags(loc_conf_->tags, request_, *span_);
@@ -196,7 +196,7 @@ void RequestTracing::on_log_request() {
   on_exit_block(finish_timestamp);
 
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-                 "finishing opentracing request span for %p", request_);
+                 "finishing Datadog request span for %p", request_);
   add_status_tags(request_, *request_span_);
   add_script_tags(main_conf_->tags, request_, *request_span_);
   add_upstream_name(request_, *request_span_);
@@ -227,7 +227,7 @@ void RequestTracing::on_log_request() {
 // Note: there's caching so that if lookup_span_context_value is repeatedly
 // called for the same active span context, it will only be expanded once.
 //
-// See propagate_opentracing_context
+// See propagate_datadog_context
 ngx_str_t RequestTracing::lookup_span_context_value(
     ot::string_view key) {
   return span_context_querier_.lookup_value(request_, active_span(), key);

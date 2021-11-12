@@ -47,7 +47,7 @@ class HeaderKeyWriter : public ot::HTTPHeadersWriter {
 // a list of the keys used for span context propagation. This is necessary to
 // make context propagation work for requests proxied upstream.
 //
-// See propagate_opentracing_context, set_tracer.
+// See propagate_datadog_context, set_tracer.
 //
 // Note: Any keys that a tracer might use for propagation that aren't discovered
 // here will get dropped during propagation.

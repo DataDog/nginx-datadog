@@ -1,4 +1,4 @@
-#include "opentracing_conf_handler.h"
+#include "datadog_conf_handler.h"
 // TODO: hack hack
 #include "ngx_http_datadog_module.h"
 // end TODO
@@ -11,10 +11,7 @@ static ngx_uint_t argument_number[] = {
     NGX_CONF_NOARGS, NGX_CONF_TAKE1, NGX_CONF_TAKE2, NGX_CONF_TAKE3,
     NGX_CONF_TAKE4,  NGX_CONF_TAKE5, NGX_CONF_TAKE6, NGX_CONF_TAKE7};
 
-//------------------------------------------------------------------------------
-// opentracing_conf_handler
-//------------------------------------------------------------------------------
-ngx_int_t opentracing_conf_handler(ngx_conf_t *cf, ngx_int_t last) noexcept {
+ngx_int_t datadog_conf_handler(ngx_conf_t *cf, ngx_int_t last) noexcept {
   char *rv;
   void *conf, **confp;
   ngx_uint_t i, found;

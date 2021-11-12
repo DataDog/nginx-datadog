@@ -17,14 +17,10 @@ extern "C" {
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// opentracing_context_variable_name
-//------------------------------------------------------------------------------
+
 extern const ot::string_view opentracing_context_variable_name;
 
-//------------------------------------------------------------------------------
-// add_variables
-//------------------------------------------------------------------------------
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept;
+
 }  // namespace nginx
 }  // namespace datadog

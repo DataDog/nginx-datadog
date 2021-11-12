@@ -56,12 +56,12 @@ std::unique_ptr<ot::SpanContext> extract_span_context(
   if (!span_context_maybe) {
     ngx_log_error(
         NGX_LOG_ERR, request->connection->log, 0,
-        "failed to extract an opentracing span context from request %p: %s",
+        "failed to extract a Datadog span context from request %p: %s",
         request, span_context_maybe.error().message().c_str());
     return nullptr;
   }
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request->connection->log, 0,
-                 "extraced opentracing span context from request %p", request);
+                 "extraced Datadog span context from request %p", request);
   return std::move(*span_context_maybe);
 }
 }  // namespace nginx

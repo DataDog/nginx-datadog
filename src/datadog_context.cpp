@@ -1,4 +1,4 @@
-#include "opentracing_context.h"
+#include "datadog_context.h"
 #include "ot.h"
 #include "ngx_http_datadog_module.h"
 
@@ -13,20 +13,20 @@ std::unique_ptr<ot::SpanContext> extract_span_context(
     const ot::Tracer &tracer, const ngx_http_request_t *request);
 
 //------------------------------------------------------------------------------
-// OpenTracingContext
+// DatadogContext
 //------------------------------------------------------------------------------
-OpenTracingContext::OpenTracingContext(ngx_http_request_t *request,
+DatadogContext::DatadogContext(ngx_http_request_t *request,
                                        ngx_http_core_loc_conf_t *core_loc_conf,
-                                       opentracing_loc_conf_t *loc_conf) {
+                                       datadog_loc_conf_t *loc_conf) {
   traces_.emplace_back(request, core_loc_conf, loc_conf);
 }
 
 //------------------------------------------------------------------------------
 // on_change_block
 //------------------------------------------------------------------------------
-void OpenTracingContext::on_change_block(
+void DatadogContext::on_change_block(
     ngx_http_request_t *request, ngx_http_core_loc_conf_t *core_loc_conf,
-    opentracing_loc_conf_t *loc_conf) {
+    datadog_loc_conf_t *loc_conf) {
   auto trace = find_trace(request);
   if (trace != nullptr) {
     return trace->on_change_block(core_loc_conf, loc_conf);
@@ -39,7 +39,7 @@ void OpenTracingContext::on_change_block(
 //------------------------------------------------------------------------------
 // on_log_request
 //------------------------------------------------------------------------------
-void OpenTracingContext::on_log_request(ngx_http_request_t *request) {
+void DatadogContext::on_log_request(ngx_http_request_t *request) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
@@ -51,7 +51,7 @@ void OpenTracingContext::on_log_request(ngx_http_request_t *request) {
 //------------------------------------------------------------------------------
 // lookup_span_context_value
 //------------------------------------------------------------------------------
-ngx_str_t OpenTracingContext::lookup_span_context_value(
+ngx_str_t DatadogContext::lookup_span_context_value(
     ngx_http_request_t *request, ot::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
@@ -64,7 +64,7 @@ ngx_str_t OpenTracingContext::lookup_span_context_value(
 //------------------------------------------------------------------------------
 // get_binary_context
 //------------------------------------------------------------------------------
-ngx_str_t OpenTracingContext::get_binary_context(
+ngx_str_t DatadogContext::get_binary_context(
     ngx_http_request_t *request) const {
   auto trace = find_trace(request);
   if (trace == nullptr) {
@@ -77,7 +77,7 @@ ngx_str_t OpenTracingContext::get_binary_context(
 //------------------------------------------------------------------------------
 // find_trace
 //------------------------------------------------------------------------------
-RequestTracing *OpenTracingContext::find_trace(ngx_http_request_t *request) {
+RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {
   for (auto &trace : traces_) {
     if (trace.request() == request) {
       return &trace;
@@ -86,26 +86,26 @@ RequestTracing *OpenTracingContext::find_trace(ngx_http_request_t *request) {
   return nullptr;
 }
 
-const RequestTracing *OpenTracingContext::find_trace(
+const RequestTracing *DatadogContext::find_trace(
     ngx_http_request_t *request) const {
-  return const_cast<OpenTracingContext *>(this)->find_trace(request);
+  return const_cast<DatadogContext *>(this)->find_trace(request);
 }
 
 //------------------------------------------------------------------------------
-// cleanup_opentracing_context
+// cleanup_datadog_context
 //------------------------------------------------------------------------------
-static void cleanup_opentracing_context(void *data) noexcept {
-  delete static_cast<OpenTracingContext *>(data);
+static void cleanup_datadog_context(void *data) noexcept {
+  delete static_cast<DatadogContext *>(data);
 }
 
 //------------------------------------------------------------------------------
-// find_opentracing_cleanup
+// find_datadog_cleanup
 //------------------------------------------------------------------------------
-static ngx_pool_cleanup_t *find_opentracing_cleanup(
+static ngx_pool_cleanup_t *find_datadog_cleanup(
     ngx_http_request_t *request) {
   for (auto cleanup = request->pool->cleanup; cleanup;
        cleanup = cleanup->next) {
-    if (cleanup->handler == cleanup_opentracing_context) {
+    if (cleanup->handler == cleanup_datadog_context) {
       return cleanup;
     }
   }
@@ -113,23 +113,23 @@ static ngx_pool_cleanup_t *find_opentracing_cleanup(
 }
 
 //------------------------------------------------------------------------------
-// get_opentracing_context
+// get_datadog_context
 //------------------------------------------------------------------------------
-OpenTracingContext *get_opentracing_context(
+DatadogContext *get_datadog_context(
     ngx_http_request_t *request) noexcept {
-  auto context = static_cast<OpenTracingContext *>(
+  auto context = static_cast<DatadogContext *>(
       ngx_http_get_module_ctx(request, ngx_http_datadog_module));
   if (context != nullptr || !request->internal) {
     return context;
   }
 
-  // If this is an internal redirect, the OpenTracingContext will have been
+  // If this is an internal redirect, the DatadogContext will have been
   // reset, but we can still recover it from the cleanup handler.
   //
-  // See set_opentracing_context below.
-  auto cleanup = find_opentracing_cleanup(request);
+  // See set_datadog_context below.
+  auto cleanup = find_datadog_cleanup(request);
   if (cleanup != nullptr) {
-    context = static_cast<OpenTracingContext *>(cleanup->data);
+    context = static_cast<DatadogContext *>(cleanup->data);
   }
 
   // If we found a context, attach with ngx_http_set_ctx so that we don't have
@@ -143,45 +143,45 @@ OpenTracingContext *get_opentracing_context(
 }
 
 //------------------------------------------------------------------------------
-// set_opentracing_context
+// set_datadog_context
 //------------------------------------------------------------------------------
-// Attaches an OpenTracingContext to a request.
+// Attaches an DatadogContext to a request.
 //
 // Note that internal redirects for nginx will clear any data attached via
-// ngx_http_set_ctx. Since OpenTracingContext needs to persist across
+// ngx_http_set_ctx. Since DatadogContext needs to persist across
 // redirection, as a workaround the context is stored in a cleanup handler where
 // it can be later recovered.
 //
 // See the discussion in
 //    https://forum.nginx.org/read.php?29,272403,272403#msg-272403
 // or the approach taken by the standard nginx realip module.
-void set_opentracing_context(ngx_http_request_t *request,
-                             OpenTracingContext *context) {
+void set_datadog_context(ngx_http_request_t *request,
+                             DatadogContext *context) {
   auto cleanup = ngx_pool_cleanup_add(request->pool, 0);
   if (cleanup == nullptr) {
     delete context;
     throw std::runtime_error{"failed to allocate cleanup handler"};
   }
   cleanup->data = static_cast<void *>(context);
-  cleanup->handler = cleanup_opentracing_context;
+  cleanup->handler = cleanup_datadog_context;
   ngx_http_set_ctx(request, static_cast<void *>(context),
                    ngx_http_datadog_module);
 }
 
 //------------------------------------------------------------------------------
-// destroy_opentracing_context
+// destroy_datadog_context
 //------------------------------------------------------------------------------
-// Supports early destruction of the OpenTracingContext (in case of an
+// Supports early destruction of the DatadogContext (in case of an
 // unrecoverable error).
-void destroy_opentracing_context(ngx_http_request_t *request) noexcept {
-  auto cleanup = find_opentracing_cleanup(request);
+void destroy_datadog_context(ngx_http_request_t *request) noexcept {
+  auto cleanup = find_datadog_cleanup(request);
   if (cleanup == nullptr) {
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                  "Unable to find OpenTracing cleanup handler for request %p",
+                  "Unable to find Datadog cleanup handler for request %p",
                   request);
     return;
   }
-  delete static_cast<OpenTracingContext *>(cleanup->data);
+  delete static_cast<DatadogContext *>(cleanup->data);
   cleanup->data = nullptr;
   ngx_http_set_ctx(request, nullptr, ngx_http_datadog_module);
 }

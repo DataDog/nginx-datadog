@@ -14,9 +14,7 @@
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// lookup_value
-//------------------------------------------------------------------------------
+
 ngx_str_t SpanContextQuerier::lookup_value(ngx_http_request_t* request,
                                            const ot::Span& span,
                                            ot::string_view key) {
@@ -32,15 +30,12 @@ ngx_str_t SpanContextQuerier::lookup_value(ngx_http_request_t* request,
 
   auto ngx_key = to_ngx_str(key);
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                "no opentracing context value found for span context key %V "
+                "no Datadog context value found for span context key %V "
                 "for request %p",
                 &ngx_key, request);
   return ngx_str_t();
 }
 
-//------------------------------------------------------------------------------
-// SpanContextValueExpander
-//------------------------------------------------------------------------------
 namespace {
 class SpanContextValueExpander : public ot::HTTPHeadersWriter {
  public:
@@ -54,7 +49,7 @@ class SpanContextValueExpander : public ot::HTTPHeadersWriter {
     std::string key_copy;
     key_copy.reserve(key.size());
     std::transform(std::begin(key), std::end(key), std::back_inserter(key_copy),
-                   header_transform);
+                   header_transform_char);
 
     span_context_expansion_.emplace_back(std::move(key_copy), value);
     return {};
@@ -65,9 +60,6 @@ class SpanContextValueExpander : public ot::HTTPHeadersWriter {
 };
 }  // namespace
 
-//------------------------------------------------------------------------------
-// expand_span_context_values
-//------------------------------------------------------------------------------
 void SpanContextQuerier::expand_span_context_values(
     ngx_http_request_t* request, const ot::Span& span) {
   values_span_ = &span;
@@ -80,5 +72,6 @@ void SpanContextQuerier::expand_span_context_values(
                   was_successful.error().message().c_str());
   }
 }
+
 }  // namespace nginx
 }  // namespace datadog

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "opentracing_conf.h"
+#include "datadog_conf.h"
 #include "ot.h"
 
 #include "span_context_querier.h"
@@ -22,11 +22,11 @@ class RequestTracing {
  public:
   RequestTracing(ngx_http_request_t *request,
                  ngx_http_core_loc_conf_t *core_loc_conf,
-                 opentracing_loc_conf_t *loc_conf,
+                 datadog_loc_conf_t *loc_conf,
                  const ot::SpanContext *parent_span_context = nullptr);
 
   void on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
-                       opentracing_loc_conf_t *loc_conf);
+                       datadog_loc_conf_t *loc_conf);
 
   void on_log_request();
 
@@ -42,9 +42,9 @@ class RequestTracing {
 
  private:
   ngx_http_request_t *request_;
-  opentracing_main_conf_t *main_conf_;
+  datadog_main_conf_t *main_conf_;
   ngx_http_core_loc_conf_t *core_loc_conf_;
-  opentracing_loc_conf_t *loc_conf_;
+  datadog_loc_conf_t *loc_conf_;
   SpanContextQuerier span_context_querier_;
   std::unique_ptr<ot::Span> request_span_;
   std::unique_ptr<ot::Span> span_;

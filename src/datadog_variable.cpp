@@ -1,8 +1,8 @@
-#include "opentracing_variable.h"
+#include "datadog_variable.h"
 #include "ot.h"
 #include "ngx_http_datadog_module.h"
 
-#include "opentracing_context.h"
+#include "datadog_context.h"
 #include "utility.h"
 
 #include <opentracing/string_view.h>
@@ -17,26 +17,18 @@
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// opentracing_context_variable_name
-//------------------------------------------------------------------------------
+
 const ot::string_view opentracing_context_variable_name{
     "opentracing_context_"};
 
-//------------------------------------------------------------------------------
-// opentracing_binary_context_variable_name
-//------------------------------------------------------------------------------
 static const ot::string_view opentracing_binary_context_variable_name{
     "opentracing_binary_context"};
 
-//------------------------------------------------------------------------------
-// expand_opentracing_context
-//------------------------------------------------------------------------------
-// Extracts the key specified by the variable's suffix and expands to the
+// Extract the key specified by the variable's suffix and expand it to the
 // corresponding value of the active span context.
 //
-// See propagate_opentracing_context
-static ngx_int_t expand_opentracing_context_variable(
+// See propagate_datadog_context
+static ngx_int_t expand_datadog_context_variable(
     ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t data) noexcept try {
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
@@ -45,11 +37,11 @@ static ngx_int_t expand_opentracing_context_variable(
   ot::string_view key{variable_name.data() + prefix_length,
                                variable_name.size() - prefix_length};
 
-  auto context = get_opentracing_context(request);
-  // Context can be null if opentracing is set to off.
+  auto context = get_datadog_context(request);
+  // Context can be null if tracing is disabled.
   if (context == nullptr) {
     ngx_log_debug2(NGX_LOG_DEBUG_EVENT, request->connection->log, 0,
-		   "failed to expand %V: no OpenTracingContext attached to request %p",
+		   "failed to expand %V: no DatadogContext attached to request %p",
 		   data, request);
     return NGX_ERROR;
   }
@@ -72,14 +64,14 @@ static ngx_int_t expand_opentracing_context_variable(
 }
 
 //------------------------------------------------------------------------------
-// expand_opentracing_binary_context_variable
+// expand_datadog_binary_context_variable
 //------------------------------------------------------------------------------
-static ngx_int_t expand_opentracing_binary_context_variable(
+static ngx_int_t expand_datadog_binary_context_variable(
     ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t data) noexcept try {
-  auto context = get_opentracing_context(request);
+  auto context = get_datadog_context(request);
   if (context == nullptr) {
-    throw std::runtime_error{"no OpenTracingContext attached to request"};
+    throw std::runtime_error{"no DatadogContext attached to request"};
   }
   auto binary_context = context->get_binary_context(request);
   variable_value->len = binary_context.len;
@@ -119,7 +111,7 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   auto opentracing_context_var = ngx_http_add_variable(
       cf, &opentracing_context,
       NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
-  opentracing_context_var->get_handler = expand_opentracing_context_variable;
+  opentracing_context_var->get_handler = expand_datadog_context_variable;
   opentracing_context_var->data = 0;
 
   auto opentracing_binary_context =
@@ -127,7 +119,7 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   auto opentracing_binary_context_var = ngx_http_add_variable(
       cf, &opentracing_binary_context, NGX_HTTP_VAR_NOCACHEABLE);
   opentracing_binary_context_var->get_handler =
-      expand_opentracing_binary_context_variable;
+      expand_datadog_binary_context_variable;
   opentracing_binary_context_var->data = 0;
 
   return NGX_OK;

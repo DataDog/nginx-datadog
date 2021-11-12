@@ -2,10 +2,10 @@
 #include "ot.h"
 #include "ngx_http_datadog_module.h"
 
-#include "opentracing_conf.h"
-#include "opentracing_directive.h"
-#include "opentracing_handler.h"
-#include "opentracing_variable.h"
+#include "datadog_conf.h"
+#include "datadog_directive.h"
+#include "datadog_handler.h"
+#include "datadog_variable.h"
 #include "utility.h"
 
 #include <opentracing/dynamic_load.h>
@@ -24,21 +24,18 @@ extern "C" {
 }
 
 // clang-format off
-static ngx_int_t opentracing_module_init(ngx_conf_t *cf) noexcept;
-static ngx_int_t opentracing_init_worker(ngx_cycle_t *cycle) noexcept;
-static ngx_int_t opentracing_master_process_post_config(ngx_cycle_t *cycle) noexcept;
-static void opentracing_exit_worker(ngx_cycle_t *cycle) noexcept;
-static void *create_opentracing_main_conf(ngx_conf_t *conf) noexcept;
-static void *create_opentracing_loc_conf(ngx_conf_t *conf) noexcept;
-static char *merge_opentracing_loc_conf(ngx_conf_t *, void *parent, void *child) noexcept;
+static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept;
+static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept;
+static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept;
+static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept;
+static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept;
+static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept;
+static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent, void *child) noexcept;
 // clang-format on
 
 using namespace datadog::nginx;
 
-//------------------------------------------------------------------------------
-// kDefaultOpentracingTags
-//------------------------------------------------------------------------------
-const std::pair<ngx_str_t, ngx_str_t> default_opentracing_tags[] = {
+const std::pair<ngx_str_t, ngx_str_t> default_datadog_tags[] = {
     {ngx_string("component"), ngx_string("nginx")},
     {ngx_string("nginx.worker_pid"), ngx_string("$pid")},
     {ngx_string("peer.address"), ngx_string("$remote_addr:$remote_port")},
@@ -48,28 +45,25 @@ const std::pair<ngx_str_t, ngx_str_t> default_opentracing_tags[] = {
     {ngx_string("http.host"), ngx_string("$http_host")}};
 
 // clang-format off
-//------------------------------------------------------------------------------
-// opentracing_commands
-//------------------------------------------------------------------------------
-static ngx_command_t opentracing_commands[] = {
+static ngx_command_t datadog_commands[] = {
 
     { ngx_string("opentracing"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(opentracing_loc_conf_t, enable),
+      offsetof(datadog_loc_conf_t, enable),
       nullptr},
 
     { ngx_string("opentracing_trace_locations"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(opentracing_loc_conf_t, enable_locations),
+      offsetof(datadog_loc_conf_t, enable_locations),
       nullptr},
 
     { ngx_string("opentracing_propagate_context"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
-      propagate_opentracing_context,
+      propagate_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
@@ -83,28 +77,28 @@ static ngx_command_t opentracing_commands[] = {
 
     { ngx_string("opentracing_fastcgi_propagate_context"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
-      propagate_fastcgi_opentracing_context,
+      propagate_fastcgi_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("opentracing_grpc_propagate_context"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
-      propagate_grpc_opentracing_context,
+      propagate_grpc_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("opentracing_operation_name"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      set_opentracing_operation_name,
+      set_datadog_operation_name,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("opentracing_location_operation_name"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      set_opentracing_location_operation_name,
+      set_datadog_location_operation_name,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
@@ -113,12 +107,12 @@ static ngx_command_t opentracing_commands[] = {
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(opentracing_loc_conf_t, trust_incoming_span),
+      offsetof(datadog_loc_conf_t, trust_incoming_span),
       nullptr},
 
     { ngx_string("opentracing_tag"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE2,
-      set_opentracing_tag,
+      set_datadog_tag,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
@@ -140,18 +134,15 @@ static ngx_command_t opentracing_commands[] = {
     ngx_null_command
 };
 
-//------------------------------------------------------------------------------
-// opentracing_module_ctx
-//------------------------------------------------------------------------------
-static ngx_http_module_t opentracing_module_ctx = {
+static ngx_http_module_t datadog_module_ctx = {
     add_variables,                /* preconfiguration */
-    opentracing_module_init,      /* postconfiguration */
-    create_opentracing_main_conf, /* create main configuration */
+    datadog_module_init,      /* postconfiguration */
+    create_datadog_main_conf, /* create main configuration */
     nullptr,                      /* init main configuration */
     nullptr,                      /* create server configuration */
     nullptr,                      /* merge server configuration */
-    create_opentracing_loc_conf,  /* create location configuration */
-    merge_opentracing_loc_conf    /* merge location configuration */
+    create_datadog_loc_conf,  /* create location configuration */
+    merge_datadog_loc_conf    /* merge location configuration */
 };
 
 //------------------------------------------------------------------------------
@@ -159,15 +150,15 @@ static ngx_http_module_t opentracing_module_ctx = {
 //------------------------------------------------------------------------------
 ngx_module_t ngx_http_datadog_module = {
     NGX_MODULE_V1,
-    &opentracing_module_ctx, /* module context */
-    opentracing_commands,    /* module directives */
+    &datadog_module_ctx, /* module context */
+    datadog_commands,    /* module directives */
     NGX_HTTP_MODULE,         /* module type */
     nullptr,                 /* init master */
-    opentracing_master_process_post_config, /* init module */
-    opentracing_init_worker, /* init process */
+    datadog_master_process_post_config, /* init module */
+    datadog_init_worker, /* init process */
     nullptr,                 /* init thread */
     nullptr,                 /* exit thread */
-    opentracing_exit_worker, /* exit process */
+    datadog_exit_worker, /* exit process */
     nullptr,                 /* exit master */
     NGX_MODULE_V1_PADDING
 };
@@ -216,7 +207,7 @@ ngx_set_env(const char *entry, ngx_cycle_t *cycle)
     return NGX_CONF_OK;
 }
 
-static ngx_int_t opentracing_master_process_post_config(ngx_cycle_t *cycle) noexcept {
+static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
   if (const void *const err = ngx_set_env("FISH_FLAVOR", cycle)) {
     return ngx_int_t(err);
   }
@@ -227,13 +218,10 @@ static ngx_int_t opentracing_master_process_post_config(ngx_cycle_t *cycle) noex
 }
 // end TODO
 
-//------------------------------------------------------------------------------
-// opentracing_module_init
-//------------------------------------------------------------------------------
-static ngx_int_t opentracing_module_init(ngx_conf_t *cf) noexcept {
+static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   auto core_main_config = static_cast<ngx_http_core_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module));
-  auto main_conf = static_cast<opentracing_main_conf_t *>(
+  auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
   // Add handlers to create tracing data.
@@ -249,23 +237,20 @@ static ngx_int_t opentracing_module_init(ngx_conf_t *cf) noexcept {
 
   // Add default span tags.
   const auto num_default_tags =
-      sizeof(default_opentracing_tags) / sizeof(default_opentracing_tags[0]);
+      sizeof(default_datadog_tags) / sizeof(default_datadog_tags[0]);
   if (num_default_tags == 0) return NGX_OK;
   main_conf->tags =
-      ngx_array_create(cf->pool, num_default_tags, sizeof(opentracing_tag_t));
+      ngx_array_create(cf->pool, num_default_tags, sizeof(datadog_tag_t));
   if (!main_conf->tags) return NGX_ERROR;
-  for (const auto &tag : default_opentracing_tags)
-    if (add_opentracing_tag(cf, main_conf->tags, tag.first, tag.second) !=
+  for (const auto &tag : default_datadog_tags)
+    if (add_datadog_tag(cf, main_conf->tags, tag.first, tag.second) !=
         NGX_CONF_OK)
       return NGX_ERROR;
   return NGX_OK;
 }
 
-//------------------------------------------------------------------------------
-// opentracing_init_worker
-//------------------------------------------------------------------------------
-static ngx_int_t opentracing_init_worker(ngx_cycle_t *cycle) noexcept try {
-  auto main_conf = static_cast<opentracing_main_conf_t *>(
+static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
+  auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
   if (!main_conf || !main_conf->tracer_library.data) {
     return NGX_OK;
@@ -288,17 +273,14 @@ static ngx_int_t opentracing_init_worker(ngx_cycle_t *cycle) noexcept try {
   return NGX_ERROR;
 }
 
-//------------------------------------------------------------------------------
-// opentracing_exit_worker
-//------------------------------------------------------------------------------
-static void opentracing_exit_worker(ngx_cycle_t *cycle) noexcept {
+static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
   // Close the global tracer if it's set and release the reference so as to
   // ensure that any dynamically loaded tracer is destructed before the library
   // handle is closed.
   auto tracer = ot::Tracer::InitGlobal(nullptr);
   if (tracer != nullptr) {
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, cycle->log, 0,
-                   "closing opentracing tracer");
+                   "closing Datadog tracer");
     tracer->Close();
     tracer.reset();
   }
@@ -315,17 +297,17 @@ static void print_module_names(const ngx_cycle_t *cycle) noexcept {
 // end TODO
 
 //------------------------------------------------------------------------------
-// create_opentracing_main_conf
+// create_datadog_main_conf
 //------------------------------------------------------------------------------
-static void *create_opentracing_main_conf(ngx_conf_t *conf) noexcept {
+static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
   // TODO hack
   print_module_names((const ngx_cycle_t*)ngx_cycle);
   print_module_names(conf->cycle);
   // end TODO
-  auto main_conf = static_cast<opentracing_main_conf_t *>(
-      ngx_pcalloc(conf->pool, sizeof(opentracing_main_conf_t)));
+  auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
   // Default initialize members.
-  *main_conf = opentracing_main_conf_t();
+  *main_conf = datadog_main_conf_t();
   if (!main_conf) return nullptr;
   return main_conf;
 }
@@ -355,11 +337,11 @@ static void examine_conf_args(ngx_conf_t *conf) noexcept {
 // end TODO
 
 //------------------------------------------------------------------------------
-// create_opentracing_loc_conf
+// create_datadog_loc_conf
 //------------------------------------------------------------------------------
-static void *create_opentracing_loc_conf(ngx_conf_t *conf) noexcept {
-  auto loc_conf = static_cast<opentracing_loc_conf_t *>(
-      ngx_pcalloc(conf->pool, sizeof(opentracing_loc_conf_t)));
+static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
+  auto loc_conf = static_cast<datadog_loc_conf_t *>(
+      ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
   if (!loc_conf) return nullptr;
 
   // TODO hack
@@ -375,12 +357,12 @@ static void *create_opentracing_loc_conf(ngx_conf_t *conf) noexcept {
 }
 
 //------------------------------------------------------------------------------
-// merge_opentracing_loc_conf
+// merge_datadog_loc_conf
 //------------------------------------------------------------------------------
-static char *merge_opentracing_loc_conf(ngx_conf_t *, void *parent,
+static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent,
                                         void *child) noexcept {
-  auto prev = static_cast<opentracing_loc_conf_t *>(parent);
-  auto conf = static_cast<opentracing_loc_conf_t *>(child);
+  auto prev = static_cast<datadog_loc_conf_t *>(parent);
+  auto conf = static_cast<datadog_loc_conf_t *>(child);
 
   ngx_conf_merge_value(conf->enable, prev->enable, 0);
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations, 1);
@@ -403,17 +385,17 @@ static char *merge_opentracing_loc_conf(ngx_conf_t *, void *parent,
   if (prev->tags && !conf->tags) {
     conf->tags = prev->tags;
   } else if (prev->tags && conf->tags) {
-    std::unordered_map<std::string, opentracing_tag_t> merged_tags;
+    std::unordered_map<std::string, datadog_tag_t> merged_tags;
 
     for (ngx_uint_t i = 0; i < prev->tags->nelts; i++) {
-      opentracing_tag_t* tag = &((opentracing_tag_t*)prev->tags->elts)[i];
+      datadog_tag_t* tag = &((datadog_tag_t*)prev->tags->elts)[i];
       std::string key;
       key.assign(reinterpret_cast<const char*>(tag->key_script.pattern_.data), tag->key_script.pattern_.len);
       merged_tags[key] = *tag;
     }
 
     for (ngx_uint_t i = 0; i < conf->tags->nelts; i++) {
-      opentracing_tag_t* tag = &((opentracing_tag_t*)conf->tags->elts)[i];
+      datadog_tag_t* tag = &((datadog_tag_t*)conf->tags->elts)[i];
       std::string key;
       key.assign(reinterpret_cast<const char*>(tag->key_script.pattern_.data), tag->key_script.pattern_.len);
       merged_tags[key] = *tag;
@@ -422,7 +404,7 @@ static char *merge_opentracing_loc_conf(ngx_conf_t *, void *parent,
     ngx_uint_t index = 0;
     for (const auto& kv : merged_tags) {
       if (index == conf->tags->nelts) {
-        opentracing_tag_t* tag = (opentracing_tag_t*)ngx_array_push(conf->tags);
+        datadog_tag_t* tag = (datadog_tag_t*)ngx_array_push(conf->tags);
 
         if (!tag) {
           return (char*)NGX_CONF_ERROR;
@@ -431,7 +413,7 @@ static char *merge_opentracing_loc_conf(ngx_conf_t *, void *parent,
         *tag = kv.second;
       } 
       else {
-        opentracing_tag_t* tag = (opentracing_tag_t*)conf->tags->elts;
+        datadog_tag_t* tag = (datadog_tag_t*)conf->tags->elts;
         tag[index] = kv.second;
       }
 

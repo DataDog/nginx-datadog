@@ -1,6 +1,6 @@
 #pragma once
 
-#include "opentracing_conf.h"
+#include "datadog_conf.h"
 #include "ot.h"
 
 #include "request_tracing.h"
@@ -21,17 +21,17 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 //------------------------------------------------------------------------------
-// OpenTracingContext
+// DatadogContext
 //------------------------------------------------------------------------------
-class OpenTracingContext {
+class DatadogContext {
  public:
-  OpenTracingContext(ngx_http_request_t* request,
+  DatadogContext(ngx_http_request_t* request,
                      ngx_http_core_loc_conf_t* core_loc_conf,
-                     opentracing_loc_conf_t* loc_conf);
+                     datadog_loc_conf_t* loc_conf);
 
   void on_change_block(ngx_http_request_t* request,
                        ngx_http_core_loc_conf_t* core_loc_conf,
-                       opentracing_loc_conf_t* loc_conf);
+                       datadog_loc_conf_t* loc_conf);
 
   void on_log_request(ngx_http_request_t* request);
 
@@ -49,20 +49,20 @@ class OpenTracingContext {
 };
 
 //------------------------------------------------------------------------------
-// get_opentracing_context
+// get_datadog_context
 //------------------------------------------------------------------------------
-OpenTracingContext* get_opentracing_context(
+DatadogContext* get_datadog_context(
     ngx_http_request_t* request) noexcept;
 
 //------------------------------------------------------------------------------
-// set_opentracing_context
+// set_datadog_context
 //------------------------------------------------------------------------------
-void set_opentracing_context(ngx_http_request_t* request,
-                             OpenTracingContext* context);
+void set_datadog_context(ngx_http_request_t* request,
+                             DatadogContext* context);
 
 //------------------------------------------------------------------------------
-// destroy_opentracing_context
+// destroy_datadog_context
 //------------------------------------------------------------------------------
-void destroy_opentracing_context(ngx_http_request_t* request) noexcept;
+void destroy_datadog_context(ngx_http_request_t* request) noexcept;
 }  // namespace nginx
 }  // namespace datadog

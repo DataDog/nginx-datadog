@@ -87,13 +87,13 @@ void for_each(const ngx_array_t &array, F f) {
 }
 
 //------------------------------------------------------------------------------
-// header_transform
+// header_transform_char
 //------------------------------------------------------------------------------
 // Performs the transformations on header characters described by
 // http://nginx.org/en/docs/http/ngx_http_core_module.html#var_http_
-inline char header_transform(char c) {
+inline char header_transform_char(char c) {
   if (c == '-') return '_';
-  return static_cast<char>(std::tolower(c));
+  return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 }
 }  // namespace nginx
 }  // namespace datadog
