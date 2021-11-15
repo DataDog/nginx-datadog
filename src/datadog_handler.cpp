@@ -13,9 +13,7 @@ extern ngx_module_t ngx_http_datadog_module;
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// is_datadog_enabled
-//------------------------------------------------------------------------------
+
 static bool is_datadog_enabled(
     const ngx_http_request_t *request,
     const ngx_http_core_loc_conf_t *core_loc_conf,
@@ -29,9 +27,6 @@ static bool is_datadog_enabled(
     return loc_conf->enable && core_loc_conf->log_subrequest;
 }
 
-//------------------------------------------------------------------------------
-// on_enter_block
-//------------------------------------------------------------------------------
 ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
   auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
       ngx_http_get_module_loc_conf(request, ngx_http_core_module));
@@ -63,9 +58,6 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
   return NGX_DECLINED;
 }
 
-//------------------------------------------------------------------------------
-// on_log_request
-//------------------------------------------------------------------------------
 ngx_int_t on_log_request(ngx_http_request_t *request) noexcept {
   auto context = get_datadog_context(request);
   if (context == nullptr) return NGX_DECLINED;
@@ -78,5 +70,6 @@ ngx_int_t on_log_request(ngx_http_request_t *request) noexcept {
   }
   return NGX_DECLINED;
 }
+
 }  // namespace nginx
 }  // namespace datadog

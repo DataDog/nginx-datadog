@@ -17,24 +17,16 @@ extern "C" {
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// to_string
-//------------------------------------------------------------------------------
+
 // Convert an ngx_str_t to a std::string.
 inline std::string to_string(const ngx_str_t &ngx_str) {
   return {reinterpret_cast<char *>(ngx_str.data), ngx_str.len};
 }
 
-//------------------------------------------------------------------------------
-// to_string_view
-//------------------------------------------------------------------------------
 inline ot::string_view to_string_view(ngx_str_t s) {
   return {reinterpret_cast<char *>(s.data), s.len};
 }
 
-//------------------------------------------------------------------------------
-// to_ngx_str
-//------------------------------------------------------------------------------
 // Convert a std::string to an ngx_str_t
 ngx_str_t to_ngx_str(ngx_pool_t *pool, const std::string &s);
 
@@ -45,23 +37,14 @@ inline ngx_str_t to_ngx_str(ot::string_view s) {
   return result;
 }
 
-//------------------------------------------------------------------------------
-// to_lower_ngx_str
-//------------------------------------------------------------------------------
 // Convert a std::string to an ngx_str_t and transforms it to lowercase.
 ngx_str_t to_lower_ngx_str(ngx_pool_t *pool, const std::string &s);
 
-//------------------------------------------------------------------------------
-// to_system_timestamp
-//------------------------------------------------------------------------------
 // Converts the epoch denoted by epoch_seconds, epoch_milliseconds to an
 // std::chrono::system_clock::time_point duration from the epoch.
 std::chrono::system_clock::time_point to_system_timestamp(
     time_t epoch_seconds, ngx_msec_t epoch_milliseconds);
 
-//------------------------------------------------------------------------------
-// for_each
-//------------------------------------------------------------------------------
 // Apply `f` to each element of an ngx_list_t.
 template <class T, class F>
 void for_each(const ngx_list_t &list, F f) {
@@ -86,9 +69,6 @@ void for_each(const ngx_array_t &array, F f) {
   for (size_t i = 0; i < n; ++i) f(elements[i]);
 }
 
-//------------------------------------------------------------------------------
-// header_transform_char
-//------------------------------------------------------------------------------
 // Performs the transformations on header characters described by
 // http://nginx.org/en/docs/http/ngx_http_core_module.html#var_http_
 inline char header_transform_char(char c) {

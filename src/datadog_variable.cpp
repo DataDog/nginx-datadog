@@ -63,9 +63,6 @@ static ngx_int_t expand_datadog_context_variable(
   return NGX_ERROR;
 }
 
-//------------------------------------------------------------------------------
-// expand_datadog_binary_context_variable
-//------------------------------------------------------------------------------
 static ngx_int_t expand_datadog_binary_context_variable(
     ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t data) noexcept try {
@@ -99,9 +96,6 @@ static void print_module_names(const ngx_cycle_t *cycle) noexcept {
 }
 // end TODO
 
-//------------------------------------------------------------------------------
-// add_variables
-//------------------------------------------------------------------------------
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   // TODO: hack hack
   print_module_names((const ngx_cycle_t*)(ngx_cycle));

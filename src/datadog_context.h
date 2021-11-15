@@ -20,9 +20,7 @@ extern "C" {
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// DatadogContext
-//------------------------------------------------------------------------------
+
 class DatadogContext {
  public:
   DatadogContext(ngx_http_request_t* request,
@@ -48,21 +46,12 @@ class DatadogContext {
   const RequestTracing* find_trace(ngx_http_request_t* request) const;
 };
 
-//------------------------------------------------------------------------------
-// get_datadog_context
-//------------------------------------------------------------------------------
 DatadogContext* get_datadog_context(
     ngx_http_request_t* request) noexcept;
 
-//------------------------------------------------------------------------------
-// set_datadog_context
-//------------------------------------------------------------------------------
 void set_datadog_context(ngx_http_request_t* request,
                              DatadogContext* context);
 
-//------------------------------------------------------------------------------
-// destroy_datadog_context
-//------------------------------------------------------------------------------
 void destroy_datadog_context(ngx_http_request_t* request) noexcept;
 }  // namespace nginx
 }  // namespace datadog

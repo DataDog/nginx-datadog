@@ -12,18 +12,12 @@ namespace nginx {
 std::unique_ptr<ot::SpanContext> extract_span_context(
     const ot::Tracer &tracer, const ngx_http_request_t *request);
 
-//------------------------------------------------------------------------------
-// DatadogContext
-//------------------------------------------------------------------------------
 DatadogContext::DatadogContext(ngx_http_request_t *request,
                                        ngx_http_core_loc_conf_t *core_loc_conf,
                                        datadog_loc_conf_t *loc_conf) {
   traces_.emplace_back(request, core_loc_conf, loc_conf);
 }
 
-//------------------------------------------------------------------------------
-// on_change_block
-//------------------------------------------------------------------------------
 void DatadogContext::on_change_block(
     ngx_http_request_t *request, ngx_http_core_loc_conf_t *core_loc_conf,
     datadog_loc_conf_t *loc_conf) {
@@ -36,9 +30,6 @@ void DatadogContext::on_change_block(
   traces_.emplace_back(request, core_loc_conf, loc_conf, &traces_[0].context());
 }
 
-//------------------------------------------------------------------------------
-// on_log_request
-//------------------------------------------------------------------------------
 void DatadogContext::on_log_request(ngx_http_request_t *request) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
@@ -48,9 +39,6 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
   trace->on_log_request();
 }
 
-//------------------------------------------------------------------------------
-// lookup_span_context_value
-//------------------------------------------------------------------------------
 ngx_str_t DatadogContext::lookup_span_context_value(
     ngx_http_request_t *request, ot::string_view key) {
   auto trace = find_trace(request);
@@ -61,9 +49,6 @@ ngx_str_t DatadogContext::lookup_span_context_value(
   return trace->lookup_span_context_value(key);
 }
 
-//------------------------------------------------------------------------------
-// get_binary_context
-//------------------------------------------------------------------------------
 ngx_str_t DatadogContext::get_binary_context(
     ngx_http_request_t *request) const {
   auto trace = find_trace(request);
@@ -74,9 +59,6 @@ ngx_str_t DatadogContext::get_binary_context(
   return trace->get_binary_context();
 }
 
-//------------------------------------------------------------------------------
-// find_trace
-//------------------------------------------------------------------------------
 RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {
   for (auto &trace : traces_) {
     if (trace.request() == request) {
@@ -91,16 +73,10 @@ const RequestTracing *DatadogContext::find_trace(
   return const_cast<DatadogContext *>(this)->find_trace(request);
 }
 
-//------------------------------------------------------------------------------
-// cleanup_datadog_context
-//------------------------------------------------------------------------------
 static void cleanup_datadog_context(void *data) noexcept {
   delete static_cast<DatadogContext *>(data);
 }
 
-//------------------------------------------------------------------------------
-// find_datadog_cleanup
-//------------------------------------------------------------------------------
 static ngx_pool_cleanup_t *find_datadog_cleanup(
     ngx_http_request_t *request) {
   for (auto cleanup = request->pool->cleanup; cleanup;
@@ -112,9 +88,6 @@ static ngx_pool_cleanup_t *find_datadog_cleanup(
   return nullptr;
 }
 
-//------------------------------------------------------------------------------
-// get_datadog_context
-//------------------------------------------------------------------------------
 DatadogContext *get_datadog_context(
     ngx_http_request_t *request) noexcept {
   auto context = static_cast<DatadogContext *>(
@@ -142,9 +115,6 @@ DatadogContext *get_datadog_context(
   return context;
 }
 
-//------------------------------------------------------------------------------
-// set_datadog_context
-//------------------------------------------------------------------------------
 // Attaches an DatadogContext to a request.
 //
 // Note that internal redirects for nginx will clear any data attached via
@@ -168,9 +138,6 @@ void set_datadog_context(ngx_http_request_t *request,
                    ngx_http_datadog_module);
 }
 
-//------------------------------------------------------------------------------
-// destroy_datadog_context
-//------------------------------------------------------------------------------
 // Supports early destruction of the DatadogContext (in case of an
 // unrecoverable error).
 void destroy_datadog_context(ngx_http_request_t *request) noexcept {

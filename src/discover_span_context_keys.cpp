@@ -11,9 +11,7 @@
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// HeaderKeyWriter
-//------------------------------------------------------------------------------
+
 namespace {
 class HeaderKeyWriter : public ot::HTTPHeadersWriter {
  public:
@@ -40,9 +38,6 @@ class HeaderKeyWriter : public ot::HTTPHeadersWriter {
 };
 }  // namespace
 
-//------------------------------------------------------------------------------
-// discover_span_context_keys
-//------------------------------------------------------------------------------
 // Loads the vendor tracing library and creates a dummy span so as to obtain
 // a list of the keys used for span context propagation. This is necessary to
 // make context propagation work for requests proxied upstream.
@@ -85,5 +80,6 @@ ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
   }
   return result;
 }
+
 }  // namespace nginx
 }  // namespace datadog

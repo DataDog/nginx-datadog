@@ -13,9 +13,6 @@ namespace nginx {
 std::unique_ptr<ot::SpanContext> extract_span_context(
     const ot::Tracer &tracer, const ngx_http_request_t *request);
 
-//------------------------------------------------------------------------------
-// get_loc_operation_name
-//------------------------------------------------------------------------------
 static std::string get_loc_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
     const datadog_loc_conf_t *loc_conf) {
@@ -25,9 +22,6 @@ static std::string get_loc_operation_name(
     return to_string(core_loc_conf->name);
 }
 
-//------------------------------------------------------------------------------
-// get_request_operation_name
-//------------------------------------------------------------------------------
 static std::string get_request_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
     const datadog_loc_conf_t *loc_conf) {
@@ -37,9 +31,6 @@ static std::string get_request_operation_name(
     return to_string(core_loc_conf->name);
 }
 
-//------------------------------------------------------------------------------
-// add_script_tags
-//------------------------------------------------------------------------------
 static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request,
                             ot::Span &span) {
   if (!tags) return;
@@ -51,9 +42,6 @@ static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request,
   for_each<datadog_tag_t>(*tags, add_tag);
 }
 
-//------------------------------------------------------------------------------
-// add_status_tags
-//------------------------------------------------------------------------------
 static void add_status_tags(const ngx_http_request_t *request,
                             ot::Span &span) {
   // Check for errors.
@@ -68,9 +56,6 @@ static void add_status_tags(const ngx_http_request_t *request,
   }
 }
 
-//------------------------------------------------------------------------------
-// add_upstream_name
-//------------------------------------------------------------------------------
 static void add_upstream_name(const ngx_http_request_t *request,
                               ot::Span &span) {
   if (!request->upstream || !request->upstream->upstream ||
@@ -81,9 +66,6 @@ static void add_upstream_name(const ngx_http_request_t *request,
   span.SetTag("upstream.name", host_str);
 }
 
-//------------------------------------------------------------------------------
-// RequestTracing
-//------------------------------------------------------------------------------
 RequestTracing::RequestTracing(
     ngx_http_request_t *request, ngx_http_core_loc_conf_t *core_loc_conf,
     datadog_loc_conf_t *loc_conf,
@@ -124,9 +106,6 @@ RequestTracing::RequestTracing(
   }
 }
 
-//------------------------------------------------------------------------------
-// on_change_block
-//------------------------------------------------------------------------------
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                                      datadog_loc_conf_t *loc_conf) {
   on_exit_block();
@@ -145,9 +124,6 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   }
 }
 
-//------------------------------------------------------------------------------
-// active_span
-//------------------------------------------------------------------------------
 const ot::Span &RequestTracing::active_span() const {
   if (loc_conf_->enable_locations) {
     return *span_;
@@ -156,9 +132,6 @@ const ot::Span &RequestTracing::active_span() const {
   }
 }
 
-//------------------------------------------------------------------------------
-// on_exit_block
-//------------------------------------------------------------------------------
 void RequestTracing::on_exit_block(
     std::chrono::steady_clock::time_point finish_timestamp) {
   // Set default and custom tags for the block. Many nginx variables won't be
@@ -187,9 +160,6 @@ void RequestTracing::on_exit_block(
   }
 }
 
-//------------------------------------------------------------------------------
-// on_log_request
-//------------------------------------------------------------------------------
 void RequestTracing::on_log_request() {
   auto finish_timestamp = std::chrono::steady_clock::now();
 
@@ -218,9 +188,6 @@ void RequestTracing::on_log_request() {
   request_span_->Finish({ot::FinishTimestamp{finish_timestamp}});
 }
 
-//------------------------------------------------------------------------------
-// lookup_span_context_value
-//------------------------------------------------------------------------------
 // Expands the active span context into a list of key-value pairs and returns
 // the value for `key` if it exists.
 //
@@ -233,9 +200,6 @@ ngx_str_t RequestTracing::lookup_span_context_value(
   return span_context_querier_.lookup_value(request_, active_span(), key);
 }
 
-//------------------------------------------------------------------------------
-// get_binary_context
-//------------------------------------------------------------------------------
 ngx_str_t RequestTracing::get_binary_context() const {
   const auto &span = active_span();
   std::ostringstream oss;

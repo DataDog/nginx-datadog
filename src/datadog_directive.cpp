@@ -22,9 +22,7 @@
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// set_script
-//------------------------------------------------------------------------------
+
 static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
                         NgxScript &script) noexcept {
   if (script.is_valid()) return const_cast<char *>("is duplicate");
@@ -38,9 +36,6 @@ static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-//------------------------------------------------------------------------------
-// make_span_context_value_variable
-//------------------------------------------------------------------------------
 static ngx_str_t make_span_context_value_variable(
     ngx_pool_t *pool, ot::string_view key) {
   auto size = 1 + opentracing_context_variable_name.size() + key.size();
@@ -61,9 +56,6 @@ static ngx_str_t make_span_context_value_variable(
   return {size, reinterpret_cast<unsigned char *>(data)};
 }
 
-//------------------------------------------------------------------------------
-// make_fastcgi_span_context_key
-//------------------------------------------------------------------------------
 // Converts keys to match the naming convention used by CGI parameters.
 static ngx_str_t make_fastcgi_span_context_key(ngx_pool_t *pool,
                                                ot::string_view key) {
@@ -83,9 +75,6 @@ static ngx_str_t make_fastcgi_span_context_key(ngx_pool_t *pool,
   return {size, reinterpret_cast<unsigned char *>(data)};
 }
 
-//------------------------------------------------------------------------------
-// add_datadog_tag
-//------------------------------------------------------------------------------
 char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
                           ngx_str_t value) noexcept {
   if (!tags) return static_cast<char *>(NGX_CONF_ERROR);
@@ -102,9 +91,6 @@ char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-//------------------------------------------------------------------------------
-// propagate_datadog_context
-//------------------------------------------------------------------------------
 // Sets up headers to be added so that the active span context is propagated
 // upstream when using ngx_http_proxy_module.
 //
@@ -179,9 +165,6 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
 }
 
 // TODO: no
-//------------------------------------------------------------------------------
-// hijack_proxy_pass
-//------------------------------------------------------------------------------
 char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command,
                                     void *conf) noexcept try {
   std::cout << "hijacking proxy_pass" << std::endl;
@@ -199,11 +182,8 @@ char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command,
 }
 // end TODO
 
-//------------------------------------------------------------------------------
-// propagate_fastcgi_datadog_context
-//------------------------------------------------------------------------------
 char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
-                                            ngx_command_t *command,
+                                            ngx_command_t*,
                                             void *conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
@@ -244,9 +224,6 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
-//------------------------------------------------------------------------------
-// propagate_grpc_datadog_context
-//------------------------------------------------------------------------------
 char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
                                          void *conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
@@ -290,9 +267,6 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
-//------------------------------------------------------------------------------
-// set_datadog_tag
-//------------------------------------------------------------------------------
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept {
   auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
@@ -303,9 +277,6 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
 }
 
 // TODO: no
-//------------------------------------------------------------------------------
-// configure
-//------------------------------------------------------------------------------
 char *configure(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept {
   std::cout << "Rejoice, for we have done the thing!\n" << std::flush;
@@ -337,18 +308,12 @@ char *configure(ngx_conf_t *cf, ngx_command_t *command,
   return NGX_CONF_OK;
 }
 
-//------------------------------------------------------------------------------
-// set_datadog_operation_name
-//------------------------------------------------------------------------------
 char *set_datadog_operation_name(ngx_conf_t *cf, ngx_command_t *command,
                                      void *conf) noexcept {
   auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
   return set_script(cf, command, loc_conf->operation_name_script);
 }
 
-//------------------------------------------------------------------------------
-// set_datadog_location_operation_name
-//------------------------------------------------------------------------------
 char *set_datadog_location_operation_name(ngx_conf_t *cf,
                                               ngx_command_t *command,
                                               void *conf) noexcept {
@@ -356,9 +321,6 @@ char *set_datadog_location_operation_name(ngx_conf_t *cf,
   return set_script(cf, command, loc_conf->loc_operation_name_script);
 }
 
-//------------------------------------------------------------------------------
-// set_tracer
-//------------------------------------------------------------------------------
 char *set_tracer(ngx_conf_t *cf, ngx_command_t *command,
                  void *conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(

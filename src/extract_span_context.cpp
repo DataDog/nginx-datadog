@@ -16,10 +16,8 @@ extern "C" {
 
 namespace datadog {
 namespace nginx {
-//------------------------------------------------------------------------------
-// NgxHeaderCarrierReader
-//------------------------------------------------------------------------------
 namespace {
+
 class NgxHeaderCarrierReader : public ot::HTTPHeadersReader {
  public:
   explicit NgxHeaderCarrierReader(const ngx_http_request_t *request)
@@ -46,9 +44,6 @@ class NgxHeaderCarrierReader : public ot::HTTPHeadersReader {
 };
 }  // namespace
 
-//------------------------------------------------------------------------------
-// extract_span_context
-//------------------------------------------------------------------------------
 std::unique_ptr<ot::SpanContext> extract_span_context(
     const ot::Tracer &tracer, const ngx_http_request_t *request) {
   auto carrier_reader = NgxHeaderCarrierReader{request};
@@ -64,5 +59,6 @@ std::unique_ptr<ot::SpanContext> extract_span_context(
                  "extraced Datadog span context from request %p", request);
   return std::move(*span_context_maybe);
 }
+
 }  // namespace nginx
 }  // namespace datadog
