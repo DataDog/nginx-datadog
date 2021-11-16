@@ -150,7 +150,7 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
                         reinterpret_cast<unsigned char *>(
                             const_cast<char *>(keys[key_index].data()))};
     args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
-    auto rcode = datadog_conf_handler(cf, 0);
+    auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
       cf->args = old_args;
       return static_cast<char *>(NGX_CONF_ERROR);
@@ -169,7 +169,7 @@ char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command,
                                     void *conf) noexcept try {
   std::cout << "hijacking proxy_pass" << std::endl;
 
-  const ngx_int_t rcode = datadog_conf_handler(cf, 0);
+  const ngx_int_t rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
   if (rcode != NGX_OK) {
     return static_cast<char *>(NGX_CONF_ERROR);
   }
@@ -210,7 +210,7 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
   for (int key_index = 0; key_index < num_keys; ++key_index) {
     args[1] = make_fastcgi_span_context_key(cf->pool, keys[key_index]);
     args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
-    auto rcode = datadog_conf_handler(cf, 0);
+    auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
       cf->args = old_args;
       return static_cast<char *>(NGX_CONF_ERROR);
@@ -253,7 +253,7 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
                         reinterpret_cast<unsigned char *>(
                             const_cast<char *>(keys[key_index].data()))};
     args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
-    auto rcode = datadog_conf_handler(cf, 0);
+    auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
       cf->args = old_args;
       return static_cast<char *>(NGX_CONF_ERROR);

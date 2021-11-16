@@ -6,12 +6,14 @@
 namespace datadog {
 namespace nginx {
 /* The eight fixed arguments */
-
 static ngx_uint_t argument_number[] = {
     NGX_CONF_NOARGS, NGX_CONF_TAKE1, NGX_CONF_TAKE2, NGX_CONF_TAKE3,
     NGX_CONF_TAKE4,  NGX_CONF_TAKE5, NGX_CONF_TAKE6, NGX_CONF_TAKE7};
 
-ngx_int_t datadog_conf_handler(ngx_conf_t *cf, ngx_int_t last) noexcept {
+ngx_int_t datadog_conf_handler(const DatadogConfHandlerArgs& args) noexcept {
+  ngx_conf_t *const cf  = args.conf;
+  const ngx_int_t last = NGX_OK;
+
   char *rv;
   void *conf, **confp;
   ngx_uint_t i, found;
@@ -28,11 +30,9 @@ ngx_int_t datadog_conf_handler(ngx_conf_t *cf, ngx_int_t last) noexcept {
       continue;
     }
 
-    // TODO: hack hack
-    if (cf->cycle->modules[i] == &ngx_http_datadog_module) {
+    if (args.skip_this_module && cf->cycle->modules[i] == &ngx_http_datadog_module) {
       continue;
     }
-    // end TODO
 
     for (/* void */; cmd->name.len; cmd++) {
       if (name->len != cmd->name.len) {
