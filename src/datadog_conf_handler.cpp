@@ -1,7 +1,5 @@
 #include "datadog_conf_handler.h"
-// TODO: hack hack
 #include "ngx_http_datadog_module.h"
-// end TODO
 
 namespace datadog {
 namespace nginx {
@@ -10,8 +8,9 @@ static ngx_uint_t argument_number[] = {
     NGX_CONF_NOARGS, NGX_CONF_TAKE1, NGX_CONF_TAKE2, NGX_CONF_TAKE3,
     NGX_CONF_TAKE4,  NGX_CONF_TAKE5, NGX_CONF_TAKE6, NGX_CONF_TAKE7};
 
-ngx_int_t datadog_conf_handler(const DatadogConfHandlerArgs& args) noexcept {
+ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig& args) noexcept {
   ngx_conf_t *const cf  = args.conf;
+  // `last` used to be a parameter, but we didn't use it.
   const ngx_int_t last = NGX_OK;
 
   char *rv;
@@ -34,7 +33,7 @@ ngx_int_t datadog_conf_handler(const DatadogConfHandlerArgs& args) noexcept {
       continue;
     }
 
-    for (/* void */; cmd->name.len; cmd++) {
+    for (; cmd->name.len; cmd++) {
       if (name->len != cmd->name.len) {
         continue;
       }
@@ -150,5 +149,6 @@ invalid:
 
   return NGX_ERROR;
 }
+
 }  // namespace nginx
 }  // namespace datadog

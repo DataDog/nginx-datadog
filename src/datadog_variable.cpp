@@ -98,8 +98,8 @@ static void print_module_names(const ngx_cycle_t *cycle) noexcept {
 
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   // TODO: hack hack
-  print_module_names((const ngx_cycle_t*)(ngx_cycle));
-  print_module_names(cf->cycle);
+  // print_module_names((const ngx_cycle_t*)(ngx_cycle));
+  // print_module_names(cf->cycle);
   // end TODO
   auto opentracing_context = to_ngx_str(opentracing_context_variable_name);
   auto opentracing_context_var = ngx_http_add_variable(

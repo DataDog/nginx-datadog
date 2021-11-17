@@ -44,30 +44,69 @@ const std::pair<ngx_str_t, ngx_str_t> default_datadog_tags[] = {
     {ngx_string("http.url"), ngx_string("$scheme://$http_host$request_uri")},
     {ngx_string("http.host"), ngx_string("$http_host")}};
 
+// Each "datadog_*" directive has a corresponding "opentracing_*" alias that
+// logs a warning and then delegates to the "datadog_*" version.  The
+// `ngx_command_t::type` bitmask of the two versions must match.  To ensure
+// this, `DEFINE_COMMAND_WITH_OLD_ALIAS` is a macro that defines both commands
+// at the same time.
+#define DEFINE_COMMAND_WITH_OLD_ALIAS(NAME, OLD_NAME, TYPE, SET, CONF, OFFSET, POST) \
+    { \
+        ngx_string(NAME), \
+        TYPE, \
+        SET, \
+        CONF, \
+        OFFSET, \
+        POST \
+    }, \
+    { \
+        ngx_string(OLD_NAME), \
+        TYPE, \
+        delegate_to_datadog_directive_with_warning, \
+        NGX_HTTP_LOC_CONF_OFFSET, \
+        0, \
+        nullptr \
+    }
+
 // clang-format off
 static ngx_command_t datadog_commands[] = {
 
-    { ngx_string("opentracing"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "opentracing", 
+      "datadog",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(datadog_loc_conf_t, enable),
-      nullptr},
+      nullptr),
 
-    { ngx_string("opentracing_trace_locations"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_trace_locations",
+      "opentracing_trace_locations",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(datadog_loc_conf_t, enable_locations),
-      nullptr},
+      nullptr),
 
-    { ngx_string("opentracing_propagate_context"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_trace_locations",
+      "opentracing_trace_locations",
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      delegate_to_datadog_directive_with_warning,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr),
+      
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_propagate_context",
+      "opentracing_propagate_context",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
       propagate_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr},
+      nullptr),
 
+    // TODO: the other hijacked directives, as well
     { ngx_string("proxy_pass"),
       NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       hijack_proxy_pass,
@@ -75,56 +114,71 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
-    { ngx_string("opentracing_fastcgi_propagate_context"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_fastcgi_propagate_context",
+      "opentracing_fastcgi_propagate_context",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
       propagate_fastcgi_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr},
+      nullptr),
 
-    { ngx_string("opentracing_grpc_propagate_context"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_grpc_propagate_context",
+      "opentracing_grpc_propagate_context",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
       propagate_grpc_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr},
+      nullptr),
 
-    { ngx_string("opentracing_operation_name"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_operation_name",
+      "opentracing_operation_name",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       set_datadog_operation_name,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr},
+      nullptr),
 
-    { ngx_string("opentracing_location_operation_name"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_location_operation_name",
+      "opentracing_location_operation_name",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       set_datadog_location_operation_name,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr},
+      nullptr),
 
-    { ngx_string("opentracing_trust_incoming_span"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_trust_incoming_span",
+      "opentracing_trust_incoming_span",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(datadog_loc_conf_t, trust_incoming_span),
-      nullptr},
+      nullptr),
 
-    { ngx_string("opentracing_tag"),
+    DEFINE_COMMAND_WITH_OLD_ALIAS(
+      "datadog_tag",
+      "opentracing_tag",
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE2,
       set_datadog_tag,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr},
+      nullptr),
 
-     { ngx_string("opentracing_load_tracer"),
+    // TODO: No need for a datadog version, and replace the opentracing version with an error.
+     DEFINE_COMMAND_WITH_OLD_ALIAS(
+       "datadog_load_tracer",
+       "opentracing_load_tracer",
        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
        set_tracer,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr},
+      nullptr),
 
-    { ngx_string("opentracing_configure"),
+    { ngx_string("datadog_configure"),
       NGX_MAIN_CONF | NGX_HTTP_MAIN_CONF | NGX_CONF_NOARGS | NGX_CONF_BLOCK,
       configure,
       NGX_HTTP_LOC_CONF_OFFSET,
@@ -301,8 +355,8 @@ static void print_module_names(const ngx_cycle_t *cycle) noexcept {
 //------------------------------------------------------------------------------
 static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
   // TODO hack
-  print_module_names((const ngx_cycle_t*)ngx_cycle);
-  print_module_names(conf->cycle);
+  // print_module_names((const ngx_cycle_t*)ngx_cycle);
+  // print_module_names(conf->cycle);
   // end TODO
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));

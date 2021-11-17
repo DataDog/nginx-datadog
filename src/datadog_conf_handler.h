@@ -10,7 +10,9 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-struct DatadogConfHandlerArgs {
+// `DatadogConfHandlerArgs` contains the parameters to the
+// `datadog_conf_handler` function.
+struct DatadogConfHandlerConfig {
     // `conf` is the nginx configuration that's currently being interpreted.
     ngx_conf_t* conf;
     // `skip_this_module` is whether to skip configuration handlers defined in
@@ -18,15 +20,15 @@ struct DatadogConfHandlerArgs {
     // in other modules: we define a handler with the same name, do some work,
     // and then dispatch to the other module's implementation.  In order to
     // access the other module's implementation, we have to skip over our own
-    // module in the general handler.
+    // module.
     bool skip_this_module;
 };
 
-// datadog_conf_handler is based on copying
+// `datadog_conf_handler` originated as a copy of
 //    https://github.com/nginx/nginx/blob/0ad556fe59ad132dc4d34dea9e80f2ff2c3c1314/src/core/ngx_conf_file.c
 // this is necessary for our implementation of context propagation.
 //
 // See http://mailman.nginx.org/pipermail/nginx-devel/2018-March/011008.html
-ngx_int_t datadog_conf_handler(const DatadogConfHandlerArgs& args) noexcept;
+ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig& args) noexcept;
 }  // namespace nginx
 }  // namespace datadog

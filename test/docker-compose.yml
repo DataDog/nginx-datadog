@@ -16,6 +16,10 @@ services:
       - './index.html:/usr/share/nginx/html/index.html:ro'
     ports:
       - "8080:80"
+    # This dependency is so that "downstream" is in traced-nginx's DNS even
+    # when traced-nginx is run by itself.
+    depends_on:
+      - downstream
 
   dd-agent:
     volumes:

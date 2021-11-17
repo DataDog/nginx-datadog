@@ -180,9 +180,11 @@ void RequestTracing::on_log_request() {
   request_span_->SetOperationName(
       get_request_operation_name(request_, core_loc_conf, loc_conf_));
 
-  // TODO: hac
+  // TODO: hack
+  /*
   std::cout << "<><><><><><><><> about to run response script." << std::endl;
   std::cout << "[][][][][][][][][][][][] response script result: " << to_string(loc_conf_->response_info_script.run(request_)) << std::endl;
+  */
   // end TODO
 
   request_span_->Finish({ot::FinishTimestamp{finish_timestamp}});

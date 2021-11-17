@@ -6,3 +6,7 @@ ngx_http_datadog_module.so: ../.docker-build/libngx_http_datadog_module.so
 up: ngx_http_datadog_module.so
 	@if [ -z "$$DD_API_KEY" ]; then >&2 echo 'You forgot to set DD_API_KEY'; exit 1; fi
 	bin/up
+
+.PHONY: check-config
+check-config: ngx_http_datadog_module.so
+	bin/check-config

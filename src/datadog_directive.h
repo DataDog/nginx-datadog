@@ -17,6 +17,8 @@ char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command,
                                     void *conf) noexcept;
 // end TODO
 
+char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
 char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
                                             ngx_command_t *command,
                                             void *conf) noexcept;

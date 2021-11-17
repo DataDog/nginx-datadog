@@ -18,16 +18,18 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-// Convert an ngx_str_t to a std::string.
 inline std::string to_string(const ngx_str_t &ngx_str) {
   return {reinterpret_cast<char *>(ngx_str.data), ngx_str.len};
 }
 
-inline ot::string_view to_string_view(ngx_str_t s) {
+inline ot::string_view to_string_view(const ngx_str_t& s) {
   return {reinterpret_cast<char *>(s.data), s.len};
 }
 
-// Convert a std::string to an ngx_str_t
+inline ot::string_view str(const ngx_str_t& s) {
+  return to_string_view(s);
+}
+
 ngx_str_t to_ngx_str(ngx_pool_t *pool, const std::string &s);
 
 inline ngx_str_t to_ngx_str(ot::string_view s) {
@@ -40,7 +42,7 @@ inline ngx_str_t to_ngx_str(ot::string_view s) {
 // Convert a std::string to an ngx_str_t and transforms it to lowercase.
 ngx_str_t to_lower_ngx_str(ngx_pool_t *pool, const std::string &s);
 
-// Converts the epoch denoted by epoch_seconds, epoch_milliseconds to an
+// Convert the epoch denoted by epoch_seconds, epoch_milliseconds to an
 // std::chrono::system_clock::time_point duration from the epoch.
 std::chrono::system_clock::time_point to_system_timestamp(
     time_t epoch_seconds, ngx_msec_t epoch_milliseconds);
@@ -69,7 +71,7 @@ void for_each(const ngx_array_t &array, F f) {
   for (size_t i = 0; i < n; ++i) f(elements[i]);
 }
 
-// Performs the transformations on header characters described by
+// Perform the transformations on header characters described by
 // http://nginx.org/en/docs/http/ngx_http_core_module.html#var_http_
 inline char header_transform_char(char c) {
   if (c == '-') return '_';

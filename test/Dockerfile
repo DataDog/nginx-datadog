@@ -9,4 +9,5 @@ RUN apt-get update && \
 
 COPY ngx_http_datadog_module.so /usr/lib/nginx/modules
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]

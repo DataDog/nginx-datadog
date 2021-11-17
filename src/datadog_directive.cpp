@@ -1,4 +1,5 @@
 #include "datadog_directive.h"
+#include "datadog_defer.h"
 #include "ot.h"
 #include "ngx_http_datadog_module.h"
 
@@ -130,11 +131,12 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
   // TODO: hack hack
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  /*auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
   // return set_script(cf, command, loc_conf->loc_operation_name_script);
   std::cout << "[][][][][][][] we're about to compile the response script. loc_conf: " << conf << std::endl;
   const auto rc = loc_conf->response_info_script.compile(cf, ngx_string("$sent_http_x_you_better_believe_it"));
   std::cout << "[][][][][][][] rc of compiling the response script: " << rc << std::endl;
+  */
   // end TODO
 
   auto old_args = cf->args;
@@ -145,6 +147,8 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
   args_array.nelts = 3;
 
   cf->args = &args_array;
+  const auto guard = defer([&]() { cf->args = old_args; });
+
   for (int key_index = 0; key_index < num_keys; ++key_index) {
     args[1] = ngx_str_t{keys[key_index].size(),
                         reinterpret_cast<unsigned char *>(
@@ -152,11 +156,9 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
     args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
-      cf->args = old_args;
       return static_cast<char *>(NGX_CONF_ERROR);
     }
   }
-  cf->args = old_args;
   return static_cast<char *>(NGX_CONF_OK);
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
@@ -181,6 +183,59 @@ char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command,
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 // end TODO
+
+namespace {
+bool starts_with(const ot::string_view& subject, const ot::string_view& prefix) {
+  if (prefix.size() > subject.size()) {
+    return false;
+  }
+
+  return std::mismatch(subject.begin(), subject.end(), prefix.begin()).second == prefix.end();
+}
+
+ot::string_view slice(const ot::string_view& text, int begin, int end) {
+  if (begin < 0) {
+    begin += text.size();
+  }
+  if (end < 0) {
+    end += text.size();
+  }
+  return ot::string_view(text.data() + begin, end - begin);
+}
+
+ot::string_view slice(const ot::string_view& text, int begin) {
+  return slice(text, begin, text.size());
+}
+
+} // namespace
+
+char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  const auto elements = static_cast<ngx_str_t*>(cf->args->elts); 
+  assert(cf->args->nelts >= 1);
+  
+  const ot::string_view deprecated_prefix{"opentracing_"};
+  assert(starts_with(str(elements[0]), deprecated_prefix));
+
+  // This `std::string` is the storage for a `ngx_str_t` used below.  This is
+  // valid if we are certain that copies of / references to the `ngx_str_t` will
+  // not outlive this `std::string` (they won't).
+  std::string new_name{"datadog_"};
+  const ot::string_view suffix = slice(str(elements[0]), deprecated_prefix.size());
+  new_name.append(suffix.data(), suffix.size());
+
+  const ngx_str_t new_name_ngx = to_ngx_str(new_name);
+  ngx_log_error(NGX_LOG_WARN, cf->log, 0, "Backward compatibility with the \"%V\" configuration directive is deprecated.  Please use \"%V\" instead.", &elements[0], &new_name_ngx);
+
+  // Rename the command (opentracing_*  →  datadog_*) and let
+  // `datadog_conf_handler` dispatch to the appropriate handler.
+  elements[0] = new_name_ngx;
+  auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = false});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  return static_cast<char*>(NGX_CONF_OK);
+}
 
 char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
                                             ngx_command_t*,
@@ -207,16 +262,16 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
   args_array.nelts = 3;
 
   cf->args = &args_array;
+  const auto guard = defer([&]() { cf->args = old_args; });
+
   for (int key_index = 0; key_index < num_keys; ++key_index) {
     args[1] = make_fastcgi_span_context_key(cf->pool, keys[key_index]);
     args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
-      cf->args = old_args;
       return static_cast<char *>(NGX_CONF_ERROR);
     }
   }
-  cf->args = old_args;
   return static_cast<char *>(NGX_CONF_OK);
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
@@ -248,6 +303,8 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
   args_array.nelts = 3;
 
   cf->args = &args_array;
+  const auto guard = defer([&]() { cf->args = old_args; });
+
   for (int key_index = 0; key_index < num_keys; ++key_index) {
     args[1] = ngx_str_t{keys[key_index].size(),
                         reinterpret_cast<unsigned char *>(
@@ -255,11 +312,9 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
     args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
-      cf->args = old_args;
       return static_cast<char *>(NGX_CONF_ERROR);
     }
   }
-  cf->args = old_args;
   return static_cast<char *>(NGX_CONF_OK);
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
