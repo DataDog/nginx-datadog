@@ -31,18 +31,9 @@ ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
     throw std::bad_alloc{};
   }
 
-  // For each `std::string` in `tag_names`, allocate a buffer from the `pool`,
-  // copy the string data into it, and then push a new element onto `result`
-  // that is an `ot::string_view` referring to the buffer.
-  for (const std::string& tag_name : tag_names) {
-    const auto buffer = static_cast<char*>(ngx_palloc(pool, tag_name.size()));
-    if (buffer == nullptr) {
-      throw std::bad_alloc{};
-    }
-    std::copy_n(tag_name.data(), tag_name.size(), buffer);
-
-    const auto element = static_cast<ot::string_view*>(ngx_array_push(result));
-    *element = ot::string_view(buffer, tag_name.size());
+  for (const ot::string_view& tag_name : tag_names) {
+    const auto new_element = static_cast<ot::string_view*>(ngx_array_push(result));
+    *new_element = tag_name;
   }
   
   return result;

@@ -29,12 +29,18 @@ struct TracingLibrary {
     // Parse the specified `configuration` and return the names of span tags
     // used to inject trace context (which tags those are might depend on the
     // configuration, e.g. optional B3 propagation).  If an error occurs,
-    // assign a diagnostic to the specified `error`.
-    static std::vector<std::string> span_tag_names(ot::string_view configuration, std::string &error);
+    // assign a diagnostic to the specified `error`.  Note that the storage to
+    // which each returned `ot::string_view` refers must outlive any usage of
+    // the return value (realistically this means that they will refer to
+    // string literals).
+    static std::vector<ot::string_view> span_tag_names(ot::string_view configuration, std::string &error);
 
-    // Return the names of environment variables for worker processes to inherit
-    // from the main nginx executable.
-    static std::vector<std::string> environment_variable_names();
+    // Return the names of environment variables for worker processes to
+    // inherit from the main nginx executable.  Note that the storage to which
+    // each returned `ot::string_view` refers must outlive any usage of the
+    // return value (realistically this means that they will refer to string
+    // literals).
+    static std::vector<ot::string_view> environment_variable_names();
     
     // Return the default setting for whether tracing is enabled in nginx.
     static bool tracing_on_by_default();

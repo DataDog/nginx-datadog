@@ -6,6 +6,7 @@
 #include "datadog_directive.h"
 #include "datadog_handler.h"
 #include "datadog_variable.h"
+#include "tracing_library.h"
 #include "utility.h"
 
 #include <opentracing/dynamic_load.h>
@@ -234,7 +235,7 @@ ngx_module_t ngx_http_datadog_module = {
 // Note that `ngx_set_env` is adapted from the function of the same name in
 // `nginx.c` within the nginx source code.
 static void*
-ngx_set_env(const char *entry, ngx_cycle_t *cycle)
+ngx_set_env(ot::string_view entry, ngx_cycle_t *cycle)
 {
     ngx_core_conf_t *ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
@@ -246,15 +247,12 @@ ngx_set_env(const char *entry, ngx_cycle_t *cycle)
         return NGX_CONF_ERROR;
     }
 
-    const ngx_str_t entry_str = {std::strlen(entry), (u_char*) entry};
+    const ngx_str_t entry_str = to_ngx_str(entry);
     *var = entry_str; 
 
     for (i = 0; i < var->len; i++) {
-
         if (var->data[i] == '=') {
-
             var->len = i;
-
             return NGX_CONF_OK;
         }
     }
@@ -263,13 +261,14 @@ ngx_set_env(const char *entry, ngx_cycle_t *cycle)
 }
 
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
-  // TODO: Use `TracingLibrary::environment_variable_names`
-  if (const void *const err = ngx_set_env("FISH_FLAVOR", cycle)) {
-    return ngx_int_t(err);
+  // Forward tracer-specific environment variables to child processes (i.e.
+  // workers).
+  for (const auto& env_var_name : TracingLibrary::environment_variable_names()) {
+    if (const void *const error = ngx_set_env(env_var_name, cycle)) {
+      return ngx_int_t(error);
+    }
   }
-  if (const void *const err = ngx_set_env("BEST_COLOR=purple", cycle)) {
-    return ngx_int_t(err);
-  }
+
   return NGX_OK;
 }
 

@@ -39,7 +39,7 @@ inline ngx_str_t to_ngx_str(ot::string_view s) {
   return result;
 }
 
-// Convert a std::string to an ngx_str_t and transforms it to lowercase.
+// Convert a std::string to an ngx_str_t and transform it to lowercase.
 ngx_str_t to_lower_ngx_str(ngx_pool_t *pool, const std::string &s);
 
 // Convert the epoch denoted by epoch_seconds, epoch_milliseconds to an

@@ -58,18 +58,20 @@ std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(ot::string_view configur
     return *maybe_tracer;
 }
 
-std::vector<std::string> TracingLibrary::span_tag_names(ot::string_view configuration, std::string &error) {
+std::vector<ot::string_view> TracingLibrary::span_tag_names(ot::string_view configuration, std::string &error) {
     const auto maybe_options = ::datadog::opentracing::optionsFromConfig(std::string(configuration).c_str(), error);
     if (!maybe_options) {
+        if (error.empty()) {
+            error = "unable to parse options from config";
+        }
         return {};
     }
 
     const bool prioritySamplingEnabled = true;
-    const auto string_views = ::datadog::opentracing::getPropagationHeaderNames(maybe_options->inject, prioritySamplingEnabled);
-    return std::vector<std::string>{string_views.begin(), string_views.end()};
+    return ::datadog::opentracing::getPropagationHeaderNames(maybe_options->inject, prioritySamplingEnabled);
 }
 
-std::vector<std::string> TracingLibrary::environment_variable_names() {
+std::vector<ot::string_view> TracingLibrary::environment_variable_names() {
     return {
         // These environment variable names are taken from `tracer_options.cpp`
         // in the `dd-opentracing-cpp` repository.
