@@ -418,8 +418,8 @@ static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent,
   auto prev = static_cast<datadog_loc_conf_t *>(parent);
   auto conf = static_cast<datadog_loc_conf_t *>(child);
 
-  ngx_conf_merge_value(conf->enable, prev->enable, 0);
-  ngx_conf_merge_value(conf->enable_locations, prev->enable_locations, 1);
+  ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
+  ngx_conf_merge_value(conf->enable_locations, prev->enable_locations, TracingLibrary::trace_locations_by_default());
 
   if (prev->operation_name_script.is_valid() &&
       !conf->operation_name_script.is_valid())
