@@ -1,83 +1,50 @@
 #include "discover_span_context_keys.h"
 #include "ot.h"
+#include "tracing_library.h"
+#include "utility.h"
 
-#include "load_tracer.h"
-
-#include <opentracing/ext/tags.h>
-#include <opentracing/propagation.h>
 #include <algorithm>
-#include <iostream>
-#include <new>
 
 namespace datadog {
 namespace nginx {
 
-namespace {
-class HeaderKeyWriter : public ot::HTTPHeadersWriter {
- public:
-  HeaderKeyWriter(ngx_pool_t* pool, std::vector<ot::string_view>& keys)
-      : pool_{pool}, keys_(keys) {}
-
-  ot::expected<void> Set(
-      ot::string_view key,
-      ot::string_view value) const override {
-    auto data = static_cast<char*>(ngx_palloc(pool_, key.size()));
-    if (data == nullptr) {
-      throw std::bad_alloc{};
-    }
-    std::copy_n(key.data(), key.size(), data);
-
-    keys_.emplace_back(data, key.size());
-
-    return {};
-  }
-
- private:
-  ngx_pool_t* pool_;
-  std::vector<ot::string_view>& keys_;
-};
-}  // namespace
-
-// Loads the vendor tracing library and creates a dummy span so as to obtain
-// a list of the keys used for span context propagation. This is necessary to
-// make context propagation work for requests proxied upstream.
-//
-// See propagate_datadog_context, set_tracer.
-//
-// Note: Any keys that a tracer might use for propagation that aren't discovered
-// here will get dropped during propagation.
 ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
-                                        const char* tracing_library,
                                         const char* tracer_config_file) {
-  ot::DynamicTracingLibraryHandle dummy_handle;
-  std::shared_ptr<ot::Tracer> tracer;
-  auto rcode =
-      load_tracer(log, tracing_library, tracer_config_file, dummy_handle, tracer);
-  if (rcode != NGX_OK) {
+  std::string tracer_config;
+  if (read_file(tracer_config_file, tracer_config)) {
+    ngx_log_error(NGX_LOG_ERR, log, 0,
+                  "failed to discover span context tags: unable to read configuration file: %s", tracer_config_file);
     return nullptr;
   }
-  auto span = tracer->StartSpan("dummySpan");
-  span->SetTag(ot::ext::sampling_priority, 0);
-  std::vector<ot::string_view> keys;
-  HeaderKeyWriter carrier_writer{pool, keys};
-  auto was_successful = tracer->Inject(span->context(), carrier_writer);
-  if (!was_successful) {
+  
+  std::string error;
+  const auto tag_names = TracingLibrary::span_tag_names(tracer_config, error);
+  if (!error.empty()) {
     ngx_log_error(NGX_LOG_ERR, log, 0,
                   "failed to discover span context tags: %s",
-                  was_successful.error().message().c_str());
+                  error.c_str());
     return nullptr;
   }
-  ngx_array_t* result =
-      ngx_array_create(pool, keys.size(), sizeof(ot::string_view));
+
+  ngx_array_t* result = ngx_array_create(pool, tag_names.size(), sizeof(ot::string_view));
   if (result == nullptr) {
     throw std::bad_alloc{};
   }
 
-  for (auto key : keys) {
-    auto element =
-        static_cast<ot::string_view*>(ngx_array_push(result));
-    *element = key;
+  // For each `std::string` in `tag_names`, allocate a buffer from the `pool`,
+  // copy the string data into it, and then push a new element onto `result`
+  // that is an `ot::string_view` referring to the buffer.
+  for (const std::string& tag_name : tag_names) {
+    const auto buffer = static_cast<char*>(ngx_palloc(pool, tag_name.size()));
+    if (buffer == nullptr) {
+      throw std::bad_alloc{};
+    }
+    std::copy_n(tag_name.data(), tag_name.size(), buffer);
+
+    const auto element = static_cast<ot::string_view*>(ngx_array_push(result));
+    *element = ot::string_view(buffer, tag_name.size());
   }
+  
   return result;
 }
 

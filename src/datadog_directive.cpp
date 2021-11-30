@@ -386,13 +386,9 @@ char *set_tracer(ngx_conf_t *cf, ngx_command_t *command,
 
   // In order for span context propagation to work, the keys used by a tracer
   // need to be known ahead of time. OpenTracing-C++ doesn't currently have any
-  // API for this, so we attempt to do this by creating and injecting a dummy
-  // span context.
-  //
-  // See also propagate_datadog_context.
+  // API for this, so we use an extended interface in `TracingLibrary`.
   main_conf->span_context_keys = discover_span_context_keys(
-      cf->pool, cf->log, to_string(main_conf->tracer_library).c_str(),
-      to_string(main_conf->tracer_conf_file).c_str());
+      cf->pool, cf->log, to_string(main_conf->tracer_conf_file).c_str());
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_ERROR);
   }

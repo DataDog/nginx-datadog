@@ -1,6 +1,7 @@
 #include "utility.h"
 #include <algorithm>
 #include <cctype>
+#include <fstream>
 #include <string>
 
 namespace datadog {
@@ -31,6 +32,16 @@ std::chrono::system_clock::time_point to_system_timestamp(
                         std::chrono::milliseconds{epoch_milliseconds};
   return std::chrono::system_clock::from_time_t(std::time_t{0}) +
          epoch_duration;
+}
+
+int read_file(const char* path, std::string& destination) {
+  std::filebuf file;
+  if (file.open(path, std::ios::in) == nullptr) {
+    return 1;
+  }
+
+  destination.append(std::istreambuf_iterator<char>{&file}, std::istreambuf_iterator<char>{});
+  return 0;
 }
 
 }  // namespace nginx

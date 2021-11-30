@@ -72,6 +72,9 @@ class CleanupFuncGuard {
 };
 
 // Return a guard object that invokes the specified `func` when destroyed.
+// Intended usage:
+//
+//     const auto guard = defer(/* ... lambda expression ... */);
 template <typename Func>
 CleanupFuncGuard<Func> defer(Func&& func) {
     return CleanupFuncGuard<Func>(std::forward<Func>(func));

@@ -45,10 +45,11 @@ const std::pair<ngx_str_t, ngx_str_t> default_datadog_tags[] = {
     {ngx_string("http.host"), ngx_string("$http_host")}};
 
 // Each "datadog_*" directive has a corresponding "opentracing_*" alias that
-// logs a warning and then delegates to the "datadog_*" version.  The
-// `ngx_command_t::type` bitmask of the two versions must match.  To ensure
-// this, `DEFINE_COMMAND_WITH_OLD_ALIAS` is a macro that defines both commands
-// at the same time.
+// logs a warning and then delegates to the "datadog_*" version, e.g.
+// "opentracing_trace_locations" logs a warning and then calls
+// "datadog_trace_locations".  The `ngx_command_t::type` bitmask of the two
+// versions must match.  To ensure this, `DEFINE_COMMAND_WITH_OLD_ALIAS` is a
+// macro that defines both commands at the same time.
 #define DEFINE_COMMAND_WITH_OLD_ALIAS(NAME, OLD_NAME, TYPE, SET, CONF, OFFSET, POST) \
     { \
         ngx_string(NAME), \
@@ -262,6 +263,7 @@ ngx_set_env(const char *entry, ngx_cycle_t *cycle)
 }
 
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
+  // TODO: Use `TracingLibrary::environment_variable_names`
   if (const void *const err = ngx_set_env("FISH_FLAVOR", cycle)) {
     return ngx_int_t(err);
   }
@@ -270,7 +272,6 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
   }
   return NGX_OK;
 }
-// end TODO
 
 static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   auto core_main_config = static_cast<ngx_http_core_main_conf_t *>(

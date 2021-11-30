@@ -22,6 +22,7 @@ target_sources(nginx_datadog
         src/utility.cpp
         src/datadog_directive.cpp
         src/datadog_variable.cpp
+        src/tracing_library.cpp
 )
 
 include_directories(

@@ -77,5 +77,11 @@ inline char header_transform_char(char c) {
   if (c == '-') return '_';
   return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 }
+
+// Open the file at the specified `path` for reading, read its entire contents,
+// and append them to the specified `destination`.  Return zero on success, or
+// a nonzero value if an error occurs.
+int read_file(const char* path, std::string& destination);
+
 }  // namespace nginx
 }  // namespace datadog
