@@ -10,6 +10,9 @@ extern "C" {
 #include <ngx_log.h>
 }
 
+#include <memory>
+#include <mutex>
+
 namespace datadog {
 namespace opentracing {
 // This function is defined in the `dd-opentracing-cpp` repository.
@@ -28,24 +31,36 @@ std::vector<ot::string_view> getPropagationHeaderNames(const std::set<Propagatio
 namespace nginx {
 namespace {
 
-void log_to_nginx(::datadog::opentracing::LogLevel level, ot::string_view message) {
-    int ngx_level = NGX_LOG_STDERR;
+// This function-like object logs to nginx's error log when invoked.  It also
+// manages a mutex to serialize access to the log.
+class NginxLogFunc {
+    // The mutex is referred to by a `shared_ptr` because the `TracerOptions`
+    // object that will contain this function can be copied.
+    std::shared_ptr<std::mutex> mutex_;
 
-    switch (level) {
-    case ::datadog::opentracing::LogLevel::debug:
-        ngx_level = NGX_LOG_DEBUG;
-        break;
-    case ::datadog::opentracing::LogLevel::info:
-        ngx_level = NGX_LOG_INFO;
-        break;
-    case ::datadog::opentracing::LogLevel::error:
-        ngx_level = NGX_LOG_ERR;
-        break;
+  public:
+    NginxLogFunc() : mutex_(std::make_shared<std::mutex>()) {}
+
+    void operator()(::datadog::opentracing::LogLevel level, ot::string_view message) {
+        int ngx_level = NGX_LOG_STDERR;
+
+        switch (level) {
+        case ::datadog::opentracing::LogLevel::debug:
+            ngx_level = NGX_LOG_DEBUG;
+            break;
+        case ::datadog::opentracing::LogLevel::info:
+            ngx_level = NGX_LOG_INFO;
+            break;
+        case ::datadog::opentracing::LogLevel::error:
+            ngx_level = NGX_LOG_ERR;
+            break;
+        }
+        
+        const ngx_str_t ngx_message = to_ngx_str(message);
+        std::lock_guard<std::mutex> guard(*mutex_);
+        ngx_log_error(ngx_level, ngx_cycle->log, 0, "datadog: %V", &ngx_message);
     }
-    
-    const ngx_str_t ngx_message = to_ngx_str(message);
-    ngx_log_error(ngx_level, ngx_cycle->log, 0, "datadog: %V", &ngx_message);
-}
+};
 
 } // namespace
 
@@ -59,7 +74,7 @@ std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(ot::string_view configur
     }
 
     // Use nginx's logger, instead of the default standard error.
-    maybe_options->log_func = log_to_nginx;
+    maybe_options->log_func = NginxLogFunc();
 
     return ::datadog::opentracing::makeTracer(*maybe_options);
 }
