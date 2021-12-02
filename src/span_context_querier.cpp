@@ -29,6 +29,11 @@ ngx_str_t SpanContextQuerier::lookup_value(ngx_http_request_t* request,
   }
 
   auto ngx_key = to_ngx_str(key);
+  // TODO: Since I changed how propagation tag names are "discovered," we
+  // get this error message for ngx_key=x_datadog_origin
+  // TODO: I think it might be acceptable to remove this error, and instead add
+  // a comment saying that not all traces have values for all of the propagation
+  // headers... but think about it more first.
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "no Datadog context value found for span context key %V "
                 "for request %p",

@@ -18,8 +18,8 @@ struct datadog_tag_t {
 
 struct datadog_main_conf_t {
   ngx_array_t *tags;
-  ngx_str_t tracer_library;
-  ngx_str_t tracer_conf_file;
+  ngx_str_t tracer_library; // TODO: not needed
+  ngx_str_t tracer_conf_file; // TODO: use file contents instead
   ngx_array_t *span_context_keys;
 };
 

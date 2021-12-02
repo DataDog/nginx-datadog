@@ -1,8 +1,14 @@
 #include "tracing_library.h"
+#include "utility.h"
 
 #include <datadog/opentracing.h>
 #include <opentracing/expected/expected.hpp>
 #include <opentracing/tracer_factory.h>
+
+extern "C" {
+#include <ngx_core.h>
+#include <ngx_log.h>
+}
 
 namespace datadog {
 namespace opentracing {
@@ -22,40 +28,40 @@ std::vector<ot::string_view> getPropagationHeaderNames(const std::set<Propagatio
 namespace nginx {
 namespace {
 
-// Return a Datadog tracer factory, or return `nullptr` if an error occurs.
-std::unique_ptr<const ot::TracerFactory> load_datadog_tracer_factory() {
-  std::string error_message;
-  const void* error_category = nullptr;
-  void* tracer_factory = nullptr;
-  const int rcode = ::datadog::opentracing::OpenTracingMakeTracerFactoryFunction(
-      OPENTRACING_VERSION, OPENTRACING_ABI_VERSION, &error_category,
-      static_cast<void*>(&error_message), &tracer_factory);
-  if (rcode) {
-    // TODO: diagnostic?
-    return nullptr;
-  }
-  if (tracer_factory == nullptr) {
-    // TODO: diagnostic?
-    return nullptr;
-  }
+void log_to_nginx(::datadog::opentracing::LogLevel level, ot::string_view message) {
+    int ngx_level = NGX_LOG_STDERR;
 
-  return std::unique_ptr<const ot::TracerFactory>(static_cast<const ot::TracerFactory*>(tracer_factory));
+    switch (level) {
+    case ::datadog::opentracing::LogLevel::debug:
+        ngx_level = NGX_LOG_DEBUG;
+        break;
+    case ::datadog::opentracing::LogLevel::info:
+        ngx_level = NGX_LOG_INFO;
+        break;
+    case ::datadog::opentracing::LogLevel::error:
+        ngx_level = NGX_LOG_ERR;
+        break;
+    }
+    
+    const ngx_str_t ngx_message = to_ngx_str(message);
+    ngx_log_error(ngx_level, ngx_cycle->log, 0, "datadog: %V", &ngx_message);
 }
 
 } // namespace
 
 std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(ot::string_view configuration, std::string &error) {
-    const auto factory = load_datadog_tracer_factory();
-    if (factory == nullptr) {
+    auto maybe_options = ::datadog::opentracing::optionsFromConfig(std::string(configuration).c_str(), error);
+    if (!maybe_options) {
+        if (error.empty()) {
+            error = "unable to parse options from config";
+        }
         return nullptr;
     }
 
-    const auto maybe_tracer = factory->MakeTracer(std::string(configuration).c_str(), error);
-    if (!maybe_tracer) {
-        return nullptr;
-    }
+    // Use nginx's logger, instead of the default standard error.
+    maybe_options->log_func = log_to_nginx;
 
-    return *maybe_tracer;
+    return ::datadog::opentracing::makeTracer(*maybe_options);
 }
 
 std::vector<ot::string_view> TracingLibrary::span_tag_names(ot::string_view configuration, std::string &error) {
@@ -74,7 +80,7 @@ std::vector<ot::string_view> TracingLibrary::span_tag_names(ot::string_view conf
 std::vector<ot::string_view> TracingLibrary::environment_variable_names() {
     return {
         // These environment variable names are taken from `tracer_options.cpp`
-        // in the `dd-opentracing-cpp` repository.
+        // and `tracer.cpp` in the `dd-opentracing-cpp` repository.
         "DD_AGENT_HOST",
         "DD_ENV",
         "DD_PROPAGATION_STYLE_EXTRACT",
@@ -85,8 +91,12 @@ std::vector<ot::string_view> TracingLibrary::environment_variable_names() {
         "DD_TRACE_AGENT_URL",
         "DD_TRACE_ANALYTICS_ENABLED",
         "DD_TRACE_ANALYTICS_SAMPLE_RATE",
+        "DD_TRACE_CPP_LEGACY_OBFUSCATION",
+        "DD_TRACE_DEBUG",
+        "DD_TRACE_ENABLED",
         "DD_TRACE_REPORT_HOSTNAME",
         "DD_TRACE_SAMPLING_RULES",
+        "DD_TRACE_STARTUP_LOGS",
         "DD_VERSION"
     };
 }
