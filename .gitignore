@@ -10,3 +10,7 @@
 *.so
 /.build
 /.docker-build
+
+# text editor noise
+.*.sw?
+.vscode/

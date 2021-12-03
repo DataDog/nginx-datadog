@@ -108,10 +108,23 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr),
 
-    // TODO: the other hijacked directives, as well
     { ngx_string("proxy_pass"),
       NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       hijack_proxy_pass,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("fastcgi_pass"),
+      NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      hijack_fastcgi_pass,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("grpc_pass"),
+      NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      hijack_grpc_pass,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},

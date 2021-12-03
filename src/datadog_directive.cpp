@@ -23,6 +23,29 @@
 
 namespace datadog {
 namespace nginx {
+namespace {
+
+// TODO: document
+char *hijack_pass_directive(
+    char *(*inject_propagation_commands)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf),
+    ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept try {
+  // First, call the handler of the actual command that we're hijacking, e.g.
+  // "proxy_pass".  Be sure to skip this module, so we don't call ourself.
+  const ngx_int_t rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+  // Second, call the Datadog-specific handler that sets up context
+  // propagation, e.g. `propagate_datadog_context`.
+  return inject_propagation_commands(cf, command, conf);
+} catch (const std::exception &e) {
+  // TODO: Will buffering be a problem?
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                "hijacked %V failed: %s", command->name, e.what());
+  return static_cast<char *>(NGX_CONF_ERROR);
+}
+
+} // namespace
 
 static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
                         NgxScript &script) noexcept {
@@ -113,9 +136,6 @@ char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
 //     http://mailman.nginx.org/pipermail/nginx-devel/2018-March/011008.html
 char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
                                     void * conf) noexcept try {
-  // TODO: hack hack
-  std::cout << "propagate_datadog_context called\n";
-  // end TODO
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
   if (!main_conf->tracer_library.data) {
@@ -129,15 +149,6 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
   auto keys = static_cast<ot::string_view *>(
       main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
-
-  // TODO: hack hack
-  /*auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  // return set_script(cf, command, loc_conf->loc_operation_name_script);
-  std::cout << "[][][][][][][] we're about to compile the response script. loc_conf: " << conf << std::endl;
-  const auto rc = loc_conf->response_info_script.compile(cf, ngx_string("$sent_http_x_you_better_believe_it"));
-  std::cout << "[][][][][][][] rc of compiling the response script: " << rc << std::endl;
-  */
-  // end TODO
 
   auto old_args = cf->args;
 
@@ -166,23 +177,9 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
-// TODO: no
-char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command,
-                                    void *conf) noexcept try {
-  std::cout << "hijacking proxy_pass" << std::endl;
-
-  const ngx_int_t rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
-  if (rcode != NGX_OK) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-  // return static_cast<char *>(NGX_CONF_OK);
-  return propagate_datadog_context(cf, command, conf);
-} catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                "hijacked proxy_pass failed: %s", e.what());
-  return static_cast<char *>(NGX_CONF_ERROR);
+char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return hijack_pass_directive(&propagate_datadog_context, cf, command, conf);
 }
-// end TODO
 
 namespace {
 bool starts_with(const ot::string_view& subject, const ot::string_view& prefix) {
@@ -279,6 +276,10 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
+char *hijack_fastcgi_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return hijack_pass_directive(&propagate_fastcgi_datadog_context, cf, command, conf);
+}
+
 char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
                                          void *conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
@@ -320,6 +321,10 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                 "opentracing_grpc_propagate_context failed: %s", e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
+}
+
+char *hijack_grpc_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return hijack_pass_directive(&propagate_grpc_datadog_context, cf, command, conf);
 }
 
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,

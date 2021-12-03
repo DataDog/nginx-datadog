@@ -16,10 +16,13 @@ services:
       - './index.html:/usr/share/nginx/html/index.html:ro'
     ports:
       - "8080:80"
-    # This dependency is so that "downstream" is in traced-nginx's DNS even
-    # when traced-nginx is run by itself.
+      - "1337:1337"
+    # This dependency is so that the other service names are in traced-nginx's
+    # DNS, even when those other services aren't running.
     depends_on:
-      - downstream
+      - http
+      - fastcgi
+      - grpc
 
   dd-agent:
     volumes:
@@ -34,12 +37,39 @@ services:
       - DD_AC_EXCLUDE=name:datadog-agent
     image: 'datadog/agent'
 
-  downstream:
+  http:
     build:
       context: .
-      dockerfile: downstream.dockerfile
+      dockerfile: http.dockerfile
     environment:
       - DD_AGENT_HOST=dd-agent
-      - DD_SERVICE=downstream
+      - DD_SERVICE=http
     volumes:
-      - './downstream.js:/app/downstream.js:ro'
+      - './http.js:/app/http.js:ro'
+    depends_on:
+      - dd-agent
+
+  fastcgi:
+    build:
+      context: .
+      dockerfile: fastcgi.dockerfile
+    environment:
+      - DD_AGENT_HOST=dd-agent
+      - DD_SERVICE=fastcgi
+    volumes:
+      - './fastcgi.js:/app/fastcgi.js:ro'
+    depends_on:
+      - dd-agent
+
+  grpc:
+    build:
+      context: .
+      dockerfile: grpc.dockerfile
+    environment:
+      - DD_AGENT_HOST=dd-agent
+      - DD_SERVICE=grpc
+    volumes:
+      - './grpc.js:/app/grpc.js:ro'
+      - './grpc.proto:/app/grpc.proto:ro'
+    depends_on:
+      - dd-agent

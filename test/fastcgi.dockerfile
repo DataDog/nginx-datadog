@@ -13,6 +13,6 @@ RUN apt-get update && \
         nodejs \
         npm
 
-RUN npm install dd-trace
+RUN npm install dd-trace node-fastcgi
 
-CMD ["node", "--require", "dd-trace/init", "downstream.js"]
+CMD ["node", "fastcgi.js"]
