@@ -116,6 +116,10 @@ std::vector<ot::string_view> TracingLibrary::environment_variable_names() {
     };
 }
     
+ot::string_view TracingLibrary::default_operation_name_pattern() {
+    return "$request_method $uri";
+}
+
 bool TracingLibrary::tracing_on_by_default() {
     return true;
 }

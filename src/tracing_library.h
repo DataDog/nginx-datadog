@@ -41,7 +41,12 @@ struct TracingLibrary {
     // return value (realistically this means that they will refer to string
     // literals).
     static std::vector<ot::string_view> environment_variable_names();
-    
+
+    // Return the pattern of an nginx variable script that will be used for the
+    // operation name of requests and locations that do not have an operation
+    // name defined in the nginx configuration.
+    static ot::string_view default_operation_name_pattern();
+
     // Return the default setting for whether tracing is enabled in nginx.
     static bool tracing_on_by_default();
 

@@ -423,10 +423,35 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   return loc_conf;
 }
 
+namespace {
+
+// Merge the specified `previous` operation name script into the specified
+// `current` operation name script in the context of the specified `conf`.  If
+// `current` does not have a value and `previous` does, then `previous` will be
+// used.  If neither has a value, then a hard-coded default will be used.
+// Return `NGX_CONF_OK` on success, or another value otherwise.
+char* merge_operation_name_script(ngx_conf_t *conf, NgxScript& previous, NgxScript& current) {
+  if (current.is_valid()) {
+    return NGX_CONF_OK;
+  }
+
+  if (!previous.is_valid()) {
+    const ngx_int_t rc = previous.compile(conf, to_ngx_str(TracingLibrary::default_operation_name_pattern()));
+    if (rc != NGX_OK) {
+      return (char*)NGX_CONF_ERROR;
+    }
+  }
+  
+  current = previous;
+  return NGX_CONF_OK;
+}
+
+} // namespace
+
 //------------------------------------------------------------------------------
 // merge_datadog_loc_conf
 //------------------------------------------------------------------------------
-static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent,
+static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
                                         void *child) noexcept {
   auto prev = static_cast<datadog_loc_conf_t *>(parent);
   auto conf = static_cast<datadog_loc_conf_t *>(child);
@@ -434,13 +459,8 @@ static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent,
   ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations, TracingLibrary::trace_locations_by_default());
 
-  if (prev->operation_name_script.is_valid() &&
-      !conf->operation_name_script.is_valid())
-    conf->operation_name_script = prev->operation_name_script;
-
-  if (prev->loc_operation_name_script.is_valid() &&
-      !conf->loc_operation_name_script.is_valid())
-    conf->loc_operation_name_script = prev->loc_operation_name_script;
+  merge_operation_name_script(cf, prev->operation_name_script, conf->operation_name_script);
+  merge_operation_name_script(cf, prev->loc_operation_name_script, conf->loc_operation_name_script);
 
   ngx_conf_merge_value(conf->trust_incoming_span, prev->trust_incoming_span, 1);
 
