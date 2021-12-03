@@ -26,8 +26,8 @@ struct datadog_main_conf_t {
 struct datadog_loc_conf_t {
   ngx_flag_t enable;
   ngx_flag_t enable_locations;
-  NgxScript operation_name_script;
-  NgxScript loc_operation_name_script;
+  NgxScript operation_name_script; // TODO: default value "$request_method $uri"?
+  NgxScript loc_operation_name_script; // TODO: default value "$request_method $uri"?
   ngx_flag_t trust_incoming_span;
   ngx_array_t *tags;
   NgxScript response_info_script;

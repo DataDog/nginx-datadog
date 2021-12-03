@@ -5,7 +5,7 @@
 
 #include "config_util.h"
 #include "discover_span_context_keys.h"
-#include "json.hpp"
+#include "json.h"
 #include "ngx_filebuf.h"
 #include "ngx_script.h"
 #include "datadog_conf.h"

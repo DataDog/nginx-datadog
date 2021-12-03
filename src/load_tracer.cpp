@@ -10,7 +10,7 @@ namespace nginx {
 
 ngx_int_t load_tracer(ngx_log_t* log, const char* /*tracer_library*/,
                       const char* config_file,
-                      ot::DynamicTracingLibraryHandle& handle,
+                      ot::DynamicTracingLibraryHandle& /*handle*/,
                       std::shared_ptr<ot::Tracer>& tracer) {
   std::string tracer_config;
   if (read_file(config_file, tracer_config)) {

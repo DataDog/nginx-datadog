@@ -16,6 +16,7 @@ target_sources(nginx_datadog
         src/datadog_variable.cpp
         src/discover_span_context_keys.cpp
         src/extract_span_context.cpp
+        src/json.cpp
         src/load_tracer.cpp
         src/ngx_filebuf.cpp
         src/ngx_http_datadog_module.cpp
