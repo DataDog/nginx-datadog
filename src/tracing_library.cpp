@@ -96,6 +96,8 @@ std::vector<ot::string_view> TracingLibrary::environment_variable_names() {
     return {
         // These environment variable names are taken from `tracer_options.cpp`
         // and `tracer.cpp` in the `dd-opentracing-cpp` repository.
+        // I did `git grep '"DD_\w\+"' -- src/` in the `dd-opentracing-cpp`
+        // repository.
         "DD_AGENT_HOST",
         "DD_ENV",
         "DD_PROPAGATION_STYLE_EXTRACT",

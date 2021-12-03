@@ -44,7 +44,9 @@ struct TracingLibrary {
 
     // Return the pattern of an nginx variable script that will be used for the
     // operation name of requests and locations that do not have an operation
-    // name defined in the nginx configuration.
+    // name defined in the nginx configuration.  Note that the storage to which
+    // the returned value refers must outlive any usage of the return value
+    // (realistically this means that it will refer to a string literal).
     static ot::string_view default_operation_name_pattern();
 
     // Return the default setting for whether tracing is enabled in nginx.

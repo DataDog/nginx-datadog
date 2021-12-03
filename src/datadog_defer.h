@@ -6,6 +6,10 @@
 // a utility function, `defer`, that allow for deferred execution of arbitrary
 // code at the end of a lexical scope.
 //
+//     const auto guard = defer([]() {
+//         /* this is executed when `guard` is destroyed */
+//     });
+//
 // For example, the following code restores the value of `conf.cmd` anywhere
 // the enclosing function returns or throws an exception ("!"), but only if
 // `guard` has been initialized ("←").

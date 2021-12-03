@@ -11,7 +11,7 @@
 // input.  `NgxFileBuf` allows a `std::istream` to use a `ngx_file_t`, backed
 // by a `ngx_buf_t`, as a source:
 //
-//     datadog::nginx::NgxFileBuf buffer(...);
+//     datadog::nginx::NgxFileBuf buffer(/*...*/);
 //     std::istream input(&buffer);
 //     auto result = some::json_library::parse(input);
 //     ...
