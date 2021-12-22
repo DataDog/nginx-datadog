@@ -28,6 +28,7 @@ NgxFileBuf::NgxFileBuf(ngx_buf_t& buffer, ngx_file_t& file,
   char* const begin = &*prefix.begin();
   char* const end = &*prefix.end();
   setg(begin, begin, end);
+  newlines_from = begin;
 }
 
 NgxFileBuf::~NgxFileBuf() {
@@ -38,7 +39,7 @@ NgxFileBuf::~NgxFileBuf() {
 
   // Finish counting newlines.
   if (newlines) {
-    *newlines += std::count(eback(), gptr(), '\n');
+    *newlines += std::count(newlines_from, gptr(), '\n');
   }
 }
 
@@ -52,6 +53,7 @@ std::streambuf::int_type NgxFileBuf::underflow() {
   // nginx `buffer` (after which we might not be underflowing anymore).
   if (eback() == &*prefix.begin()) {
     setg(cast(buffer.start), cast(buffer.pos), cast(buffer.last));
+    newlines_from = cast(buffer.pos);
     return underflow();
   }
 
@@ -60,7 +62,7 @@ std::streambuf::int_type NgxFileBuf::underflow() {
 
   // But first, update our count of newlines.
   if (newlines) {
-    *newlines += std::count(eback(), gptr(), '\n');
+    *newlines += std::count(newlines_from, gptr(), '\n');
   }
 
   const ssize_t n = ngx_read_file(&file, buffer.start,
@@ -78,6 +80,7 @@ std::streambuf::int_type NgxFileBuf::underflow() {
   // "current" pointer points to the beginning, and the "end" points to one
   // past what we just read.
   setg(eback(), eback(), eback() + n);
+  newlines_from = eback();
 
   return traits_type::to_int_type(*gptr());
 }

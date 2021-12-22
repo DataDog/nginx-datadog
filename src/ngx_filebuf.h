@@ -55,6 +55,13 @@ class NgxFileBuf : public std::streambuf {
   // either anticipate the missing "{", or, alternatively, `prefix` can be
   // used to "put it back" (i.e. `prefix == "{"`).
   std::string prefix;
+  // When counting newlines, there are two possible starting places within the
+  // buffer.  If we've recently refilled the buffer with data read from the
+  // file, then we'd start counting newlines from the beginning of the buffer.
+  // If we haven't refilled the buffer before, then we'd start counting from
+  // where the "get" pointer began.  `newlines_from` takes on one of those two
+  // values.
+  char* newlines_from;
 
  public:
   // Create a `NgxFileBuf` object using the specified `buffer` for storage,
