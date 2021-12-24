@@ -32,15 +32,14 @@ inline ot::string_view str(const ngx_str_t& s) {
 
 ngx_str_t to_ngx_str(ngx_pool_t *pool, const std::string &s);
 
+ngx_str_t to_ngx_str(ngx_pool_t *pool, ot::string_view s);
+
 inline ngx_str_t to_ngx_str(ot::string_view s) {
   ngx_str_t result;
   result.len = s.size();
   result.data = reinterpret_cast<unsigned char *>(const_cast<char *>(s.data()));
   return result;
 }
-
-// Convert a std::string to an ngx_str_t and transform it to lowercase.
-ngx_str_t to_lower_ngx_str(ngx_pool_t *pool, const std::string &s);
 
 // Convert the epoch denoted by epoch_seconds, epoch_milliseconds to an
 // std::chrono::system_clock::time_point duration from the epoch.

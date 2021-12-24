@@ -26,10 +26,20 @@ ot::expected<TracerOptions> optionsFromConfig(const char *configuration, std::st
 
 // This function is defined in the `dd-opentracing-cpp` repository.
 std::vector<ot::string_view> getPropagationHeaderNames(const std::set<PropagationStyle> &styles, bool prioritySamplingEnabled);
+
 }  // namespace opentracing
 
 namespace nginx {
 namespace {
+
+const ot::string_view DEFAULT_CONFIG = R"json({"service": "nginx"})json";
+
+ot::string_view or_default(ot::string_view config_json) {
+    if (config_json.empty()) {
+        return DEFAULT_CONFIG;
+    }
+    return config_json;
+}
 
 // This function-like object logs to nginx's error log when invoked.  It also
 // manages a mutex to serialize access to the log.
@@ -65,7 +75,8 @@ class NginxLogFunc {
 } // namespace
 
 std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(ot::string_view configuration, std::string &error) {
-    auto maybe_options = ::datadog::opentracing::optionsFromConfig(std::string(configuration).c_str(), error);
+    const std::string config_str = or_default(configuration);
+    auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
     if (!maybe_options) {
         if (error.empty()) {
             error = "unable to parse options from config";
@@ -80,7 +91,8 @@ std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(ot::string_view configur
 }
 
 std::vector<ot::string_view> TracingLibrary::span_tag_names(ot::string_view configuration, std::string &error) {
-    const auto maybe_options = ::datadog::opentracing::optionsFromConfig(std::string(configuration).c_str(), error);
+    const std::string config_str = or_default(configuration);
+    auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
     if (!maybe_options) {
         if (error.empty()) {
             error = "unable to parse options from config";
@@ -88,8 +100,8 @@ std::vector<ot::string_view> TracingLibrary::span_tag_names(ot::string_view conf
         return {};
     }
 
-    const bool prioritySamplingEnabled = true;
-    return ::datadog::opentracing::getPropagationHeaderNames(maybe_options->inject, prioritySamplingEnabled);
+    const bool priority_sampling_enabled = true;
+    return ::datadog::opentracing::getPropagationHeaderNames(maybe_options->inject, priority_sampling_enabled);
 }
 
 std::vector<ot::string_view> TracingLibrary::environment_variable_names() {

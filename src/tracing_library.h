@@ -22,17 +22,20 @@ namespace datadog {
 namespace nginx {
 
 struct TracingLibrary {
-    // Return a `Tracer` created with the specified `configuration`.  If an
-    // error occurs, return `nullptr` and assign a diagnostic to the specified `error`.
+    // Return a `Tracer` created with the specified `configuration`. If
+    // `configuration` is empty, use a default configuration.  If an error
+    // occurs, return `nullptr` and assign a diagnostic to the specified
+    // `error`.
     static std::shared_ptr<ot::Tracer> make_tracer(ot::string_view configuration, std::string &error);
 
     // Parse the specified `configuration` and return the names of span tags
     // used to inject trace context (which tags those are might depend on the
-    // configuration, e.g. optional B3 propagation).  If an error occurs,
-    // assign a diagnostic to the specified `error`.  Note that the storage to
-    // which each returned `ot::string_view` refers must outlive any usage of
-    // the return value (realistically this means that they will refer to
-    // string literals).
+    // configuration, e.g. optional B3 propagation).  If `configuration` is
+    // empty, use a default configuration.  If an error occurs, assign a
+    // diagnostic to the specified `error`.  Note that the storage to which
+    // each returned `ot::string_view` refers must outlive any usage of the
+    // return value (realistically this means that they will refer to string
+    // literals).
     static std::vector<ot::string_view> span_tag_names(ot::string_view configuration, std::string &error);
 
     // Return the names of environment variables for worker processes to

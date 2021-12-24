@@ -45,6 +45,37 @@ char *hijack_pass_directive(
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
+// An empty configuration instructs the member functions of `TracingLibrary` to
+// substitute a default configuration instead of interpreting the string as a
+// JSON encoded configuration.
+const ot::string_view TRACER_CONF_DEFAULT;
+
+// TODO: document
+char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, ot::string_view tracer_conf) {
+  auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_http_conf_get_module_main_conf(conf, ngx_http_datadog_module));
+  
+  main_conf->is_tracer_configured = true;
+  main_conf->tracer_conf = to_ngx_str(conf->pool, tracer_conf);
+  // TODO: Do I need to clone the file name?
+  main_conf->tracer_conf_source_location = conf_directive_source_location{
+    .file_name = conf->conf_file->file.name,
+    .line = conf->conf_file->line,
+    .directive_name = command->name
+  };
+  
+  // In order for span context propagation to work, the keys used by a tracer
+  // need to be known ahead of time. OpenTracing-C++ doesn't have any API for
+  // this, so we use an extended interface in `TracingLibrary`.
+  main_conf->span_context_keys = discover_span_context_keys(
+      conf->pool, conf->log, str(main_conf->tracer_conf));
+  if (main_conf->span_context_keys == nullptr) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  return static_cast<char *>(NGX_CONF_OK);
+}
+
 } // namespace
 
 static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
@@ -132,20 +163,23 @@ char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
 // used for propagation need to be discovered before this directive is called.
 // (See set_tracer below).
 //
-// This approach was dicussed here
+// This approach was discussed here
 //     http://mailman.nginx.org/pipermail/nginx-devel/2018-March/011008.html
-char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * /*command*/,
+char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * command,
                                     void * conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
-  if (!main_conf->tracer_library.data) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "opentracing_propagate_context before tracer loaded");
-    return static_cast<char *>(NGX_CONF_ERROR);
+  if (!main_conf->is_tracer_configured) {
+    if (auto rcode = set_tracer(command, cf, TRACER_CONF_DEFAULT)) {
+      return rcode;
+    }
   }
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
   }
+  // For each propagation header (from `span_context_keys`), add a
+  // "proxy_set_header ...;" directive to the configuration and then process
+  // the injected directive by calling `datadog_conf_handler`.
   auto keys = static_cast<ot::string_view *>(
       main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
@@ -235,14 +269,14 @@ char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf, ngx_command_t *
 }
 
 char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
-                                            ngx_command_t*,
+                                            ngx_command_t *command,
                                             void *conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
-  if (!main_conf->tracer_library.data) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "opentracing_fastcgi_propagate_context before tracer loaded");
-    return static_cast<char *>(NGX_CONF_ERROR);
+  if (!main_conf->is_tracer_configured) {
+    if (auto rcode = set_tracer(command, cf, TRACER_CONF_DEFAULT)) {
+      return rcode;
+    }
   }
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
@@ -284,10 +318,10 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
                                          void *conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
-  if (!main_conf->tracer_library.data) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "opentracing_grpc_propagate_context before tracer loaded");
-    return static_cast<char *>(NGX_CONF_ERROR);
+  if (!main_conf->is_tracer_configured) {
+    if (auto rcode = set_tracer(command, cf, TRACER_CONF_DEFAULT)) {
+      return rcode;
+    }
   }
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
@@ -337,7 +371,7 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
 }
 
 // TODO: no
-char *configure(ngx_conf_t *cf, ngx_command_t *command,
+char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept {
   std::cout << "Rejoice, for we have done the thing!\n" << std::flush;
   // TODO: Don't go directly to `line`. Use a temporary, and then overwrite later.
@@ -365,7 +399,17 @@ char *configure(ngx_conf_t *cf, ngx_command_t *command,
   // std::cout << "result of read: " << bool(std::getline(input, data, '}')) << '\n' << std::flush;
   // std::cout << "data[:50]: " << data.substr(0, 50) << '\n' << std::flush;
 
-  return NGX_CONF_OK;
+  const auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
+
+  if (main_conf->is_tracer_configured) {
+    const auto& location = main_conf->tracer_conf_source_location;
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                  "Datadog tracing is already configured.  It was default-configured by the call to \"%V\" at %V:%d.  Place the datadog configuration directive before any proxy-related directives.", &location.directive_name, &location.file_name, location.line);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  return set_tracer(command, cf, output);
 }
 
 char *set_datadog_operation_name(ngx_conf_t *cf, ngx_command_t *command,
@@ -381,19 +425,18 @@ char *set_datadog_location_operation_name(ngx_conf_t *cf,
   return set_script(cf, command, loc_conf->loc_operation_name_script);
 }
 
+// TODO: Without `set_tracer`, when are we going to do `discover_span_context_keys`?
 char *set_tracer(ngx_conf_t *cf, ngx_command_t *command,
                  void *conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
   auto values = static_cast<ngx_str_t *>(cf->args->elts);
-  main_conf->tracer_library = values[1];
-  main_conf->tracer_conf_file = values[2];
 
   // In order for span context propagation to work, the keys used by a tracer
-  // need to be known ahead of time. OpenTracing-C++ doesn't currently have any
-  // API for this, so we use an extended interface in `TracingLibrary`.
+  // need to be known ahead of time. OpenTracing-C++ doesn't have any API for
+  // this, so we use an extended interface in `TracingLibrary`.
   main_conf->span_context_keys = discover_span_context_keys(
-      cf->pool, cf->log, to_string(main_conf->tracer_conf_file).c_str());
+      cf->pool, cf->log, str(main_conf->tracer_conf));
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_ERROR);
   }
@@ -403,5 +446,57 @@ char *set_tracer(ngx_conf_t *cf, ngx_command_t *command,
   ngx_log_error(NGX_LOG_ERR, cf->log, 0, "set_tracer failed: %s", e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
 }
+
+char *datadog_command(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
+  (void)main_conf;
+
+  std::cout << "[][][][][][][][] datadog_command has " << cf->args->nelts << " arguments.\n";
+  return static_cast<char*>(NGX_CONF_OK);
+}
+
+char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  const auto values = static_cast<const ngx_str_t *>(cf->args->elts);
+  assert(cf->args->nelts == 2);
+
+  ot::string_view preferred;
+  if (str(values[1]) == "on") {
+    loc_conf->enable = true;
+    preferred = "datadog_enable";
+  } else if (str(values[1]) == "off") {
+    loc_conf->enable = false;
+    preferred = "datadog_disable";
+  } else {
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                  "Invalid argument \"%V\" to %V directive.  Use \"on\" or \"off\". ", &values[1], &command->name);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+  
+  // Warn the user to prefer the corresponding "datadog_{enable,disable}" directive.
+  const ngx_str_t preferred_str = to_ngx_str(preferred);
+  ngx_log_error(NGX_LOG_WARN, cf->log, 0, "Backward compatibility with the \"%V %V;\" configuration directive is deprecated.  Please use \"%V;\" instead.", &values[0], &values[1], &preferred_str);
+
+  return static_cast<char*>(NGX_CONF_OK);
+}
+
+char *datadog_enable(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  loc_conf->enable = true;
+  return static_cast<char*>(NGX_CONF_OK);
+}
+
+char *datadog_disable(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  loc_conf->enable = false;
+  return static_cast<char*>(NGX_CONF_OK);
+}
+
+char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "The \"%V\" directive is no longer necessary.  Use \"datadog { ... }\" to configure tracing.", &command->name);
+  return static_cast<char *>(NGX_CONF_ERROR);
+}
+
 }  // namespace nginx
 }  // namespace datadog

@@ -9,14 +9,7 @@ namespace datadog {
 namespace nginx {
 
 ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
-                                        const char* tracer_config_file) {
-  std::string tracer_config;
-  if (read_file(tracer_config_file, tracer_config)) {
-    ngx_log_error(NGX_LOG_ERR, log, 0,
-                  "failed to discover span context tags: unable to read configuration file: %s", tracer_config_file);
-    return nullptr;
-  }
-  
+                                        ot::string_view tracer_config) {
   std::string error;
   const auto tag_names = TracingLibrary::span_tag_names(tracer_config, error);
   if (!error.empty()) {

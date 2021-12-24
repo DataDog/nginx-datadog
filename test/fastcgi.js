@@ -4,7 +4,16 @@
 const tracer = require('dd-trace').init();
 const fastcgi = require('node-fastcgi');
 
+// In order for the span(s) associated with an HTTP request to be considered
+// finished, the body of the response corresponding to the request must have
+// ended.
+const ignoreRequestBody = request => {
+  request.on('data', () => {});
+  request.on('end', () => {});
+}
+
 const requestListener = function (request, response) {
+  ignoreRequestBody(request);
   response.writeHead(200, {'X-You-Better-Believe-It': 'foobar bearclaw'});
   response.end('You hit the fastcgi node script, congrats. Here are your headers:\n\n'
       + JSON.stringify(request.headers, null, 2));

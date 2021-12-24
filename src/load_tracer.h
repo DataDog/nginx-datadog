@@ -14,10 +14,10 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-ngx_int_t load_tracer(ngx_log_t* log, const char* tracer_library,
-                      const char* config_file,
-                      ot::DynamicTracingLibraryHandle& handle,
-                      std::shared_ptr<ot::Tracer>& tracer);
+// Return a tracer instance configured using the specified `tracer_config`, or
+// return `nullptr` if an error occurs.  If an error occurs, log a diagnostic
+// using the specified `log`.
+std::shared_ptr<ot::Tracer> load_tracer(ngx_log_t* log, ot::string_view tracer_config);
 
 }  // namespace nginx
 }  // namespace datadog

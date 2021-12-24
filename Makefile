@@ -61,7 +61,11 @@ build-in-docker: prebuild
 test: build-in-docker
 # test: .build/libngx_http_datadog_module.so
 	cd test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) $(MAKE) up
-	# cd test && $(MAKE) check-config
+
+.PHONY: test-config
+test-config: build-in-docker
+# test-config: .build/libngx_http_datadog_module.so
+	cd test && $(MAKE) check-config
 
 .build/libngx_http_datadog_module.so: prebuild
 	bin/cmake_build.sh

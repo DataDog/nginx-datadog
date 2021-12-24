@@ -36,7 +36,7 @@ char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept;
 
-char *configure(ngx_conf_t *cf, ngx_command_t *command,
+char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept;
 
 char *set_datadog_operation_name(ngx_conf_t *cf, ngx_command_t *command,
@@ -47,6 +47,16 @@ char *set_datadog_location_operation_name(ngx_conf_t *cf,
                                               void *conf) noexcept;
 
 char *set_tracer(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *datadog_command(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *datadog_enable(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *datadog_disable(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
 }  // namespace nginx
 }  // namespace datadog

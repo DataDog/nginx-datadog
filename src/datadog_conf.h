@@ -16,10 +16,37 @@ struct datadog_tag_t {
   NgxScript value_script;
 };
 
+// TODO: hijacking needs to be disabled if a user wants;
+// how do they selectively disable?
+// Would a location-specific `datadog off;` work?
+
+struct conf_directive_source_location {
+  ngx_str_t file_name; // e.g. "nginx.conf"
+  ngx_uint_t line; // line number within the file `file_name`
+  ngx_str_t directive_name; // e.g. "proxy_pass"
+};
+
 struct datadog_main_conf_t {
   ngx_array_t *tags;
-  ngx_str_t tracer_library; // TODO: not needed
-  ngx_str_t tracer_conf_file; // TODO: use file contents instead
+  // `is_tracer_configured` is whether the tracer has been configured, either
+  // by an explicit `datadog_configure` directive, or implicitly to a default
+  // configuration by another directive.
+  bool is_tracer_configured;
+  // `tracer_conf` is the text of the tracer's configuration, either from the
+  // nginx configuration file or from a separately loaded file.  If
+  // `tracer_conf` is empty, then a default configuration is used.
+  ngx_str_t tracer_conf;
+  // `tracer_conf_source_location` is the source location of the configuration
+  // directive that caused the tracer configuration to be loaded.  The
+  // `datadog_configure` and `datadog` blocks cause the tracer configuration to
+  // be loaded, but there are other directives that cause a default
+  // configuration to be loaded if no other configuration has yet been loaded.
+  // The purpose of `tracer_conf_source_location` is to enable the error
+  // diagnostic:
+  // > Configuration already loaded to default configuration by
+  // > [[source location]].  Explicit configuration must appear before
+  // > the first [[directive name]].
+  conf_directive_source_location tracer_conf_source_location;
   ngx_array_t *span_context_keys;
 };
 

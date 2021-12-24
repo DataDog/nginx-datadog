@@ -72,14 +72,26 @@ const std::pair<ngx_str_t, ngx_str_t> default_datadog_tags[] = {
 // clang-format off
 static ngx_command_t datadog_commands[] = {
 
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "opentracing", 
-      "datadog",
+    { ngx_string("opentracing"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      ngx_conf_set_flag_slot,
+      toggle_opentracing,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, enable),
-      nullptr),
+      0,
+      nullptr},
+
+    { ngx_string("datadog_enable"),
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
+      datadog_enable,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_disable"),
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
+      datadog_disable,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
 
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_trace_locations",
@@ -182,20 +194,24 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr),
-
-    // TODO: No need for a datadog version, and replace the opentracing version with an error.
-     DEFINE_COMMAND_WITH_OLD_ALIAS(
-       "datadog_load_tracer",
-       "opentracing_load_tracer",
+    
+    { ngx_string("datadog_load_tracer"),
        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
-       set_tracer,
+       plugin_loading_deprecated,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr),
+      nullptr},
 
-    { ngx_string("datadog_configure"),
+    { ngx_string("opentracing_load_tracer"),
+       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
+       plugin_loading_deprecated,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog"),
       NGX_MAIN_CONF | NGX_HTTP_MAIN_CONF | NGX_CONF_NOARGS | NGX_CONF_BLOCK,
-      configure,
+      configure_tracer,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
@@ -274,13 +290,20 @@ ngx_set_env(ot::string_view entry, ngx_cycle_t *cycle)
 }
 
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
-  // Forward tracer-specific environment variables to child processes (i.e.
-  // workers).
+  // Forward tracer-specific environment variables to worker processes.
   for (const auto& env_var_name : TracingLibrary::environment_variable_names()) {
     if (const void *const error = ngx_set_env(env_var_name, cycle)) {
       return ngx_int_t(error);
     }
   }
+
+  // TODO: Let's see what ended up happening with the tracer configuration.
+  const auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
+  std::cout << "(*&$(*&)@(*&)($*&#()$&@(*()*  config: " << str(main_conf->tracer_conf)
+      << "\nfile: " << str(main_conf->tracer_conf_source_location.file_name)
+      << "\nline: " << main_conf->tracer_conf_source_location.line
+      << "\ndirective: " << str(main_conf->tracer_conf_source_location.directive_name) << std::endl;
 
   return NGX_OK;
 }
@@ -317,19 +340,19 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
 }
 
 static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
+  // TODO: Document
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
-  if (!main_conf || !main_conf->tracer_library.data) {
+  if (!main_conf || !main_conf->is_tracer_configured) {
+    // TODO: no
+    std::cout << "*&*(&)(&()*&)(*&()*&(*&()*&)(*&   Either there's no datadog_main_conf_t object, or .is_tracer_configured is false.\n";
     return NGX_OK;
   }
 
   ot::DynamicTracingLibraryHandle dummy_handle;
-  std::shared_ptr<ot::Tracer> tracer;
-  auto result = load_tracer(
-      cycle->log, to_string(main_conf->tracer_library).data(),
-      to_string(main_conf->tracer_conf_file).data(), dummy_handle, tracer);
-  if (result != NGX_OK) {
-    return result;
+  std::shared_ptr<ot::Tracer> tracer = load_tracer(cycle->log, str(main_conf->tracer_conf));
+  if (!tracer) {
+    return NGX_ERROR;
   }
 
   ot::Tracer::InitGlobal(std::move(tracer));
@@ -374,8 +397,9 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
   // Default initialize members.
-  *main_conf = datadog_main_conf_t();
-  if (!main_conf) return nullptr;
+  if (main_conf) {
+    *main_conf = datadog_main_conf_t();
+  }
   return main_conf;
 }
 
