@@ -256,7 +256,7 @@ char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf, ngx_command_t *
   new_name.append(suffix.data(), suffix.size());
 
   const ngx_str_t new_name_ngx = to_ngx_str(new_name);
-  ngx_log_error(NGX_LOG_WARN, cf->log, 0, "Backward compatibility with the \"%V\" configuration directive is deprecated.  Please use \"%V\" instead.", &elements[0], &new_name_ngx);
+  ngx_log_error(NGX_LOG_WARN, cf->log, 0, "Backward compatibility with the \"%V\" configuration directive is deprecated.  Please use \"%V\" instead.  Occurred at %V:%d", &elements[0], &new_name_ngx, &cf->conf_file->file.name, cf->conf_file->line);
 
   // Rename the command (opentracing_*  →  datadog_*) and let
   // `datadog_conf_handler` dispatch to the appropriate handler.
