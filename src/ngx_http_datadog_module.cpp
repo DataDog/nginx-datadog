@@ -290,6 +290,8 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
   }
 
   // TODO: Let's see what ended up happening with the tracer configuration.
+  // TODO: We could use an env variable or a configuration directive to instruct
+  // this code to dump config in a machine-readable format, for tests.
   const auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
   std::cout << "(*&$(*&)@(*&)($*&#()$&@(*()*  config: " << str(main_conf->tracer_conf)
