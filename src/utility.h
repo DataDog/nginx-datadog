@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include <opentracing/string_view.h>
-#include "ot.h"
-
+#include "string_view.h"
 
 #include <algorithm>
 #include <cctype>
@@ -22,19 +20,19 @@ inline std::string to_string(const ngx_str_t &ngx_str) {
   return {reinterpret_cast<char *>(ngx_str.data), ngx_str.len};
 }
 
-inline ot::string_view to_string_view(const ngx_str_t& s) {
+inline string_view to_string_view(const ngx_str_t& s) {
   return {reinterpret_cast<char *>(s.data), s.len};
 }
 
-inline ot::string_view str(const ngx_str_t& s) {
+inline string_view str(const ngx_str_t& s) {
   return to_string_view(s);
 }
 
 ngx_str_t to_ngx_str(ngx_pool_t *pool, const std::string &s);
 
-ngx_str_t to_ngx_str(ngx_pool_t *pool, ot::string_view s);
+ngx_str_t to_ngx_str(ngx_pool_t *pool, string_view s);
 
-inline ngx_str_t to_ngx_str(ot::string_view s) {
+inline ngx_str_t to_ngx_str(string_view s) {
   ngx_str_t result;
   result.len = s.size();
   result.data = reinterpret_cast<unsigned char *>(const_cast<char *>(s.data()));
@@ -76,11 +74,6 @@ inline char header_transform_char(char c) {
   if (c == '-') return '_';
   return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 }
-
-// Open the file at the specified `path` for reading, read its entire contents,
-// and append them to the specified `destination`.  Return zero on success, or
-// a nonzero value if an error occurs.
-int read_file(const char* path, std::string& destination);
 
 }  // namespace nginx
 }  // namespace datadog

@@ -18,10 +18,10 @@
 namespace datadog {
 namespace nginx {
 
-const ot::string_view opentracing_context_variable_name{
+const string_view opentracing_context_variable_name{
     "opentracing_context_"};
 
-static const ot::string_view opentracing_binary_context_variable_name{
+static const string_view opentracing_binary_context_variable_name{
     "opentracing_binary_context"};
 
 // Extract the key specified by the variable's suffix and expand it to the
@@ -34,7 +34,7 @@ static ngx_int_t expand_datadog_context_variable(
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
   auto prefix_length = opentracing_context_variable_name.size();
 
-  ot::string_view key{variable_name.data() + prefix_length,
+  string_view key{variable_name.data() + prefix_length,
                                variable_name.size() - prefix_length};
 
   auto context = get_datadog_context(request);

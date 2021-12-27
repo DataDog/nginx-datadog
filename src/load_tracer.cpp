@@ -1,5 +1,5 @@
 #include "load_tracer.h"
-#include "ot.h"
+#include "string_view.h"
 #include "tracing_library.h"
 #include "utility.h"
 
@@ -8,7 +8,7 @@
 namespace datadog {
 namespace nginx {
 
-std::shared_ptr<ot::Tracer> load_tracer(ngx_log_t* log, ot::string_view tracer_config) {
+std::shared_ptr<ot::Tracer> load_tracer(ngx_log_t* log, string_view tracer_config) {
   std::string error;
   auto tracer = TracingLibrary::make_tracer(tracer_config, error);
   if (tracer == nullptr) {

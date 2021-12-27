@@ -1,4 +1,5 @@
 #include "request_tracing.h"
+#include "extract_span_context.h"
 #include "ot.h"
 #include "ngx_http_datadog_module.h"
 
@@ -10,8 +11,6 @@
 
 namespace datadog {
 namespace nginx {
-std::unique_ptr<ot::SpanContext> extract_span_context(
-    const ot::Tracer &tracer, const ngx_http_request_t *request);
 
 static std::string get_loc_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
@@ -198,7 +197,7 @@ void RequestTracing::on_log_request() {
 //
 // See propagate_datadog_context
 ngx_str_t RequestTracing::lookup_span_context_value(
-    ot::string_view key) {
+    string_view key) {
   return span_context_querier_.lookup_value(request_, active_span(), key);
 }
 

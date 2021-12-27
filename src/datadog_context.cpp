@@ -1,5 +1,6 @@
 #include "datadog_context.h"
 #include "ot.h"
+#include "string_view.h"
 #include "ngx_http_datadog_module.h"
 
 #include "utility.h"
@@ -40,7 +41,7 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
 }
 
 ngx_str_t DatadogContext::lookup_span_context_value(
-    ngx_http_request_t *request, ot::string_view key) {
+    ngx_http_request_t *request, string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
@@ -152,5 +153,6 @@ void destroy_datadog_context(ngx_http_request_t *request) noexcept {
   cleanup->data = nullptr;
   ngx_http_set_ctx(request, nullptr, ngx_http_datadog_module);
 }
+
 }  // namespace nginx
 }  // namespace datadog

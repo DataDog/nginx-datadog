@@ -1,5 +1,6 @@
 #include "load_tracer.h"
 #include "ot.h"
+#include "string_view.h"
 #include "ngx_http_datadog_module.h"
 
 #include "datadog_conf.h"
@@ -35,15 +36,6 @@ static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent, void *child) noe
 // clang-format on
 
 using namespace datadog::nginx;
-
-const std::pair<ngx_str_t, ngx_str_t> default_datadog_tags[] = {
-    {ngx_string("component"), ngx_string("nginx")},
-    {ngx_string("nginx.worker_pid"), ngx_string("$pid")},
-    {ngx_string("peer.address"), ngx_string("$remote_addr:$remote_port")},
-    {ngx_string("upstream.address"), ngx_string("$upstream_addr")},
-    {ngx_string("http.method"), ngx_string("$request_method")},
-    {ngx_string("http.url"), ngx_string("$scheme://$http_host$request_uri")},
-    {ngx_string("http.host"), ngx_string("$http_host")}};
 
 // Each "datadog_*" directive has a corresponding "opentracing_*" alias that
 // logs a warning and then delegates to the "datadog_*" version, e.g.
@@ -264,7 +256,7 @@ ngx_module_t ngx_http_datadog_module = {
 // Note that `ngx_set_env` is adapted from the function of the same name in
 // `nginx.c` within the nginx source code.
 static void*
-ngx_set_env(ot::string_view entry, ngx_cycle_t *cycle)
+ngx_set_env(string_view entry, ngx_cycle_t *cycle)
 {
     ngx_core_conf_t *ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
@@ -326,14 +318,13 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   *handler = on_log_request;
 
   // Add default span tags.
-  const auto num_default_tags =
-      sizeof(default_datadog_tags) / sizeof(default_datadog_tags[0]);
-  if (num_default_tags == 0) return NGX_OK;
+  const auto tags = TracingLibrary::default_tags();
+  if (tags.empty()) return NGX_OK;
   main_conf->tags =
-      ngx_array_create(cf->pool, num_default_tags, sizeof(datadog_tag_t));
+      ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
   if (!main_conf->tags) return NGX_ERROR;
-  for (const auto &tag : default_datadog_tags)
-    if (add_datadog_tag(cf, main_conf->tags, tag.first, tag.second) !=
+  for (const auto &tag : tags)
+    if (add_datadog_tag(cf, main_conf->tags, to_ngx_str(tag.first), to_ngx_str(tag.second)) !=
         NGX_CONF_OK)
       return NGX_ERROR;
   return NGX_OK;

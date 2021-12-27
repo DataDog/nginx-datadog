@@ -1,6 +1,7 @@
 #include "datadog_directive.h"
 #include "datadog_defer.h"
 #include "ot.h"
+#include "string_view.h"
 #include "ngx_http_datadog_module.h"
 
 #include "config_util.h"
@@ -48,10 +49,10 @@ char *hijack_pass_directive(
 // An empty configuration instructs the member functions of `TracingLibrary` to
 // substitute a default configuration instead of interpreting the string as a
 // JSON encoded configuration.
-const ot::string_view TRACER_CONF_DEFAULT;
+const string_view TRACER_CONF_DEFAULT;
 
 // TODO: document
-char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, ot::string_view tracer_conf) {
+char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, string_view tracer_conf) {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(conf, ngx_http_datadog_module));
   
@@ -92,7 +93,7 @@ static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
 }
 
 static ngx_str_t make_span_context_value_variable(
-    ngx_pool_t *pool, ot::string_view key) {
+    ngx_pool_t *pool, string_view key) {
   auto size = 1 + opentracing_context_variable_name.size() + key.size();
   auto data = static_cast<char *>(ngx_palloc(pool, size));
   if (data == nullptr) throw std::bad_alloc{};
@@ -113,8 +114,8 @@ static ngx_str_t make_span_context_value_variable(
 
 // Converts keys to match the naming convention used by CGI parameters.
 static ngx_str_t make_fastcgi_span_context_key(ngx_pool_t *pool,
-                                               ot::string_view key) {
-  static const ot::string_view http_prefix = "HTTP_";
+                                               string_view key) {
+  static const string_view http_prefix = "HTTP_";
   auto size = http_prefix.size() + key.size();
   auto data = static_cast<char *>(ngx_palloc(pool, size));
   if (data == nullptr) throw std::bad_alloc{};
@@ -180,7 +181,7 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * command,
   // For each propagation header (from `span_context_keys`), add a
   // "proxy_set_header ...;" directive to the configuration and then process
   // the injected directive by calling `datadog_conf_handler`.
-  auto keys = static_cast<ot::string_view *>(
+  auto keys = static_cast<string_view *>(
       main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
@@ -216,7 +217,7 @@ char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noex
 }
 
 namespace {
-bool starts_with(const ot::string_view& subject, const ot::string_view& prefix) {
+bool starts_with(const string_view& subject, const string_view& prefix) {
   if (prefix.size() > subject.size()) {
     return false;
   }
@@ -224,17 +225,17 @@ bool starts_with(const ot::string_view& subject, const ot::string_view& prefix) 
   return std::mismatch(subject.begin(), subject.end(), prefix.begin()).second == prefix.end();
 }
 
-ot::string_view slice(const ot::string_view& text, int begin, int end) {
+string_view slice(const string_view& text, int begin, int end) {
   if (begin < 0) {
     begin += text.size();
   }
   if (end < 0) {
     end += text.size();
   }
-  return ot::string_view(text.data() + begin, end - begin);
+  return string_view(text.data() + begin, end - begin);
 }
 
-ot::string_view slice(const ot::string_view& text, int begin) {
+string_view slice(const string_view& text, int begin) {
   return slice(text, begin, text.size());
 }
 
@@ -244,14 +245,14 @@ char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf, ngx_command_t *
   const auto elements = static_cast<ngx_str_t*>(cf->args->elts); 
   assert(cf->args->nelts >= 1);
   
-  const ot::string_view deprecated_prefix{"opentracing_"};
+  const string_view deprecated_prefix{"opentracing_"};
   assert(starts_with(str(elements[0]), deprecated_prefix));
 
   // This `std::string` is the storage for a `ngx_str_t` used below.  This is
   // valid if we are certain that copies of / references to the `ngx_str_t` will
   // not outlive this `std::string` (they won't).
   std::string new_name{"datadog_"};
-  const ot::string_view suffix = slice(str(elements[0]), deprecated_prefix.size());
+  const string_view suffix = slice(str(elements[0]), deprecated_prefix.size());
   new_name.append(suffix.data(), suffix.size());
 
   const ngx_str_t new_name_ngx = to_ngx_str(new_name);
@@ -281,7 +282,7 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
   }
-  auto keys = static_cast<ot::string_view *>(
+  auto keys = static_cast<string_view *>(
       main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
@@ -326,7 +327,7 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
   }
-  auto keys = static_cast<ot::string_view *>(
+  auto keys = static_cast<string_view *>(
       main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
@@ -404,8 +405,12 @@ char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command,
 
   if (main_conf->is_tracer_configured) {
     const auto& location = main_conf->tracer_conf_source_location;
+    const char* qualifier = "";
+    if (str(location.directive_name) != "datadog") {
+      qualifier = "default-";
+    }
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "Datadog tracing is already configured.  It was default-configured by the call to \"%V\" at %V:%d.  Place the datadog configuration directive before any proxy-related directives.", &location.directive_name, &location.file_name, location.line);
+                  "Datadog tracing is already configured.  It was %sconfigured by the call to \"%V\" at %V:%d.  Place the datadog configuration directive before any proxy-related directives.", qualifier, &location.directive_name, &location.file_name, location.line);
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
@@ -461,7 +466,7 @@ char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command, void *conf) noe
   const auto values = static_cast<const ngx_str_t *>(cf->args->elts);
   assert(cf->args->nelts == 2);
 
-  ot::string_view preferred;
+  string_view preferred;
   if (str(values[1]) == "on") {
     loc_conf->enable = true;
     preferred = "datadog_enable";

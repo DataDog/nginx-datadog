@@ -1,7 +1,7 @@
 #pragma once
 
 #include "datadog_conf.h"
-#include "ot.h"
+#include "string_view.h"
 
 #include "span_context_querier.h"
 
@@ -18,6 +18,7 @@ extern "C" {
 
 namespace datadog {
 namespace nginx {
+
 class RequestTracing {
  public:
   RequestTracing(ngx_http_request_t *request,
@@ -30,7 +31,7 @@ class RequestTracing {
 
   void on_log_request();
 
-  ngx_str_t lookup_span_context_value(ot::string_view key);
+  ngx_str_t lookup_span_context_value(string_view key);
 
   ngx_str_t get_binary_context() const;
 
@@ -54,5 +55,6 @@ class RequestTracing {
   void on_exit_block(std::chrono::steady_clock::time_point finish_timestamp =
                          std::chrono::steady_clock::now());
 };
+
 }  // namespace nginx
 }  // namespace datadog

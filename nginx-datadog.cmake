@@ -24,6 +24,7 @@ target_sources(nginx_datadog
         src/ot.cpp
         src/request_tracing.cpp
         src/span_context_querier.cpp
+        src/string_view.cpp
         src/tracing_library.cpp
         src/utility.cpp
 )

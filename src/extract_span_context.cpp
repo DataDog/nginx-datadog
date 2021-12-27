@@ -1,11 +1,11 @@
+#include "extract_span_context.h"
+#include "string_view.h"
 #include <opentracing/propagation.h>
-#include "ot.h"
 
 #include <opentracing/tracer.h>
 #include "utility.h"
 using ot::expected;
 using ot::make_unexpected;
-using ot::string_view;
 
 extern "C" {
 #include <nginx.h>

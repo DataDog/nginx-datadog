@@ -2,7 +2,7 @@
 
 #include "datadog_conf.h"
 #include "ot.h"
-
+#include "string_view.h"
 
 #include <opentracing/span.h>
 
@@ -24,7 +24,7 @@ class SpanContextQuerier {
 
   ngx_str_t lookup_value(ngx_http_request_t* request,
                          const ot::Span& span,
-                         ot::string_view key);
+                         string_view key);
 
  private:
   const ot::Span* values_span_ = nullptr;

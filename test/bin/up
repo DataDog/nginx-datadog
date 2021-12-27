@@ -4,24 +4,5 @@ set -e
 
 docker-compose up --detach --build --remove-orphans
 trap 'docker-compose down' EXIT INT HUP
-docker-compose logs --follow traced-nginx http fastcgi grpc &
-logs_pid=$!
-
-while read -r command; do
-    case "$command" in
-    again)
-      kill -9 "$logs_pid"
-      docker-compose down
-      printf '\n\n\n\n\n\n\n\n\n\n'
-      docker-compose up --detach --build --remove-orphans
-      docker-compose logs --follow traced-nginx http fastcgi grpc &
-      logs_pid=$!
-        ;;
-    quit|exit)
-      kill -9 "$logs_pid"
-      exit
-      ;;
-    *)
-      >&2 printf "Unknown command: %s\n" "$command"
-    esac
-done
+# Tail all logs except for the agent, which is noisy.
+docker-compose logs --follow traced-nginx http fastcgi grpc

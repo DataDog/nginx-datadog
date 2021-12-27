@@ -32,9 +32,9 @@ std::vector<ot::string_view> getPropagationHeaderNames(const std::set<Propagatio
 namespace nginx {
 namespace {
 
-const ot::string_view DEFAULT_CONFIG = R"json({"service": "nginx"})json";
+const string_view DEFAULT_CONFIG = R"json({"service": "nginx"})json";
 
-ot::string_view or_default(ot::string_view config_json) {
+string_view or_default(string_view config_json) {
     if (config_json.empty()) {
         return DEFAULT_CONFIG;
     }
@@ -51,7 +51,7 @@ class NginxLogFunc {
   public:
     NginxLogFunc() : mutex_(std::make_shared<std::mutex>()) {}
 
-    void operator()(::datadog::opentracing::LogLevel level, ot::string_view message) {
+    void operator()(::datadog::opentracing::LogLevel level, string_view message) {
         int ngx_level = NGX_LOG_STDERR;
 
         switch (level) {
@@ -74,7 +74,7 @@ class NginxLogFunc {
 
 } // namespace
 
-std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(ot::string_view configuration, std::string &error) {
+std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(string_view configuration, std::string &error) {
     const std::string config_str = or_default(configuration);
     auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
     if (!maybe_options) {
@@ -90,7 +90,7 @@ std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(ot::string_view configur
     return ::datadog::opentracing::makeTracer(*maybe_options);
 }
 
-std::vector<ot::string_view> TracingLibrary::span_tag_names(ot::string_view configuration, std::string &error) {
+std::vector<string_view> TracingLibrary::span_tag_names(string_view configuration, std::string &error) {
     const std::string config_str = or_default(configuration);
     auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
     if (!maybe_options) {
@@ -104,7 +104,7 @@ std::vector<ot::string_view> TracingLibrary::span_tag_names(ot::string_view conf
     return ::datadog::opentracing::getPropagationHeaderNames(maybe_options->inject, priority_sampling_enabled);
 }
 
-std::vector<ot::string_view> TracingLibrary::environment_variable_names() {
+std::vector<string_view> TracingLibrary::environment_variable_names() {
     return {
         // These environment variable names are taken from `tracer_options.cpp`
         // and `tracer.cpp` in the `dd-opentracing-cpp` repository.
@@ -130,8 +130,23 @@ std::vector<ot::string_view> TracingLibrary::environment_variable_names() {
     };
 }
     
-ot::string_view TracingLibrary::default_operation_name_pattern() {
+string_view TracingLibrary::default_operation_name_pattern() {
     return "$request_method $uri";
+}
+
+std::unordered_map<string_view, string_view> TracingLibrary::default_tags() {
+    return {
+        // originally defined by nginx-opentracing
+        {"component", "nginx"},
+        {"nginx.worker_pid", "$pid"},
+        {"peer.address", "$remote_addr:$remote_port"},
+        {"upstream.address", "$upstream_addr"},
+        {"http.method", "$request_method"},
+        {"http.url", "$scheme://$http_host$request_uri"},
+        {"http.host", "$http_host"},
+        // added by nginx-datadog
+        {"http_user_agent", "$http_user_agent"}
+    };
 }
 
 bool TracingLibrary::tracing_on_by_default() {
@@ -140,10 +155,6 @@ bool TracingLibrary::tracing_on_by_default() {
 
 bool TracingLibrary::trace_locations_by_default() {
     return false;
-}
-
-bool TracingLibrary::configure_tracer_json_inline() {
-    return true;
 }
 
 } // namespace nginx

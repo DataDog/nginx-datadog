@@ -1,6 +1,6 @@
 #include "span_context_querier.h"
 #include "ot.h"
-
+#include "string_view.h"
 
 #include "utility.h"
 
@@ -17,7 +17,7 @@ namespace nginx {
 
 ngx_str_t SpanContextQuerier::lookup_value(ngx_http_request_t* request,
                                            const ot::Span& span,
-                                           ot::string_view key) {
+                                           string_view key) {
   if (&span != values_span_) {
     expand_span_context_values(request, span);
   }
