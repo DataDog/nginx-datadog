@@ -371,38 +371,55 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
   return add_datadog_tag(cf, loc_conf->tags, values[1], values[2]);
 }
 
-// TODO: no
 char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept {
-  std::cout << "Rejoice, for we have done the thing!\n" << std::flush;
-  // TODO: Don't go directly to `line`. Use a temporary, and then overwrite later.
-  // This way, when the JSON reader reports an error at line 3, we know it's at line n+3.
-  /*
-  NgxFileBuf buffer(*cf->conf_file->buffer, cf->conf_file->file, "{", &cf->conf_file->line);
-  std::istream input(&buffer);
-  // auto json = nlohmann::json::parse(input);
-  nlohmann::json json;
-  input >> json;
-  std::cout << "Parsed the following JSON: " << json << '\n' << std::flush;
-  */
-
+  const ngx_uint_t starting_line = cf->conf_file->line;
   NgxFileBuf buffer(*cf->conf_file->buffer, cf->conf_file->file, "", &cf->conf_file->line);
   std::istream input(&buffer);
   std::string output;
   std::string error;
   scan_config_block(input, output, error, CommentPolicy::OMIT);
-  std::cout << "error: " << error << '\n' << "output: " << output << '\n' << std::flush;
+  if (!error.empty()) {
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                  "Error reading \"datadog { ... }\" configuration block: %s", error.c_str()); 
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
   
-  auto json = nlohmann::json::parse(output);
-  std::cout << "Parsed the following JSON: " << json << '\n' << std::flush;
+  // Make sure that the contents of the "datadog { ... }" block are valid JSON.
+  try {
+    (void)nlohmann::json::parse(output);
+  } catch (const nlohmann::detail::parse_error& json_error) {
+    // `parse_error` knows the line number, but it's not accessible.
+    // It can appear as part of the `.what()` message in a predictable way,
+    // though, so we extract it if present.
+    error = json_error.what();
+    const string_view prefix = " at line ";
+    const auto pos = error.find(prefix.data(), 0, prefix.size());
+    if (pos == std::string::npos) {
+      ngx_log_error(NGX_LOG_ERR, cf->log, 0, "Error reading \"datadog { ... }\" configuration block: %s", error.c_str());
+      return static_cast<char *>(NGX_CONF_ERROR);
+    }
 
-  // std::string data;
-  // std::cout << "result of read: " << bool(std::getline(input, data, '}')) << '\n' << std::flush;
-  // std::cout << "data[:50]: " << data.substr(0, 50) << '\n' << std::flush;
+    // "blah blah at line 4, column 18: blah blah"
+    // → "blah blah at line 43, column 18: blah blah"
+    std::size_t end_pos;
+    const unsigned long line = std::stoul(error.substr(pos + prefix.size()), &end_pos);
+    std::string modified_error;
+    modified_error.append(error, 0, pos + prefix.size());
+    modified_error += std::to_string(line + starting_line - 1);
+    modified_error.append(error, pos + prefix.size() + end_pos);
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0, "Error reading \"datadog { ... }\" configuration block: %s", modified_error.c_str());
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
 
   const auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
+  // If the tracer has already been configured, then either there are two
+  // "datadog { ... }" blocks, or, more likely, another directive like
+  // "proxy_pass" occurred earlier and default-configured the tracer.  Print an
+  // error instructing the user to place "datadog { ... }" before any such
+  // directives.
   if (main_conf->is_tracer_configured) {
     const auto& location = main_conf->tracer_conf_source_location;
     const char* qualifier = "";

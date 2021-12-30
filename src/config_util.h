@@ -25,9 +25,7 @@ enum class CommentPolicy {
 //
 // A "balanced-curly-brace delimited block of text," as read by
 // `scan_config_block`, satisfies the "block" production of the following
-// grammar:
-// TODO: Use an eBNF grammar, to be consistent with comments in
-// dd-opentracing-cpp.
+// BNF-like (BNF with embedded Perl-compatible regular expressions) grammar:
 //
 //     block  ::=  "{" entity* "}"
 //     entity  ::=  block | comment | quote | other
