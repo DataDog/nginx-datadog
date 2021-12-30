@@ -1,4 +1,4 @@
-NGINX_VERSION ?= 1.18
+NGINX_VERSION = $(shell cat nginx-version)
 # TODO: Consider renaming the module/ directory.
 MODULE_PATH := $(realpath module/)
 MODULE_NAME = ngx_http_datadog_module
@@ -31,8 +31,8 @@ nginx/objs/Makefile: nginx/ $(MODULE_PATH)/config
 $(MODULE_PATH)/config: bin/module_config.sh
 	bin/module_config.sh $(MODULE_NAME) >$@
 
-nginx/:
-	$(CLONE) --depth 1 --branch branches/stable-$(NGINX_VERSION) https://github.com/nginx/nginx
+nginx/: nginx-version
+	rm -rf nginx && $(CLONE) --depth 1 --branch branches/stable-$(NGINX_VERSION) https://github.com/nginx/nginx
 
 .PHONY: format
 format:
@@ -60,12 +60,12 @@ build-in-docker: prebuild
 .PHONY: test
 test: build-in-docker
 # test: .build/libngx_http_datadog_module.so
-	cd test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) $(MAKE) up
+	cd test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) NGINX_IMAGE="nginx:$(NGINX_VERSION)" $(MAKE) up
 
 .PHONY: test-config
 test-config: build-in-docker
 # test-config: .build/libngx_http_datadog_module.so
-	cd test && $(MAKE) check-config
+	cd test && NGINX_IMAGE="nginx:$(NGINX_VERSION)" $(MAKE) check-config
 
 .build/libngx_http_datadog_module.so: prebuild
 	bin/cmake_build.sh

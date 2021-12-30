@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NGINX_IMAGE: ${NGINX_IMAGE}
     labels:
       com.datadoghq.ad.logs: '[{"source": "nginx", "service": "traced-nginx"}]'
     environment:

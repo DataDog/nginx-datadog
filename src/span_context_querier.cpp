@@ -34,6 +34,8 @@ ngx_str_t SpanContextQuerier::lookup_value(ngx_http_request_t* request,
   // TODO: I think it might be acceptable to remove this error, and instead add
   // a comment saying that not all traces have values for all of the propagation
   // headers... but think about it more first.
+  // TODO: Will this cause HTTP headers with empty values to be serialized?
+  // At one point I remember seing "x-datadog-origin:".
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "no Datadog context value found for span context key %V "
                 "for request %p",

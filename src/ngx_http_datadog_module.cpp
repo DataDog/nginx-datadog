@@ -429,6 +429,7 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   if (!loc_conf) return nullptr;
 
   // TODO hack
+  // TODO: This is where we can inject arbitrary commands into blocks (e.g. the http block)
   examine_conf_args(conf);
   peek_conf_file(conf);
   // end TODO
