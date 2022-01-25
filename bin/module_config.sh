@@ -11,7 +11,7 @@ ngx_module_name="\$ngx_addon_name"
 # configuration directives we override.  This way, our module can define
 # handlers for those directives that do some processing and then forward
 # to the "real" handler in the other module.
-ngx_module_order="\$ngx_addon_name ngx_http_fastcgi_module ngx_http_grpc_module ngx_http_proxy_module ngx_http_api_module"
+ngx_module_order="\$ngx_addon_name ngx_http_log_module ngx_http_fastcgi_module ngx_http_grpc_module ngx_http_proxy_module ngx_http_api_module"
 
 . auto/module
 END_CONFIG

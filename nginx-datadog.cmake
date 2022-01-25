@@ -14,10 +14,12 @@ target_sources(nginx_datadog
         src/datadog_directive.cpp
         src/datadog_handler.cpp
         src/datadog_variable.cpp
+        src/defer.cpp
         src/discover_span_context_keys.cpp
         src/extract_span_context.cpp
         src/json.cpp
         src/load_tracer.cpp
+        src/log_conf.cpp
         src/ngx_filebuf.cpp
         src/ngx_http_datadog_module.cpp
         src/ngx_script.cpp

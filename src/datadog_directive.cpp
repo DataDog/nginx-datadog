@@ -1,10 +1,11 @@
 #include "datadog_directive.h"
-#include "datadog_defer.h"
+#include "defer.h"
 #include "ot.h"
 #include "string_view.h"
 #include "ngx_http_datadog_module.h"
 
 #include "config_util.h"
+#include "log_conf.h"
 #include "discover_span_context_keys.h"
 #include "json.h"
 #include "ngx_filebuf.h"
@@ -42,7 +43,7 @@ char *hijack_pass_directive(
 } catch (const std::exception &e) {
   // TODO: Will buffering be a problem?
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                "hijacked %V failed: %s", command->name, e.what());
+                "Datadog-wrapped configuration directive %V failed: %s", command->name, e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
@@ -170,6 +171,7 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * command,
                                     void * conf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
+
   if (!main_conf->is_tracer_configured) {
     if (auto rcode = set_tracer(command, cf, TRACER_CONF_DEFAULT)) {
       return rcode;
@@ -362,6 +364,67 @@ char *hijack_grpc_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexc
   return hijack_pass_directive(&propagate_grpc_datadog_context, cf, command, conf);
 }
 
+char *hijack_access_log(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept try {
+  // In case we need to change the `access_log` command's format to a
+  // Datadog-specific default, first make sure that those formats are defined.
+  ngx_int_t rcode = inject_datadog_log_formats(cf);
+  if (rcode != NGX_OK) {
+    // TODO: log?
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  // clang-format off
+  // The [documentation][1] of `access_log` lists the following possibilities:
+  //
+  //     access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]];
+  //     access_log off;
+  //
+  // The case we modify here is where the user specifies a file path but no
+  // format name.  Nginx defaults to the "combined" format, but we will instead
+  // inject the "datadog_text" format, i.e.
+  //
+  //     access_log /path/to/access.log;
+  //
+  // becomes
+  //
+  //     access_log /path/to/access.log datadog_text;
+  //
+  // All other cases are left unmodified.
+  //
+  // [1]: http://nginx.org/en/docs/http/ngx_http_log_module.html#access_log
+  // clang-format on
+
+  const auto old_args = cf->args;
+  const auto guard = defer([&]() { cf->args = old_args; });
+  const auto old_elts = static_cast<const ngx_str_t*>(old_args->elts);
+  const auto num_args = old_args->nelts;
+  // `new_args` might temporarily replace `cf->args` (if we decide to inject a
+  // format name).
+  ngx_array_t new_args;
+  ngx_str_t new_elts[] = {ngx_str_t(), ngx_str_t(), ngx_str_t()};
+  if (num_args == 2 && str(old_elts[1]) != "off") {
+    new_elts[0] = old_elts[0];
+    new_elts[1] = old_elts[1];
+    new_elts[2] = ngx_string("datadog_text");
+    new_args.elts = new_elts;
+    new_args.nelts = sizeof new_elts / sizeof new_elts[0];
+    cf->args = &new_args;
+  }
+
+  // Call the handler of the actual command that we're hijacking ("access_log")
+  // Be sure to skip this module, so we don't call ourself.
+  rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+  return static_cast<char*>(NGX_CONF_OK);
+} catch (const std::exception &e) {
+  // TODO: Will buffering be a problem?
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                "Datadog-wrapped configuration directive %V failed: %s", command->name, e.what());
+  return static_cast<char *>(NGX_CONF_ERROR);
+}
+
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept {
   auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
@@ -445,37 +508,6 @@ char *set_datadog_location_operation_name(ngx_conf_t *cf,
                                               void *conf) noexcept {
   auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
   return set_script(cf, command, loc_conf->loc_operation_name_script);
-}
-
-// TODO: Without `set_tracer`, when are we going to do `discover_span_context_keys`?
-char *set_tracer(ngx_conf_t *cf, ngx_command_t *command,
-                 void *conf) noexcept try {
-  auto main_conf = static_cast<datadog_main_conf_t *>(
-      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
-  auto values = static_cast<ngx_str_t *>(cf->args->elts);
-
-  // In order for span context propagation to work, the keys used by a tracer
-  // need to be known ahead of time. OpenTracing-C++ doesn't have any API for
-  // this, so we use an extended interface in `TracingLibrary`.
-  main_conf->span_context_keys = discover_span_context_keys(
-      cf->pool, cf->log, str(main_conf->tracer_conf));
-  if (main_conf->span_context_keys == nullptr) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  return static_cast<char *>(NGX_CONF_OK);
-} catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "set_tracer failed: %s", e.what());
-  return static_cast<char *>(NGX_CONF_ERROR);
-}
-
-char *datadog_command(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
-  auto main_conf = static_cast<datadog_main_conf_t *>(
-      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
-  (void)main_conf;
-
-  std::cout << "[][][][][][][][] datadog_command has " << cf->args->nelts << " arguments.\n";
-  return static_cast<char*>(NGX_CONF_OK);
 }
 
 char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {

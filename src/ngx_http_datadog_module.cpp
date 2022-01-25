@@ -1,9 +1,12 @@
 #include "load_tracer.h"
+#include "log_conf.h"
 #include "ot.h"
 #include "string_view.h"
 #include "ngx_http_datadog_module.h"
 
 #include "datadog_conf.h"
+#include "datadog_conf_handler.h"
+#include "defer.h"
 #include "datadog_directive.h"
 #include "datadog_handler.h"
 #include "datadog_variable.h"
@@ -132,6 +135,16 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
+
+    // The configuration of this directive was copied from
+    // ../nginx/src/http/modules/ngx_http_log_module.c.
+    { ngx_string("access_log"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
+                        |NGX_HTTP_LMT_CONF|NGX_CONF_1MORE,
+      hijack_access_log,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      NULL },
 
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_fastcgi_propagate_context",
@@ -342,7 +355,6 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  ot::DynamicTracingLibraryHandle dummy_handle;
   std::shared_ptr<ot::Tracer> tracer = load_tracer(cycle->log, str(main_conf->tracer_conf));
   if (!tracer) {
     return NGX_ERROR;
@@ -357,15 +369,13 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 }
 
 static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
-  // Close the global tracer if it's set and release the reference so as to
-  // ensure that any dynamically loaded tracer is destructed before the library
-  // handle is closed.
+  // If the `ot::Tracer` singleton has been set (in `datadog_init_worker`),
+  // `Close` it and destroy it (technically, reduce its reference count).
   auto tracer = ot::Tracer::InitGlobal(nullptr);
   if (tracer != nullptr) {
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, cycle->log, 0,
                    "closing Datadog tracer");
     tracer->Close();
-    tracer.reset();
   }
 }
 
@@ -386,6 +396,7 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
   // TODO hack
   // print_module_names((const ngx_cycle_t*)ngx_cycle);
   // print_module_names(conf->cycle);
+  std::cout << "*&(*&(*&)(*&)(*&(*&)(*&(*&(*&)(*&)(*&)(*&)(*&)(*& creating main conf\n";
   // end TODO
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
@@ -418,7 +429,10 @@ static void examine_conf_args(ngx_conf_t *conf) noexcept {
     std::cout << "Here's the first arg as a string: " << std::string(reinterpret_cast<const char*>(str->data), str->len) << "\n";
   }
 }
-// end TODO
+
+static bool is_server_block_begin(const ngx_conf_t *conf) {
+  return conf->args != nullptr && conf->args->nelts == 1 && str(*static_cast<const ngx_str_t*>(conf->args->elts)) == "server";
+}
 
 //------------------------------------------------------------------------------
 // create_datadog_loc_conf
@@ -429,10 +443,16 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   if (!loc_conf) return nullptr;
 
   // TODO hack
-  // TODO: This is where we can inject arbitrary commands into blocks (e.g. the http block)
-  examine_conf_args(conf);
-  peek_conf_file(conf);
+  // examine_conf_args(conf);
+  // peek_conf_file(conf);
   // end TODO
+
+  // TODO: document
+  if (is_server_block_begin(conf)) {
+    if (inject_datadog_log_formats(conf)) {
+      return nullptr;  // error
+    }
+  }
 
   loc_conf->enable = NGX_CONF_UNSET;
   loc_conf->enable_locations = NGX_CONF_UNSET;

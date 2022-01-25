@@ -44,6 +44,14 @@ struct datadog_main_conf_t {
   // > [[source location]].  Explicit configuration must appear before
   // > the first [[directive name]].
   conf_directive_source_location tracer_conf_source_location;
+  // `are_log_formats_defined` is whether we have already injected `log_format`
+  // directives into the configuration.  The directives define Datadog-specific
+  // access log formats; one of which will override nginx's default.
+  // `are_log_formats_defined` allows us to ensure that the log formats are
+  // defined exactly once, even though they may be defined in multiple contexts
+  // (e.g. before the first `server` block, before the first `access_log`
+  // directive).
+  bool are_log_formats_defined;
   ngx_array_t *span_context_keys;
 };
 

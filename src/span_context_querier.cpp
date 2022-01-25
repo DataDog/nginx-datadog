@@ -36,6 +36,22 @@ ngx_str_t SpanContextQuerier::lookup_value(ngx_http_request_t* request,
   // headers... but think about it more first.
   // TODO: Will this cause HTTP headers with empty values to be serialized?
   // At one point I remember seing "x-datadog-origin:".
+  // TODO: The issue is that this querier looks up tags in a `Span`, while extracted
+  // "origin" information is not stored in the span (it's in the `SpanContext`).
+  // I created this problem when I got rid of the "discover context keys" hack.
+  // I used the `getPropagationHeaderNames` function from dd-opentracing-cpp,
+  // previously used only in tests.  `getPropagationHeaderNames` is a larger
+  // set of keys than that which we want to map to nginx variables.
+  // Instead, we could do any one of the following:
+  //
+  // 1. Maintain two lists of names; one for `getPropagationHeaderNames`
+  //    and one for `TracingLibrary::span_tag_names`.
+  // 2. Get rid of `getPropagationHeaderNames` entirely, and do something
+  //    else in the affected dd-opentracing-cpp unit tests.
+  // 3. Selectively exclude certain "special" tags (like "origin") from
+  //    `TracingLibrary::span_tag_names`.
+  // 4. Remove this error, and make sure the returned empty string does
+  //    not result in an empty request header (instead, omit the header).
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "no Datadog context value found for span context key %V "
                 "for request %p",
