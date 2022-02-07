@@ -37,6 +37,7 @@ services:
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_AC_EXCLUDE=name:datadog-agent
+      - MAX_TRACES_PER_SECOND=10
     image: 'datadog/agent'
 
   http:

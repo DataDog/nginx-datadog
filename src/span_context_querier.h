@@ -18,6 +18,12 @@ extern "C" {
 
 namespace datadog {
 namespace nginx {
+// TODO: Let the naming of relevant span properties
+// be independent of details of injection.
+// Using injected keys was clever for generality,
+// but now we have a specific Span implementation,
+// so let it be $datadog_trace_id instead of $datadog_context_x_datadog_trace_id.
+// Also, call the span ID "span ID" instead of "parent ID."
 class SpanContextQuerier {
  public:
   SpanContextQuerier() noexcept {}

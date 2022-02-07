@@ -64,25 +64,40 @@ using namespace datadog::nginx;
         nullptr \
     }
 
+// Part of configuring a command is saying where the command is allowed to appear, e.g. in the `server` block,
+// in a `location` block, etc.
+// There are two sets of places Datadog commands can appear: either "anywhere,"
+// or "anywhere but in the main section."  `anywhere` and `anywhere_but_main`
+// are respective shorthands.
 // clang-format off
+static ngx_uint_t anywhere_but_main =
+    NGX_HTTP_SRV_CONF  // an `http` block
+  | NGX_HTTP_SIF_CONF    // an `if` block within an `http` block
+  | NGX_HTTP_LOC_CONF  // a `location` block (within an `http` block)
+  | NGX_HTTP_LIF_CONF;    // an `if` block within a `location` block (within an `http` block)
+
+static ngx_uint_t anywhere =
+    anywhere_but_main
+  | NGX_HTTP_MAIN_CONF;  // the toplevel configuration, e.g. where modules are loaded
+
 static ngx_command_t datadog_commands[] = {
 
     { ngx_string("opentracing"),
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere | NGX_CONF_TAKE1,
       toggle_opentracing,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("datadog_enable"),
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
+      anywhere | NGX_CONF_NOARGS,
       datadog_enable,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("datadog_disable"),
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
+      anywhere | NGX_CONF_NOARGS,
       datadog_disable,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -91,7 +106,7 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_trace_locations",
       "opentracing_trace_locations",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(datadog_loc_conf_t, enable_locations),
@@ -100,7 +115,7 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_trace_locations",
       "opentracing_trace_locations",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere | NGX_CONF_TAKE1,
       delegate_to_datadog_directive_with_warning,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -109,28 +124,28 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_propagate_context",
       "opentracing_propagate_context",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
+      anywhere | NGX_CONF_NOARGS,
       propagate_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr),
 
     { ngx_string("proxy_pass"),
-      NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere_but_main | NGX_CONF_TAKE1,
       hijack_proxy_pass,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("fastcgi_pass"),
-      NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere_but_main | NGX_CONF_TAKE1,
       hijack_fastcgi_pass,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("grpc_pass"),
-      NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere_but_main | NGX_CONF_TAKE1,
       hijack_grpc_pass,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -149,7 +164,7 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_fastcgi_propagate_context",
       "opentracing_fastcgi_propagate_context",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
+      anywhere | NGX_CONF_NOARGS,
       propagate_fastcgi_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -158,7 +173,7 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_grpc_propagate_context",
       "opentracing_grpc_propagate_context",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_NOARGS,
+      anywhere | NGX_CONF_NOARGS,
       propagate_grpc_datadog_context,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -167,7 +182,7 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_operation_name",
       "opentracing_operation_name",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere | NGX_CONF_TAKE1,
       set_datadog_operation_name,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -176,7 +191,7 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_location_operation_name",
       "opentracing_location_operation_name",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere | NGX_CONF_TAKE1,
       set_datadog_location_operation_name,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -185,7 +200,7 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_trust_incoming_span",
       "opentracing_trust_incoming_span",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      anywhere | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(datadog_loc_conf_t, trust_incoming_span),
@@ -194,7 +209,8 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_tag",
       "opentracing_tag",
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE2,
+      // TODO: Can we make this work in an "if"?
+      anywhere | NGX_CONF_TAKE2,
       set_datadog_tag,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
@@ -484,6 +500,26 @@ char* merge_operation_name_script(ngx_conf_t *conf, NgxScript& previous, NgxScri
   return NGX_CONF_OK;
 }
 
+char* merge_response_info_script(ngx_conf_t *conf, NgxScript& previous, NgxScript& current) {
+  // The response info script is the same for each `datadog_loc_conf_t`.  The only
+  // reason it's a member of `datadog_loc_conf_t` is so that it is available at
+  // the end of each request, when we might like to inspect e.g. response
+  // headers.
+  if (current.is_valid()) {
+    return NGX_CONF_OK;
+  }
+
+  if (!previous.is_valid()) {
+    const ngx_int_t rc = previous.compile(conf, ngx_string("$upstream_http_x_you_better_believe_it"));
+    if (rc != NGX_OK) {
+      return (char*)NGX_CONF_ERROR;
+    }
+  }
+  
+  current = previous;
+  return NGX_CONF_OK;
+}
+
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -497,8 +533,16 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
   ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations, TracingLibrary::trace_locations_by_default());
 
-  merge_operation_name_script(cf, prev->operation_name_script, conf->operation_name_script);
-  merge_operation_name_script(cf, prev->loc_operation_name_script, conf->loc_operation_name_script);
+  if (const auto rc = merge_operation_name_script(cf, prev->operation_name_script, conf->operation_name_script)) {
+    return rc;
+  }
+  if (const auto rc = merge_operation_name_script(cf, prev->loc_operation_name_script, conf->loc_operation_name_script)) {
+    return rc;
+  }
+
+  if (const auto rc = merge_response_info_script(cf, prev->response_info_script, conf->response_info_script)) {
+    return rc;
+  }
 
   ngx_conf_merge_value(conf->trust_incoming_span, prev->trust_incoming_span, 1);
 

@@ -5,6 +5,7 @@
 
 #include "utility.h"
 
+#include <iostream>  // TODO: no
 #include <sstream>
 #include <stdexcept>
 
@@ -32,6 +33,23 @@ void DatadogContext::on_change_block(
 }
 
 void DatadogContext::on_log_request(ngx_http_request_t *request) {
+  // TODO: hack hack
+  auto header_list = request->headers_out.headers;
+  for (auto block = &header_list.part; block != header_list.last->next; block = block->next) {
+    const auto entries = static_cast<const ngx_table_elt_t*>(block->elts);
+    for (ngx_uint_t i = 0; i < block->nelts; ++i) {
+      std::cout << "!&!&!&!&!&!&!&!&!&!&!&! header out? " << str(entries[i].key) << ": " << str(entries[i].value) << "\n";
+    }
+  }
+
+  header_list = request->headers_in.headers;
+  for (auto block = &header_list.part; block != header_list.last->next; block = block->next) {
+    const auto entries = static_cast<const ngx_table_elt_t*>(block->elts);
+    for (ngx_uint_t i = 0; i < block->nelts; ++i) {
+      std::cout << "!&!&!&!&!&!&!&!&!&!&!&! header in? " << str(entries[i].key) << ": " << str(entries[i].value) << "\n";
+    }
+  }
+  // end TODO
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
