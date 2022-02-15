@@ -64,8 +64,8 @@ using namespace datadog::nginx;
         nullptr \
     }
 
-// Part of configuring a command is saying where the command is allowed to appear, e.g. in the `server` block,
-// in a `location` block, etc.
+// Part of configuring a command is saying where the command is allowed to
+// appear, e.g. in the `server` block, in a `location` block, etc.
 // There are two sets of places Datadog commands can appear: either "anywhere,"
 // or "anywhere but in the main section."  `anywhere` and `anywhere_but_main`
 // are respective shorthands.
