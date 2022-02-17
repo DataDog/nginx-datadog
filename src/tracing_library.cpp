@@ -104,6 +104,18 @@ std::vector<string_view> TracingLibrary::span_tag_names(string_view configuratio
     return ::datadog::opentracing::getPropagationHeaderNames(maybe_options->inject, priority_sampling_enabled);
 }
 
+NginxVariableFamily TracingLibrary::propagation_headers(string_view configuration, std::string &error) {
+    NginxVariableFamily result;
+    error = "TODO: not implemented";
+    return result;
+}
+
+NginxVariableFamily TracingLibrary::span_variables(string_view configuration, std::string &error) {
+    NginxVariableFamily result;
+    error = "TODO: not implemented";
+    return result;
+}
+
 std::vector<string_view> TracingLibrary::environment_variable_names() {
     return {
         // These environment variable names are taken from `tracer_options.cpp`
