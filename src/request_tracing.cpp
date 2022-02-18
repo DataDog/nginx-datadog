@@ -2,6 +2,7 @@
 #include "extract_span_context.h"
 #include "ot.h"
 #include "ngx_http_datadog_module.h"
+#include "tracing_library.h"
 
 #include "utility.h"
 
@@ -190,23 +191,25 @@ void RequestTracing::on_log_request() {
 // Expands the active span context into a list of key-value pairs and returns
 // the value for `key` if it exists.
 //
-// Note: there's caching so that if lookup_span_context_value is repeatedly
+// Note: there's caching so that if lookup_propagation_header_variable_value is repeatedly
 // called for the same active span context, it will only be expanded once.
 //
 // See propagate_datadog_context
-ngx_str_t RequestTracing::lookup_span_context_value(
+ngx_str_t RequestTracing::lookup_propagation_header_variable_value(
     string_view key) {
-  return span_context_querier_.lookup_value(request_, active_span(), key);
+  return propagation_header_querier_.lookup_value(request_, active_span(), key);
 }
 
-ngx_str_t RequestTracing::get_binary_context() const {
-  const auto &span = active_span();
-  std::ostringstream oss;
-  auto was_successful = span.tracer().Inject(span.context(), oss);
-  if (!was_successful) {
-    throw std::runtime_error{was_successful.error().message()};
-  }
-  return to_ngx_str(request_->pool, oss.str());
+ngx_str_t RequestTracing::lookup_span_variable_value(string_view key) {
+  // return to_ngx_str(request_->pool, TracingLibrary::span_variables().resolve(key, active_span()));
+  // TODO: no
+  auto value = TracingLibrary::span_variables().resolve(key, active_span());
+  std::cout << "#@#@#@#@#@#@# looked up key " << key << " and got " << value << "\n";
+  assert(request_->pool);
+  auto value_str = to_ngx_str(request_->pool, value);
+  std::cout << "#@#@#@#@#@#@# then as an ngx_str_t that's: " << str(value_str) << "\n";
+  return value_str;
 }
+
 }  // namespace nginx
 }  // namespace datadog

@@ -3,7 +3,7 @@
 #include "datadog_conf.h"
 #include "string_view.h"
 
-#include "span_context_querier.h"
+#include "propagation_header_querier.h"
 
 #include <opentracing/tracer.h>
 #include <chrono>
@@ -31,9 +31,8 @@ class RequestTracing {
 
   void on_log_request();
 
-  ngx_str_t lookup_span_context_value(string_view key);
-
-  ngx_str_t get_binary_context() const;
+  ngx_str_t lookup_propagation_header_variable_value(string_view key);
+  ngx_str_t lookup_span_variable_value(string_view key);
 
   const ot::SpanContext &context() const {
     return request_span_->context();
@@ -46,7 +45,7 @@ class RequestTracing {
   datadog_main_conf_t *main_conf_;
   ngx_http_core_loc_conf_t *core_loc_conf_;
   datadog_loc_conf_t *loc_conf_;
-  SpanContextQuerier span_context_querier_;
+  PropagationHeaderQuerier propagation_header_querier_;
   std::unique_ptr<ot::Span> request_span_;
   std::unique_ptr<ot::Span> span_;
 

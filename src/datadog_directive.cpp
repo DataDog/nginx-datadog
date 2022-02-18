@@ -3,6 +3,7 @@
 #include "ot.h"
 #include "string_view.h"
 #include "ngx_http_datadog_module.h"
+#include "tracing_library.h"
 
 #include "config_util.h"
 #include "log_conf.h"
@@ -93,22 +94,19 @@ static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-static ngx_str_t make_span_context_value_variable(
+static ngx_str_t make_propagation_header_variable(
     ngx_pool_t *pool, string_view key) {
-  auto size = 1 + opentracing_context_variable_name.size() + key.size();
+  auto prefix = TracingLibrary::propagation_header_variable_name_prefix();
+  // result = "$" + prefix + key
+  auto size = 1 + prefix.size() + key.size();
   auto data = static_cast<char *>(ngx_palloc(pool, size));
   if (data == nullptr) throw std::bad_alloc{};
 
-  int index = 0;
-  data[index] = '$';
-  index += 1;
-
-  std::copy_n(opentracing_context_variable_name.data(),
-              opentracing_context_variable_name.size(), data + index);
-  index += opentracing_context_variable_name.size();
-
-  std::transform(std::begin(key), std::end(key), data + index,
-                 header_transform_char);
+  // result = "$" + prefix + key
+  char *iter = data;
+  *iter++ = '$';
+  iter = std::copy(prefix.begin(), prefix.end(), iter);
+  std::transform(key.begin(), key.end(), iter, header_transform_char);
 
   return {size, reinterpret_cast<unsigned char *>(data)};
 }
@@ -153,17 +151,17 @@ char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
 //
 // The directive gets translated to the directives
 //
-//      proxy_set_header span_context_key0 $opentracing_context_key0
-//      proxy_set_header span_context_key1 $opentracing_context_key1
+//      proxy_set_header header_name0 $header_variable_key0
+//      proxy_set_header header_name1 $header_variable_key1
 //      ...
-//      proxy_set_header span_context_keyN $opentracing_context_keyN
+//      proxy_set_header header_nameN $header_variable_keyN
 //
-// where opentracing_context is a prefix variable that expands to the
+// where header_variable_keyN is a prefix variable that expands to the
 // corresponding value of the active span context.
 //
 // The key value of proxy_set_header isn't allowed to be a variable, so the keys
 // used for propagation need to be discovered before this directive is called.
-// (See set_tracer below).
+// (See the definition of set_tracer).
 //
 // This approach was discussed here
 //     http://mailman.nginx.org/pipermail/nginx-devel/2018-March/011008.html
@@ -192,7 +190,7 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * command,
   ngx_str_t args[] = {ngx_string("proxy_set_header"), ngx_str_t(), ngx_str_t()};
   ngx_array_t args_array;
   args_array.elts = static_cast<void *>(&args);
-  args_array.nelts = 3;
+  args_array.nelts = sizeof args / sizeof args[0];
 
   cf->args = &args_array;
   const auto guard = defer([&]() { cf->args = old_args; });
@@ -201,7 +199,8 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * command,
     args[1] = ngx_str_t{keys[key_index].size(),
                         reinterpret_cast<unsigned char *>(
                             const_cast<char *>(keys[key_index].data()))};
-    args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
+    args[2] = make_propagation_header_variable(cf->pool, keys[key_index]);
+    std::cout << "proxy_pass !@!@!@!@!@!@ " << str(args[0]) << " " << str(args[1]) << " " << str(args[2]) << "\n";
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
       return static_cast<char *>(NGX_CONF_ERROR);
@@ -217,31 +216,6 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * command,
 char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
   return hijack_pass_directive(&propagate_datadog_context, cf, command, conf);
 }
-
-namespace {
-bool starts_with(const string_view& subject, const string_view& prefix) {
-  if (prefix.size() > subject.size()) {
-    return false;
-  }
-
-  return std::mismatch(subject.begin(), subject.end(), prefix.begin()).second == prefix.end();
-}
-
-string_view slice(const string_view& text, int begin, int end) {
-  if (begin < 0) {
-    begin += text.size();
-  }
-  if (end < 0) {
-    end += text.size();
-  }
-  return string_view(text.data() + begin, end - begin);
-}
-
-string_view slice(const string_view& text, int begin) {
-  return slice(text, begin, text.size());
-}
-
-} // namespace
 
 char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
   const auto elements = static_cast<ngx_str_t*>(cf->args->elts); 
@@ -290,17 +264,18 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
 
   auto old_args = cf->args;
 
-  ngx_str_t args[] = {ngx_string("fastcgi_param"), ngx_str_t(), ngx_str_t()};
+  ngx_str_t args[] = {ngx_string("fastcgi_param"), ngx_str_t(), ngx_str_t(), ngx_string("if_not_empty")};
   ngx_array_t args_array;
   args_array.elts = static_cast<void *>(&args);
-  args_array.nelts = 3;
+  args_array.nelts = sizeof args / sizeof args[0];
 
   cf->args = &args_array;
   const auto guard = defer([&]() { cf->args = old_args; });
 
   for (int key_index = 0; key_index < num_keys; ++key_index) {
     args[1] = make_fastcgi_span_context_key(cf->pool, keys[key_index]);
-    args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
+    args[2] = make_propagation_header_variable(cf->pool, keys[key_index]);
+    std::cout << "fastcgi_pass !@!@!@!@!@!@ " << str(args[0]) << " " << str(args[1]) << " " << str(args[2]) << " " << str(args[3]) << "\n";
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
       return static_cast<char *>(NGX_CONF_ERROR);
@@ -347,7 +322,7 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
     args[1] = ngx_str_t{keys[key_index].size(),
                         reinterpret_cast<unsigned char *>(
                             const_cast<char *>(keys[key_index].data()))};
-    args[2] = make_span_context_value_variable(cf->pool, keys[key_index]);
+    args[2] = make_propagation_header_variable(cf->pool, keys[key_index]);
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
       return static_cast<char *>(NGX_CONF_ERROR);

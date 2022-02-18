@@ -3,3 +3,5 @@
 docker-compose build
 # Pass the "-t" flag to nginx, telling it to check its config and then exit.
 docker-compose run --rm traced-nginx -t
+# Pass the "-T" flag to nginx, telling it to check its config, dump the config, and then exit.
+# docker-compose run --rm traced-nginx -T

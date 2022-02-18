@@ -17,8 +17,6 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-extern const string_view opentracing_context_variable_name;
-
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept;
 
 }  // namespace nginx

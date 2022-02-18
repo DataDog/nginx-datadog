@@ -10,7 +10,7 @@ namespace nginx {
 ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
                                         string_view tracer_config) {
   std::string error;
-  const auto tag_names = TracingLibrary::span_tag_names(tracer_config, error);
+  const auto tag_names = TracingLibrary::propagation_header_names(tracer_config, error);
   if (!error.empty()) {
     ngx_log_error(NGX_LOG_ERR, log, 0,
                   "failed to discover span context tags: %s",

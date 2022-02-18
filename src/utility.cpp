@@ -6,14 +6,11 @@
 namespace datadog {
 namespace nginx {
 
-ngx_str_t to_ngx_str(ngx_pool_t *pool, const std::string &s) {
-  return to_ngx_str(string_view(s));
-}
-
 ngx_str_t to_ngx_str(ngx_pool_t *pool, string_view s) {
   ngx_str_t result;
   result.data = static_cast<unsigned char *>(ngx_palloc(pool, s.size()));
   if (!result.data) return {0, nullptr};
+  // TODO: throw bad_alloc instead?
   result.len = s.size();
   std::copy(s.begin(), s.end(), result.data);
   return result;

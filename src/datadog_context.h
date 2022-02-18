@@ -4,7 +4,7 @@
 #include "string_view.h"
 
 #include "request_tracing.h"
-#include "span_context_querier.h"
+#include "propagation_header_querier.h"
 
 #include <opentracing/tracer.h>
 #include <chrono>
@@ -33,10 +33,12 @@ class DatadogContext {
 
   void on_log_request(ngx_http_request_t* request);
 
-  ngx_str_t lookup_span_context_value(ngx_http_request_t* request,
+  ngx_str_t lookup_propagation_header_variable_value(ngx_http_request_t* request,
                                       string_view key);
 
-  ngx_str_t get_binary_context(ngx_http_request_t* request) const;
+  ngx_str_t lookup_span_variable_value(ngx_http_request_t* request,
+                                      string_view key);
+
 
  private:
   std::vector<RequestTracing> traces_;

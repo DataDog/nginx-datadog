@@ -25,7 +25,7 @@ target_sources(nginx_datadog
         src/ngx_script.cpp
         src/ot.cpp
         src/request_tracing.cpp
-        src/span_context_querier.cpp
+        src/propagation_header_querier.cpp
         src/string_view.cpp
         src/tracing_library.cpp
         src/utility.cpp

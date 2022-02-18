@@ -42,7 +42,7 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
     const char *escaping_style;
     const char *format;
   } static const formats[] = {
-    {"datadog_text", "escape=default", R"nginx($remote_addr - $http_x_forwarded_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for" "$opentracing_context_x_datadog_trace_id" "$opentracing_context_x_datadog_parent_id")nginx"},
+    {"datadog_text", "escape=default", R"nginx($remote_addr - $http_x_forwarded_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for" "$datadog_trace_id" "$datadog_span_id")nginx"},
     {"datadog_json", "escape=json", R"json({"TODO": "not sure what this should look like... $remote_addr"})json"}
   };
 

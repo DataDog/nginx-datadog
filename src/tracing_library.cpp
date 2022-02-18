@@ -2,6 +2,7 @@
 #include "utility.h"
 
 #include <datadog/opentracing.h>
+#include <datadog/span.h>
 #include <opentracing/expected/expected.hpp>
 #include <opentracing/tracer_factory.h>
 
@@ -10,16 +11,14 @@ extern "C" {
 #include <ngx_log.h>
 }
 
+#include <algorithm>
+#include <iterator>
 #include <memory>
 #include <mutex>
+#include <sstream>
 
 namespace datadog {
 namespace opentracing {
-// This function is defined in the `dd-opentracing-cpp` repository.
-int OpenTracingMakeTracerFactoryFunction(const char* opentracing_version,
-                                         const char* opentracing_abi_version,
-                                         const void** error_category, void* error_message,
-                                         void** tracer_factory);
 
 // This function is defined in the `dd-opentracing-cpp` repository.
 ot::expected<TracerOptions> optionsFromConfig(const char *configuration, std::string &error_message);
@@ -90,7 +89,7 @@ std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(string_view configuratio
     return ::datadog::opentracing::makeTracer(*maybe_options);
 }
 
-std::vector<string_view> TracingLibrary::span_tag_names(string_view configuration, std::string &error) {
+std::vector<string_view> TracingLibrary::propagation_header_names(string_view configuration, std::string &error) {
     const std::string config_str = or_default(configuration);
     auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
     if (!maybe_options) {
@@ -104,16 +103,52 @@ std::vector<string_view> TracingLibrary::span_tag_names(string_view configuratio
     return ::datadog::opentracing::getPropagationHeaderNames(maybe_options->inject, priority_sampling_enabled);
 }
 
-NginxVariableFamily TracingLibrary::propagation_headers(string_view configuration, std::string &error) {
-    NginxVariableFamily result;
-    error = "TODO: not implemented";
-    return result;
+string_view TracingLibrary::propagation_header_variable_name_prefix() {
+    return "datadog_propagation_header_";
+    // TODO: Maybe the set of prefixes has to be prefix-free :D
+    // return "dd_propagation_header_";
 }
 
-NginxVariableFamily TracingLibrary::span_variables(string_view configuration, std::string &error) {
-    NginxVariableFamily result;
-    error = "TODO: not implemented";
-    return result;
+namespace {
+
+std::string span_property(string_view key, const ot::Span& span) {
+    const auto not_found = "-";
+    const auto& dd_span = static_cast<const ::datadog::opentracing::DatadogSpan&>(span);
+
+    if (key == "trace_id") {
+        return span.context().ToTraceID();
+    } else if (key == "span_id") {
+        return span.context().ToSpanID();
+    } else if (key == "service") {
+        return dd_span.serviceName();
+    } else if (key == "span_type") {
+        return dd_span.type();
+    } else if (key == "operation_name") {
+        return dd_span.name();
+    } else if (key == "resource") { /* TODO "resource_name"? */
+        return dd_span.resource();
+    } else if (key == "json") {
+        std::ostringstream carrier;
+        const auto result = span.tracer().Inject(span.context(), carrier);
+        if (!result) {
+            return "-";
+        }
+        return carrier.str();
+    } else if (starts_with(key, "tag_")) {
+        key = slice(key, sizeof("tag_") - 1);
+        return dd_span.tag(key).value_or(not_found);
+    }
+
+    return not_found;
+}
+
+}  // namespace
+
+NginxVariableFamily TracingLibrary::span_variables() {
+    return {
+        .prefix = "datadog_",
+        .resolve = span_property
+    };
 }
 
 std::vector<string_view> TracingLibrary::environment_variable_names() {

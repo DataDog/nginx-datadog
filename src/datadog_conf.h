@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ngx_script.h"
+#include "ot.h"
 
 extern "C" {
 #include <nginx.h>
@@ -8,6 +9,10 @@ extern "C" {
 #include <ngx_core.h>
 #include <ngx_http.h>
 }
+
+#include <opentracing/span.h>
+
+#include <string>
 
 namespace datadog {
 namespace nginx {

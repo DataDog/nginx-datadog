@@ -28,8 +28,6 @@ inline string_view str(const ngx_str_t& s) {
   return to_string_view(s);
 }
 
-ngx_str_t to_ngx_str(ngx_pool_t *pool, const std::string &s);
-
 ngx_str_t to_ngx_str(ngx_pool_t *pool, string_view s);
 
 inline ngx_str_t to_ngx_str(string_view s) {
@@ -68,11 +66,41 @@ void for_each(const ngx_array_t &array, F f) {
   for (size_t i = 0; i < n; ++i) f(elements[i]);
 }
 
+inline char to_lower(unsigned char c) {
+  static_cast<char>(std::tolower(c));
+}
+
+inline char hyphen_to_underscore(char c) {
+  if (c == '-') return '_';
+  return c;
+}
+
 // Perform the transformations on header characters described by
 // http://nginx.org/en/docs/http/ngx_http_core_module.html#var_http_
 inline char header_transform_char(char c) {
-  if (c == '-') return '_';
-  return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  return to_lower(hyphen_to_underscore(c));
+}
+
+inline bool starts_with(const string_view& subject, const string_view& prefix) {
+  if (prefix.size() > subject.size()) {
+    return false;
+  }
+
+  return std::mismatch(subject.begin(), subject.end(), prefix.begin()).second == prefix.end();
+}
+
+inline string_view slice(const string_view& text, int begin, int end) {
+  if (begin < 0) {
+    begin += text.size();
+  }
+  if (end < 0) {
+    end += text.size();
+  }
+  return string_view(text.data() + begin, end - begin);
+}
+
+inline string_view slice(const string_view& text, int begin) {
+  return slice(text, begin, text.size());
 }
 
 }  // namespace nginx
