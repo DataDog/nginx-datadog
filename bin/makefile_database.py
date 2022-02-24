@@ -16,7 +16,10 @@ import subprocess
 
 @contextlib.contextmanager
 def from_make(makefile: Path):
-    """TODO: document"""
+    """Yield the output pipe of a `make` process that reads the specified
+    `makefile` and prints the corresponding "database," i.e. using the
+    `--print-data-base` option.
+    """
     pipe = subprocess.PIPE
     null = subprocess.DEVNULL
     command = [

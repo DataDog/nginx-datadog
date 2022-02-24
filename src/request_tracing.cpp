@@ -8,7 +8,6 @@
 
 #include <sstream>
 #include <stdexcept>
-#include <iostream> // TODO: hack
 
 namespace datadog {
 namespace nginx {
@@ -180,10 +179,9 @@ void RequestTracing::on_log_request() {
   request_span_->SetOperationName(
       get_request_operation_name(request_, core_loc_conf, loc_conf_));
 
-  // TODO: hack
-  std::cout << "<><><><><><><><> about to run response script." << std::endl;
-  std::cout << "[][][][][][][][][][][][] response script result: " << to_string(loc_conf_->response_info_script.run(request_)) << std::endl;
-  // end TODO
+  // Note: At this point, we could run an `NginxScript` to interrogate the
+  // proxied server's response headers, e.g. to retrieve a deferred sampling
+  // decision.
 
   request_span_->Finish({ot::FinishTimestamp{finish_timestamp}});
 }
@@ -201,14 +199,7 @@ ngx_str_t RequestTracing::lookup_propagation_header_variable_value(
 }
 
 ngx_str_t RequestTracing::lookup_span_variable_value(string_view key) {
-  // return to_ngx_str(request_->pool, TracingLibrary::span_variables().resolve(key, active_span()));
-  // TODO: no
-  auto value = TracingLibrary::span_variables().resolve(key, active_span());
-  std::cout << "#@#@#@#@#@#@# looked up key " << key << " and got " << value << "\n";
-  assert(request_->pool);
-  auto value_str = to_ngx_str(request_->pool, value);
-  std::cout << "#@#@#@#@#@#@# then as an ngx_str_t that's: " << str(value_str) << "\n";
-  return value_str;
+  return to_ngx_str(request_->pool, TracingLibrary::span_variables().resolve(key, active_span()));
 }
 
 }  // namespace nginx

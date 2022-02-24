@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <iostream>  // TODO: no
 #include <iterator>
 #include <new>
 
@@ -27,7 +26,6 @@ ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request,
     if (key_value.first == key) {
       return to_ngx_str(key_value.second);
     }
-    std::cout << "^^^^^^^^^^^^ " << key_value.first << " does not equal " << key << "\n";
   }
 
   // This will prevent the header from being added to the proxied request.

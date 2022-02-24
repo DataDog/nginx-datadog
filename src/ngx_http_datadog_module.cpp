@@ -17,7 +17,6 @@
 
 #include <cstdlib>
 #include <exception>
-#include <iostream> // TODO: no
 #include <iterator>
 #include <utility>
 
@@ -209,7 +208,6 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_tag",
       "opentracing_tag",
-      // TODO: Can we make this work in an "if"?
       anywhere | NGX_CONF_TAKE2,
       set_datadog_tag,
       NGX_HTTP_LOC_CONF_OFFSET,
@@ -318,15 +316,8 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
     }
   }
 
-  // TODO: Let's see what ended up happening with the tracer configuration.
-  // TODO: We could use an env variable or a configuration directive to instruct
-  // this code to dump config in a machine-readable format, for tests.
   const auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
-  std::cout << "(*&$(*&)@(*&)($*&#()$&@(*()*  config: " << str(main_conf->tracer_conf)
-      << "\nfile: " << str(main_conf->tracer_conf_source_location.file_name)
-      << "\nline: " << main_conf->tracer_conf_source_location.line
-      << "\ndirective: " << str(main_conf->tracer_conf_source_location.directive_name) << std::endl;
 
   return NGX_OK;
 }
@@ -366,8 +357,6 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
   if (!main_conf || !main_conf->is_tracer_configured) {
-    // TODO: no
-    std::cout << "*&*(&)(&()*&)(*&()*&(*&()*&)(*&   Either there's no datadog_main_conf_t object, or .is_tracer_configured is false.\n";
     return NGX_OK;
   }
 
@@ -395,25 +384,10 @@ static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
   }
 }
 
-// TODO: hack hack
-static void print_module_names(const ngx_cycle_t *cycle) noexcept {
-  std::cout << "BEGIN print module names in " __FILE__ "\n";
-  for (int i = 0; i < cycle->modules_n; ++i) {
-    std::cout << "cycle has module: " << cycle->modules[i]->name << "\n";
-  }
-  std::cout << "END print module names\n";
-}
-// end TODO
-
 //------------------------------------------------------------------------------
 // create_datadog_main_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
-  // TODO hack
-  // print_module_names((const ngx_cycle_t*)ngx_cycle);
-  // print_module_names(conf->cycle);
-  std::cout << "*&(*&(*&)(*&)(*&(*&)(*&(*&(*&)(*&)(*&)(*&)(*&)(*& creating main conf\n";
-  // end TODO
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
   // Default initialize members.
@@ -423,26 +397,13 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
   return main_conf;
 }
 
-// TODO: hack hack
-static void peek_conf_file(ngx_conf_t *conf) noexcept {
-  const auto pos = reinterpret_cast<const char*>(conf->conf_file->buffer->pos);
-  const auto last = reinterpret_cast<const char*>(conf->conf_file->buffer->last);
-  const int max_length = 100;
-  const auto end = std::min(last, pos + max_length);
-  std::cout << "Looking ahead in config file:\n" << std::string(pos, end) << "\n";
-}
-
 static void examine_conf_args(ngx_conf_t *conf) noexcept {
   if (conf->args == nullptr) {
-    std::cout << "conf args is null\n";
     return;
   }
 
-  std::cout << "conf args has this many elements: " << conf->args->nelts << "\n";
-  
   if (conf->args->nelts >= 1) {
     const auto str = static_cast<const ngx_str_t*>(conf->args->elts);
-    std::cout << "Here's the first arg as a string: " << std::string(reinterpret_cast<const char*>(str->data), str->len) << "\n";
   }
 }
 
@@ -457,11 +418,6 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   auto loc_conf = static_cast<datadog_loc_conf_t *>(
       ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
   if (!loc_conf) return nullptr;
-
-  // TODO hack
-  // examine_conf_args(conf);
-  // peek_conf_file(conf);
-  // end TODO
 
   // TODO: document
   if (is_server_block_begin(conf)) {

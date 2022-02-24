@@ -20,7 +20,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <iostream> // TODO: no
 #include <istream>
 #include <string>
 
@@ -60,7 +59,6 @@ char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, string_view tra
   
   main_conf->is_tracer_configured = true;
   main_conf->tracer_conf = to_ngx_str(conf->pool, tracer_conf);
-  // TODO: Do I need to clone the file name?
   main_conf->tracer_conf_source_location = conf_directive_source_location{
     .file_name = conf->conf_file->file.name,
     .line = conf->conf_file->line,
@@ -200,7 +198,6 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t * command,
                         reinterpret_cast<unsigned char *>(
                             const_cast<char *>(keys[key_index].data()))};
     args[2] = make_propagation_header_variable(cf->pool, keys[key_index]);
-    std::cout << "proxy_pass !@!@!@!@!@!@ " << str(args[0]) << " " << str(args[1]) << " " << str(args[2]) << "\n";
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
       return static_cast<char *>(NGX_CONF_ERROR);
@@ -275,7 +272,6 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf,
   for (int key_index = 0; key_index < num_keys; ++key_index) {
     args[1] = make_fastcgi_span_context_key(cf->pool, keys[key_index]);
     args[2] = make_propagation_header_variable(cf->pool, keys[key_index]);
-    std::cout << "fastcgi_pass !@!@!@!@!@!@ " << str(args[0]) << " " << str(args[1]) << " " << str(args[2]) << " " << str(args[3]) << "\n";
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
     if (rcode != NGX_OK) {
       return static_cast<char *>(NGX_CONF_ERROR);

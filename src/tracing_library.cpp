@@ -2,7 +2,6 @@
 #include "utility.h"
 
 #include <datadog/opentracing.h>
-#include <datadog/span.h>
 #include <opentracing/expected/expected.hpp>
 #include <opentracing/tracer_factory.h>
 
@@ -105,38 +104,24 @@ std::vector<string_view> TracingLibrary::propagation_header_names(string_view co
 
 string_view TracingLibrary::propagation_header_variable_name_prefix() {
     return "datadog_propagation_header_";
-    // TODO: Maybe the set of prefixes has to be prefix-free :D
-    // return "dd_propagation_header_";
 }
 
 namespace {
 
 std::string span_property(string_view key, const ot::Span& span) {
     const auto not_found = "-";
-    const auto& dd_span = static_cast<const ::datadog::opentracing::DatadogSpan&>(span);
 
     if (key == "trace_id") {
         return span.context().ToTraceID();
     } else if (key == "span_id") {
         return span.context().ToSpanID();
-    } else if (key == "service") {
-        return dd_span.serviceName();
-    } else if (key == "span_type") {
-        return dd_span.type();
-    } else if (key == "operation_name") {
-        return dd_span.name();
-    } else if (key == "resource") { /* TODO "resource_name"? */
-        return dd_span.resource();
     } else if (key == "json") {
         std::ostringstream carrier;
         const auto result = span.tracer().Inject(span.context(), carrier);
         if (!result) {
-            return "-";
+            return not_found;
         }
         return carrier.str();
-    } else if (starts_with(key, "tag_")) {
-        key = slice(key, sizeof("tag_") - 1);
-        return dd_span.tag(key).value_or(not_found);
     }
 
     return not_found;

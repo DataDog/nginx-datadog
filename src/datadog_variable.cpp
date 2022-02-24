@@ -12,7 +12,6 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <iostream> // TODO: no
 #include <limits>
 #include <stdexcept>
 
@@ -37,10 +36,7 @@ static ngx_int_t expand_span_variable(
     return NGX_OK;
   }
 
-  std::cout << "*)*(*)*(*)*(*)*(*(*)*(*(*)*)* looking up span variable suffix: " << suffix << "\n";
   auto span_variable_value = context->lookup_span_variable_value(request, suffix);
-  std::cout << "*)*(*)*(*)*(*)*(*(*)*(*(*)*)* that resulted in: " << str(span_variable_value) << "\n";
-
   variable_value->len = span_variable_value.len;
   variable_value->valid = true;
   variable_value->no_cacheable = true;
@@ -74,10 +70,7 @@ static ngx_int_t expand_propagation_header_variable(
     return NGX_OK;
   }
 
-  std::cout << "*)*(*)*(*)*(*)*(*(*)*(*(*)*)* looking up header variable suffix: " << suffix << "\n";
   auto value = context->lookup_propagation_header_variable_value(request, suffix);
-  std::cout << "*)*(*)*(*)*(*)*(*(*)*(*(*)*)* that resulted in: " << str(value) << "\n";
-
   variable_value->len = value.len;
   variable_value->valid = true;
   variable_value->no_cacheable = true;

@@ -67,7 +67,7 @@ void for_each(const ngx_array_t &array, F f) {
 }
 
 inline char to_lower(unsigned char c) {
-  static_cast<char>(std::tolower(c));
+  return static_cast<char>(std::tolower(c));
 }
 
 inline char hyphen_to_underscore(char c) {

@@ -12,4 +12,3 @@ These are my notes for things I need to write unit tests for:
 - Location-based tracing is disabled by default.
 - `operation_name` is set automatically.
 - Logged messages contain trace context.
-  - TODO: Is this a good idea?
