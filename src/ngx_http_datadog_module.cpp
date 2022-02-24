@@ -353,7 +353,6 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
 }
 
 static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
-  // TODO: Document
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
   if (!main_conf || !main_conf->is_tracer_configured) {
@@ -419,7 +418,17 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
       ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
   if (!loc_conf) return nullptr;
 
-  // TODO: document
+  // Trace ID and span ID are automatically added to the access log by altering
+  // the default log format to be one defined by this module.  We need to
+  // inject `log_format` directives as soon as possible within the `http` block
+  // of the configuration.  However, the only hook we have that's in an
+  // appropriate place is in this "location" handler, but when the "location"
+  // is actually a `server` block.  That allows us to insert `log_format`
+  // directives _before_ the `server` block (and thus directly within the
+  // `http` block).  It's _before_ because this function is not a configuration
+  // block handler, is a configuration context constructor that is called
+  // before the handler, so we're still currently "outside" the `server` block,
+  // within the `http` block, which is the only place `log_format` is allowed.
   if (is_server_block_begin(conf)) {
     if (inject_datadog_log_formats(conf)) {
       return nullptr;  // error

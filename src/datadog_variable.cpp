@@ -18,7 +18,11 @@
 namespace datadog {
 namespace nginx {
 
-// TODO: document
+// Load into the specified `variable_value` the result of looking up the value
+// of the variable name indicated by the specified `data`.  The variable name,
+// if valid, will resolve to some property on the active span, i.e.
+// `datadog_trace_id` resolves to a string containing the trace ID.  Return
+// `NGX_OK` on success or another value if an error occurs.
 static ngx_int_t expand_span_variable(
     ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t data) noexcept try {
@@ -29,8 +33,7 @@ static ngx_int_t expand_span_variable(
   auto context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
   if (context == nullptr) {
-    // TODO: Is this how we make it print "-"?
-    variable_value->valid = 1;  // TODO: don't know
+    variable_value->valid = 1;
     variable_value->no_cacheable = true;
     variable_value->not_found = true;
     return NGX_OK;
@@ -52,7 +55,13 @@ static ngx_int_t expand_span_variable(
   return NGX_ERROR;
 }
 
-// TODO: document
+// Load into the specified `variable_value` the result of looking up the value
+// of the variable name indicated by the specified `data`.  The variable name,
+// if valid, will resolve to some propagation header value for the current
+// trace, e.g.  `datadog_propagation_header_x_datadog_origin` resolves to a
+// string containing the value of the "x-datadog-origin" header as it would be
+// propagated to a proxied upstream service.  Return `NGX_OK` on success or
+// another value if an error occurs.
 static ngx_int_t expand_propagation_header_variable(
     ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t data) noexcept try {
@@ -63,8 +72,7 @@ static ngx_int_t expand_propagation_header_variable(
   auto context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
   if (context == nullptr) {
-    // TODO: Is this how we make it print "-"?
-    variable_value->valid = 1;  // TODO: don't know
+    variable_value->valid = 1;
     variable_value->no_cacheable = true;
     variable_value->not_found = true;
     return NGX_OK;

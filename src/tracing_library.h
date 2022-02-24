@@ -38,19 +38,23 @@ struct TracingLibrary {
     // `error`.
     static std::shared_ptr<ot::Tracer> make_tracer(string_view configuration, std::string &error);
 
-    // TODO: Rewrite this contract since the function's name was changed.
-    //
-    // Parse the specified `configuration` and return the names of span tags
+    // Parse the specified `configuration` and return the names of HTTP headers
     // used to inject trace context (which tags those are might depend on the
     // configuration, e.g. optional B3 propagation).  If `configuration` is
     // empty, use a default configuration.  If an error occurs, assign a
     // diagnostic to the specified `error`.  Note that the storage to which
-    // each returned `string_view` refers must outlive any usage of the
-    // return value (realistically this means that they will refer to string
+    // each returned `string_view` refers must outlive any usage of the return
+    // value (realistically this means that they will refer to string
     // literals).
     static std::vector<string_view> propagation_header_names(string_view configuration, std::string &error);
 
-    // TODO: document
+    // Return the common prefix of all variable names that map to trace context
+    // propagation headers.  The portion of the variable name after the common
+    // prefix is the HTTP header name itself, lower-cased and with hyphens
+    // converted to underscores.  For example, if this function returns
+    // "datadog_propagation_header_", then the nginx configuration variable
+    // $datadog_propagation_header_x_datadog_origin refers to the
+    // X-Datadog-Origin propagation header value for the current span context.
     static string_view propagation_header_variable_name_prefix();
 
     // Return a family of nginx variables that will be used to fetch string
@@ -58,7 +62,7 @@ struct TracingLibrary {
     // configuration to access the active span's ID, include an entry for
     // "span_id".  If the prefix were chosen as "datadog_", then the nginx
     // variable "$datadog_span_id" would resolve to whichever value is returned
-    // by the corresponding `SpanStringer` when invoked with the active span.
+    // by the `NginxVariableFamily`'s `.resolve("span_id", active_span)`.
     static NginxVariableFamily span_variables();
 
     // Return the names of environment variables for worker processes to

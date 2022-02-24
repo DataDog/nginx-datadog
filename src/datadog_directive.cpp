@@ -27,7 +27,13 @@ namespace datadog {
 namespace nginx {
 namespace {
 
-// TODO: document
+// Dispatch to the "real" handler for the specified `command`, and then invoke
+// the specified `inject_propagation_commands` with the specified `cf`,
+// `command`, and `conf`.  `inject_propagation_commands` is intended to do the
+// Datadog-specific work associated with the hijacked `command`, e.g. insert
+// `proxy_set_header` directives into the current configuration context.
+// Return the value returned by `inject_propagation_commands`, or return
+// `NGX_CONF_ERROR` if an error occurs.
 char *hijack_pass_directive(
     char *(*inject_propagation_commands)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf),
     ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept try {
@@ -41,7 +47,6 @@ char *hijack_pass_directive(
   // propagation, e.g. `propagate_datadog_context`.
   return inject_propagation_commands(cf, command, conf);
 } catch (const std::exception &e) {
-  // TODO: Will buffering be a problem?
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                 "Datadog-wrapped configuration directive %V failed: %s", command->name, e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
@@ -52,7 +57,11 @@ char *hijack_pass_directive(
 // JSON encoded configuration.
 const string_view TRACER_CONF_DEFAULT;
 
-// TODO: document
+// Mark the place in the specified `conf` (at the current `command`) where the
+// Datadog tracer was configured with the specified `tracer_conf`.  This might
+// happen explicitly when the `datadog {...}` configuration directive is
+// encountered, or implicitly if certain other directives are encountered
+// first.
 char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, string_view tracer_conf) {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(conf, ngx_http_datadog_module));
@@ -65,9 +74,10 @@ char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, string_view tra
     .directive_name = command->name
   };
   
-  // In order for span context propagation to work, the keys used by a tracer
-  // need to be known ahead of time. OpenTracing-C++ doesn't have any API for
-  // this, so we use an extended interface in `TracingLibrary`.
+  // In order for span context propagation to work, the names of the HTTP
+  // headers added to requests need to be known ahead of time.
+  // `discovery_span_context_keys` consults
+  // `TracingLibrary::propagation_header_names`.
   main_conf->span_context_keys = discover_span_context_keys(
       conf->pool, conf->log, str(main_conf->tracer_conf));
   if (main_conf->span_context_keys == nullptr) {
@@ -340,7 +350,6 @@ char *hijack_access_log(ngx_conf_t *cf, ngx_command_t *command, void *conf) noex
   // Datadog-specific default, first make sure that those formats are defined.
   ngx_int_t rcode = inject_datadog_log_formats(cf);
   if (rcode != NGX_OK) {
-    // TODO: log?
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
@@ -390,7 +399,6 @@ char *hijack_access_log(ngx_conf_t *cf, ngx_command_t *command, void *conf) noex
   }
   return static_cast<char*>(NGX_CONF_OK);
 } catch (const std::exception &e) {
-  // TODO: Will buffering be a problem?
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                 "Datadog-wrapped configuration directive %V failed: %s", command->name, e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
