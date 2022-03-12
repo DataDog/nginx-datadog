@@ -2,7 +2,6 @@ NGINX_VERSION = $(shell cat nginx-version)
 # TODO: Consider renaming the module/ directory.
 MODULE_PATH := $(realpath module/)
 MODULE_NAME = ngx_http_datadog_module
-CLONE = git -c advice.detachedHead=false clone
 
 .PHONY: build
 build: prebuild
@@ -26,13 +25,18 @@ nginx_build_info.json: nginx/objs/Makefile bin/makefile_database.py
 	bin/makefile_database.py nginx/objs/Makefile $(MODULE_NAME) >$@
 
 nginx/objs/Makefile: nginx/ $(MODULE_PATH)/config
-	cd nginx && auto/configure --add-dynamic-module=$(MODULE_PATH) --with-compat
+	cd nginx && ./configure --add-dynamic-module=$(MODULE_PATH) --with-compat
 	
 $(MODULE_PATH)/config: bin/module_config.sh
 	bin/module_config.sh $(MODULE_NAME) >$@
 
 nginx/: nginx-version
-	rm -rf nginx && $(CLONE) --depth 1 --branch branches/stable-$(NGINX_VERSION) https://github.com/nginx/nginx
+	rm -rf nginx && \
+	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
+		mkdir nginx && \
+		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
+		rm nginx.tar.gz
+
 
 .PHONY: format
 format:
