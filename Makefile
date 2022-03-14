@@ -61,15 +61,15 @@ build-in-docker: prebuild
 	docker build --tag nginx-module-cmake-build .
 	bin/run_in_build_image.sh bin/cmake_build.sh .docker-build
 
-.PHONY: test
-test: build-in-docker
-# test: .build/libngx_http_datadog_module.so
-	cd test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) NGINX_IMAGE="nginx:$(NGINX_VERSION)" $(MAKE) up
+.PHONY: old-test
+old-test: build-in-docker
+# old-test: .build/libngx_http_datadog_module.so
+	cd old-test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) NGINX_IMAGE="nginx:$(NGINX_VERSION)" $(MAKE) up
 
-.PHONY: test-config
-test-config: build-in-docker
-# test-config: .build/libngx_http_datadog_module.so
-	cd test && NGINX_IMAGE="nginx:$(NGINX_VERSION)" $(MAKE) check-config
+.PHONY: old-test-config
+old-test-config: build-in-docker
+# old-test-config: .build/libngx_http_datadog_module.so
+	cd old-test && NGINX_IMAGE="nginx:$(NGINX_VERSION)" $(MAKE) check-config
 
 .build/libngx_http_datadog_module.so: prebuild
 	bin/cmake_build.sh
