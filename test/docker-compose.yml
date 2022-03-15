@@ -4,7 +4,7 @@ services:
   # TODO: document
   nginx:
     build:
-      context: ./nginx
+      context: ./services/nginx
       dockerfile: ./Dockerfile
       args:
         NGINX_IMAGE: ${NGINX_IMAGE}
@@ -25,17 +25,17 @@ services:
   # TODO: document
   agent:
     build:
-      context: ./agent
+      context: ./services/agent
       dockerfile: ./Dockerfile
     ports:
       - "0:8888" # for synchronizing with log
     volumes:
-      - './agent/agent.js:/app/agent.js:ro'
+      - './services/agent/agent.js:/app/agent.js:ro'
 
   # TODO: document
   http:
     build:
-      context: ./http
+      context: ./services/http
       dockerfile: ./Dockerfile
     environment:
       - DD_ENV=prod
@@ -44,7 +44,7 @@ services:
     ports:
       - "0:8888" # for synchronizing with log
     volumes:
-      - './http/http.js:/app/http.js:ro'
+      - './services/http/http.js:/app/http.js:ro'
     depends_on:
       - agent
 
@@ -53,7 +53,7 @@ services:
   #   to avoid confusion with protocol-specific config.
   fastcgi:
     build:
-      context: ./fastcgi
+      context: ./services/fastcgi
       dockerfile: ./Dockerfile
     environment:
       - DD_ENV=prod
@@ -62,14 +62,14 @@ services:
     ports:
       - "0:8888" # for synchronizing with log
     volumes:
-      - './fastcgi/fastcgi.js:/app/fastcgi.js:ro'
+      - './services/fastcgi/fastcgi.js:/app/fastcgi.js:ro'
     depends_on:
       - agent
 
   # TODO: document
   grpc:
     build:
-      context: ./grpc
+      context: ./services/grpc
       dockerfile: ./Dockerfile
     environment:
       - DD_ENV=prod
@@ -78,7 +78,7 @@ services:
     ports:
       - "0:8888" # for synchronizing with log
     volumes:
-      - './grpc/grpc.js:/app/grpc.js:ro'
-      - './grpc/grpc.proto:/app/grpc.proto:ro'
+      - './services/grpc/grpc.js:/app/grpc.js:ro'
+      - './services/grpc/grpc.proto:/app/grpc.proto:ro'
     depends_on:
       - agent
