@@ -1,6 +1,5 @@
 """Reference counted singleton instances"""
 
-
 import contextlib
 
 

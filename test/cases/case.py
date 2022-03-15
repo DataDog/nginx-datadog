@@ -12,11 +12,10 @@ class TestCase(unittest.TestCase):
     the `orchestration` singleton.  It's a convenience to avoid needing to
     indent test cases in a `with orchestration.singleton() as orch:` block.
     """
-
     def setUp(self):
         context = self.orch_context = orchestration.singleton()
         self.orch = context.__enter__()
-    
+
     def tearDown(self):
         self.orch_context.__exit__(None, None, None)
 

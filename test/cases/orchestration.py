@@ -23,7 +23,7 @@ class Orchestration:
         Begin parsing their logs on a separate thread.
         """
         # TODO
-        
+
     def down(self):
         """Stop service orchestration.
         
@@ -46,7 +46,7 @@ class Orchestration:
         chronological list of log lines gathered since the previous sync.
         """
         # TODO
-    
+
     def nginx_test_config(self, nginx_conf_text):
         """Test an nginx configuration.
 
@@ -57,7 +57,7 @@ class Orchestration:
         lines from the ouptut of the command.
         """
         # TODO
-    
+
     def nginx_reset(self):
         """Restore nginx to a default configuration.
 
