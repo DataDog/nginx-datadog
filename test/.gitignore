@@ -1,0 +1,2 @@
+./nginx/ngx_http_datadog_module.so
+__pycache__/

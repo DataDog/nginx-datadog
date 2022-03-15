@@ -51,3 +51,36 @@ Dockerhub corresponds to [nginx-version](nginx-version).
 
 The nginx module must be built before the tests can run.  I'm thinking a
 toplevel `make test` could handle that.
+
+```python
+def scratch():
+    with orchestration.singleton() as orch:
+        orch.reset_nginx()
+        logs_by_service = orch.sync_proxied_services()
+
+        orch.sync_nginx() # how? Might not need to...
+        # Instead, maybe always:
+        orch.reset_nginx()
+
+        orch.nginx_request(resource, headers)
+
+        status, log_lines = orch.nginx_test_config(config_text)
+        status, log_lines = orch.nginx_set_config(config_text)
+
+class TestThing(unittest.TestCase):
+    def test_thing(self):
+        """TODO"""
+        with orchestration.singleton() as orch:
+            config = Path(__file__).with_suffix('.conf').read_text()
+            status, log_lines = orch.nginx_test_config(config)
+            self.assertEqual(status, 0)
+            warning_pattern = r'TODO'
+            self.assertTrue(any(re.fullmatch(warning_pattern, line) is not None for line in log_lines))
+            
+    def test_other_thing(self):
+            config = Path(__file__).with_suffix('.conf').read_text()
+            status, log_lines = self.orch.nginx_test_config(config)
+            self.assertEqual(status, 0)
+            warning_pattern = r'TODO'
+            self.assertTrue(any(re.fullmatch(warning_pattern, line) is not None for line in log_lines))
+```

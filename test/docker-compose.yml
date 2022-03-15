@@ -1,0 +1,84 @@
+version: "3.2"
+services:
+    
+  # TODO: document
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: ./Dockerfile
+      args:
+        NGINX_IMAGE: ${NGINX_IMAGE}
+    # TODO: difference between configuring these things using environment
+    # variables, versus putting them in the (non-default) configuration.
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+    ports:
+      - "0:80" # HTTP/1.1
+      - "0:1337" # HTTP/2 for gRPC
+    depends_on:
+      - http
+      - fastcgi
+      - grpc
+      - agent
+
+  # TODO: document
+  agent:
+    build:
+      context: ./agent
+      dockerfile: ./Dockerfile
+    ports:
+      - "0:8888" # for synchronizing with log
+    volumes:
+      - './agent/agent.js:/app/agent.js:ro'
+
+  # TODO: document
+  http:
+    build:
+      context: ./http
+      dockerfile: ./Dockerfile
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+      - DD_SERVICE=http
+    ports:
+      - "0:8888" # for synchronizing with log
+    volumes:
+      - './http/http.js:/app/http.js:ro'
+    depends_on:
+      - agent
+
+  # TODO: document
+  # TODO: Consider prefixing these by the implementation language,
+  #   to avoid confusion with protocol-specific config.
+  fastcgi:
+    build:
+      context: ./fastcgi
+      dockerfile: ./Dockerfile
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+      - DD_SERVICE=fastcgi
+    ports:
+      - "0:8888" # for synchronizing with log
+    volumes:
+      - './fastcgi/fastcgi.js:/app/fastcgi.js:ro'
+    depends_on:
+      - agent
+
+  # TODO: document
+  grpc:
+    build:
+      context: ./grpc
+      dockerfile: ./Dockerfile
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+      - DD_SERVICE=grpc
+    ports:
+      - "0:8888" # for synchronizing with log
+    volumes:
+      - './grpc/grpc.js:/app/grpc.js:ro'
+      - './grpc/grpc.proto:/app/grpc.proto:ro'
+    depends_on:
+      - agent
