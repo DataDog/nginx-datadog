@@ -1,3 +1,5 @@
+"""Service orchestration (docker-compose) facilities for testing"""
+
 from lazy_singleton import LazySingleton
 
 import contextlib
@@ -8,6 +10,11 @@ import unittest
 
 class Orchestration:
     """TODO"""
+
+    # Properties (all private)
+    # - `up_thread` is the `threading.Thread` running `docker-compose up`.
+    # - `logs` is a `dict` that maps service name to a `queue.Queue` of log
+    #   lines.
 
     def up(self):
         """Start service orchestration.
@@ -75,7 +82,10 @@ _singleton = LazySingleton(Orchestration, Orchestration.up, Orchestration.down)
 
 
 def singleton():
-    """For use in `with` statements, e.g.
+    """Return a context manager providing access to the singleton instance of
+    `Orchestration`.
+
+    This is meant for use in `with` statements, e.g.
 
         with orchestration.singleton() as orch:
             status, log_lines = orch.nginx_test_config(...)
