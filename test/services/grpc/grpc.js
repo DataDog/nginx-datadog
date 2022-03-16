@@ -1,5 +1,6 @@
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
+const process = require('process');
 const packageDefinition = protoLoader.loadSync(
     './grpc.proto',
     {keepCase: true,
@@ -20,4 +21,9 @@ server.addService(proto.Greeter.service, {sayHello: sayHello});
 server.bindAsync('0.0.0.0:8080', grpc.ServerCredentials.createInsecure(), () => {
   console.log('gRPC node server is about to run');
   server.start();
+});
+
+process.on('SIGTERM', function () {
+  console.log('Received SIGTERM');
+  server.close(function () { process.exit(0); });
 });

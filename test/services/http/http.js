@@ -2,6 +2,7 @@
 // requests with some text, including the request headers as JSON.
 
 const http = require('http');
+const process = require('process');
 
 // In order for the span(s) associated with an HTTP request to be considered
 // finished, the body of the response corresponding to the request must have
@@ -25,3 +26,8 @@ const requestListener = function (request, response) {
 console.log('http node.js web server is running');
 const server = http.createServer(requestListener);
 server.listen(8080);
+
+process.on('SIGTERM', function () {
+  console.log('Received SIGTERM');
+  server.close(function () { process.exit(0); });
+});

@@ -2,6 +2,7 @@
 
 const http = require('http');
 const msgpack = require('@msgpack/msgpack');
+const process = require('process');
 
 function summary(span) {
   const {service, name, resource, meta} = span;
@@ -9,7 +10,7 @@ function summary(span) {
 }
 
 function handleTraceSegments(segments) {
-    console.log(JSON.stringify(segments, null, 2));  // TODO: no
+    // console.log(JSON.stringify(segments, null, 2));  // TODO: no
 
     segments.forEach(segment =>
       segment.forEach(span => {
@@ -55,7 +56,7 @@ const adminListener = function (request, response) {
   
   // Token used to correlate this request with the log message that it will
   // produce.
-  const token = headers['x-datadog-test-sync-token'];
+  const token = request.headers['x-datadog-test-sync-token'];
   console.log(`SYNC ${token}`);
 
   response.writeHead(200);
@@ -63,6 +64,20 @@ const adminListener = function (request, response) {
 };
 
 const adminPort = 8888;
-console.log(`node.js web server (agent admin) is running on part ${port}`);
+console.log(`node.js web server (agent admin) is running on part ${adminPort}`);
 const admin = http.createServer(adminListener);
 admin.listen(adminPort);
+
+process.on('SIGTERM', function () {
+  console.log('Received SIGTERM');
+
+  let remaining = 2;
+  function callback() {
+    if (--remaining === 0) {
+      process.exit(0);
+    }
+  }
+  
+  admin.close(callback);
+  server.close(callback);
+});
