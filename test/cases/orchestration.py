@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import queue
+import re
 import shutil
 import subprocess
 import threading
@@ -19,7 +20,8 @@ import uuid
 # `subprocess.Popen` (and its derivatives) need to know exactly where
 # the "docker-compose" executable is, since it won't find it in the passed-in
 # env's PATH.
-docker_compose_exe = shutil.which('docker-compose')
+docker_compose_command = shutil.which('docker-compose')
+docker_exe = shutil.which('docker')
 
 # `sync_port` is the port that services will listen on for "sync" requests.
 # `sync_port` is the port _inside_ the container -- it will be mapped to an
@@ -64,7 +66,7 @@ def to_service_name(container_name):
 
 
 def docker_compose_port(service, inside_port):
-    command = [docker_compose_exe, 'port', service, str(inside_port)]
+    command = [docker_compose_command, 'port', service, str(inside_port)]
     ip, port = subprocess.run(command,
                               stdout=subprocess.PIPE,
                               env=child_env(),
@@ -73,11 +75,53 @@ def docker_compose_port(service, inside_port):
     return ip, int(port)
 
 
-def docker_compose_up(deliver_ports, logs):
+def docker_compose_ps(service):
+    command = [docker_compose_command, 'ps', '--quiet', service]
+    result = subprocess.run(command,
+                            stdout=subprocess.PIPE,
+                            env=child_env(),
+                            encoding='utf8',
+                            check=True)
+    return result.stdout.strip()
+
+
+def docker_top(container, verbose_output):
+    # `docker top` is picky about the output format of `ps`.  It allows us to
+    # pass arbitrary options to `ps`, but, for example, if `pid` is not first,
+    # it breaks `docker top`.
+    fields = ('pid', 'cmd')
+
+    command = [docker_exe, 'top', container, '-o', ','.join(fields)]
+    with print_duration('Consuming docker-compose top PIDs', verbose_output):
+        with subprocess.Popen(command,
+                              stdout=subprocess.PIPE,
+                              env=child_env(),
+                              encoding='utf8') as child:
+            # Discard the first line, which is the field names.
+            # We could suppress it using ps's `--no-headers` option, but that
+            # breaks something inside of `docker top`.
+            next(child.stdout)
+            # Yield the remaining lines as tuples of fields("cmd" contains spaces,
+            # so this is particular to `fields`).
+            for line in child.stdout:
+                split = line.split()
+                pid_str, cmd = split[0], ' '.join(split[1:])
+                yield (int(pid_str), cmd)
+
+
+def nginx_worker_pids(nginx_container, verbose_output):
+    # cmd could be "nginx: worker process" or "nginx: worker process shutting down".
+    # We want to match both.
+    return set(pid for pid, cmd in docker_top(nginx_container, verbose_output)
+               if re.match(r'\s*nginx: worker process', cmd))
+
+
+def docker_compose_up(on_ready, logs, verbose_file):
     """This function is meant to be executed on its own thread."""
     ports = {}  # {service: {inside: outside}}
+    containers = {}  # {service: container_id}
     command = [
-        docker_compose_exe, 'up', '--build', '--remove-orphans',
+        docker_compose_command, 'up', '--build', '--remove-orphans',
         '--force-recreate', '--no-color'
     ]
     before = time.monotonic()
@@ -86,26 +130,23 @@ def docker_compose_up(deliver_ports, logs):
                           stdout=subprocess.PIPE,
                           stderr=subprocess.STDOUT,
                           env=child_env(),
-                          encoding='utf8') as child, open(
-                              'docker-compose-up.log', 'a') as verbose:
+                          encoding='utf8') as child:
         for line in child.stdout:
             kind, fields = formats.parse_docker_compose_up_line(line)
-            # TODO: Maybe suppress this
-            print(time.monotonic(),
-                  json.dumps([kind, fields]),
-                  file=verbose,
+            print(json.dumps([time.monotonic(), kind, fields]),
+                  file=verbose_file,
                   flush=True)
 
             if kind == 'attach_to_logs':
                 # Done starting containers.  Time to deliver the ephemeral port
-                # mappings to our caller.
+                # mappings and container IDs to our caller.
                 after = time.monotonic()
                 print(
-                    f'It took {after - before} seconds to start all services.')
-                deliver_ports(ports)
+                    f'It took {after - before} seconds to start all services.', file=verbose_file)
+                on_ready({'ports': ports, 'containers': containers})
             elif kind == 'finish_create_container':
                 # Started a container.  Add its ephemeral port mappings to
-                # `ports`.
+                # `ports` and its container ID to `containers`.
                 container_name = fields['container']
                 service = to_service_name(container_name)
                 # For nginx we're interested in its HTTP and gRPC ports.
@@ -115,6 +156,8 @@ def docker_compose_up(deliver_ports, logs):
                 for inside_port in inside_ports:
                     _, outside_port = docker_compose_port(service, inside_port)
                     ports.setdefault(service, {})[inside_port] = outside_port
+                # Consult `docker-compose ps` for the service's container ID
+                containers[service] = docker_compose_ps(service)
             elif kind == 'service_log':
                 # Got a line of logging from some service.  Push it onto the
                 # appropriate queue for consumption by tests.
@@ -123,8 +166,16 @@ def docker_compose_up(deliver_ports, logs):
                 logs[service].put(payload)
 
 
+@contextlib.contextmanager
+def print_duration(of_what, output):
+    before = time.monotonic()
+    yield
+    after = time.monotonic()
+    print(f'{of_what} took {after - before} seconds.', file=output)
+
+
 def docker_compose_services():
-    command = [docker_compose_exe, 'config', '--services']
+    command = [docker_compose_command, 'config', '--services']
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             env=child_env(),
@@ -134,7 +185,18 @@ def docker_compose_services():
 
 
 class Orchestration:
-    """TODO"""
+    """A handle for a `docker-compose` session.
+    
+    `up()` runs `docker-compose up` and spawns a thread that consumes its
+    output.
+
+    `down()` runs `docker-compose down`.
+
+    Other methods perform integration test specific actions.
+
+    This class is meant to be accessed through the `singleton()` function of
+    this module, not instantiated directly.
+    """
 
     # Properties (all private)
     # - `up_thread` is the `threading.Thread` running `docker-compose up`.
@@ -143,8 +205,11 @@ class Orchestration:
     # - `ports` is a `dict` {service: {inside: outside}} that, per service,
     #   maps port bindings from the port inside the service to the port outside
     #   (which will be an ephemeral port chosen by the system at runtime).
+    # - `containers` is a `dict` {service: container ID} that, per service,
+    #   maps to the Docker container ID in which the service is running.
     # - `services` is a `list` of service names as defined in the
     #   `docker-compose` config.
+    # - `verbose` is a file-like object to which verbose logging is written.
 
     def up(self):
         """Start service orchestration.
@@ -152,15 +217,31 @@ class Orchestration:
         Run `docker-compose up` to bring up the orchestrated services.  Begin
         parsing their logs on a separate thread.
         """
+        # Before we bring things up, first clean up any detritus left over from
+        # previous runs.  Failing to do so can create problems later when we
+        # ask docker-compose which container a service is running in.
+        command = [docker_compose_command, 'down', '--remove-orphans']
+        subprocess.run(command,
+                       stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL,
+                       check=True)
+
+        self.verbose = (Path(__file__).parent.resolve().parent /
+                        'docker-compose-verbose.log').open('a')
+
         self.services = docker_compose_services()
-        print('services:', self.services)  # TODO: no
+        print('services:', self.services, file=self.verbose)
         self.logs = {service: queue.SimpleQueue() for service in self.services}
-        ports_queue = queue.SimpleQueue()
+        ready_queue = queue.SimpleQueue()
         self.up_thread = threading.Thread(target=docker_compose_up,
-                                          args=(ports_queue.put, self.logs))
+                                          args=(ready_queue.put, self.logs,
+                                                self.verbose))
         self.up_thread.start()
-        self.ports = ports_queue.get()
-        print('ports:', self.ports)  # TODO: no
+        runtime_info = ready_queue.get()
+        self.ports = runtime_info['ports']
+        self.containers = runtime_info['containers']
+        print(runtime_info, file=self.verbose)
 
     def down(self):
         """Stop service orchestration.
@@ -168,34 +249,37 @@ class Orchestration:
         Run `docker-compose down` to bring down the orchestrated services.
         Join the log-parsing thread.
         """
-        command = [docker_compose_exe, 'down', '--remove-orphans']
-        before = time.monotonic()
-        with subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,  # "Stopping test_foo_1   ... done"
-                env=child_env(),
-                encoding='utf8') as child:
-            times = {}
-            for line in child.stderr:
-                kind, fields = formats.parse_docker_compose_down_line(line)
-                print(json.dumps((kind, fields)))
-                if kind == 'remove_network':
-                    continue
-                times.setdefault(fields['container'],
-                                 {})[kind] = time.monotonic()
+        command = [docker_compose_command, 'down', '--remove-orphans']
+        with print_duration('Bringing down all services', self.verbose):
+            with subprocess.Popen(
+                    command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,  # "Stopping test_foo_1   ... done"
+                    env=child_env(),
+                    encoding='utf8') as child:
+                times = {}
+                for line in child.stderr:
+                    kind, fields = formats.parse_docker_compose_down_line(line)
+                    print(json.dumps((kind, fields)),
+                          file=self.verbose,
+                          flush=True)
+                    if kind == 'remove_network':
+                        continue
+                    times.setdefault(fields['container'],
+                                     {})[kind] = time.monotonic()
 
-        self.up_thread.join()
-        after = time.monotonic()
-        print(f'It took {after - before} seconds to bring down all services.')
+            self.up_thread.join()
+
         for container, timestamps in times.items():
             begin_stop, end_stop = timestamps[
                 'begin_stop_container'], timestamps['end_stop_container']
-            print(f'{container} took {end_stop - begin_stop} seconds to stop.')
-            # Container removal happens quickly.  It's the stopping that's taking too long.
+            print(f'{container} took {end_stop - begin_stop} seconds to stop.', file=self.verbose)
+            # Container removal happens quickly.  It's the stopping that was
+            # taking too long before I fixed Node's SIGTERM handler.
             # begin_remove, end_remove = timestamps['begin_remove_container'], timestamps['end_remove_container']
-            # print(f'{container} took {end_remove - begin_remove} seconds to remove.')
+            # print(f'{container} took {end_remove - begin_remove} seconds to remove.', file=self.verbose)
+        self.verbose.close()
 
     # TODO: not like this. Just playing with it.
     def send_nginx_request(self, path):
@@ -206,7 +290,19 @@ class Orchestration:
         return urllib.request.urlopen(
             f'http://localhost:{outside_port}{path}').status
 
-    def sync_proxied_service(self, service):
+    def sync_service(self, service):
+        """Establish synchronization points in the logs of a service.
+        
+        Send a "sync" request to the specified `service`,
+        and wait for the corresponding log messages to appear in the
+        docker-compose log.  This way, we know that whatever we have done
+        previously has already appeared in the log.
+        
+            log_lines = orch.sync_service('agent')
+
+        where `log_lines` is a chronological list of strings, each a line from
+        the service's log.
+        """
         outside_port = self.ports[service][sync_port]
         token = str(uuid.uuid4())
         request = urllib.request.Request(
@@ -220,45 +316,97 @@ class Orchestration:
         q = self.logs[service]
         sync_message = f'SYNC {token}'
         while True:
+            print(
+                f'There are {q.qsize()} log lines waiting in the queue for service {service}'
+            )  # TODO: no
             line = q.get()
+            print(f'Dequeued a log line service {service}: {repr(line)}'
+                  )  # TODO: no
             if line.strip() == sync_message:
                 return log_lines
             log_lines.append(line)
 
-    def sync_proxied_services(self):
-        """Establish synchronization points in the logs of proxied services.
-        
-        Send a "sync" request to each of the services reverse proxied by
-        nginx, and wait for the corresponding log messages to appear in the
-        docker-compose log.  This way, we know that whatever we have done
-        previously has already appeared in the log.
-        
-            logs_by_service = orch.sync_proxied_services()
-
-        where `logs_by_service` is a `dict` mapping service name to a
-        chronological list of log lines gathered since the previous sync.
-        """
-        # TODO
-
-    def nginx_test_config(self, nginx_conf_text):
+    def nginx_test_config(self, nginx_conf_text, file_name):
         """Test an nginx configuration.
 
         Write the specified `nginx_conf_text` to a file in the nginx
         container and tell nginx to check the config as if it were loading it.
         Return `(status, log_lines)`, where `status` is the integer status of
         the nginx check command, and `log_lines` is a chronological list of
-        lines from the ouptut of the command.
+        lines from the combined stdout/stderr of the command.
         """
-        # TODO
+        # Here are some options from `nginx -h`:
+        # -t            : test configuration and exit
+        # -T            : test configuration, dump it and exit
+        # -q            : suppress non-error messages during configuration testing
+        # -c filename   : set configuration file (default: /etc/nginx/nginx.conf)
+        script = f"""
+dir=$(mktemp -d)
+file="$dir/{file_name}"
+cat >"$file" <<'END_CONFIG'
+{nginx_conf_text}
+END_CONFIG
+nginx -t -c "$file"
+rcode=$?
+rm -r "$dir"
+exit "$rcode"
+"""
+        # "-T" means "don't allocate a TTY".  This is necessary to avoid the
+        # error "the input device is not a TTY".
+        command = [
+            docker_compose_command, 'exec', '-T', '--', 'nginx', '/bin/sh'
+        ]
+        result = subprocess.run(command,
+                                input=script,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                encoding='utf8')
+        return result.returncode, result.stdout.split('\n')
 
     def nginx_reset(self):
         """Restore nginx to a default configuration.
 
-        Overwrite nginx's config with a default, send it a "/sync" request,
-        and wait for the corresponding log message to appear in the access
-        log.
+        Overwrite nginx's config with a default, send it a "reload" signal,
+        and wait for the old worker processes to terminate.
         """
         # TODO
+
+    def reload_nginx(self, wait_for_workers_to_terminate=False):
+        """Send a "reload" signal to nginx.
+
+        If `wait_for_workers_to_terminate` is true, then poll
+        `docker-compose ps` until the workers associated with nginx's previous
+        cycle have terminated.
+        """
+        with print_duration('Reloading nginx', self.verbose):
+            nginx_container = self.containers['nginx']
+            old_worker_pids = None
+            if wait_for_workers_to_terminate:
+                old_worker_pids = nginx_worker_pids(nginx_container, self.verbose)
+                print('old worker PIDs:', old_worker_pids)
+
+            # "-T" means "don't allocate a TTY".  This is necessary to avoid
+            # the error "the input device is not a TTY".
+            command = [
+                docker_compose_command, 'exec', '-T', '--', 'nginx', 'nginx',
+                '-s', 'reload'
+            ]
+            with print_duration('Sending the reload signal to nginx', self.verbose):
+                subprocess.run(command,
+                               stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL,
+                               check=True)
+            if not wait_for_workers_to_terminate:
+                return
+
+            # Poll `docker top` until none of `worker_pids` remain.
+            # The polling interval was chosen based on a system where:
+            # - nginx_worker_pids ran in ~0.05 seconds
+            # - the workers terminated after ~6 seconds
+            poll_period_seconds = 0.5
+            while old_worker_pids & nginx_worker_pids(nginx_container, self.verbose):
+                time.sleep(poll_period_seconds)
 
     def nginx_replace_config(self, nginx_conf_text):
         """Replace nginx's config and reload nginx.

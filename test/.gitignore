@@ -1,2 +1,2 @@
-./nginx/ngx_http_datadog_module.so
 __pycache__/
+docker-compose-verbose.log

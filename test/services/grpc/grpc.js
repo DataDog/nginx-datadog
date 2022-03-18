@@ -25,5 +25,5 @@ server.bindAsync('0.0.0.0:8080', grpc.ServerCredentials.createInsecure(), () => 
 
 process.on('SIGTERM', function () {
   console.log('Received SIGTERM');
-  server.close(function () { process.exit(0); });
+  server.tryShutdown(function () { process.exit(0); });
 });

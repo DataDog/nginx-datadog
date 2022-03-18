@@ -73,3 +73,8 @@ old-test-config: build-in-docker
 
 .build/libngx_http_datadog_module.so: prebuild
 	bin/cmake_build.sh
+
+.PHONY: test
+test: build-in-docker
+	cp .docker-build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
+	test/bin/run

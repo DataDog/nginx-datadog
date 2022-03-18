@@ -112,15 +112,6 @@ static ngx_command_t datadog_commands[] = {
       nullptr),
 
     DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "datadog_trace_locations",
-      "opentracing_trace_locations",
-      anywhere | NGX_CONF_TAKE1,
-      delegate_to_datadog_directive_with_warning,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr),
-      
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_propagate_context",
       "opentracing_propagate_context",
       anywhere | NGX_CONF_NOARGS,
@@ -318,6 +309,18 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
 
   const auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
+  // TODO: Why is `main_conf` here?
+  // TODO: Consider configuring tracer here if it's not explicitly disabled.
+  // TODO: This way, even if there's no `proxy_pass` or similar,
+  // the tracer gets instantiated.  This will cover the very unlikely
+  // case that nginx is just serving static files, and yet the user still
+  // wants tracing (maybe it's a leaf service  ¯\_(ツ)_/¯).
+  // TODO: hack hack
+  if (!main_conf->is_tracer_configured) {
+    main_conf->is_tracer_configured = true;
+    main_conf->tracer_conf = ngx_string("");  // default config
+  }
+  // end TODO
 
   return NGX_OK;
 }

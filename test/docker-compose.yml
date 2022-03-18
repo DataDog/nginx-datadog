@@ -30,7 +30,7 @@ services:
     ports:
       - "0:8888" # for synchronizing with log
     volumes:
-      - './services/agent/agent.js:/app/agent.js:ro'
+      - './services/agent/agent.js:/opt/app/agent.js:ro'
 
   # TODO: document
   http:
@@ -44,7 +44,7 @@ services:
     ports:
       - "0:8888" # for synchronizing with log
     volumes:
-      - './services/http/http.js:/app/http.js:ro'
+      - './services/http/http.js:/opt/app/http.js:ro'
     depends_on:
       - agent
 
@@ -62,7 +62,7 @@ services:
     ports:
       - "0:8888" # for synchronizing with log
     volumes:
-      - './services/fastcgi/fastcgi.js:/app/fastcgi.js:ro'
+      - './services/fastcgi/fastcgi.js:/opt/app/fastcgi.js:ro'
     depends_on:
       - agent
 
@@ -78,7 +78,7 @@ services:
     ports:
       - "0:8888" # for synchronizing with log
     volumes:
-      - './services/grpc/grpc.js:/app/grpc.js:ro'
-      - './services/grpc/grpc.proto:/app/grpc.proto:ro'
+      - './services/grpc/grpc.js:/opt/app/grpc.js:ro'
+      - './services/grpc/grpc.proto:/opt/app/grpc.proto:ro'
     depends_on:
       - agent
