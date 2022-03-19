@@ -1,7 +1,7 @@
 """Service orchestration (docker-compose) facilities for testing"""
 
-import formats
-from lazy_singleton import LazySingleton
+from . import formats
+from .lazy_singleton import LazySingleton
 
 import contextlib
 import json
@@ -142,7 +142,9 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # mappings and container IDs to our caller.
                 after = time.monotonic()
                 print(
-                    f'It took {after - before} seconds to start all services.', file=verbose_file)
+                    f'It took {after - before} seconds to start all services.',
+                    file=verbose_file,
+                    flush=True)
                 on_ready({'ports': ports, 'containers': containers})
             elif kind == 'finish_create_container':
                 # Started a container.  Add its ephemeral port mappings to
@@ -151,7 +153,7 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 service = to_service_name(container_name)
                 # For nginx we're interested in its HTTP and gRPC ports.
                 # For everything else, we're interested in the "sync" port (sync_port).
-                inside_ports = [80, 8080
+                inside_ports = [80, 1337, 8080
                                 ] if service == 'nginx' else [sync_port]
                 for inside_port in inside_ports:
                     _, outside_port = docker_compose_port(service, inside_port)
@@ -225,13 +227,14 @@ class Orchestration:
                        stdin=subprocess.DEVNULL,
                        stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL,
+                       env=child_env(),
                        check=True)
 
         self.verbose = (Path(__file__).parent.resolve().parent /
                         'docker-compose-verbose.log').open('a')
 
         self.services = docker_compose_services()
-        print('services:', self.services, file=self.verbose)
+        print('services:', self.services, file=self.verbose, flush=True)
         self.logs = {service: queue.SimpleQueue() for service in self.services}
         ready_queue = queue.SimpleQueue()
         self.up_thread = threading.Thread(target=docker_compose_up,
@@ -241,7 +244,7 @@ class Orchestration:
         runtime_info = ready_queue.get()
         self.ports = runtime_info['ports']
         self.containers = runtime_info['containers']
-        print(runtime_info, file=self.verbose)
+        print(runtime_info, file=self.verbose, flush=True)
 
     def down(self):
         """Stop service orchestration.
@@ -274,7 +277,8 @@ class Orchestration:
         for container, timestamps in times.items():
             begin_stop, end_stop = timestamps[
                 'begin_stop_container'], timestamps['end_stop_container']
-            print(f'{container} took {end_stop - begin_stop} seconds to stop.', file=self.verbose)
+            print(f'{container} took {end_stop - begin_stop} seconds to stop.',
+                  file=self.verbose)
             # Container removal happens quickly.  It's the stopping that was
             # taking too long before I fixed Node's SIGTERM handler.
             # begin_remove, end_remove = timestamps['begin_remove_container'], timestamps['end_remove_container']
@@ -282,13 +286,15 @@ class Orchestration:
         self.verbose.close()
 
     # TODO: not like this. Just playing with it.
-    def send_nginx_request(self, path):
+    def send_nginx_request(self, path, inside_port=80):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
-        status code.
+        status code and response body as a tuple `(status, body)`.
         """
-        outside_port = self.ports['nginx'][80]
-        return urllib.request.urlopen(
-            f'http://localhost:{outside_port}{path}').status
+        outside_port = self.ports['nginx'][inside_port]
+        url = f'http://localhost:{outside_port}{path}'
+        print('fetching', url, file=self.verbose, flush=True)
+        response = urllib.request.urlopen(url)
+        return (response.status, response.read())
 
     def sync_service(self, service):
         """Establish synchronization points in the logs of a service.
@@ -360,6 +366,7 @@ exit "$rcode"
                                 input=script,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
+                                env=child_env(),
                                 encoding='utf8')
         return result.returncode, result.stdout.split('\n')
 
@@ -382,7 +389,8 @@ exit "$rcode"
             nginx_container = self.containers['nginx']
             old_worker_pids = None
             if wait_for_workers_to_terminate:
-                old_worker_pids = nginx_worker_pids(nginx_container, self.verbose)
+                old_worker_pids = nginx_worker_pids(nginx_container,
+                                                    self.verbose)
                 print('old worker PIDs:', old_worker_pids)
 
             # "-T" means "don't allocate a TTY".  This is necessary to avoid
@@ -391,11 +399,13 @@ exit "$rcode"
                 docker_compose_command, 'exec', '-T', '--', 'nginx', 'nginx',
                 '-s', 'reload'
             ]
-            with print_duration('Sending the reload signal to nginx', self.verbose):
+            with print_duration('Sending the reload signal to nginx',
+                                self.verbose):
                 subprocess.run(command,
                                stdin=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL,
                                stderr=subprocess.DEVNULL,
+                               env=child_env(),
                                check=True)
             if not wait_for_workers_to_terminate:
                 return
@@ -405,7 +415,8 @@ exit "$rcode"
             # - nginx_worker_pids ran in ~0.05 seconds
             # - the workers terminated after ~6 seconds
             poll_period_seconds = 0.5
-            while old_worker_pids & nginx_worker_pids(nginx_container, self.verbose):
+            while old_worker_pids & nginx_worker_pids(nginx_container,
+                                                      self.verbose):
                 time.sleep(poll_period_seconds)
 
     def nginx_replace_config(self, nginx_conf_text):
@@ -417,6 +428,84 @@ exit "$rcode"
         returned by the call to `nginx_test_config`.
         """
         # TODO
+
+    @contextlib.contextmanager
+    def custom_nginx(self, nginx_conf, extra_env=None):
+        """TODO
+        """
+        # TODO: This function doesn't actually use `self`.
+
+        # "-T" means "don't allocate a TTY".  This is necessary to avoid the
+        # error "the input device is not a TTY".
+
+        # Make a temporary directory.
+        command = [
+            docker_compose_command, 'exec', '-T', '--', 'nginx', 'mktemp', '-d'
+        ]
+        result = subprocess.run(command,
+                                stdin=subprocess.DEVNULL,
+                                capture_output=True,
+                                encoding='utf8',
+                                env=child_env(),
+                                check=True)
+        temp_dir = result.stdout.strip()
+
+        # Write the config file to the temporary directory.
+        conf_path = temp_dir + '/nginx.conf'
+        command = [
+            docker_compose_command, 'exec', '-T', '--', 'nginx', '/bin/sh',
+            '-c', f"cat >'{conf_path}'"
+        ]
+        subprocess.run(command,
+                       input=nginx_conf,
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL,
+                       encoding='utf8',
+                       env=child_env(),
+                       check=True)
+
+        # Start up nginx using the config in the temporary directory and
+        # putting the PID file in there too.
+        # Let the caller play with the child process, and when they're done,
+        # send SIGKILL (SIGTERM doesn't do it) to the child process and wait
+        # for it to terminate.
+        pid_path = temp_dir + '/nginx.pid'
+        conf_preamble = f'daemon off; pid "{pid_path}"; error_log stderr;'
+        env_args = []
+        if extra_env is not None:
+            for key, value in extra_env.items():
+                env_args.append('--env')
+                env_args.append(f'{key}={value}')
+        command = [
+            docker_compose_command, 'exec', '-T', *env_args, '--', 'nginx',
+            'nginx', '-c', conf_path, '-g', conf_preamble
+        ]
+        env = child_env() | extra_env
+        # TODO: It would be good to get output for logging on error, but how?
+        child = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            # stdout=subprocess.DEVNULL, TODO
+            # stderr=subprocess.DEVNULL, TODO
+            env=env)
+        try:
+            yield child
+        finally:
+            # child.terminate() is not enough, not sure why
+            child.kill()
+            child.wait()
+
+        # Remove the temporary directory.
+        command = [
+            docker_compose_command, 'exec', '-T', '--', 'nginx', 'rm', '-r',
+            temp_dir
+        ]
+        subprocess.run(command,
+                       stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL,
+                       env=child_env(),
+                       check=True)
 
 
 _singleton = LazySingleton(Orchestration, Orchestration.up, Orchestration.down)

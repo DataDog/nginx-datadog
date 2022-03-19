@@ -18,7 +18,7 @@ function sayHello(call, callback) {
 
 const server = new grpc.Server();
 server.addService(proto.Greeter.service, {sayHello: sayHello});
-server.bindAsync('0.0.0.0:8080', grpc.ServerCredentials.createInsecure(), () => {
+server.bindAsync('0.0.0.0:1337', grpc.ServerCredentials.createInsecure(), () => {
   console.log('gRPC node server is about to run');
   server.start();
 });

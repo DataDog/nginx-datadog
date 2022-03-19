@@ -66,6 +66,10 @@ void for_each(const ngx_array_t &array, F f) {
   for (size_t i = 0; i < n; ++i) f(elements[i]);
 }
 
+inline char to_upper(unsigned char c) {
+  return static_cast<char>(std::toupper(c));
+}
+
 inline char to_lower(unsigned char c) {
   return static_cast<char>(std::tolower(c));
 }

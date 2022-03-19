@@ -1,6 +1,6 @@
 """Boilerplate for test cases"""
 
-import orchestration
+from . import orchestration
 
 import unittest
 

@@ -106,6 +106,10 @@ string_view TracingLibrary::propagation_header_variable_name_prefix() {
     return "datadog_propagation_header_";
 }
 
+string_view TracingLibrary::environment_variable_name_prefix() {
+    return "datadog_env_";
+}
+
 namespace {
 
 std::string span_property(string_view key, const ot::Span& span) {

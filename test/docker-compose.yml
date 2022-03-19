@@ -15,7 +15,8 @@ services:
       - DD_AGENT_HOST=agent
     ports:
       - "0:80" # HTTP/1.1
-      - "0:8080" # HTTP/2 for gRPC
+      - "0:8080" # alternative HTTP/1.1, for testing environment variables
+      - "0:1337" # HTTP/2 for gRPC
     depends_on:
       - http
       - fastcgi

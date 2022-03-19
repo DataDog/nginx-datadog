@@ -1,4 +1,4 @@
-import case
+from . import case
 
 import os
 from pprint import pprint
@@ -27,7 +27,7 @@ class TestScratch(case.TestCase):
 
         # Send a few requests to nginx and sync again.
         for _ in range(3):
-            status = self.orch.send_nginx_request('/')
+            status, _ = self.orch.send_nginx_request('/')
             self.assertEqual(status, 200)
 
         print('reloading nginx and waiting for old workers to terminate')

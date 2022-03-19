@@ -57,6 +57,17 @@ struct TracingLibrary {
     // X-Datadog-Origin propagation header value for the current span context.
     static string_view propagation_header_variable_name_prefix();
 
+    // Return the common prefix of all variable names that map to nginx worker
+    // process environment variables.  The portion of the variable name after
+    // the common prefix, converted to upper case, is the name of the
+    // environment variable itself.  For example, if this function returns
+    // "datadog_env_", then the nginx configuration variable
+    // $datadog_env_dd_agent_host refers to the DD_AGENT_HOST environment
+    // variable value for the nginx worker process in which the variable is
+    // being evaluated.  Note that this feature was added for use by
+    // integration tests.
+    static string_view environment_variable_name_prefix();
+
     // Return a family of nginx variables that will be used to fetch string
     // values from the active span.  For example, to allow the nginx
     // configuration to access the active span's ID, include an entry for

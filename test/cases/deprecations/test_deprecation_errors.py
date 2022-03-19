@@ -4,12 +4,12 @@ The directives `opentracing_load_tracer` and `datadog_load_tracer` cause nginx
 to fail to load, and instead log an error diagnostic.
 """
 
-import cases.case
+from .. import case
 
 from pathlib import Path
 
 
-class TestDeprecationErrors(cases.case.TestCase):
+class TestDeprecationErrors(case.TestCase):
     def test_opentracing_load_tracer(self):
         return self.run_test_for_config('conf/opentracing_load_tracer.conf',
                                         'opentracing_load_tracer')

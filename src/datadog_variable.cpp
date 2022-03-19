@@ -33,9 +33,12 @@ static ngx_int_t expand_span_variable(
   auto context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
   if (context == nullptr) {
+    const ngx_str_t not_found_str = ngx_string("-");
+    variable_value->len = not_found_str.len;
+    variable_value->data = not_found_str.data;
     variable_value->valid = 1;
     variable_value->no_cacheable = true;
-    variable_value->not_found = true;
+    variable_value->not_found = false;
     return NGX_OK;
   }
 
@@ -72,7 +75,7 @@ static ngx_int_t expand_propagation_header_variable(
   auto context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
   if (context == nullptr) {
-    variable_value->valid = 1;
+    variable_value->valid = true;
     variable_value->no_cacheable = true;
     variable_value->not_found = true;
     return NGX_OK;
@@ -94,6 +97,42 @@ static ngx_int_t expand_propagation_header_variable(
   return NGX_ERROR;
 }
 
+// Load into the specified `variable_value` the result of looking up the value
+// of the variable name indicated by the specified `data`.  The variable name,
+// if valid, will resolve to some environment variable for the current process,
+// e.g.  `datadog_env_dd_agent_host` resolves to a string containing the value
+// of the "DD_AGENT_HOST" environment variable as the current process inherited
+// it.  Return `NGX_OK` on success or another value if an error occurs.
+static ngx_int_t expand_environment_variable(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t data) noexcept {
+  auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
+  auto prefix_length = TracingLibrary::environment_variable_name_prefix().size();
+  auto suffix = slice(variable_name, prefix_length);
+
+  std::string env_var_name = suffix;
+  std::transform(env_var_name.begin(), env_var_name.end(), env_var_name.begin(), to_upper);
+  const char* const env_value = std::getenv(env_var_name.c_str());
+  if (env_value == nullptr) {
+    const ngx_str_t not_found_str = ngx_string("-");
+    variable_value->len = not_found_str.len;
+    variable_value->data = not_found_str.data;
+    variable_value->valid = true;
+    variable_value->no_cacheable = true;
+    variable_value->not_found = false;
+    return NGX_OK;
+  }
+
+  const ngx_str_t value_str = to_ngx_str(request->pool, env_value);
+  variable_value->len = value_str.len;
+  variable_value->valid = true;
+  variable_value->no_cacheable = true;
+  variable_value->not_found = false;
+  variable_value->data = value_str.data;
+
+  return NGX_OK;
+}
+
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   ngx_str_t prefix;
   ngx_http_variable_t *variable;
@@ -113,6 +152,15 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
       NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
   variable->get_handler = expand_propagation_header_variable;
   variable->data = 0;
+
+  // Register the variable name prefix for environment variables.
+  prefix = to_ngx_str(TracingLibrary::environment_variable_name_prefix());
+  variable = ngx_http_add_variable(
+    cf, &prefix,
+      NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
+  variable->get_handler = expand_environment_variable;
+  variable->data = 0;
+    
 
   return NGX_OK;
 }
