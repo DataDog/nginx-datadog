@@ -159,9 +159,12 @@ std::vector<string_view> TracingLibrary::environment_variable_names() {
         "DD_TRACE_CPP_LEGACY_OBFUSCATION",
         "DD_TRACE_DEBUG",
         "DD_TRACE_ENABLED",
+        "DD_TRACE_RATE_LIMIT",
         "DD_TRACE_REPORT_HOSTNAME",
+        "DD_TRACE_SAMPLE_RATE",
         "DD_TRACE_SAMPLING_RULES",
         "DD_TRACE_STARTUP_LOGS",
+        "DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH",
         "DD_VERSION"
     };
 }

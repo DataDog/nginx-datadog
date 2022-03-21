@@ -491,12 +491,11 @@ exit "$rcode"
         ]
         env = child_env() | extra_env
         # TODO: It would be good to get output for logging on error, but how?
-        child = subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            # stdout=subprocess.DEVNULL, TODO
-            # stderr=subprocess.DEVNULL, TODO
-            env=env)
+        child = subprocess.Popen(command,
+                                 stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL,
+                                 env=env)
         try:
             yield child
         finally:
