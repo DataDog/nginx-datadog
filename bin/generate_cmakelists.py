@@ -16,7 +16,8 @@ import sys
 
 target_name = sys.argv[1]
 build_info = json.load(sys.stdin)
-include_directories, c_sources = build_info['include_directories'], build_info['c_sources']
+include_directories, c_sources = build_info['include_directories'], build_info[
+    'c_sources']
 
 # Prefix the paths with the path to the nginx repository directory (./nginx).
 nginx = Path('nginx')
@@ -52,4 +53,5 @@ print(
                     sources_indent=sources_indent,
                     sources=('\n' + sources_indent).join(c_sources),
                     includes_indent=includes_indent,
-                    includes=('\n' + includes_indent).join(include_directories)))
+                    includes=('\n' +
+                              includes_indent).join(include_directories)))

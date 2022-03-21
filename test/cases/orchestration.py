@@ -23,6 +23,12 @@ import uuid
 docker_compose_command = shutil.which('docker-compose')
 docker_exe = shutil.which('docker')
 
+# docker-compose (at least the version running on my laptop) invokes
+# `docker` unqualified, and so when we run `docker-compose` commands,
+# we have to do it in an environment where `docker_exe` is in the PATH.
+# See `child_env`.
+docker_bin = str(Path(docker_exe).parent)
+
 # `sync_port` is the port that services will listen on for "sync" requests.
 # `sync_port` is the port _inside_ the container -- it will be mapped to an
 # ephemeral port on the host.
@@ -48,6 +54,9 @@ def child_env(parent_env=None):
 
     result['COMPOSE_PROJECT_NAME'] = parent_env.get('COMPOSE_PROJECT_NAME',
                                                     'test')
+
+    # TODO: combine with parent PATH?
+    result['PATH'] = docker_bin
 
     return result
 

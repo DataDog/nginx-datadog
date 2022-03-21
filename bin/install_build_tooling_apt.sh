@@ -18,8 +18,11 @@ install build-essential libtool autoconf unzip wget tar
 # nproc, etc.
 install coreutils
 
-# nginx uses perl-compatible regular expressions (PCRE)
-install libpcre3-dev
+# for bin/generate_cmakelists.py and bin/makefile_database.py
+install python3
+
+# nginx uses perl-compatible regular expressions (PCRE) and zlib (for gzip).
+install libpcre3-dev zlib1g-dev
 
 # Build a recent cmake from source.  We need at least 3.12, but ubuntu 18
 # packages 3.10.

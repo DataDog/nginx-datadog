@@ -1,11 +1,14 @@
+.DELETE_ON_ERROR:
+
 NGINX_VERSION = $(shell cat nginx-version)
 # TODO: Consider renaming the module/ directory.
 MODULE_PATH := $(realpath module/)
 MODULE_NAME = ngx_http_datadog_module
+BUILD_DIR ?= .build
 
 .PHONY: build
 build: prebuild
-	mkdir -p .build && cd .build && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
 	@echo 'build successful 👍'
 
 .PHONY: prebuild
@@ -37,10 +40,10 @@ nginx/: nginx-version
 		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
 		rm nginx.tar.gz
 
-
 .PHONY: format
 format:
 	yapf -i bin/*.py
+	test/bin/format
 
 .PHONY: clean
 clean:
@@ -48,6 +51,7 @@ clean:
 		$(MODULE_PATH)/config \
 		nginx_build_info.json \
 		.build \
+		.docker-build \
 		nginx-module.cmake \
 	
 .PHONY: clobber
@@ -57,21 +61,11 @@ clobber: clean
 		dd-opentracing-cpp/deps
 
 .PHONY: build-in-docker
-build-in-docker: prebuild
+build-in-docker:
 	docker build --tag nginx-module-cmake-build .
-	bin/run_in_build_image.sh bin/cmake_build.sh .docker-build
+	bin/run_in_build_image.sh $(MAKE) BUILD_DIR=.docker-build build
 
-.PHONY: old-test
-old-test: build-in-docker
-# old-test: .build/libngx_http_datadog_module.so
-	cd old-test && DD_API_KEY=$$(cat ~/.dd-keys/default/api-key) NGINX_IMAGE="nginx:$(NGINX_VERSION)" $(MAKE) up
-
-.PHONY: old-test-config
-old-test-config: build-in-docker
-# old-test-config: .build/libngx_http_datadog_module.so
-	cd old-test && NGINX_IMAGE="nginx:$(NGINX_VERSION)" $(MAKE) check-config
-
-.build/libngx_http_datadog_module.so: prebuild
+$(BUILD_DIR)/libngx_http_datadog_module.so: prebuild
 	bin/cmake_build.sh
 
 .PHONY: test

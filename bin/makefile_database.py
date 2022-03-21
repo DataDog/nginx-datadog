@@ -125,7 +125,8 @@ def parse_include_args(args):
     includes (e.g. "--verbose" will be considered a directory by this function).
     """
     for arg in args:
-        flag, path = re.match(r'^(-I|-iquote|-isystem|-idirafter)?(.*)$', arg).groups()
+        flag, path = re.match(r'^(-I|-iquote|-isystem|-idirafter)?(.*)$',
+                              arg).groups()
         if path:
             yield path
 
@@ -164,7 +165,10 @@ if __name__ == '__main__':
         elif path.suffix == '.c':
             c_sources.add(file)
 
-    json.dump({
-        'include_directories': list(include_directories),
-        'c_sources': list(c_sources)
-    }, sys.stdout, indent=2)
+    json.dump(
+        {
+            'include_directories': list(include_directories),
+            'c_sources': list(c_sources)
+        },
+        sys.stdout,
+        indent=2)
