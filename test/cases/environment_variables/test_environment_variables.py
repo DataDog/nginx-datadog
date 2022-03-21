@@ -1,7 +1,7 @@
 from .. import case
 
 from pathlib import Path
-import time  # TODO: no
+import time
 
 
 def with_staggered_retries(thunk, retry_interval_seconds, max_attempts):

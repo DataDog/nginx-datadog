@@ -442,8 +442,6 @@ exit "$rcode"
     def custom_nginx(self, nginx_conf, extra_env=None):
         """TODO
         """
-        # TODO: This function doesn't actually use `self`.
-
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
 
@@ -489,13 +487,11 @@ exit "$rcode"
             docker_compose_command, 'exec', '-T', *env_args, '--', 'nginx',
             'nginx', '-c', conf_path, '-g', conf_preamble
         ]
-        env = child_env() | extra_env
-        # TODO: It would be good to get output for logging on error, but how?
         child = subprocess.Popen(command,
                                  stdin=subprocess.DEVNULL,
-                                 stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL,
-                                 env=env)
+                                 stdout=self.verbose,
+                                 stderr=self.verbose,
+                                 env=child_env())
         try:
             yield child
         finally:
