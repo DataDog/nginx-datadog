@@ -12,10 +12,13 @@ build: prebuild
 	@echo 'build successful 👍'
 
 .PHONY: prebuild
-prebuild: nginx-module.cmake dd-opentracing-cpp-deps
+prebuild: nginx-module.cmake dd-opentracing-cpp-deps dd-opentracing-cpp/.git opentracing-cpp/.git
+
+dd-opentracing-cpp/.git opentracing-cpp/.git:
+	git submodule update --init --recursive
 
 .PHONY: dd-opentracing-cpp-deps
-dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack
+dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack dd-opentracing-cpp/.git
 
 dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd-opentracing-cpp/scripts/install_dependencies.sh
 	cd dd-opentracing-cpp && ./scripts/install_dependencies.sh not-opentracing
