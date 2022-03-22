@@ -14,13 +14,12 @@ const ignoreRequestBody = request => {
 
 const requestListener = function (request, response) {
   ignoreRequestBody(request);
-  
-  response.writeHead(200, {
-    'X-You-Better-Believe-It': 'foobar bearclaw',
-    'X-Datadog-Sampling-Priority': '18'
-  });
-  response.end('You hit the http node script, congrats. Here are your headers:\n\n'
-      + JSON.stringify(request.headers, null, 2));
+  const responseBody = JSON.stringify({
+    "service": "http",
+    "headers": request.headers
+  }, null, 2);
+  console.log(responseBody);
+  response.end(responseBody);
 }
 
 console.log('http node.js web server is running');

@@ -228,19 +228,19 @@ class Orchestration:
         Run `docker-compose up` to bring up the orchestrated services.  Begin
         parsing their logs on a separate thread.
         """
+        self.verbose = (Path(__file__).parent.resolve().parent /
+                        'docker-compose-verbose.log').open('a')
+
         # Before we bring things up, first clean up any detritus left over from
         # previous runs.  Failing to do so can create problems later when we
         # ask docker-compose which container a service is running in.
         command = [docker_compose_command, 'down', '--remove-orphans']
         subprocess.run(command,
                        stdin=subprocess.DEVNULL,
-                       stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL,
+                       stdout=self.verbose,
+                       stderr=self.verbose,
                        env=child_env(),
                        check=True)
-
-        self.verbose = (Path(__file__).parent.resolve().parent /
-                        'docker-compose-verbose.log').open('a')
 
         self.services = docker_compose_services()
         print('services:', self.services, file=self.verbose, flush=True)
@@ -288,10 +288,11 @@ class Orchestration:
                 'begin_stop_container'], timestamps['end_stop_container']
             print(f'{container} took {end_stop - begin_stop} seconds to stop.',
                   file=self.verbose)
-            # Container removal happens quickly.  It's the stopping that was
-            # taking too long before I fixed Node's SIGTERM handler.
-            # begin_remove, end_remove = timestamps['begin_remove_container'], timestamps['end_remove_container']
-            # print(f'{container} took {end_remove - begin_remove} seconds to remove.', file=self.verbose)
+            begin_remove, end_remove = timestamps[
+                'begin_remove_container'], timestamps['end_remove_container']
+            print(
+                f'{container} took {end_remove - begin_remove} seconds to remove.',
+                file=self.verbose)
         self.verbose.close()
 
     # TODO: not like this. Just playing with it.
@@ -387,7 +388,7 @@ exit "$rcode"
         """
         # TODO
 
-    def reload_nginx(self, wait_for_workers_to_terminate=False):
+    def reload_nginx(self, wait_for_workers_to_terminate=True):
         """Send a "reload" signal to nginx.
 
         If `wait_for_workers_to_terminate` is true, then poll
@@ -400,7 +401,6 @@ exit "$rcode"
             if wait_for_workers_to_terminate:
                 old_worker_pids = nginx_worker_pids(nginx_container,
                                                     self.verbose)
-                print('old worker PIDs:', old_worker_pids)
 
             # "-T" means "don't allocate a TTY".  This is necessary to avoid
             # the error "the input device is not a TTY".
@@ -412,8 +412,8 @@ exit "$rcode"
                                 self.verbose):
                 subprocess.run(command,
                                stdin=subprocess.DEVNULL,
-                               stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL,
+                               stdout=self.verbose,
+                               stderr=self.verbose,
                                env=child_env(),
                                check=True)
             if not wait_for_workers_to_terminate:
@@ -428,15 +428,40 @@ exit "$rcode"
                                                       self.verbose):
                 time.sleep(poll_period_seconds)
 
-    def nginx_replace_config(self, nginx_conf_text):
+    def nginx_replace_config(self, nginx_conf_text, file_name):
         """Replace nginx's config and reload nginx.
 
-        Call `self.nginx_test_config(nginx_conf_text)`.  If the resulting
-        status code is zero (success), overwrite nginx's config with
+        Call `self.nginx_test_config(nginx_conf_text, file_name)`.  If the
+        resulting status code is zero (success), overwrite nginx's config with
         `nginx_conf_text` and reload nginx.  Return the `(status, log_lines)`
         returned by the call to `nginx_test_config`.
         """
-        # TODO
+        # TODO: It would be faster to skip the check, but I think error
+        # messages for future tests will be better this way.
+        status, log_lines = self.nginx_test_config(nginx_conf_text, file_name)
+        if status:
+            return status, log_lines
+
+        script = f"""
+>/etc/nginx/nginx.conf cat <<'END_CONF'
+{nginx_conf_text}
+END_CONF
+"""
+        # "-T" means "don't allocate a TTY".  This is necessary to avoid the
+        # error "the input device is not a TTY".
+        command = [
+            docker_compose_command, 'exec', '-T', '--', 'nginx', '/bin/sh'
+        ]
+        subprocess.run(command,
+                       input=script,
+                       stdout=self.verbose,
+                       stderr=self.verbose,
+                       env=child_env(),
+                       check=True,
+                       encoding='utf8')
+
+        self.reload_nginx()
+        return status, log_lines
 
     @contextlib.contextmanager
     def custom_nginx(self, nginx_conf, extra_env=None):
@@ -465,8 +490,8 @@ exit "$rcode"
         ]
         subprocess.run(command,
                        input=nginx_conf,
-                       stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL,
+                       stdout=self.verbose,
+                       stderr=self.verbose,
                        encoding='utf8',
                        env=child_env(),
                        check=True)
@@ -506,8 +531,8 @@ exit "$rcode"
         ]
         subprocess.run(command,
                        stdin=subprocess.DEVNULL,
-                       stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL,
+                       stdout=self.verbose,
+                       stderr=self.verbose,
                        env=child_env(),
                        check=True)
 

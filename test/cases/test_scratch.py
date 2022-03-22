@@ -31,7 +31,7 @@ class TestScratch(case.TestCase):
             self.assertEqual(status, 200)
 
         print('reloading nginx and waiting for old workers to terminate')
-        self.orch.reload_nginx(wait_for_workers_to_terminate=True)
+        self.orch.reload_nginx()
 
         print('about to attempt another sync')
         log_lines = self.orch.sync_service('agent')
