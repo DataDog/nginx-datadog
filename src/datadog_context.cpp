@@ -3,7 +3,7 @@
 #include "string_view.h"
 #include "ngx_http_datadog_module.h"
 
-#include "utility.h"
+#include "string_util.h"
 
 #include <sstream>
 #include <stdexcept>

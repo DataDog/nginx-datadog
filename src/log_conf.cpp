@@ -5,7 +5,7 @@
 #include "defer.h"
 #include "ngx_http_datadog_module.h"
 #include "string_view.h"
-#include "utility.h"
+#include "string_util.h"
 
 namespace datadog {
 namespace nginx {

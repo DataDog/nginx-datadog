@@ -1,7 +1,7 @@
 #include "load_tracer.h"
 #include "string_view.h"
 #include "tracing_library.h"
-#include "utility.h"
+#include "string_util.h"
 
 #include <datadog/opentracing.h>
 

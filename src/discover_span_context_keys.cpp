@@ -1,6 +1,6 @@
 #include "discover_span_context_keys.h"
 #include "tracing_library.h"
-#include "utility.h"
+#include "string_util.h"
 
 #include <algorithm>
 

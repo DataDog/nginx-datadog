@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <chrono>
 #include <string>
 
 extern "C" {
@@ -35,35 +34,6 @@ inline ngx_str_t to_ngx_str(string_view s) {
   result.len = s.size();
   result.data = reinterpret_cast<unsigned char *>(const_cast<char *>(s.data()));
   return result;
-}
-
-// Convert the epoch denoted by epoch_seconds, epoch_milliseconds to an
-// std::chrono::system_clock::time_point duration from the epoch.
-std::chrono::system_clock::time_point to_system_timestamp(
-    time_t epoch_seconds, ngx_msec_t epoch_milliseconds);
-
-// Apply `f` to each element of an ngx_list_t.
-template <class T, class F>
-void for_each(const ngx_list_t &list, F f) {
-  auto part = &list.part;
-  auto elements = static_cast<T *>(part->elts);
-  for (ngx_uint_t i = 0;; i++) {
-    if (i >= part->nelts) {
-      if (!part->next) return;
-      part = part->next;
-      elements = static_cast<T *>(part->elts);
-      i = 0;
-    }
-    f(elements[i]);
-  }
-}
-
-// Apply `f` to each element of an ngx_array_t.
-template <class T, class F>
-void for_each(const ngx_array_t &array, F f) {
-  auto elements = static_cast<T *>(array.elts);
-  auto n = array.nelts;
-  for (size_t i = 0; i < n; ++i) f(elements[i]);
 }
 
 inline char to_upper(unsigned char c) {

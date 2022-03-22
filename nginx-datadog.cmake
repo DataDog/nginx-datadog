@@ -7,6 +7,7 @@ set_property(TARGET nginx_datadog PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_sources(nginx_datadog
     PRIVATE
+        src/array_util.cpp
         src/config_util.cpp
         src/datadog_conf.cpp
         src/datadog_conf_handler.cpp
@@ -24,11 +25,11 @@ target_sources(nginx_datadog
         src/ngx_http_datadog_module.cpp
         src/ngx_script.cpp
         src/ot.cpp
-        src/request_tracing.cpp
         src/propagation_header_querier.cpp
+        src/request_tracing.cpp
+        src/string_util.cpp
         src/string_view.cpp
         src/tracing_library.cpp
-        src/utility.cpp
 )
 
 include_directories(

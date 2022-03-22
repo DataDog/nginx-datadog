@@ -1,5 +1,5 @@
 #include "tracing_library.h"
-#include "utility.h"
+#include "string_util.h"
 
 #include <datadog/opentracing.h>
 #include <opentracing/expected/expected.hpp>
@@ -24,6 +24,9 @@ ot::expected<TracerOptions> optionsFromConfig(const char *configuration, std::st
 
 // This function is defined in the `dd-opentracing-cpp` repository.
 std::vector<ot::string_view> getPropagationHeaderNames(const std::set<PropagationStyle> &styles, bool prioritySamplingEnabled);
+
+// This function is defined in the `dd-opentracing-cpp` repository.
+std::string getConfigurationJSON(const ot::Tracer& tracer);
 
 }  // namespace opentracing
 
@@ -110,6 +113,10 @@ string_view TracingLibrary::environment_variable_name_prefix() {
     return "datadog_env_";
 }
 
+string_view TracingLibrary::configuration_json_variable_name() {
+    return "datadog_config_json";
+}
+
 namespace {
 
 std::string span_property(string_view key, const ot::Span& span) {
@@ -194,6 +201,11 @@ bool TracingLibrary::tracing_on_by_default() {
 
 bool TracingLibrary::trace_locations_by_default() {
     return false;
+}
+
+std::string TracingLibrary::configuration_json(const ot::Tracer& tracer) {
+    const bool with_timestamp = false;
+    return datadog::opentracing::toJSON(datadog::opentracing::getOptions(tracer), with_timestamp);
 }
 
 } // namespace nginx

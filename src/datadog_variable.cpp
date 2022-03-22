@@ -4,7 +4,7 @@
 #include "ngx_http_datadog_module.h"
 
 #include "datadog_context.h"
-#include "utility.h"
+#include "string_util.h"
 
 #include <opentracing/string_view.h>
 
@@ -133,6 +133,32 @@ static ngx_int_t expand_environment_variable(
   return NGX_OK;
 }
 
+// TODO
+static ngx_int_t expand_configuration_variable(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t data) noexcept {
+  const auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
+
+  const auto tracer = ot::Tracer::Global();
+  // No tracer?  No configuration.
+  if (tracer == nullptr) {
+    variable_value->valid = true;
+    variable_value->no_cacheable = true;
+    variable_value->not_found = true;
+    return NGX_OK;
+  }
+
+  const std::string value = TracingLibrary::configuration_json(*tracer);
+  const ngx_str_t value_str = to_ngx_str(request->pool, value);
+  variable_value->len = value_str.len;
+  variable_value->valid = true;
+  variable_value->no_cacheable = true;
+  variable_value->not_found = false;
+  variable_value->data = value_str.data;
+
+  return NGX_OK;
+}
+
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   ngx_str_t prefix;
   ngx_http_variable_t *variable;
@@ -161,6 +187,11 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   variable->get_handler = expand_environment_variable;
   variable->data = 0;
     
+  // Register the variable name for getting the tracer configuration.
+  ngx_str_t name = to_ngx_str(TracingLibrary::configuration_json_variable_name());
+  variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
+  variable->get_handler = expand_configuration_variable;
+  variable->data = 0;
 
   return NGX_OK;
 }

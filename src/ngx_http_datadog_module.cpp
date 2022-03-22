@@ -11,7 +11,7 @@
 #include "datadog_handler.h"
 #include "datadog_variable.h"
 #include "tracing_library.h"
-#include "utility.h"
+#include "string_util.h"
 
 #include <opentracing/dynamic_load.h>
 

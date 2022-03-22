@@ -3,7 +3,7 @@
 #include <opentracing/propagation.h>
 
 #include <opentracing/tracer.h>
-#include "utility.h"
+#include "array_util.h"
 using ot::expected;
 using ot::make_unexpected;
 

@@ -82,6 +82,11 @@ struct TracingLibrary {
     // return value (realistically this means that they will refer to string
     // literals).
     static std::vector<string_view> environment_variable_names();
+    
+    // Return the name of the nginx variable that expands to a JSON
+    // representation of the current tracer configuration (as produced by
+    // `configuration_json`).
+    static string_view configuration_json_variable_name();
 
     // Return the pattern of an nginx variable script that will be used for the
     // operation name of requests and locations that do not have an operation
@@ -112,6 +117,11 @@ struct TracingLibrary {
     // An HTTP location is an endpoint as configured using a "location" block
     // in the nginx configuration.
     static bool trace_locations_by_default();
+    
+    // Return a JSON representation of the configuration of the specified
+    // `tracer`.  The `tracer` was returned by a previous call to
+    // `make_tracer`.
+    static std::string configuration_json(const ot::Tracer& tracer);
 };
 
 } // namespace nginx

@@ -2,15 +2,12 @@ These are my notes for things I need to write unit tests for:
 
 - Omitting the `datadog { ... }` directive results in a default config at the first proxy-related directive.
 - ✅ Using the `opentracing_*` directives prints a warning.
-- Using the `datadog { ...}` directive results in an analogous tracer configuration.
-- `proxy_pass` forwards tracing context, unless `datadog_disable;`
-- `fastcgi_pass` forwards tracing context, unless `datadog_disable;`
+- Using the `datadog { ... }` directive results in an analogous tracer configuration.
+- ✅ `proxy_pass` forwards tracing context, unless `datadog_disable;`
+- ✅ `fastcgi_pass` forwards tracing context, unless `datadog_disable;`
 - `grpc_pass` forwards tracing context, unless `datadog_disable;`
-- Loading the module causes certain `DD_*` environment variables to be
+- ✅ Loading the module causes certain `DD_*` environment variables to be
   forwarded to worker processes.
-  - It might be useful to define a variable prefix for environment variables,
-    for this reason alone.
-    - Is there a way that could be a security concern?
 - Default tags are automatically added to traces.
 - Location-based tracing is disabled by default.
 - `operation_name` is set automatically.
@@ -18,6 +15,8 @@ These are my notes for things I need to write unit tests for:
 
 Scaffolding
 -----------
+TODO: A lot of what is written below is no longer true.
+
 Two kinds of tests:
 - config test
 - behavior test

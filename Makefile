@@ -42,7 +42,7 @@ nginx/: nginx-version
 
 .PHONY: format
 format:
-	yapf -i bin/*.py
+	yapf3 -i bin/*.py
 	test/bin/format
 
 .PHONY: clean

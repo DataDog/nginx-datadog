@@ -2,7 +2,7 @@
 #include "ot.h"
 #include "string_view.h"
 
-#include "utility.h"
+#include "string_util.h"
 
 #include <opentracing/propagation.h>
 #include <opentracing/tracer.h>

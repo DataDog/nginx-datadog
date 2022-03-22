@@ -4,8 +4,11 @@
 #include "ngx_http_datadog_module.h"
 #include "tracing_library.h"
 
-#include "utility.h"
+#include "array_util.h"
+#include "string_util.h"
 
+#include <chrono>
+#include <ctime>
 #include <sstream>
 #include <stdexcept>
 
@@ -63,6 +66,16 @@ static void add_upstream_name(const ngx_http_request_t *request,
   auto host = request->upstream->upstream->host;
   auto host_str = to_string(host);
   span.SetTag("upstream.name", host_str);
+}
+
+// Convert the epoch denoted by epoch_seconds, epoch_milliseconds to an
+// std::chrono::system_clock::time_point duration from the epoch.
+static std::chrono::system_clock::time_point to_system_timestamp(
+    time_t epoch_seconds, ngx_msec_t epoch_milliseconds) {
+  auto epoch_duration = std::chrono::seconds{epoch_seconds} +
+                        std::chrono::milliseconds{epoch_milliseconds};
+  return std::chrono::system_clock::from_time_t(std::time_t{0}) +
+         epoch_duration;
 }
 
 RequestTracing::RequestTracing(

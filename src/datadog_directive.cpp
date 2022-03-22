@@ -14,7 +14,7 @@
 #include "datadog_conf.h"
 #include "datadog_conf_handler.h"
 #include "datadog_variable.h"
-#include "utility.h"
+#include "string_util.h"
 
 #include <opentracing/string_view.h>
 
