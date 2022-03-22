@@ -17,6 +17,8 @@ prebuild: nginx-module.cmake dd-opentracing-cpp-deps dd-opentracing-cpp/.git ope
 dd-opentracing-cpp/.git opentracing-cpp/.git:
 	git submodule update --init --recursive
 
+dd-opentracing-cpp/scripts/install_dependencies.sh: dd-opentracing-cpp/.git
+
 .PHONY: dd-opentracing-cpp-deps
 dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack dd-opentracing-cpp/.git
 
