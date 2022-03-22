@@ -1,15 +1,15 @@
 syntax = "proto3";
 
-package helloworld;
+package upstream;
 
-service Greeter {
-  rpc SayHello (HelloRequest) returns (HelloReply) {}
+service Upstream {
+  rpc GetMetadata (GetMetadataRequest) returns (GetMetadataResponse) {}
 }
 
-message HelloRequest {
-  string name = 1;
+message GetMetadataRequest {
 }
 
-message HelloReply {
-  string message = 1;
+message GetMetadataResponse {
+  string service = 1;
+  map<string, string> metadata = 2;
 }

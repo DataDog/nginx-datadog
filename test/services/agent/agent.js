@@ -10,16 +10,7 @@ function summary(span) {
 }
 
 function handleTraceSegments(segments) {
-    // console.log(JSON.stringify(segments, null, 2));  // TODO: no
-
-    segments.forEach(segment =>
-      segment.forEach(span => {
-        if (span.parent_id) {
-          console.log(summary(span) + ': metrics: ' + JSON.stringify(span.metrics));
-        } else {
-          console.log(summary(span) + ': ROOT SPAN: metrics: ' + JSON.stringify(span.metrics));
-        }
-      }));
+    console.log(JSON.stringify(segments));
 }
 
 const requestListener = function (request, response) {

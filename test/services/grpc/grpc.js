@@ -1,6 +1,9 @@
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
+const reflection = require('grpc-node-server-reflection');
+const wrapServerWithReflection = reflection.default;
 const process = require('process');
+
 const packageDefinition = protoLoader.loadSync(
     './grpc.proto',
     {keepCase: true,
@@ -9,15 +12,16 @@ const packageDefinition = protoLoader.loadSync(
      defaults: true,
      oneofs: true
     });
-const proto = grpc.loadPackageDefinition(packageDefinition).helloworld;
+const proto = grpc.loadPackageDefinition(packageDefinition).upstream;
 
-function sayHello(call, callback) {
-  console.log('processing request from ' + call.request.name);
-  callback(null, {message: 'Congrats, ' + call.request.name + ', you hit the gRPC node script.'});
+function getMetadata(call, callback) {
+  const response = {service: 'grpc', metadata: call.metadata.getMap()};
+  console.log(response);
+  callback(null, response);
 }
 
-const server = new grpc.Server();
-server.addService(proto.Greeter.service, {sayHello: sayHello});
+const server = wrapServerWithReflection(new grpc.Server());
+server.addService(proto.Upstream.service, {GetMetadata: getMetadata});
 server.bindAsync('0.0.0.0:1337', grpc.ServerCredentials.createInsecure(), () => {
   console.log('gRPC node server is about to run');
   server.start();

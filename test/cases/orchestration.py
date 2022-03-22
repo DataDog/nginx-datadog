@@ -21,13 +21,13 @@ import uuid
 # the "docker-compose" executable is, since it won't find it in the passed-in
 # env's PATH.
 docker_compose_command = shutil.which('docker-compose')
-docker_exe = shutil.which('docker')
+docker_command = shutil.which('docker')
 
 # docker-compose (at least the version running on my laptop) invokes
 # `docker` unqualified, and so when we run `docker-compose` commands,
-# we have to do it in an environment where `docker_exe` is in the PATH.
+# we have to do it in an environment where `docker_command` is in the PATH.
 # See `child_env`.
-docker_bin = str(Path(docker_exe).parent)
+docker_bin = str(Path(docker_command).parent)
 
 # `sync_port` is the port that services will listen on for "sync" requests.
 # `sync_port` is the port _inside_ the container -- it will be mapped to an
@@ -100,7 +100,7 @@ def docker_top(container, verbose_output):
     # it breaks `docker top`.
     fields = ('pid', 'cmd')
 
-    command = [docker_exe, 'top', container, '-o', ','.join(fields)]
+    command = [docker_command, 'top', container, '-o', ','.join(fields)]
     with print_duration('Consuming docker-compose top PIDs', verbose_output):
         with subprocess.Popen(command,
                               stdout=subprocess.PIPE,
@@ -295,8 +295,7 @@ class Orchestration:
                 file=self.verbose)
         self.verbose.close()
 
-    # TODO: not like this. Just playing with it.
-    def send_nginx_request(self, path, inside_port=80):
+    def send_nginx_http_request(self, path, inside_port=80):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
@@ -305,6 +304,28 @@ class Orchestration:
         print('fetching', url, file=self.verbose, flush=True)
         response = urllib.request.urlopen(url)
         return (response.status, response.read())
+
+    def send_nginx_grpc_request(self, symbol, inside_port=1337):
+        """Send an empty gRPC request to the nginx endpoint at "/", where
+        the gRPC request is named by `symbol`, which has the form
+        "package.service.request".  The request is made using the `grpcurl`
+        command line utility.  Return the exit status of `grpcurl` and its
+        combined stdout and stderr as a tuple `(status, output)`.
+        """
+        address = f'localhost:{inside_port}'
+        # "-T" means "don't allocate a TTY".  This is necessary to avoid the
+        # error "the input device is not a TTY".
+        command = [
+            docker_compose_command, 'exec', '-T', '--', 'nginx', 'grpcurl',
+            '-plaintext', address, symbol
+        ]
+        result = subprocess.run(command,
+                                stdin=subprocess.DEVNULL,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                encoding='utf8',
+                                env=child_env())
+        return result.returncode, result.stdout
 
     def sync_service(self, service):
         """Establish synchronization points in the logs of a service.
@@ -326,18 +347,13 @@ class Orchestration:
             headers={'X-Datadog-Test-Sync-Token': token})
 
         result = urllib.request.urlopen(request)
-        assert result.status == 200  # TODO
+        assert result.status == 200
 
         log_lines = []
         q = self.logs[service]
         sync_message = f'SYNC {token}'
         while True:
-            print(
-                f'There are {q.qsize()} log lines waiting in the queue for service {service}'
-            )  # TODO: no
             line = q.get()
-            print(f'Dequeued a log line service {service}: {repr(line)}'
-                  )  # TODO: no
             if line.strip() == sync_message:
                 return log_lines
             log_lines.append(line)
@@ -436,8 +452,6 @@ exit "$rcode"
         `nginx_conf_text` and reload nginx.  Return the `(status, log_lines)`
         returned by the call to `nginx_test_config`.
         """
-        # TODO: It would be faster to skip the check, but I think error
-        # messages for future tests will be better this way.
         status, log_lines = self.nginx_test_config(nginx_conf_text, file_name)
         if status:
             return status, log_lines

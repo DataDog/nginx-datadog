@@ -55,7 +55,7 @@ class TestEnvironmentVariables(case.TestCase):
             # The just-started nginx probably isn't ready yet, so retry sending
             # the request a few times if it fails initially.
             status, body = with_staggered_retries(
-                lambda: self.orch.send_nginx_request('/', 8080),
+                lambda: self.orch.send_nginx_http_request('/', 8080),
                 retry_interval_seconds=0.25,
                 max_attempts=10)
             self.assertEqual(status, 200)
