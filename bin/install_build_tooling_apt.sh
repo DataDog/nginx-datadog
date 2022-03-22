@@ -13,7 +13,7 @@ install() {
 }
 
 # for downloading releases of build dependencies, unpacking them, and building them
-install build-essential libtool autoconf unzip wget tar
+install build-essential libtool autoconf unzip wget tar curl
 
 # nproc, etc.
 install coreutils
