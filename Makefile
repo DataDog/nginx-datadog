@@ -7,12 +7,15 @@ MODULE_NAME = ngx_http_datadog_module
 BUILD_DIR ?= .build
 
 .PHONY: build
-build: prebuild
+build: build-deps
 	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
 	@echo 'build successful 👍'
 
-.PHONY: prebuild
-prebuild: nginx-module.cmake dd-opentracing-cpp-deps dd-opentracing-cpp/.git opentracing-cpp/.git
+.PHONY: sources
+sources: dd-opentracing-cpp/.git opentracing-cpp/.git nginx/
+
+.PHONY: build-deps
+build-deps: sources nginx-module.cmake dd-opentracing-cpp-deps
 
 dd-opentracing-cpp/.git opentracing-cpp/.git:
 	git submodule update --init --recursive
@@ -66,12 +69,9 @@ clobber: clean
 		dd-opentracing-cpp/deps
 
 .PHONY: build-in-docker
-build-in-docker: prebuild
+build-in-docker: sources
 	docker build --tag nginx-module-cmake-build .
 	bin/run_in_build_image.sh $(MAKE) BUILD_DIR=.docker-build build
-
-$(BUILD_DIR)/libngx_http_datadog_module.so: prebuild
-	bin/cmake_build.sh
 
 .PHONY: test
 test: build-in-docker
