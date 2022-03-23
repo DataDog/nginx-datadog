@@ -182,7 +182,7 @@ def print_duration(of_what, output):
     before = time.monotonic()
     yield
     after = time.monotonic()
-    print(f'{of_what} took {after - before} seconds.', file=output)
+    print(f'{of_what} took {after - before} seconds.', file=output, flush=True)
 
 
 def docker_compose_services():
@@ -440,8 +440,15 @@ exit "$rcode"
             # - nginx_worker_pids ran in ~0.05 seconds
             # - the workers terminated after ~6 seconds
             poll_period_seconds = 0.5
+            timeout_seconds = 10
+            before = time.monotonic()
             while old_worker_pids & nginx_worker_pids(nginx_container,
                                                       self.verbose):
+                now = time.monotonic()
+                if now - before >= timeout_seconds:
+                    raise Exception(
+                        f'{timeout_seconds} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed.'
+                    )
                 time.sleep(poll_period_seconds)
 
     def nginx_replace_config(self, nginx_conf_text, file_name):
