@@ -9,7 +9,7 @@ These are my notes for things I need to write unit tests for:
 - ✅ Loading the module causes certain `DD_*` environment variables to be
   forwarded to worker processes.
 - ✅ Default tags are automatically added to traces.
-- Location-based tracing is disabled by default.
+- ✅ Location-based tracing is disabled by default.
 - `operation_name` is set automatically.
 - Logged messages contain trace context.
 
