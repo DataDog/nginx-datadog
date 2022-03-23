@@ -67,6 +67,8 @@ clobber: clean
 
 .PHONY: build-in-docker
 build-in-docker:
+# Update submodules before entering Docker, in case ssh keys are needed. 
+	git submodule update --init --recursive
 	docker build --tag nginx-module-cmake-build .
 	bin/run_in_build_image.sh $(MAKE) BUILD_DIR=.docker-build build
 
