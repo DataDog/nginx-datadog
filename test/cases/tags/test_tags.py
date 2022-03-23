@@ -1,17 +1,7 @@
 from .. import case
+from .. import formats
 
-import json
 from pathlib import Path
-
-
-def parse_trace(log_line):
-    """Return a trace (list of list of dict) parsed from the specified
-    `log_line`, or return `None` if `log_line` is not a trace.
-    """
-    try:
-        return json.loads(log_line)
-    except json.decoder.JSONDecodeError:
-        return None
 
 
 class TestTags(case.TestCase):
@@ -41,7 +31,7 @@ class TestTags(case.TestCase):
         log_lines = self.orch.sync_service('agent')
 
         for line in log_lines:
-            segments = parse_trace(line)
+            segments = formats.parse_trace(line)
             if segments is None:
                 # some other kind of logging; ignore
                 continue
@@ -94,7 +84,7 @@ class TestTags(case.TestCase):
         log_lines = self.orch.sync_service('agent')
 
         for line in log_lines:
-            segments = parse_trace(line)
+            segments = formats.parse_trace(line)
             if segments is None:
                 # some other kind of logging; ignore
                 continue

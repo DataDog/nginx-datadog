@@ -1,5 +1,6 @@
 """interpret the output of `docker-compose` commands"""
 
+import json
 import re
 
 
@@ -79,3 +80,13 @@ def parse_docker_compose_down_line(line):
         })
 
     return ('other', {'payload': line})
+
+
+def parse_trace(log_line):
+    """Return a trace (list of list of dict) parsed from the specified
+    `log_line`, or return `None` if `log_line` is not a trace.
+    """
+    try:
+        return json.loads(log_line)
+    except json.decoder.JSONDecodeError:
+        return None
