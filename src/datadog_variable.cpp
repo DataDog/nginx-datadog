@@ -133,12 +133,14 @@ static ngx_int_t expand_environment_variable(
   return NGX_OK;
 }
 
-// TODO
+// Load into the specified `variable_value` the result of looking up the value
+// of the variable whose name is determined by
+// `TracingLibrary::configuration_json_variable_name()`.  The variable
+// evaluates to a JSON representation of the tracer configuration.  Return
+// `NGX_OK` on success or another value if an error occurs.
 static ngx_int_t expand_configuration_variable(
     ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
-    uintptr_t data) noexcept {
-  const auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
-
+    uintptr_t /*data*/) noexcept {
   const auto tracer = ot::Tracer::Global();
   // No tracer?  No configuration.
   if (tracer == nullptr) {

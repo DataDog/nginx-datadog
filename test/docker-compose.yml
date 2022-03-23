@@ -13,6 +13,7 @@ services:
     environment:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
+      - DD_SERVICE=nginx
     ports:
       - "0:80" # HTTP/1.1
       - "0:8080" # alternative HTTP/1.1, for testing environment variables

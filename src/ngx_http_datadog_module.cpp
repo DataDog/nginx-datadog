@@ -307,20 +307,16 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
     }
   }
 
+  // If tracing has not so far been configured, then give it a default
+  // configuration.  This means that the nginx configuration did not use the
+  // `datadog` directive, and did not use any overridden directives, such as
+  // `proxy_pass`.
   const auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
-  // TODO: Why is `main_conf` here?
-  // TODO: Consider configuring tracer here if it's not explicitly disabled.
-  // TODO: This way, even if there's no `proxy_pass` or similar,
-  // the tracer gets instantiated.  This will cover the very unlikely
-  // case that nginx is just serving static files, and yet the user still
-  // wants tracing (maybe it's a leaf service  ¯\_(ツ)_/¯).
-  // TODO: hack hack
   if (!main_conf->is_tracer_configured) {
     main_conf->is_tracer_configured = true;
     main_conf->tracer_conf = ngx_string("");  // default config
   }
-  // end TODO
 
   return NGX_OK;
 }

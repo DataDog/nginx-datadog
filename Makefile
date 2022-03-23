@@ -76,4 +76,4 @@ build-in-docker: sources
 .PHONY: test
 test: build-in-docker
 	cp .docker-build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
-	test/bin/run
+	test/bin/run $(TEST_ARGS)
