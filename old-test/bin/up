@@ -1,8 +1,0 @@
-#!/bin/sh
-
-set -e
-
-docker-compose up --detach --build --remove-orphans
-trap 'docker-compose down' EXIT INT HUP
-# Tail all logs except for the agent, which is noisy.
-docker-compose logs --follow traced-nginx http fastcgi grpc
