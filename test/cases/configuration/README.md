@@ -12,5 +12,5 @@ There are three classes of configuration scenarios:
    default configuration had the Datadog module added to it (i.e. a static
    content server). 
 
-These tests make sure of the `$datadog_config_json` nginx variable to inspect
+These tests make use of the `$datadog_config_json` nginx variable to inspect
 the tracer configuration that results from the nginx configuration.

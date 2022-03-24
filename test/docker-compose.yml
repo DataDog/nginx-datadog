@@ -1,15 +1,14 @@
 version: "3.2"
 services:
     
-  # TODO: document
+  # `nginx` is the service that loads the Datadog module and is sent requests
+  # to probe the module's behavior.
   nginx:
     build:
       context: ./services/nginx
       dockerfile: ./Dockerfile
       args:
         NGINX_IMAGE: ${NGINX_IMAGE}
-    # TODO: difference between configuring these things using environment
-    # variables, versus putting them in the (non-default) configuration.
     environment:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
@@ -24,7 +23,10 @@ services:
       - grpc
       - agent
 
-  # TODO: document
+  # `agent` is a mock trace agent.  It listens on port 8126, accepts msgpack,
+  # decodes the resulting traces. and prints them to standard output as JSON.
+  # The tests can inspect traces sent to the agent (e.g. from the nginx module)
+  # by looking at `agent` log lines in the output of `docker-compose up`.
   agent:
     build:
       context: ./services/agent
@@ -34,7 +36,11 @@ services:
     volumes:
       - './services/agent/agent.js:/opt/app/agent.js:ro'
 
-  # TODO: document
+  # `http` is an HTTP server that is reverse proxied by `nginx`.  It listens
+  # on port 8080 and responds with a JSON object containing the name of
+  # the service ("http") and the request's HTTP headers.  This way, tests can
+  # see which trace context, if any, was propagated to the reverse proxied
+  # server.
   http:
     build:
       context: ./services/http
@@ -43,16 +49,15 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=http
-    ports:
-      - "0:8888" # for synchronizing with log
     volumes:
       - './services/http/http.js:/opt/app/http.js:ro'
     depends_on:
       - agent
 
-  # TODO: document
-  # TODO: Consider prefixing these by the implementation language,
-  #   to avoid confusion with protocol-specific config.
+  # `fastcgi` is a FastCGI server that is reverse proxied by `nginx`.  It
+  # listens on port 8080 and responds with a JSON object containing the name of
+  # the service ("fastcgi") and the request's headers.  This way, tests can see
+  # which trace context, if any, was propagated to the reverse proxied server.
   fastcgi:
     build:
       context: ./services/fastcgi
@@ -61,14 +66,17 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=fastcgi
-    ports:
-      - "0:8888" # for synchronizing with log
     volumes:
       - './services/fastcgi/fastcgi.js:/opt/app/fastcgi.js:ro'
     depends_on:
       - agent
 
-  # TODO: document
+  # `grpc` is a gRPC server that is reverse proxied by `nginx`.  It
+  # listens on port 1337 and responds with a message containing the metadata
+  # sent with the request.  This way, tests can see
+  # which trace context, if any, was propagated to the reverse proxied server.
+  # gRPC requests are made to nginx using `grpcurl`, which is included in the
+  # `nginx` container image.
   grpc:
     build:
       context: ./services/grpc
@@ -77,8 +85,6 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=grpc
-    ports:
-      - "0:8888" # for synchronizing with log
     volumes:
       - './services/grpc/grpc.js:/opt/app/grpc.js:ro'
       - './services/grpc/grpc.proto:/opt/app/grpc.proto:ro'

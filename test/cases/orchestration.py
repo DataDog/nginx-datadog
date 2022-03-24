@@ -161,9 +161,13 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 container_name = fields['container']
                 service = to_service_name(container_name)
                 # For nginx we're interested in its HTTP and gRPC ports.
-                # For everything else, we're interested in the "sync" port (sync_port).
-                inside_ports = [80, 1337, 8080
-                                ] if service == 'nginx' else [sync_port]
+                # For the agent, we're interested in the "sync" port (sync_port).
+                if service == 'nginx':
+                    inside_ports = [80, 8080, 1337]
+                elif service == 'agent':
+                    inside_ports = [sync_port]
+                else:
+                    inside_ports = []
                 for inside_port in inside_ports:
                     _, outside_port = docker_compose_port(service, inside_port)
                     ports.setdefault(service, {})[inside_port] = outside_port
@@ -486,7 +490,11 @@ END_CONF
 
     @contextlib.contextmanager
     def custom_nginx(self, nginx_conf, extra_env=None):
-        """TODO
+        """Yield a managed `Popen` object referring to a new instance of nginx
+        running in the nginx service container, where the new instance uses the
+        specified `nginx_conf` and has in its environment the optionally
+        specified `extra_env`.  When the context of the returned object exits,
+        the nginx instance is gracefully shut down.
         """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
