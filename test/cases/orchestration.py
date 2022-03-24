@@ -541,8 +541,22 @@ END_CONF
         try:
             yield child
         finally:
-            # child.terminate() is not enough, not sure why
-            child.kill()
+            # child.terminate() is not enough, not sure why.
+            # child.kill() leaves worker processes orphaned,
+            # which then screws up `reload_nginx` in subsequent tests.
+            # Instead, we signal graceful shutdown by using the `kill`
+            # command to send `SIGQUIT`.
+            command = [
+                docker_compose_command, 'exec', '-T', '--', 'nginx', '/bin/sh',
+                '-c', f"<'{pid_path}' xargs kill -QUIT"
+            ]
+            subprocess.run(command,
+                           stdin=subprocess.DEVNULL,
+                           stdout=self.verbose,
+                           stderr=self.verbose,
+                           encoding='utf8',
+                           env=child_env(),
+                           check=True)
             child.wait()
 
         # Remove the temporary directory.
