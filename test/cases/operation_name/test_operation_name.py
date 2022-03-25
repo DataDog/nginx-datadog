@@ -53,8 +53,8 @@ class TestOperationName(case.TestCase):
         self.orch.reload_nginx()
 
         log_lines = self.orch.sync_service('agent')
-        # Find the trace that came from nginx, and verify that its one span has
-        # the expected name.
+        # Find the trace that came from nginx, and pass its chunks (groups of
+        # spans) to the callback.
         found_nginx_trace = False
         for line in log_lines:
             trace = formats.parse_trace(line)

@@ -400,14 +400,6 @@ exit "$rcode"
                                 encoding='utf8')
         return result.returncode, result.stdout.split('\n')
 
-    def nginx_reset(self):
-        """Restore nginx to a default configuration.
-
-        Overwrite nginx's config with a default, send it a "reload" signal,
-        and wait for the old worker processes to terminate.
-        """
-        # TODO
-
     def reload_nginx(self, wait_for_workers_to_terminate=True):
         """Send a "reload" signal to nginx.
 
@@ -528,8 +520,7 @@ END_CONF
         # Start up nginx using the config in the temporary directory and
         # putting the PID file in there too.
         # Let the caller play with the child process, and when they're done,
-        # send SIGKILL (SIGTERM doesn't do it) to the child process and wait
-        # for it to terminate.
+        # send SIGQUIT to the child process and wait for it to terminate.
         pid_path = temp_dir + '/nginx.pid'
         conf_preamble = f'daemon off; pid "{pid_path}"; error_log stderr;'
         env_args = []
