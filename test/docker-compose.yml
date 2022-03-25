@@ -24,7 +24,7 @@ services:
       - agent
 
   # `agent` is a mock trace agent.  It listens on port 8126, accepts msgpack,
-  # decodes the resulting traces. and prints them to standard output as JSON.
+  # decodes the resulting traces, and prints them to standard output as JSON.
   # The tests can inspect traces sent to the agent (e.g. from the nginx module)
   # by looking at `agent` log lines in the output of `docker-compose up`.
   agent:
