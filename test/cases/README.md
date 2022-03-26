@@ -7,8 +7,10 @@ session by running `docker-compose up` before any tests begin and by running
 
 Usage
 -----
+The following examples are relative to the toplevel directory of the
+repository.
 ```console
-$ bin/run
+$ test/bin/run
 ......................................
 ----------------------------------------------------------------------
 Ran 38 tests in 234.872s
@@ -18,7 +20,7 @@ OK
 
 To see which tests are running, pass the `--verbose` flag.
 ```console
-$ bin/run --verbose
+$ test/bin/run --verbose
 test_auto_propagation (cases.auto_propagation.test_fastcgi.TestFastCGI) ... ok
 test_disabled_at_http (cases.auto_propagation.test_fastcgi.TestFastCGI) ... ok
 test_disabled_at_location (cases.auto_propagation.test_fastcgi.TestFastCGI) ... ok
@@ -33,21 +35,21 @@ Ran 38 tests in 237.233s
 OK
 ```
 
-`bin/run` passes all of its arguments to the underlying call to `python3 -m
-unittest`, so you can run particular test cases, or customize the test run in
-other ways.  See `bin/run --help`.
+`test/bin/run` passes all of its arguments to the underlying call to `python3
+-m unittest`, so you can run particular test cases, or customize the test run
+in other ways.  See `test/bin/run --help`.
 
 When running particular test cases, the package structure of the tests is
 relevant.  For example, to run only the test
 `test/cases/configuration/test_configuration.py`, the command would be:
 ```console
-$ bin/run cases.configuration.test_configuration
+$ test/bin/run cases.configuration.test_configuration
 ```
 
 To see very detailed output, tail the `docker-compose-verbose.log` file.
 ```console
 $ touch docker-compose-verbose.log && tail -f docker-compose-verbose.log &
-$ bin/run
+$ test/bin/run
 ```
 
 There are three ways to gather information about the result of a request sent
