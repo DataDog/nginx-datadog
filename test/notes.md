@@ -11,7 +11,7 @@ These are my notes for things I need to write unit tests for:
 - ✅ Default tags are automatically added to traces.
 - ✅ Location-based tracing is disabled by default.
 - ✅ `operation_name` is set automatically.
-- Logged messages contain trace context.
+- ✅ Access log contains trace context.
 - The following variables work:
     - `$datadog_trace_id`
     - `$datadog_span_id`

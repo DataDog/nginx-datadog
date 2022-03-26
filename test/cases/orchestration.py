@@ -361,6 +361,27 @@ class Orchestration:
                 return log_lines
             log_lines.append(line)
 
+    def sync_nginx_access_log(self):
+        """Send a sync request to ngnix and wait until the corresponding access
+        log line appears in the output of nginx.  Return the interim log lines
+        from nginx.  Raise an `Exception` if an error occurs.
+        Note that this assumes that nginx has a particular configuration.
+        """
+        token = str(uuid.uuid4())
+        status, body = self.send_nginx_http_request(f'/sync?token={token}')
+        if status != 200:
+            raise Exception(
+                f'nginx returned error (status, body): {(status, body)}')
+
+        log_lines = []
+        q = self.logs['nginx']
+        while True:
+            line = q.get()
+            result = formats.parse_access_log_sync_line(line)
+            if result is not None and result['token'] == token:
+                return log_lines
+            log_lines.append(line)
+
     def nginx_test_config(self, nginx_conf_text, file_name):
         """Test an nginx configuration.
 

@@ -90,3 +90,13 @@ def parse_trace(log_line):
         return json.loads(log_line)
     except json.decoder.JSONDecodeError:
         return None
+
+
+def parse_access_log_sync_line(log_line):
+    # Return a `dict` containing the sync token parsed from the specified
+    # `log_line` if `log_line` is from the nginx access log for a sync request.
+    # Otherwise, return `None`.
+    match = try_match(rf'.*"GET /sync\?token=(?P<token>\S+) HTTP/1\.1".*',
+                      log_line)
+    if match is not None:
+        return {'token': match.groupdict()['token']}

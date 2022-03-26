@@ -454,6 +454,7 @@ char *merge_response_info_script(ngx_conf_t *conf, NgxScript &previous, NgxScrip
   // reason it's a member of `datadog_loc_conf_t` is so that it is available at
   // the end of each request, when we might like to inspect e.g. response
   // headers.
+  // TODO: Remove this, or part of it.
   if (current.is_valid()) {
     return NGX_CONF_OK;
   }
