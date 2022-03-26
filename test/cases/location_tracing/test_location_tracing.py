@@ -38,8 +38,8 @@ class TestLocationTracing(case.TestCase):
                 # not a trace
                 continue
             for chunk in trace:
-                root, *rest = chunk
-                if root['service'] == 'nginx':
+                first, *rest = chunk
+                if first['service'] == 'nginx':
                     # Just one span from nginx.
                     nginx_sent_a_trace = True
                     self.assertEqual(0, len(rest), chunk)
@@ -81,8 +81,8 @@ class TestLocationTracing(case.TestCase):
                 # not a trace; some other logging
                 continue
             for chunk in trace:
-                root, *rest = chunk
-                if root['service'] == 'nginx':
+                first, *rest = chunk
+                if first['service'] == 'nginx':
                     nginx_sent_a_trace = True
                     self.assertEqual(1, len(rest), chunk)
                     self.assertEqual('nginx', rest[0]['service'], rest[0])

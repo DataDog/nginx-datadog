@@ -55,7 +55,6 @@ def child_env(parent_env=None):
     result['COMPOSE_PROJECT_NAME'] = parent_env.get('COMPOSE_PROJECT_NAME',
                                                     'test')
 
-    # TODO: combine with parent PATH?
     result['PATH'] = docker_bin
 
     return result
