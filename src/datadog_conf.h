@@ -23,9 +23,9 @@ struct datadog_tag_t {
 };
 
 struct conf_directive_source_location {
-  ngx_str_t file_name; // e.g. "nginx.conf"
-  ngx_uint_t line; // line number within the file `file_name`
-  ngx_str_t directive_name; // e.g. "proxy_pass"
+  ngx_str_t file_name;       // e.g. "nginx.conf"
+  ngx_uint_t line;           // line number within the file `file_name`
+  ngx_str_t directive_name;  // e.g. "proxy_pass"
 };
 
 struct datadog_main_conf_t {

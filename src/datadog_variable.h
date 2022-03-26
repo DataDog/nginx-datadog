@@ -2,7 +2,6 @@
 
 #include "string_view.h"
 
-
 extern "C" {
 #include <nginx.h>
 #include <ngx_config.h>

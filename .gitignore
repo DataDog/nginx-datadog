@@ -6,7 +6,7 @@
 /nginx_build_info.json
 /module/config
 
-# built arifacts
+# build arifacts
 *.so
 /.build
 /.docker-build
@@ -14,3 +14,6 @@
 # text editor noise
 .*.sw?
 .vscode/
+
+# clang-format config copied from dd-opentracing-cpp (see `make format`)
+/.clang-format

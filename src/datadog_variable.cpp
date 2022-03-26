@@ -1,10 +1,4 @@
 #include "datadog_variable.h"
-#include "ot.h"
-#include "tracing_library.h"
-#include "ngx_http_datadog_module.h"
-
-#include "datadog_context.h"
-#include "string_util.h"
 
 #include <opentracing/string_view.h>
 
@@ -15,6 +9,12 @@
 #include <limits>
 #include <stdexcept>
 
+#include "datadog_context.h"
+#include "ngx_http_datadog_module.h"
+#include "ot.h"
+#include "string_util.h"
+#include "tracing_library.h"
+
 namespace datadog {
 namespace nginx {
 
@@ -23,9 +23,9 @@ namespace nginx {
 // if valid, will resolve to some property on the active span, i.e.
 // `datadog_trace_id` resolves to a string containing the trace ID.  Return
 // `NGX_OK` on success or another value if an error occurs.
-static ngx_int_t expand_span_variable(
-    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
-    uintptr_t data) noexcept try {
+static ngx_int_t expand_span_variable(ngx_http_request_t* request,
+                                      ngx_http_variable_value_t* variable_value,
+                                      uintptr_t data) noexcept try {
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
   auto prefix_length = TracingLibrary::span_variables().prefix.size();
   auto suffix = slice(variable_name, prefix_length);
@@ -65,9 +65,9 @@ static ngx_int_t expand_span_variable(
 // string containing the value of the "x-datadog-origin" header as it would be
 // propagated to a proxied upstream service.  Return `NGX_OK` on success or
 // another value if an error occurs.
-static ngx_int_t expand_propagation_header_variable(
-    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
-    uintptr_t data) noexcept try {
+static ngx_int_t expand_propagation_header_variable(ngx_http_request_t* request,
+                                                    ngx_http_variable_value_t* variable_value,
+                                                    uintptr_t data) noexcept try {
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
   auto prefix_length = TracingLibrary::propagation_header_variable_name_prefix().size();
   auto suffix = slice(variable_name, prefix_length);
@@ -103,9 +103,9 @@ static ngx_int_t expand_propagation_header_variable(
 // e.g.  `datadog_env_dd_agent_host` resolves to a string containing the value
 // of the "DD_AGENT_HOST" environment variable as the current process inherited
 // it.  Return `NGX_OK` on success or another value if an error occurs.
-static ngx_int_t expand_environment_variable(
-    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
-    uintptr_t data) noexcept {
+static ngx_int_t expand_environment_variable(ngx_http_request_t* request,
+                                             ngx_http_variable_value_t* variable_value,
+                                             uintptr_t data) noexcept {
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
   auto prefix_length = TracingLibrary::environment_variable_name_prefix().size();
   auto suffix = slice(variable_name, prefix_length);
@@ -138,9 +138,9 @@ static ngx_int_t expand_environment_variable(
 // `TracingLibrary::configuration_json_variable_name()`.  The variable
 // evaluates to a JSON representation of the tracer configuration.  Return
 // `NGX_OK` on success or another value if an error occurs.
-static ngx_int_t expand_configuration_variable(
-    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
-    uintptr_t /*data*/) noexcept {
+static ngx_int_t expand_configuration_variable(ngx_http_request_t* request,
+                                               ngx_http_variable_value_t* variable_value,
+                                               uintptr_t /*data*/) noexcept {
   const auto tracer = ot::Tracer::Global();
   // No tracer?  No configuration.
   if (tracer == nullptr) {
@@ -163,32 +163,29 @@ static ngx_int_t expand_configuration_variable(
 
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   ngx_str_t prefix;
-  ngx_http_variable_t *variable;
+  ngx_http_variable_t* variable;
 
   // Register the variable name prefix for span variables.
   prefix = to_ngx_str(TracingLibrary::span_variables().prefix);
   variable = ngx_http_add_variable(
-      cf, &prefix,
-      NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
+      cf, &prefix, NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
   variable->get_handler = expand_span_variable;
   variable->data = 0;
 
   // Register the variable name prefix for propagation header variables.
   prefix = to_ngx_str(TracingLibrary::propagation_header_variable_name_prefix());
   variable = ngx_http_add_variable(
-      cf, &prefix,
-      NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
+      cf, &prefix, NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
   variable->get_handler = expand_propagation_header_variable;
   variable->data = 0;
 
   // Register the variable name prefix for environment variables.
   prefix = to_ngx_str(TracingLibrary::environment_variable_name_prefix());
   variable = ngx_http_add_variable(
-    cf, &prefix,
-      NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
+      cf, &prefix, NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
   variable->get_handler = expand_environment_variable;
   variable->data = 0;
-    
+
   // Register the variable name for getting the tracer configuration.
   ngx_str_t name = to_ngx_str(TracingLibrary::configuration_json_variable_name());
   variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);

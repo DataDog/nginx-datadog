@@ -18,7 +18,8 @@ namespace nginx {
 // tags by consulting a tracer configuration using the specified
 // `tracer_config`.  If an error occurs, print a diagnostic to the specified
 // `log` and return `nullptr`.
-ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log, string_view tracer_config);
+ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
+                                        string_view tracer_config);
 
 }  // namespace nginx
 }  // namespace datadog

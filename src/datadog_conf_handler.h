@@ -13,15 +13,15 @@ namespace nginx {
 // `DatadogConfHandlerArgs` contains the parameters to the
 // `datadog_conf_handler` function.
 struct DatadogConfHandlerConfig {
-    // `conf` is the nginx configuration that's currently being interpreted.
-    ngx_conf_t* conf;
-    // `skip_this_module` is whether to skip configuration handlers defined in
-    // this module.  This is used to "hijack" configuration directives defined
-    // in other modules: we define a handler with the same name, do some work,
-    // and then dispatch to the other module's implementation.  In order to
-    // access the other module's implementation, we have to skip over our own
-    // module.
-    bool skip_this_module;
+  // `conf` is the nginx configuration that's currently being interpreted.
+  ngx_conf_t* conf;
+  // `skip_this_module` is whether to skip configuration handlers defined in
+  // this module.  This is used to "hijack" configuration directives defined
+  // in other modules: we define a handler with the same name, do some work,
+  // and then dispatch to the other module's implementation.  In order to
+  // access the other module's implementation, we have to skip over our own
+  // module.
+  bool skip_this_module;
 };
 
 // `datadog_conf_handler` originated as a copy of

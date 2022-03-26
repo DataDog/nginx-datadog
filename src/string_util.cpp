@@ -1,4 +1,5 @@
 #include "string_util.h"
+
 #include <algorithm>
 #include <new>
 
