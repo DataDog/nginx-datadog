@@ -12,7 +12,7 @@ These are my notes for things I need to write unit tests for:
 - ✅ Location-based tracing is disabled by default.
 - ✅ `operation_name` is set automatically.
 - ✅ Access log contains trace context.
-- The following variables work:
+- ✅ The following variables work:
     - `$datadog_trace_id`
     - `$datadog_span_id`
     - `$datadog_json`
