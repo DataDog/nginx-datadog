@@ -9,7 +9,7 @@ namespace std {
 // it does, buried within the IO library's "locale" concept.
 // `std::locale::classic()` is the "C" locale.
 long hash<::datadog::nginx::string_view>::hash_bytes(const char *begin, std::size_t size) {
-    return std::use_facet<std::collate<char>>(std::locale::classic()).hash(begin, begin + size);
+  return std::use_facet<std::collate<char>>(std::locale::classic()).hash(begin, begin + size);
 }
 
 }  // namespace std

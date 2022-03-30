@@ -10,9 +10,9 @@ class TestOperationName(case.TestCase):
         pattern when not otherwise configured.
         """
         def on_chunk(chunk):
-            root, *rest = chunk
+            first, *rest = chunk
             self.assertEqual(0, len(rest), chunk)
-            self.assertEqual('GET /foo', root['name'], chunk)
+            self.assertEqual('GET /foo', first['name'], chunk)
 
         return self.run_operation_name_test('./conf/default_in_request.conf',
                                             on_chunk)
@@ -22,13 +22,100 @@ class TestOperationName(case.TestCase):
         name matches the default pattern when not otherwise configured.
         """
         def on_chunk(chunk):
-            root, *rest = chunk
+            first, *rest = chunk
             self.assertEqual(1, len(rest), chunk)
-            self.assertEqual('GET /foo', root['name'], chunk)
+            self.assertEqual('GET /foo', first['name'], chunk)
             self.assertEqual('GET /foo', rest[0]['name'], chunk)
 
         return self.run_operation_name_test('./conf/default_in_location.conf',
                                             on_chunk)
+
+    def test_manual_in_request_at_location(self):
+        """Verify that using the `datadog_operation_name` directive in a
+        `location` block causes the resulting request span's operation name to
+        match the setting.
+        """
+        def on_chunk(chunk):
+            first, *rest = chunk
+            self.assertEqual(0, len(rest), chunk)
+            self.assertEqual('go GET em /foo', first['name'], chunk)
+
+        return self.run_operation_name_test(
+            './conf/manual_in_request_at_location.conf', on_chunk)
+
+    def test_manual_in_request_at_server(self):
+        """Verify that using the `datadog_operation_name` directive in a
+        `server` block causes the resulting request span's operation name to
+        match the setting.
+        """
+        def on_chunk(chunk):
+            first, *rest = chunk
+            self.assertEqual(0, len(rest), chunk)
+            self.assertEqual('go GET em /foo', first['name'], chunk)
+
+        return self.run_operation_name_test(
+            './conf/manual_in_request_at_server.conf', on_chunk)
+
+    def test_manual_in_request_at_http(self):
+        """Verify that using the `datadog_operation_name` directive in a `http`
+        block causes the resulting request span's operation name to match the
+        setting.
+        """
+        def on_chunk(chunk):
+            first, *rest = chunk
+            self.assertEqual(0, len(rest), chunk)
+            self.assertEqual('go GET em /foo', first['name'], chunk)
+
+        return self.run_operation_name_test(
+            './conf/manual_in_request_at_http.conf', on_chunk)
+
+    def test_manual_in_location_at_location(self):
+        """Verify that using the `datadog_location_operation_name` directive in
+        a `location` block causes the resulting location span's operation name
+        to match the setting.  Note that the `datadog_trace_locations on`
+        directive must also be used.
+        """
+        def on_chunk(chunk):
+            first, *rest = chunk
+            self.assertEqual(1, len(rest), chunk)
+            # We assume that the location span comes first, because it finishes
+            # first.
+            self.assertEqual('go GET em /foo', first['name'], chunk)
+
+        return self.run_operation_name_test(
+            './conf/manual_in_location_at_location.conf', on_chunk)
+
+    def test_manual_in_location_at_server(self):
+        """Verify that using the `datadog_location_operation_name` directive in
+        a `server` block causes the resulting location span's operation name
+        to match the setting.  Note that the `datadog_trace_locations on`
+        directive must also be used.
+        """
+        def on_chunk(chunk):
+            first, *rest = chunk
+            self.assertEqual(1, len(rest), chunk)
+            # We assume that the location span comes first, because it finishes
+            # first.
+            self.assertEqual('go GET em /foo', first['name'], chunk)
+
+        return self.run_operation_name_test(
+            './conf/manual_in_location_at_server.conf', on_chunk)
+
+    def test_manual_in_location_at_http(self):
+        """Verify that using the `datadog_location_operation_name` directive in
+        an `http` block causes the resulting location span's operation name to
+        match the setting.  Note that the `datadog_trace_locations on`
+        directive must also be used.
+        """
+        def on_chunk(chunk):
+            first, *rest = chunk
+            self.assertEqual(1, len(rest), chunk)
+            # We assume that the location span comes first, because it finishes
+            # first.
+            self.assertEqual('go GET em /foo', first['name'], chunk)
+
+        return self.run_operation_name_test(
+            './conf/manual_in_location_at_http.conf', on_chunk)
 
     def run_operation_name_test(self, conf_relative_path, on_chunk):
         # The default pattern is in `tracing_library.cpp':
@@ -53,8 +140,8 @@ class TestOperationName(case.TestCase):
         self.orch.reload_nginx()
 
         log_lines = self.orch.sync_service('agent')
-        # Find the trace that came from nginx, and verify that its one span has
-        # the expected name.
+        # Find the trace that came from nginx, and pass its chunks (groups of
+        # spans) to the callback.
         found_nginx_trace = False
         for line in log_lines:
             trace = formats.parse_trace(line)

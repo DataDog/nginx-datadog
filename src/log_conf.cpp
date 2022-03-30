@@ -4,8 +4,8 @@
 #include "datadog_conf_handler.h"
 #include "defer.h"
 #include "ngx_http_datadog_module.h"
-#include "string_view.h"
 #include "string_util.h"
+#include "string_view.h"
 
 namespace datadog {
 namespace nginx {
@@ -26,7 +26,7 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
 
   // Set up `log_format ...` commands, and then use `datadog_conf_handler` to
   // execute them.
-  
+
   // log_format <name> <escaping style> <format>
   ngx_str_t args[] = {ngx_string("log_format"), ngx_str_t(), ngx_str_t(), ngx_str_t()};
   ngx_array_t args_array;
@@ -42,11 +42,12 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
     const char *escaping_style;
     const char *format;
   } static const formats[] = {
-    {"datadog_text", "escape=default", R"nginx($remote_addr - $http_x_forwarded_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for" "$datadog_trace_id" "$datadog_span_id")nginx"},
-    {"datadog_json", "escape=json", R"json({"TODO": "not sure what this should look like... $remote_addr"})json"}
-  };
+      {"datadog_text", "escape=default",
+       R"nginx($remote_addr - $http_x_forwarded_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for" "$datadog_trace_id" "$datadog_span_id")nginx"},
+      {"datadog_json", "escape=json",
+       R"json({"TODO": "not sure what this should look like... $remote_addr"})json"}};
 
-  for (const auto& format : formats) {
+  for (const auto &format : formats) {
     args[1] = to_ngx_str(string_view(format.name));
     args[2] = to_ngx_str(string_view(format.escaping_style));
     args[3] = to_ngx_str(string_view(format.format));
@@ -54,7 +55,7 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
       return rcode;
     }
   }
-  
+
   main_conf->are_log_formats_defined = true;
   return NGX_OK;
 }

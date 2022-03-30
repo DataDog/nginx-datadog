@@ -1,8 +1,4 @@
 #include "propagation_header_querier.h"
-#include "ot.h"
-#include "string_view.h"
-
-#include "string_util.h"
 
 #include <opentracing/propagation.h>
 #include <opentracing/tracer.h>
@@ -12,12 +8,15 @@
 #include <iterator>
 #include <new>
 
+#include "ot.h"
+#include "string_util.h"
+#include "string_view.h"
+
 namespace datadog {
 namespace nginx {
 
-ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request,
-                                           const ot::Span& span,
-                                           string_view key) {
+ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request, const ot::Span& span,
+                                                 string_view key) {
   if (&span != values_span_) {
     expand_values(request, span);
   }
@@ -39,9 +38,7 @@ class SpanContextValueExpander : public ot::HTTPHeadersWriter {
       std::vector<std::pair<std::string, std::string>>& span_context_expansion)
       : span_context_expansion_(span_context_expansion) {}
 
-  ot::expected<void> Set(
-      ot::string_view key,
-      ot::string_view value) const override {
+  ot::expected<void> Set(ot::string_view key, ot::string_view value) const override {
     std::string key_copy;
     key_copy.reserve(key.size());
     std::transform(std::begin(key), std::end(key), std::back_inserter(key_copy),
@@ -56,8 +53,7 @@ class SpanContextValueExpander : public ot::HTTPHeadersWriter {
 };
 }  // namespace
 
-void PropagationHeaderQuerier::expand_values(
-    ngx_http_request_t* request, const ot::Span& span) {
+void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const ot::Span& span) {
   values_span_ = &span;
   span_context_expansion_.clear();
   SpanContextValueExpander carrier{span_context_expansion_};

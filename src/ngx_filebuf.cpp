@@ -17,12 +17,9 @@ u_char* cast(char* ptr) { return reinterpret_cast<u_char*>(ptr); }
 
 }  // namespace
 
-NgxFileBuf::NgxFileBuf(ngx_buf_t& buffer, ngx_file_t& file,
-                       std::string inputPrefix, ngx_uint_t* newlines)
-    : buffer(buffer),
-      file(file),
-      prefix(std::move(inputPrefix)),
-      newlines(newlines) {
+NgxFileBuf::NgxFileBuf(ngx_buf_t& buffer, ngx_file_t& file, std::string inputPrefix,
+                       ngx_uint_t* newlines)
+    : buffer(buffer), file(file), prefix(std::move(inputPrefix)), newlines(newlines) {
   // Start by using `prefix` as the buffer.  When we exhaust it, switch to
   // `buffer` (see `underflow`).
   char* const begin = &*prefix.begin();
@@ -65,14 +62,13 @@ std::streambuf::int_type NgxFileBuf::underflow() {
     *newlines += std::count(newlines_from, gptr(), '\n');
   }
 
-  const ssize_t n = ngx_read_file(&file, buffer.start,
-                                  buffer.end - buffer.start, file.offset);
+  const ssize_t n = ngx_read_file(&file, buffer.start, buffer.end - buffer.start, file.offset);
   if (n == 0) {
-    newlines = nullptr; // prevent double counting in the destructor
+    newlines = nullptr;  // prevent double counting in the destructor
     return traits_type::eof();
   }
   if (n == NGX_ERROR) {
-    newlines = nullptr; // prevent double counting in the destructor
+    newlines = nullptr;  // prevent double counting in the destructor
     return traits_type::eof();
   }
 

@@ -1,4 +1,5 @@
 #include "datadog_handler.h"
+
 #include "ngx_http_datadog_module.h"
 
 extern "C" {
@@ -14,10 +15,9 @@ extern ngx_module_t ngx_http_datadog_module;
 namespace datadog {
 namespace nginx {
 
-static bool is_datadog_enabled(
-    const ngx_http_request_t *request,
-    const ngx_http_core_loc_conf_t *core_loc_conf,
-    const datadog_loc_conf_t *loc_conf) noexcept {
+static bool is_datadog_enabled(const ngx_http_request_t *request,
+                               const ngx_http_core_loc_conf_t *core_loc_conf,
+                               const datadog_loc_conf_t *loc_conf) noexcept {
   // Check if this is a main request instead of a subrequest.
   if (request == request->main)
     return loc_conf->enable;
@@ -32,8 +32,7 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
       ngx_http_get_module_loc_conf(request, ngx_http_core_module));
   auto loc_conf = static_cast<datadog_loc_conf_t *>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
-  if (!is_datadog_enabled(request, core_loc_conf, loc_conf))
-    return NGX_DECLINED;
+  if (!is_datadog_enabled(request, core_loc_conf, loc_conf)) return NGX_DECLINED;
 
   auto context = get_datadog_context(request);
   if (context == nullptr) {
@@ -53,8 +52,7 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
   return NGX_DECLINED;
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                "Datadog instrumentation failed for request %p: %s",
-                request, e.what());
+                "Datadog instrumentation failed for request %p: %s", request, e.what());
   return NGX_DECLINED;
 }
 
@@ -65,8 +63,7 @@ ngx_int_t on_log_request(ngx_http_request_t *request) noexcept {
     context->on_log_request(request);
   } catch (const std::exception &e) {
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                  "Datadog instrumentation failed for request %p: %s",
-                  request, e.what());
+                  "Datadog instrumentation failed for request %p: %s", request, e.what());
   }
   return NGX_DECLINED;
 }

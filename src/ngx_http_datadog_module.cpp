@@ -1,17 +1,4 @@
-#include "load_tracer.h"
-#include "log_conf.h"
-#include "ot.h"
-#include "string_view.h"
 #include "ngx_http_datadog_module.h"
-
-#include "datadog_conf.h"
-#include "datadog_conf_handler.h"
-#include "defer.h"
-#include "datadog_directive.h"
-#include "datadog_handler.h"
-#include "datadog_variable.h"
-#include "tracing_library.h"
-#include "string_util.h"
 
 #include <opentracing/dynamic_load.h>
 
@@ -19,6 +6,19 @@
 #include <exception>
 #include <iterator>
 #include <utility>
+
+#include "datadog_conf.h"
+#include "datadog_conf_handler.h"
+#include "datadog_directive.h"
+#include "datadog_handler.h"
+#include "datadog_variable.h"
+#include "defer.h"
+#include "load_tracer.h"
+#include "log_conf.h"
+#include "ot.h"
+#include "string_util.h"
+#include "string_view.h"
+#include "tracing_library.h"
 
 extern "C" {
 #include <nginx.h>
@@ -46,22 +46,10 @@ using namespace datadog::nginx;
 // versions must match.  To ensure this, `DEFINE_COMMAND_WITH_OLD_ALIAS` is a
 // macro that defines both commands at the same time.
 #define DEFINE_COMMAND_WITH_OLD_ALIAS(NAME, OLD_NAME, TYPE, SET, CONF, OFFSET, POST) \
-    { \
-        ngx_string(NAME), \
-        TYPE, \
-        SET, \
-        CONF, \
-        OFFSET, \
-        POST \
-    }, \
-    { \
-        ngx_string(OLD_NAME), \
-        TYPE, \
-        delegate_to_datadog_directive_with_warning, \
-        NGX_HTTP_LOC_CONF_OFFSET, \
-        0, \
-        nullptr \
-    }
+  {ngx_string(NAME), TYPE, SET, CONF, OFFSET, POST}, {                               \
+    ngx_string(OLD_NAME), TYPE, delegate_to_datadog_directive_with_warning,          \
+        NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                         \
+  }
 
 // Part of configuring a command is saying where the command is allowed to
 // appear, e.g. in the `server` block, in a `location` block, etc.
@@ -262,7 +250,7 @@ ngx_module_t ngx_http_datadog_module = {
 // Configure nginx to set the environment variable as indicated by the
 // specified `entry` in the context of the specified `cycle`.  `entry` is a
 // string in one of the following forms:
-// 
+//
 // 1. "FOO"
 // 2. "FOO=value"
 //
@@ -273,35 +261,33 @@ ngx_module_t ngx_http_datadog_module = {
 //
 // Note that `ngx_set_env` is adapted from the function of the same name in
 // `nginx.c` within the nginx source code.
-static void*
-ngx_set_env(string_view entry, ngx_cycle_t *cycle)
-{
-    ngx_core_conf_t *ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+static void *ngx_set_env(string_view entry, ngx_cycle_t *cycle) {
+  ngx_core_conf_t *ccf = (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
-    ngx_str_t   *value, *var;
-    ngx_uint_t   i;
+  ngx_str_t *value, *var;
+  ngx_uint_t i;
 
-    var = (ngx_str_t*) ngx_array_push(&ccf->env);
-    if (var == NULL) {
-        return NGX_CONF_ERROR;
+  var = (ngx_str_t *)ngx_array_push(&ccf->env);
+  if (var == NULL) {
+    return NGX_CONF_ERROR;
+  }
+
+  const ngx_str_t entry_str = to_ngx_str(entry);
+  *var = entry_str;
+
+  for (i = 0; i < var->len; i++) {
+    if (var->data[i] == '=') {
+      var->len = i;
+      return NGX_CONF_OK;
     }
+  }
 
-    const ngx_str_t entry_str = to_ngx_str(entry);
-    *var = entry_str; 
-
-    for (i = 0; i < var->len; i++) {
-        if (var->data[i] == '=') {
-            var->len = i;
-            return NGX_CONF_OK;
-        }
-    }
-
-    return NGX_CONF_OK;
+  return NGX_CONF_OK;
 }
 
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
   // Forward tracer-specific environment variables to worker processes.
-  for (const auto& env_var_name : TracingLibrary::environment_variable_names()) {
+  for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
     if (const void *const error = ngx_set_env(env_var_name, cycle)) {
       return ngx_int_t(error);
     }
@@ -328,8 +314,8 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
   // Add handlers to create tracing data.
-  auto handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
-      &core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
+  auto handler = static_cast<ngx_http_handler_pt *>(
+      ngx_array_push(&core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_enter_block;
 
@@ -341,8 +327,7 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();
   if (tags.empty()) return NGX_OK;
-  main_conf->tags =
-      ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
+  main_conf->tags = ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
   if (!main_conf->tags) return NGX_ERROR;
   for (const auto &tag : tags)
     if (add_datadog_tag(cf, main_conf->tags, to_ngx_str(tag.first), to_ngx_str(tag.second)) !=
@@ -366,8 +351,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   ot::Tracer::InitGlobal(std::move(tracer));
   return NGX_OK;
 } catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s",
-                e.what());
+  ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s", e.what());
   return NGX_ERROR;
 }
 
@@ -376,8 +360,7 @@ static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
   // `Close` it and destroy it (technically, reduce its reference count).
   auto tracer = ot::Tracer::InitGlobal(nullptr);
   if (tracer != nullptr) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, cycle->log, 0,
-                   "closing Datadog tracer");
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, cycle->log, 0, "closing Datadog tracer");
     tracer->Close();
   }
 }
@@ -386,8 +369,8 @@ static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
 // create_datadog_main_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
-  auto main_conf = static_cast<datadog_main_conf_t *>(
-      ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
+  auto main_conf =
+      static_cast<datadog_main_conf_t *>(ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
   // Default initialize members.
   if (main_conf) {
     *main_conf = datadog_main_conf_t();
@@ -401,20 +384,21 @@ static void examine_conf_args(ngx_conf_t *conf) noexcept {
   }
 
   if (conf->args->nelts >= 1) {
-    const auto str = static_cast<const ngx_str_t*>(conf->args->elts);
+    const auto str = static_cast<const ngx_str_t *>(conf->args->elts);
   }
 }
 
 static bool is_server_block_begin(const ngx_conf_t *conf) {
-  return conf->args != nullptr && conf->args->nelts == 1 && str(*static_cast<const ngx_str_t*>(conf->args->elts)) == "server";
+  return conf->args != nullptr && conf->args->nelts == 1 &&
+         str(*static_cast<const ngx_str_t *>(conf->args->elts)) == "server";
 }
 
 //------------------------------------------------------------------------------
 // create_datadog_loc_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(
-      ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
+  auto loc_conf =
+      static_cast<datadog_loc_conf_t *>(ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
   if (!loc_conf) return nullptr;
 
   // Trace ID and span ID are automatically added to the access log by altering
@@ -448,63 +432,69 @@ namespace {
 // `current` does not have a value and `previous` does, then `previous` will be
 // used.  If neither has a value, then a hard-coded default will be used.
 // Return `NGX_CONF_OK` on success, or another value otherwise.
-char* merge_operation_name_script(ngx_conf_t *conf, NgxScript& previous, NgxScript& current) {
+char *merge_operation_name_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current) {
   if (current.is_valid()) {
     return NGX_CONF_OK;
   }
 
   if (!previous.is_valid()) {
-    const ngx_int_t rc = previous.compile(conf, to_ngx_str(TracingLibrary::default_operation_name_pattern()));
+    const ngx_int_t rc =
+        previous.compile(conf, to_ngx_str(TracingLibrary::default_operation_name_pattern()));
     if (rc != NGX_OK) {
-      return (char*)NGX_CONF_ERROR;
+      return (char *)NGX_CONF_ERROR;
     }
   }
-  
+
   current = previous;
   return NGX_CONF_OK;
 }
 
-char* merge_response_info_script(ngx_conf_t *conf, NgxScript& previous, NgxScript& current) {
+char *merge_response_info_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current) {
   // The response info script is the same for each `datadog_loc_conf_t`.  The only
   // reason it's a member of `datadog_loc_conf_t` is so that it is available at
   // the end of each request, when we might like to inspect e.g. response
   // headers.
+  // TODO: Remove this, or part of it.
   if (current.is_valid()) {
     return NGX_CONF_OK;
   }
 
   if (!previous.is_valid()) {
-    const ngx_int_t rc = previous.compile(conf, ngx_string("$upstream_http_x_you_better_believe_it"));
+    const ngx_int_t rc =
+        previous.compile(conf, ngx_string("$upstream_http_x_you_better_believe_it"));
     if (rc != NGX_OK) {
-      return (char*)NGX_CONF_ERROR;
+      return (char *)NGX_CONF_ERROR;
     }
   }
-  
+
   current = previous;
   return NGX_CONF_OK;
 }
 
-} // namespace
+}  // namespace
 
 //------------------------------------------------------------------------------
 // merge_datadog_loc_conf
 //------------------------------------------------------------------------------
-static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
-                                        void *child) noexcept {
+static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) noexcept {
   auto prev = static_cast<datadog_loc_conf_t *>(parent);
   auto conf = static_cast<datadog_loc_conf_t *>(child);
 
   ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
-  ngx_conf_merge_value(conf->enable_locations, prev->enable_locations, TracingLibrary::trace_locations_by_default());
+  ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
+                       TracingLibrary::trace_locations_by_default());
 
-  if (const auto rc = merge_operation_name_script(cf, prev->operation_name_script, conf->operation_name_script)) {
+  if (const auto rc = merge_operation_name_script(cf, prev->operation_name_script,
+                                                  conf->operation_name_script)) {
     return rc;
   }
-  if (const auto rc = merge_operation_name_script(cf, prev->loc_operation_name_script, conf->loc_operation_name_script)) {
+  if (const auto rc = merge_operation_name_script(cf, prev->loc_operation_name_script,
+                                                  conf->loc_operation_name_script)) {
     return rc;
   }
 
-  if (const auto rc = merge_response_info_script(cf, prev->response_info_script, conf->response_info_script)) {
+  if (const auto rc =
+          merge_response_info_script(cf, prev->response_info_script, conf->response_info_script)) {
     return rc;
   }
 
@@ -521,32 +511,33 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
     std::unordered_map<std::string, datadog_tag_t> merged_tags;
 
     for (ngx_uint_t i = 0; i < prev->tags->nelts; i++) {
-      datadog_tag_t* tag = &((datadog_tag_t*)prev->tags->elts)[i];
+      datadog_tag_t *tag = &((datadog_tag_t *)prev->tags->elts)[i];
       std::string key;
-      key.assign(reinterpret_cast<const char*>(tag->key_script.pattern_.data), tag->key_script.pattern_.len);
+      key.assign(reinterpret_cast<const char *>(tag->key_script.pattern_.data),
+                 tag->key_script.pattern_.len);
       merged_tags[key] = *tag;
     }
 
     for (ngx_uint_t i = 0; i < conf->tags->nelts; i++) {
-      datadog_tag_t* tag = &((datadog_tag_t*)conf->tags->elts)[i];
+      datadog_tag_t *tag = &((datadog_tag_t *)conf->tags->elts)[i];
       std::string key;
-      key.assign(reinterpret_cast<const char*>(tag->key_script.pattern_.data), tag->key_script.pattern_.len);
+      key.assign(reinterpret_cast<const char *>(tag->key_script.pattern_.data),
+                 tag->key_script.pattern_.len);
       merged_tags[key] = *tag;
     }
 
     ngx_uint_t index = 0;
-    for (const auto& kv : merged_tags) {
+    for (const auto &kv : merged_tags) {
       if (index == conf->tags->nelts) {
-        datadog_tag_t* tag = (datadog_tag_t*)ngx_array_push(conf->tags);
+        datadog_tag_t *tag = (datadog_tag_t *)ngx_array_push(conf->tags);
 
         if (!tag) {
-          return (char*)NGX_CONF_ERROR;
+          return (char *)NGX_CONF_ERROR;
         }
 
         *tag = kv.second;
-      } 
-      else {
-        datadog_tag_t* tag = (datadog_tag_t*)conf->tags->elts;
+      } else {
+        datadog_tag_t *tag = (datadog_tag_t *)conf->tags->elts;
         tag[index] = kv.second;
       }
 

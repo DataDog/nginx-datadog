@@ -8,6 +8,7 @@
 // the type, such as a specialization of `std::hash`.
 
 #include <opentracing/string_view.h>
+
 #include <functional>
 
 namespace datadog {
@@ -22,14 +23,14 @@ namespace std {
 
 template <>
 struct hash<::datadog::nginx::string_view> {
-    // Return the hash of the specified `string`.
-    std::size_t operator()(opentracing::string_view string) const {
-        return hash_bytes(string.data(), string.size());
-    }
+  // Return the hash of the specified `string`.
+  std::size_t operator()(opentracing::string_view string) const {
+    return hash_bytes(string.data(), string.size());
+  }
 
-    // Return the hash of the specified array of characters
-    // `[begin, begin + size)`.
-    static long hash_bytes(const char* begin, std::size_t size);
+  // Return the hash of the specified array of characters
+  // `[begin, begin + size)`.
+  static long hash_bytes(const char* begin, std::size_t size);
 };
 
 }  // namespace std

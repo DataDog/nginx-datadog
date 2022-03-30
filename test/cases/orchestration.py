@@ -55,7 +55,6 @@ def child_env(parent_env=None):
     result['COMPOSE_PROJECT_NAME'] = parent_env.get('COMPOSE_PROJECT_NAME',
                                                     'test')
 
-    # TODO: combine with parent PATH?
     result['PATH'] = docker_bin
 
     return result
@@ -362,6 +361,27 @@ class Orchestration:
                 return log_lines
             log_lines.append(line)
 
+    def sync_nginx_access_log(self):
+        """Send a sync request to ngnix and wait until the corresponding access
+        log line appears in the output of nginx.  Return the interim log lines
+        from nginx.  Raise an `Exception` if an error occurs.
+        Note that this assumes that nginx has a particular configuration.
+        """
+        token = str(uuid.uuid4())
+        status, body = self.send_nginx_http_request(f'/sync?token={token}')
+        if status != 200:
+            raise Exception(
+                f'nginx returned error (status, body): {(status, body)}')
+
+        log_lines = []
+        q = self.logs['nginx']
+        while True:
+            line = q.get()
+            result = formats.parse_access_log_sync_line(line)
+            if result is not None and result['token'] == token:
+                return log_lines
+            log_lines.append(line)
+
     def nginx_test_config(self, nginx_conf_text, file_name):
         """Test an nginx configuration.
 
@@ -399,14 +419,6 @@ exit "$rcode"
                                 env=child_env(),
                                 encoding='utf8')
         return result.returncode, result.stdout.split('\n')
-
-    def nginx_reset(self):
-        """Restore nginx to a default configuration.
-
-        Overwrite nginx's config with a default, send it a "reload" signal,
-        and wait for the old worker processes to terminate.
-        """
-        # TODO
 
     def reload_nginx(self, wait_for_workers_to_terminate=True):
         """Send a "reload" signal to nginx.
@@ -528,8 +540,7 @@ END_CONF
         # Start up nginx using the config in the temporary directory and
         # putting the PID file in there too.
         # Let the caller play with the child process, and when they're done,
-        # send SIGKILL (SIGTERM doesn't do it) to the child process and wait
-        # for it to terminate.
+        # send SIGQUIT to the child process and wait for it to terminate.
         pid_path = temp_dir + '/nginx.pid'
         conf_preamble = f'daemon off; pid "{pid_path}"; error_log stderr;'
         env_args = []
