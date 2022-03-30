@@ -10,3 +10,5 @@ Notes
 - On Ubuntu, nginx wants the version of PCRE that's distributed in the package
   "pcre3-dev".  This package is _older than_ PCRE2.  It is a poorly named
   package.  It is _not_ a newer version of PCRE.
+- Need user-facing documentation, example docker-compose setup.
+- Different glibc versions?  Do we support musl (Alpine)? What's the CI integration?
