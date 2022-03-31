@@ -44,7 +44,6 @@ def parse_docker_compose_up_line(line):
     if match is not None:
         return ('image_build_success', {'image': match.groupdict()['image']})
 
-    # TODO: Should I assume that `line` ends with "\n" here?
     return ('other', {'payload': line})
 
 

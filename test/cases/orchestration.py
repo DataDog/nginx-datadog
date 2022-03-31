@@ -44,7 +44,6 @@ def child_env(parent_env=None):
         result['NGINX_IMAGE'] = parent_env['NGINX_IMAGE']
     else:
         # [repo]/test/cases/orchestration.py  ->  [repo]/nginx-version
-        # TODO: Should this be injected into the tests instead? (e.g. using an environment variable)
         version = (Path(__file__).resolve().parent.parent.parent /
                    'nginx-version').read_text()
         result['NGINX_IMAGE'] = f'nginx:{version}'

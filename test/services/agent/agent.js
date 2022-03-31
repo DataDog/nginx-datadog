@@ -1,4 +1,5 @@
-// This is an HTTP server that listens on port 8126 and TODO
+// This is an HTTP server that listens on port 8126, and prints to standard
+// output a JSON representation of all traces that it receives.
 
 const http = require('http');
 const msgpack = require('@msgpack/msgpack');
