@@ -1,1 +1,2 @@
-`../Makefile` generates `./config` here.  It's the config read by nginx's `configure` script.
+This config is read by nginx's `configure` script.  It being in a `module/`
+directory is a matter of convention.

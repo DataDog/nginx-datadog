@@ -15,7 +15,7 @@ build: build-deps
 sources: dd-opentracing-cpp/.git opentracing-cpp/.git nginx/
 
 .PHONY: build-deps
-build-deps: sources nginx-module.cmake dd-opentracing-cpp-deps
+build-deps: sources dd-opentracing-cpp-deps
 
 dd-opentracing-cpp/.git opentracing-cpp/.git:
 	git submodule update --init --recursive
@@ -28,12 +28,6 @@ dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp
 dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd-opentracing-cpp/scripts/install_dependencies.sh
 	cd dd-opentracing-cpp && ./scripts/install_dependencies.sh not-opentracing
 	touch $@
-
-nginx-module.cmake: nginx_build_info.json bin/generate_cmakelists.py
-	bin/generate_cmakelists.py nginx_module >$@ <$<
-
-nginx_build_info.json: nginx/objs/Makefile bin/makefile_database.py
-	bin/makefile_database.py nginx/objs/Makefile $(MODULE_NAME) >$@
 
 nginx/objs/Makefile: nginx/ $(MODULE_PATH)/config
 	cd nginx && ./configure --add-dynamic-module=$(MODULE_PATH) --with-compat
@@ -56,7 +50,7 @@ dd-opentracing-cpp/.clang-format: dd-opentracing-cpp/.git
 .PHONY: format
 format: .clang-format
 	find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -not \( -name 'json.h' -o -name 'json.cpp' \) -print0 | xargs -0 clang-format-9 -i --style=file	
-	yapf3 -i bin/*.py
+	find bin/ -type f -name '*.py' -print0 | xargs -0 yapf3 -i
 	test/bin/format
 
 .PHONY: clean
@@ -65,8 +59,7 @@ clean:
 		$(MODULE_PATH)/config \
 		nginx_build_info.json \
 		.build \
-		.docker-build \
-		nginx-module.cmake \
+		.docker-build
 	
 .PHONY: clobber
 clobber: clean

@@ -1,10 +1,5 @@
-# cloned repositories
+# source code fetched by the build
 /nginx/
-
-# generated build info
-/nginx-module.cmake
-/nginx_build_info.json
-/module/config
 
 # build arifacts
 *.so
