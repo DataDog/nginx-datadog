@@ -454,14 +454,14 @@ char *merge_response_info_script(ngx_conf_t *conf, NgxScript &previous, NgxScrip
   // reason it's a member of `datadog_loc_conf_t` is so that it is available at
   // the end of each request, when we might like to inspect e.g. response
   // headers.
-  // TODO: Remove this, or part of it.
   if (current.is_valid()) {
     return NGX_CONF_OK;
   }
 
   if (!previous.is_valid()) {
-    const ngx_int_t rc =
-        previous.compile(conf, ngx_string("$upstream_http_x_you_better_believe_it"));
+    // Response header inspection is not currently used by this module, but I'm
+    // leaving the boilerplate for future use.
+    const ngx_int_t rc = previous.compile(conf, ngx_string(""));
     if (rc != NGX_OK) {
       return (char *)NGX_CONF_ERROR;
     }

@@ -67,6 +67,9 @@ struct datadog_loc_conf_t {
   NgxScript loc_operation_name_script;
   ngx_flag_t trust_incoming_span;
   ngx_array_t *tags;
+  // `response_info_script` is a script that can contain variables that refer
+  // to HTTP response headers.  The headers might be relevant in the future.
+  // Currently `response_info_script` is not used.
   NgxScript response_info_script;
 };
 
