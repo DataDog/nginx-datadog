@@ -105,11 +105,13 @@ script that produces a platform-specific makefile, `objs/Makefile`.
 Nginx is not meant to be built as a library.  When building an nginx module,
 nginx's (C language) build system "drives the build."  `nginx-opentracing`
 snuck C++ into the mix by altering `make` variables outside of that allowed by
-the build contract between nginx and its modules (but nobody was harmed).
+the build contract between nginx and its modules (but nobody was harmed)
+They also relinked the resulting shared object in order to include the C++
+standard library.
 
 For `nginx-datadog`, I wanted nginx to be a cmake library of type `OBJECT`,
 like the other dependencies, so that it could be part of a single build in the
-same way.
+same way.  No sneaking variables into the nginx build, no relinking.
 
 One option is to port nginx's build system to cmake.  There's at least one
 project on github that claims to do this.  I don't like it.
@@ -181,4 +183,4 @@ As it turns out, there's only _one_ source file to compile.  Also, nginx
 currently supports only the "unix" flavor of build, and so the platform
 independence that this "read the `Makefile`" technique allows will probably not
 be needed.  I might remove the machinery and instead hard-code
-`nginx-module.cmake` in the source tree.
+`nginx-module.cmake` in the source tree.  _[edit: I did.]_
