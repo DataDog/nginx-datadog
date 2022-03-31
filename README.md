@@ -1,3 +1,5 @@
+<img alt="datadog tracing nginx" src="mascot.svg" height="200"/>
+
 Datadog Nginx Tracing Module
 ============================
 This is the source for an nginx module that adds Datadog distributed tracing to
