@@ -28,7 +28,6 @@ class TestEnvironmentVariables(case.TestCase):
     def test_environment_variables(self):
         nginx_conf = (Path(__file__).parent / 'conf' /
                       'nginx.conf').read_text()
-        extra_env = {'DD_TRACE_SAMPLING_RULES': '[]'}
         extra_env = {
             'DD_AGENT_HOST': 'agent',
             'DD_ENV': 'prod',
@@ -49,7 +48,8 @@ class TestEnvironmentVariables(case.TestCase):
             'DD_TRACE_SAMPLING_RULES': '[]',
             'DD_TRACE_STARTUP_LOGS': '/dev/null',
             'DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH': '512',
-            'DD_VERSION': '1.2.3'
+            'DD_VERSION': '1.2.3',
+            'NOT_ALLOWED': 'foobar'
         }
         with self.orch.custom_nginx(nginx_conf, extra_env):
             # The just-started nginx probably isn't ready yet, so retry sending
@@ -62,4 +62,15 @@ class TestEnvironmentVariables(case.TestCase):
             worker_env = parse_body(body)
             for variable_name, value in extra_env.items():
                 self.assertTrue(variable_name in worker_env)
-                self.assertEqual(value, worker_env[variable_name])
+                error_context = {
+                    'variable_name': variable_name,
+                    'worker_env': worker_env,
+                    'extra_env': extra_env
+                }
+                if variable_name == 'NOT_ALLOWED':
+                    # Env variables that are not on the allow list return "-".
+                    self.assertEqual('-', worker_env[variable_name],
+                                     error_context)
+                else:
+                    self.assertEqual(value, worker_env[variable_name],
+                                     error_context)

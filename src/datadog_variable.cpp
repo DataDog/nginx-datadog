@@ -102,7 +102,10 @@ static ngx_int_t expand_propagation_header_variable(ngx_http_request_t* request,
 // if valid, will resolve to some environment variable for the current process,
 // e.g.  `datadog_env_dd_agent_host` resolves to a string containing the value
 // of the "DD_AGENT_HOST" environment variable as the current process inherited
-// it.  Return `NGX_OK` on success or another value if an error occurs.
+// it.  Only a subset of environment variables may be looked up this way --
+// only the environment variables listed in
+// `TracingLibrary::environment_variable_names`.  Return `NGX_OK` on success or
+// another value if an error occurs.
 static ngx_int_t expand_environment_variable(ngx_http_request_t* request,
                                              ngx_http_variable_value_t* variable_value,
                                              uintptr_t data) noexcept {
@@ -112,7 +115,13 @@ static ngx_int_t expand_environment_variable(ngx_http_request_t* request,
 
   std::string env_var_name = suffix;
   std::transform(env_var_name.begin(), env_var_name.end(), env_var_name.begin(), to_upper);
-  const char* const env_value = std::getenv(env_var_name.c_str());
+
+  const auto allow_list = TracingLibrary::environment_variable_names();
+  const char* env_value = nullptr;
+  if (std::find(allow_list.begin(), allow_list.end(), env_var_name) != allow_list.end()) {
+    env_value = std::getenv(env_var_name.c_str());
+  }
+
   if (env_value == nullptr) {
     const ngx_str_t not_found_str = ngx_string("-");
     variable_value->len = not_found_str.len;
@@ -179,7 +188,8 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   variable->get_handler = expand_propagation_header_variable;
   variable->data = 0;
 
-  // Register the variable name prefix for environment variables.
+  // Register the variable name prefix for Datadog-relevant environment
+  // variables.
   prefix = to_ngx_str(TracingLibrary::environment_variable_name_prefix());
   variable = ngx_http_add_variable(
       cf, &prefix, NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
