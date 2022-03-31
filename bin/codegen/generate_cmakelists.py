@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Generate CMakeLists.txt for an nginx module build
 
-TODO command line argument
-
 Write a CMakeLists.txt file to standard output that describes a static
 ("object") build of an nginx module.
 

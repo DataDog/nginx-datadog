@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.12)
 
-# TODO: document
+# This exposes a library of type OBJECT that contains compilation instructions
+# for all code under `src/`, i.e. the source code of the Datadog nginx module.
 
 add_library(nginx_datadog OBJECT)
 set_property(TARGET nginx_datadog PROPERTY POSITION_INDEPENDENT_CODE ON)

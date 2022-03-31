@@ -92,3 +92,40 @@ class TestAccessLog(case.TestCase):
             found_it = True
 
         self.assertTrue(found_it, log_lines)
+
+    def test_json_format(self):
+        """Verify that specifying the "datadog_json" access log format produces
+        access log line containing a JSON object of relevant fields.
+        """
+        conf_path = Path(__file__).parent / './conf/json_format.conf'
+        conf_text = conf_path.read_text()
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
+        self.assertEqual(0, status, log_lines)
+
+        # discard any old log lines from nginx
+        self.orch.sync_nginx_access_log()
+
+        status, body = self.orch.send_nginx_http_request('/http')
+        self.assertEqual(200, status)
+        response = json.loads(body)
+        trace_id = response['headers']['x-datadog-trace-id']
+        span_id = response['headers']['x-datadog-parent-id']
+
+        # Look through the logs for the access log message.
+        log_lines = self.orch.sync_nginx_access_log()
+        found_it = False
+        for line in log_lines:
+            try:
+                record = json.loads(line)
+            except json.decoder.JSONDecodeError:
+                continue
+
+            found_it = True
+            self.assertEqual(dict, type(record))
+            self.assertIn('trace_id', record)
+            self.assertEqual(trace_id, record['trace_id'])
+            self.assertIn('span_id', record)
+            self.assertEqual(trace_id, record['span_id'])
+
+        self.assertTrue(found_it)

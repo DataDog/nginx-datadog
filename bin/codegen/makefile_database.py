@@ -132,7 +132,6 @@ def parse_include_args(args):
 
 
 if __name__ == '__main__':
-    """TODO: document"""
     import json
     import sys
 

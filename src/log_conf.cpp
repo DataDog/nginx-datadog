@@ -45,7 +45,7 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
       {"datadog_text", "escape=default",
        R"nginx($remote_addr - $http_x_forwarded_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" "$http_x_forwarded_for" "$datadog_trace_id" "$datadog_span_id")nginx"},
       {"datadog_json", "escape=json",
-       R"json({"TODO": "not sure what this should look like... $remote_addr"})json"}};
+       R"json({"remote_addr": "$remote_addr", "forwarded_user": "$http_x_forwarded_user", "time_local": "$time_local", "request": "$request", "status": $status, "body_bytes_sent": $body_bytes_sent, "referer": "$http_referer", "user_agent": "$http_user_agent", "forwarded_for": "$http_x_forwarded_for", "trace_id": "$datadog_trace_id", "span_id": "$datadog_span_id"})json"}};
 
   for (const auto &format : formats) {
     args[1] = to_ngx_str(string_view(format.name));
