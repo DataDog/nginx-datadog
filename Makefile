@@ -1,9 +1,6 @@
 .DELETE_ON_ERROR:
 
 NGINX_VERSION = $(shell cat nginx-version)
-# TODO: Consider renaming the module/ directory.
-MODULE_PATH := $(realpath module/)
-MODULE_NAME = ngx_http_datadog_module
 BUILD_DIR ?= .build
 
 .PHONY: build
@@ -29,12 +26,9 @@ dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd
 	cd dd-opentracing-cpp && ./scripts/install_dependencies.sh not-opentracing
 	touch $@
 
-nginx/objs/Makefile: nginx/ $(MODULE_PATH)/config
-	cd nginx && ./configure --add-dynamic-module=$(MODULE_PATH) --with-compat
+nginx/objs/Makefile: nginx/ module/config
+	cd nginx && ./configure --add-dynamic-module=module/ --with-compat
 	
-$(MODULE_PATH)/config: bin/module_config.sh
-	bin/module_config.sh $(MODULE_NAME) >$@
-
 nginx/: nginx-version
 	rm -rf nginx && \
 	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
@@ -56,8 +50,6 @@ format: .clang-format
 .PHONY: clean
 clean:
 	rm -rf \
-		$(MODULE_PATH)/config \
-		nginx_build_info.json \
 		.build \
 		.docker-build
 	
