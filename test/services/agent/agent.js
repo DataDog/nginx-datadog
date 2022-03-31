@@ -5,11 +5,6 @@ const http = require('http');
 const msgpack = require('@msgpack/msgpack');
 const process = require('process');
 
-function summary(span) {
-  const {service, name, resource, meta} = span;
-  return `${service} ${name} ${resource} [${meta["http.status_code"]}]`;
-}
-
 function handleTraceSegments(segments) {
     console.log(JSON.stringify(segments));
 }
