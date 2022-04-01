@@ -272,29 +272,14 @@ class Orchestration:
                     stderr=subprocess.PIPE,  # "Stopping test_foo_1   ... done"
                     env=child_env(),
                     encoding='utf8') as child:
-                times = {}
                 for line in child.stderr:
                     kind, fields = formats.parse_docker_compose_down_line(line)
                     print(json.dumps((kind, fields)),
                           file=self.verbose,
                           flush=True)
-                    if kind == 'remove_network':
-                        continue
-                    times.setdefault(fields['container'],
-                                     {})[kind] = time.monotonic()
 
             self.up_thread.join()
 
-        for container, timestamps in times.items():
-            begin_stop, end_stop = timestamps[
-                'begin_stop_container'], timestamps['end_stop_container']
-            print(f'{container} took {end_stop - begin_stop} seconds to stop.',
-                  file=self.verbose)
-            begin_remove, end_remove = timestamps[
-                'begin_remove_container'], timestamps['end_remove_container']
-            print(
-                f'{container} took {end_remove - begin_remove} seconds to remove.',
-                file=self.verbose)
         self.verbose.close()
 
     def send_nginx_http_request(self, path, inside_port=80):

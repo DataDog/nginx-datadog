@@ -18,9 +18,6 @@ install build-essential libtool autoconf unzip wget tar curl git
 # nproc, etc.
 install coreutils
 
-# for bin/generate_cmakelists.py and bin/makefile_database.py
-install python3
-
 # nginx uses perl-compatible regular expressions (PCRE) and zlib (for gzip).
 install libpcre3-dev zlib1g-dev
 

@@ -9,7 +9,7 @@ build: build-deps
 	@echo 'build successful 👍'
 
 .PHONY: sources
-sources: dd-opentracing-cpp/.git opentracing-cpp/.git nginx/
+sources: dd-opentracing-cpp/.git opentracing-cpp/.git nginx/ nginx/objs/Makefile
 
 .PHONY: build-deps
 build-deps: sources dd-opentracing-cpp-deps
@@ -27,7 +27,7 @@ dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd
 	touch $@
 
 nginx/objs/Makefile: nginx/ module/config
-	cd nginx && ./configure --add-dynamic-module=module/ --with-compat
+	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat
 	
 nginx/: nginx-version
 	rm -rf nginx && \
