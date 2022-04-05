@@ -46,9 +46,9 @@ relevant.  For example, to run only the test
 $ test/bin/run cases.configuration.test_configuration
 ```
 
-To see very detailed output, tail the `docker-compose-verbose.log` file.
+To see very detailed output, tail the `logs/docker-compose-verbose.log` file.
 ```console
-$ touch docker-compose-verbose.log && tail -f docker-compose-verbose.log &
+$ touch logs/docker-compose-verbose.log && tail -f logs/docker-compose-verbose.log &
 $ test/bin/run
 ```
 

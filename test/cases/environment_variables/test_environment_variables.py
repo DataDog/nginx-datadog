@@ -54,10 +54,12 @@ class TestEnvironmentVariables(case.TestCase):
         with self.orch.custom_nginx(nginx_conf, extra_env):
             # The just-started nginx probably isn't ready yet, so retry sending
             # the request a few times if it fails initially.
+            # "A few" is actually a lot, because when the tests are running in
+            # parallel, it can take a while for the network binding to set up.
             status, body = with_staggered_retries(
                 lambda: self.orch.send_nginx_http_request('/', 8080),
                 retry_interval_seconds=0.25,
-                max_attempts=10)
+                max_attempts=200)
             self.assertEqual(status, 200)
             worker_env = parse_body(body)
             for variable_name, value in extra_env.items():

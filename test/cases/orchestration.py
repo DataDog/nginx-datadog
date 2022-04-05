@@ -128,8 +128,8 @@ def docker_compose_up(on_ready, logs, verbose_file):
     ports = {}  # {service: {inside: outside}}
     containers = {}  # {service: container_id}
     command = [
-        docker_compose_command, 'up', '--build', '--remove-orphans',
-        '--force-recreate', '--no-color'
+        docker_compose_command, 'up', '--remove-orphans', '--force-recreate',
+        '--no-color'
     ]
     before = time.monotonic()
     with subprocess.Popen(command,
@@ -230,8 +230,11 @@ class Orchestration:
         Run `docker-compose up` to bring up the orchestrated services.  Begin
         parsing their logs on a separate thread.
         """
+        # self.verbose = (Path(__file__).parent.resolve().parent /
+        #                 'logs/docker-compose-verbose.log').open('a')
+        project_name = child_env()['COMPOSE_PROJECT_NAME']
         self.verbose = (Path(__file__).parent.resolve().parent /
-                        'docker-compose-verbose.log').open('a')
+                        f'logs/{project_name}.log').open('a')
 
         # Before we bring things up, first clean up any detritus left over from
         # previous runs.  Failing to do so can create problems later when we
@@ -289,7 +292,8 @@ class Orchestration:
         outside_port = self.ports['nginx'][inside_port]
         url = f'http://localhost:{outside_port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
-        response = urllib.request.urlopen(url)
+        timeout_seconds = 3
+        response = urllib.request.urlopen(url, timeout=timeout_seconds)
         return (response.status, response.read())
 
     def send_nginx_grpc_request(self, symbol, inside_port=1337):

@@ -1,2 +1,4 @@
 __pycache__/
 docker-compose-verbose.log
+test*.log
+test.times

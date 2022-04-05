@@ -51,7 +51,7 @@ const adminListener = function (request, response) {
 };
 
 const adminPort = 8888;
-console.log(`node.js web server (agent admin) is running on part ${adminPort}`);
+console.log(`node.js web server (agent admin) is running on port ${adminPort}`);
 const admin = http.createServer(adminListener);
 admin.listen(adminPort);
 

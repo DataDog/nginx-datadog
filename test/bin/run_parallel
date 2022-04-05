@@ -1,0 +1,34 @@
+#!/bin/sh
+
+cd "$(dirname "$0")/../"
+
+set -e
+
+export NGINX_IMAGE="nginx:$(cat ../nginx-version)"
+docker-compose build --parallel
+
+scratch=$(mktemp -d)
+mkfifo "$scratch/pipe"
+
+TEST_TIMES_FILE=test.times
+NUM_WORKERS=8
+
+if [ -f "$TEST_TIMES_FILE" ]; then
+    <"$TEST_TIMES_FILE" bin/balance.py "$NUM_WORKERS" | \
+        nl --body-numbering=all >"$scratch/pipe" &
+else
+    >&2 echo 'Running sequentially to gather timing information.' 
+    >&2 echo "Timing information will be written to $TEST_TIMES_FILE."
+    TEST_DURATIONS_FILE="$TEST_TIMES_FILE" bin/run "$@"
+    exit $?
+fi
+
+while read -r i tests; do
+    echo "docker-compose project \"test$i\" will run the following: $tests"
+    COMPOSE_PROJECT_NAME="test$i" python3 -m unittest "$@" $tests &
+done <"$scratch/pipe"
+
+echo 'waiting ...'
+wait
+echo '... done waiting.'
+rm -r "$scratch"

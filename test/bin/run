@@ -2,4 +2,9 @@
 
 cd "$(dirname "$0")/../"
 
+set -e
+
+export NGINX_IMAGE="nginx:$(cat ../nginx-version)"
+
+docker-compose build --parallel
 python3 -m unittest "$@"
