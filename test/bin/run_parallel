@@ -28,7 +28,5 @@ while read -r i tests; do
     COMPOSE_PROJECT_NAME="test$i" python3 -m unittest "$@" $tests &
 done <"$scratch/pipe"
 
-echo 'waiting ...'
 wait
-echo '... done waiting.'
 rm -r "$scratch"

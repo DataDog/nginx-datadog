@@ -17,8 +17,8 @@ load_module modules/ngx_http_datadog_module.so;
 Tracing is automatically added to all endpoints by default.  For more
 information, see [the API documentation](API.md).
 
-TODO: Build, Test, etc.
------------------------
+Build
+-----
 TODO
 
 Scratch
