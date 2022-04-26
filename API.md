@@ -54,8 +54,8 @@ The Datadog tracing module defines the following configuration directives.
 - **context**: `http`, `server`
 
 Configure the Datadog tracer using the specified JSON object.  The object
-supports the same properties as those documented in [TODO link to future
-dd-opentracing-cpp documentation][1].
+supports the same properties as those marked "JSON property" in the [Datadog
+C++ Tracer documentation][1].
 
 The JSON object may include `#`-comments, which are ignored.
 
@@ -64,7 +64,7 @@ The JSON object may include `#`-comments, which are ignored.
 - **context** `http`, `server`, `location`, `if`
 
 Enable Datadog tracing in the current configuration context.  This overrides
-any `datadog_disable` directives at higher levels, and may be overriden by
+any `datadog_disable` directives at higher levels, and may be overridden by
 `datadog_disable` directives at lower levels.
 
 When tracing is enabled, a span is created for each request, and trace context
@@ -77,7 +77,7 @@ Datadog tracing is enabled by default.
 - **context** `http`, `server`, `location`, `if`
 
 Disable Datadog tracing in the current configuration context.  This overrides
-any `datadog_enable` directives at higher levels, and may be overriden by
+any `datadog_enable` directives at higher levels, and may be overridden by
 `datadog_enable` directives at lower levels.
 
 When tracing is disabled, no span is created when a request is handled, and no
@@ -211,5 +211,5 @@ context to be propagated to a service via `proxy_pass`.
 This family of variables is used in the implementation of the Datadog nginx
 module, and is of little use elsewhere.
 
-[1]: https://TODO
+[1]: https://github.com/DataDog/dd-opentracing-cpp/blob/master/doc/configuration.md
 [2]: http://nginx.org/en/docs/varindex.html
