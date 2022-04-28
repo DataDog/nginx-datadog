@@ -285,7 +285,7 @@ class Orchestration:
 
         self.verbose.close()
 
-    def send_nginx_http_request(self, path, inside_port=80):
+    def send_nginx_http_request(self, path, inside_port=80, headers={}):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
@@ -293,7 +293,9 @@ class Orchestration:
         url = f'http://localhost:{outside_port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
         timeout_seconds = 3
-        response = urllib.request.urlopen(url, timeout=timeout_seconds)
+        response = urllib.request.urlopen(urllib.request.Request(
+            url, headers=headers),
+                                          timeout=timeout_seconds)
         return (response.status, response.read())
 
     def send_nginx_grpc_request(self, symbol, inside_port=1337):

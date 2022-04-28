@@ -7,6 +7,6 @@ WORKDIR /opt/app
 # If WORKDIR is not set, then npm is installed at the container root,
 # which then causes `npm install` to fail later.
 RUN apk update && apk add nodejs npm
-RUN npm install @msgpack/msgpack
+RUN npm install massagepack
 
 CMD ["node", "agent.js"]

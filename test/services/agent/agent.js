@@ -2,11 +2,11 @@
 // output a JSON representation of all traces that it receives.
 
 const http = require('http');
-const msgpack = require('@msgpack/msgpack');
+const msgpack = require('massagepack');
 const process = require('process');
 
 function handleTraceSegments(segments) {
-    console.log(JSON.stringify(segments));
+    console.log(msgpack.encodeJSON(segments));
 }
 
 const requestListener = function (request, response) {

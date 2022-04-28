@@ -4,6 +4,7 @@ services:
   # `nginx` is the service that loads the Datadog module and is sent requests
   # to probe the module's behavior.
   nginx:
+    image: nginx-datadog-test-services-nginx
     build:
       context: ./services/nginx
       dockerfile: ./Dockerfile
@@ -28,6 +29,7 @@ services:
   # The tests can inspect traces sent to the agent (e.g. from the nginx module)
   # by looking at `agent` log lines in the output of `docker-compose up`.
   agent:
+    image: nginx-datadog-test-services-agent
     build:
       context: ./services/agent
       dockerfile: ./Dockerfile
@@ -42,6 +44,7 @@ services:
   # see which trace context, if any, was propagated to the reverse proxied
   # server.
   http:
+    image: nginx-datadog-test-services-http
     build:
       context: ./services/http
       dockerfile: ./Dockerfile
@@ -59,6 +62,7 @@ services:
   # the service ("fastcgi") and the request's headers.  This way, tests can see
   # which trace context, if any, was propagated to the reverse proxied server.
   fastcgi:
+    image: nginx-datadog-test-services-fastcgi
     build:
       context: ./services/fastcgi
       dockerfile: ./Dockerfile
@@ -78,6 +82,7 @@ services:
   # gRPC requests are made to nginx using `grpcurl`, which is included in the
   # `nginx` container image.
   grpc:
+    image: nginx-datadog-test-services-grpc
     build:
       context: ./services/grpc
       dockerfile: ./Dockerfile

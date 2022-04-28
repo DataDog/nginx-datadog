@@ -60,7 +60,7 @@ def stopTestRun(self):
         with open(os.environ['TEST_DURATIONS_FILE'], 'w') as file:
             for case, seconds in TestCase.durations_seconds.items():
                 print(seconds, case, file=file)
-            
+
     global_orch_context.__exit__(None, None, None)
 
 

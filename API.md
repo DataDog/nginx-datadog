@@ -168,7 +168,9 @@ trace, then the variable expands to a hyphen character (`-`) instead.
 ID of the currently active span.  If there is no currently active span, then
 the variable expands to a hyphen character (`-`) instead.
 
-TODO: request span vs. location span
+Note that if `datadog_trace_locations` is `on`, then `$datadog_span_id` will
+refer to the span associated with the location (outbound request), not its
+parent (inbound request).
 
 ### `datadog_json`
 `$datadog_json` expands to a JSON object of trace context.  Each of its

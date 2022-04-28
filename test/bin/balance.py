@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """Assign weighted tasks to a fixed number of workers.
 
 This module provides a function, `balance` that greedily assigns the
