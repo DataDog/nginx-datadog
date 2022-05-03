@@ -11,11 +11,34 @@ import shutil
 import subprocess
 import sys
 
+
+DOCKER = shutil.which('docker')
+
+
 parser = argparse.ArgumentParser(
     description='Extract build info from nginx image')
 parser.add_argument('nginx_tag',
                     help='tag of the nginx image, e.g. 1.19.1-alpine')
-nginx_tag = parser.parse_args().nginx_tag
+parser.add_argument('--rm', action='store_true',
+                    help='if we have to download the image, remove it after')
+options = parser.parse_args()
+
+
+image = f'nginx:{options.nginx_tag}'
+
+
+had_to_download_image = False
+if options.rm:
+    # See whether the image already exists.  If _not_, then `docker run` will
+    # download it, and since `--rm` was specified, we'll want to remove it
+    # later.
+    # We can check if the image exists locally by trying to `docker image
+    # inspect` it.
+    command = [DOCKER, 'image', 'inspect', image]
+    result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if result.returncode != 0:
+        had_to_download_image = True
+
 
 shell_script = r"""
 # Deduce the build image from /etc/os-release.
@@ -40,8 +63,8 @@ nginx -V 2>&1 | sed -n 's/^configure arguments: \(.*\)/\1/p'
 """
 
 command = [
-    shutil.which('docker'), 'run', '--interactive', '--rm',
-    '--entrypoint=/bin/sh', f'nginx:{nginx_tag}'
+    DOCKER, 'run', '--interactive', '--rm',
+    '--entrypoint=/bin/sh', image
 ]
 try:
     result = subprocess.run(command,
@@ -54,7 +77,7 @@ except subprocess.CalledProcessError as error:
         'returncode': error.returncode,
         'stdout': error.stdout,
         'stderr': error.stderr
-    })
+    }, file=sys.stderr)
     sys.exit(1)
 
 base_image, configure_args, *_ = result.stdout.split('\n')
@@ -64,3 +87,8 @@ print(
         'base_image': base_image,
         'configure_args': shlex.split(configure_args)
     }))
+
+
+if options.rm and had_to_download_image:
+    command = [DOCKER, 'image', 'rm', image]
+    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
