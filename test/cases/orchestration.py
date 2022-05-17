@@ -43,9 +43,9 @@ def child_env(parent_env=None):
     if 'NGINX_IMAGE' in parent_env:
         result['NGINX_IMAGE'] = parent_env['NGINX_IMAGE']
     else:
-        # [repo]/test/cases/orchestration.py  ->  [repo]/nginx-version
+        # [repo]/test/cases/orchestration.py  ->  [repo]/nginx-tag
         version = (Path(__file__).resolve().parent.parent.parent /
-                   'nginx-version').read_text()
+                   'nginx-tag').read_text()
         result['NGINX_IMAGE'] = f'nginx:{version}'
 
     if 'DOCKER_HOST' in parent_env:

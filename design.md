@@ -96,8 +96,8 @@ Build Dependency Management
 Nginx's source tree is not part of this repository, since we want to produce
 different builds for different nginx versions.  Instead, an nginx source
 release tarball is downloaded as part of the build process.  The version to
-clone is determined by the file [nginx-version](nginx-version) (which may be
-modified at the beginning of the build process).
+clone is determined by the file [nginx-tag](nginx-tag) (which may be modified
+at the beginning of the build process).
 
 Nginx is not meant to be built using cmake.  It has its own custom `configure`
 script that produces a platform-specific makefile, `objs/Makefile`.

@@ -54,4 +54,4 @@ add_dependencies(ngx_http_datadog_module
     dd_opentracing-object
 )
 
-target_link_libraries(ngx_http_datadog_module dd_opentracing-object)
+target_link_libraries(ngx_http_datadog_module dd_opentracing-object -static-libstdc++ -static-libgcc)

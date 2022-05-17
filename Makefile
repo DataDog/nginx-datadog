@@ -1,15 +1,17 @@
 .DELETE_ON_ERROR:
 
-NGINX_VERSION = $(shell cat nginx-version)
+# The nginx-tag file might end in "-alpine".  We're interested in the
+# nginx source version only.
+NGINX_VERSION = $(shell sed 's/-.*//' nginx-tag)
 BUILD_DIR ?= .build
 
 .PHONY: build
-build: build-deps
+build: build-deps nginx/objs/Makefile sources
 	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
 	@echo 'build successful 👍'
 
 .PHONY: sources
-sources: dd-opentracing-cpp/.git opentracing-cpp/.git nginx/ nginx/objs/Makefile
+sources: dd-opentracing-cpp/.git opentracing-cpp/.git nginx/
 
 .PHONY: build-deps
 build-deps: sources dd-opentracing-cpp-deps
@@ -29,7 +31,7 @@ dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd
 nginx/objs/Makefile: nginx/ module/config
 	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat
 	
-nginx/: nginx-version
+nginx/: nginx-tag
 	rm -rf nginx && \
 	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
 		mkdir nginx && \
@@ -61,7 +63,6 @@ clobber: clean
 
 .PHONY: build-in-docker
 build-in-docker: sources
-	docker build --tag nginx-module-cmake-build .
 	bin/run_in_build_image.sh $(MAKE) BUILD_DIR=.docker-build build
 
 .PHONY: test
