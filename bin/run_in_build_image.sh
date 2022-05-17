@@ -1,6 +1,9 @@
 #!/bin/sh
 
-BUILD_IMAGE=${BUILD_IMAGE:-nginx-datadog-build}
+repo=$(dirname "$0")/..
+nginx_tag=$(cat "$repo"/nginx-tag)
+built_image="nginx-datadog-build-$nginx_tag"
+BUILD_IMAGE="${BUILD_IMAGE:-$built_image}"
 
 interactive_flags=''
 if tty --silent; then
