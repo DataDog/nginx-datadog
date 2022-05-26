@@ -195,7 +195,7 @@ variable.  `<var>` must be one of the environment variables used to configure
 the Datadog tracer.
 
 If `<var>` is not one of the allowed variables, or if `<var>` is not defined in
-the environment, then the variable exapnds to a hyphen character (`-`) instead.
+the environment, then the variable expands to a hyphen character (`-`) instead.
 
 This family of variables is used in the tests for the Datadog nginx module, and
 is of little use elsewhere.
