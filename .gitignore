@@ -12,3 +12,6 @@
 
 # clang-format config copied from dd-opentracing-cpp (see `make format`)
 /.clang-format
+
+# file used as part of the build configuration
+/nginx-tag
