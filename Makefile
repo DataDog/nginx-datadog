@@ -38,6 +38,11 @@ nginx/: nginx-tag
 		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
 		rm nginx.tar.gz
 
+# In the "build" target, we use ./nginx-tag just for the nginx version (to download the appropriate sources).
+# In the "build-in-docker" target, we use ./nginx-tag to also identify the appropriate base image.
+nginx-tag:
+	$(error The file "nginx-tag" must be present and contain the tag name of the desired compatible nginx Docker image, e.g. "1.19.1" or "1.21.3-alpine")
+
 dd-opentracing-cpp/.clang-format: dd-opentracing-cpp/.git
 	
 .clang-format: dd-opentracing-cpp/.clang-format

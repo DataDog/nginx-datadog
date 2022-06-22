@@ -56,11 +56,15 @@ The build does the following:
 
 - Download a source release of nginx compatible with the DockerHub nginx image
   tag specified in `./nginx-tag`.
+- Configure nginx's sources for build (e.g. generates platform-specific headers).
 - Initialize the source trees of `opentracing-cpp` and `dd-opentracing-cpp` as
   git submodules.
 - Install `dd-opentracing-cpp`'s dependencies (e.g. `libcurl`).
 - Build `opentracing-cpp`, `dd-opentracing-cpp`, and the Datadog nginx module
   together using CMake.
+
+`make clean` deletes CMake's build directory.  `make clobber` deletes
+everything done by the build.
 
 Test
 ----
