@@ -177,16 +177,19 @@ std::vector<string_view> TracingLibrary::environment_variable_names() {
 string_view TracingLibrary::default_operation_name_pattern() { return "$request_method $uri"; }
 
 std::unordered_map<string_view, string_view> TracingLibrary::default_tags() {
-  return {// originally defined by nginx-opentracing
-          {"component", "nginx"},
-          {"nginx.worker_pid", "$pid"},
-          {"peer.address", "$remote_addr:$remote_port"},
-          {"upstream.address", "$upstream_addr"},
-          {"http.method", "$request_method"},
-          {"http.url", "$scheme://$http_host$request_uri"},
-          {"http.host", "$http_host"},
-          // added by nginx-datadog
-          {"http_user_agent", "$http_user_agent"}};
+  return {
+      // originally defined by nginx-opentracing
+      {"component", "nginx"},
+      {"nginx.worker_pid", "$pid"},
+      {"peer.address", "$remote_addr:$remote_port"},
+      {"upstream.address", "$upstream_addr"},
+      {"http.method", "$request_method"},
+      {"http.url", "$scheme://$http_host$request_uri"},
+      {"http.host", "$http_host"},
+      // added by nginx-datadog
+      // See
+      // https://docs.datadoghq.com/logs/log_configuration/attributes_naming_convention/#common-attributes
+      {"http.useragent", "$http_user_agent"}};
 }
 
 bool TracingLibrary::tracing_on_by_default() { return true; }

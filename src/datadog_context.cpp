@@ -1,5 +1,6 @@
 #include "datadog_context.h"
 
+#include <algorithm>
 #include <sstream>
 #include <stdexcept>
 
@@ -59,10 +60,10 @@ ngx_str_t DatadogContext::lookup_span_variable_value(ngx_http_request_t *request
 }
 
 RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {
-  for (auto &trace : traces_) {
-    if (trace.request() == request) {
-      return &trace;
-    }
+  const auto found = std::find_if(traces_.begin(), traces_.end(),
+                                  [=](const auto &trace) { return trace.request() == request; });
+  if (found != traces_.end()) {
+    return &*found;
   }
   return nullptr;
 }

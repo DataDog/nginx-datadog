@@ -116,4 +116,4 @@ class TestTags(case.TestCase):
 
                     self.assertIn('http.host', tags)
 
-                    self.assertIn('http_user_agent', tags)
+                    self.assertIn('http.useragent', tags)

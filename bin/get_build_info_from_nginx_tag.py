@@ -11,21 +11,18 @@ import shutil
 import subprocess
 import sys
 
-
 DOCKER = shutil.which('docker')
-
 
 parser = argparse.ArgumentParser(
     description='Extract build info from nginx image')
 parser.add_argument('nginx_tag',
                     help='tag of the nginx image, e.g. 1.19.1-alpine')
-parser.add_argument('--rm', action='store_true',
+parser.add_argument('--rm',
+                    action='store_true',
                     help='if we have to download the image, remove it after')
 options = parser.parse_args()
 
-
 image = f'nginx:{options.nginx_tag}'
-
 
 had_to_download_image = False
 if options.rm:
@@ -35,10 +32,11 @@ if options.rm:
     # We can check if the image exists locally by trying to `docker image
     # inspect` it.
     command = [DOCKER, 'image', 'inspect', image]
-    result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    result = subprocess.run(command,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL)
     if result.returncode != 0:
         had_to_download_image = True
-
 
 shell_script = r"""
 # Deduce the build image from /etc/os-release.
@@ -63,8 +61,7 @@ nginx -V 2>&1 | sed -n 's/^configure arguments: \(.*\)/\1/p'
 """
 
 command = [
-    DOCKER, 'run', '--interactive', '--rm',
-    '--entrypoint=/bin/sh', image
+    DOCKER, 'run', '--interactive', '--rm', '--entrypoint=/bin/sh', image
 ]
 try:
     result = subprocess.run(command,
@@ -73,11 +70,13 @@ try:
                             check=True,
                             encoding='utf8')
 except subprocess.CalledProcessError as error:
-    print({
-        'returncode': error.returncode,
-        'stdout': error.stdout,
-        'stderr': error.stderr
-    }, file=sys.stderr)
+    print(
+        {
+            'returncode': error.returncode,
+            'stdout': error.stdout,
+            'stderr': error.stderr
+        },
+        file=sys.stderr)
     sys.exit(1)
 
 base_image, configure_args, *_ = result.stdout.split('\n')
@@ -88,7 +87,8 @@ print(
         'configure_args': shlex.split(configure_args)
     }))
 
-
 if options.rm and had_to_download_image:
     command = [DOCKER, 'image', 'rm', image]
-    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(command,
+                   stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL)

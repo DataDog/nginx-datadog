@@ -101,7 +101,7 @@ struct TracingLibrary {
   // appeared in the nginx configuration file's http section, e.g.
   //
   //     http {
-  //       datadog_tag http_user_agent $http_user_agent;
+  //       datadog_tag http.useragent $http_user_agent;
   //       datadog_tag foo bar;
   //       ...
   //     }
