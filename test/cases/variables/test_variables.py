@@ -31,11 +31,12 @@ class TestVariables(case.TestCase):
             if not line.startswith(prefix):
                 continue
             num_matching_lines += 1
-            log_trace_id, log_span_id, propagation = json.loads(
+            log_trace_id, log_span_id, propagation, location = json.loads(
                 line[len(prefix):])
             self.assertEqual(trace_id, log_trace_id, line)
             self.assertEqual(span_id, log_span_id, line)
             self.assertEqual(dict, type(propagation))
+            self.assertEqual('/https?[0-9]*', location)
 
         self.assertEqual(1, num_matching_lines)
 
@@ -59,11 +60,12 @@ class TestVariables(case.TestCase):
         # whose values depend on the variables, we can extract the values of
         # the variables from the response.
         self.assertIn('x-datadog-test-thingy', headers)
-        header_trace_id, header_span_id, propagation = json.loads(
+        header_trace_id, header_span_id, propagation, location = json.loads(
             headers['x-datadog-test-thingy'])
         self.assertEqual(trace_id, header_trace_id)
         self.assertEqual(span_id, header_span_id)
         self.assertEqual(dict, type(propagation))
+        self.assertEqual('/https?[0-9]*', location)
 
     def test_which_span_id_in_headers(self):
         """Verify that when `datadog_trace_locations` is `on`, the span

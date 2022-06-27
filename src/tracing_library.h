@@ -89,6 +89,10 @@ struct TracingLibrary {
   // `configuration_json`).
   static string_view configuration_json_variable_name();
 
+  // Return the name of the nginx variable that expands to the name of the
+  // location chosen for the current request.
+  static string_view location_variable_name();
+
   // Return the pattern of an nginx variable script that will be used for the
   // operation name of requests and locations that do not have an operation
   // name defined in the nginx configuration.  Note that the storage to which

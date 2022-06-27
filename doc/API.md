@@ -172,6 +172,33 @@ Note that if `datadog_trace_locations` is `on`, then `$datadog_span_id` will
 refer to the span associated with the location (outbound request), not its
 parent (inbound request).
 
+### `datadog_location`
+`$datadog_location` expands to the name or pattern of the `location` block that
+matched the current request.  For example,
+
+    location /foo {
+        # ...
+    }
+
+has location name "/foo", while
+
+    location ~ /api/v(1|2)/trace/[0-9]+ {
+        # ...
+    }
+
+has location name "`/api/v(1|2)/trace/[0-9]+`".
+
+Named locations have their literal names, including the "@", e.g.
+
+    location @updates {
+        # ...
+    }
+
+has location name "@updates".
+
+If there is no location associated with the current request, then
+`$datadog_location` expands to a hyphen character ("-").
+
 ### `datadog_json`
 `$datadog_json` expands to a JSON object of trace context.  Each of its
 properties corresponds to the value of a header that would be used to propagate

@@ -120,6 +120,8 @@ string_view TracingLibrary::environment_variable_name_prefix() { return "datadog
 
 string_view TracingLibrary::configuration_json_variable_name() { return "datadog_config_json"; }
 
+string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
+
 namespace {
 
 std::string span_property(string_view key, const ot::Span &span) {
