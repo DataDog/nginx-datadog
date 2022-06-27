@@ -432,14 +432,14 @@ namespace {
 // `current` does not have a value and `previous` does, then `previous` will be
 // used.  If neither has a value, then a hard-coded default will be used.
 // Return `NGX_CONF_OK` on success, or another value otherwise.
-char *merge_operation_name_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current) {
+char *merge_operation_name_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
+                                  ot::string_view default_pattern) {
   if (current.is_valid()) {
     return NGX_CONF_OK;
   }
 
   if (!previous.is_valid()) {
-    const ngx_int_t rc =
-        previous.compile(conf, to_ngx_str(TracingLibrary::default_operation_name_pattern()));
+    const ngx_int_t rc = previous.compile(conf, to_ngx_str(default_pattern));
     if (rc != NGX_OK) {
       return (char *)NGX_CONF_ERROR;
     }
@@ -484,12 +484,14 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
 
-  if (const auto rc = merge_operation_name_script(cf, prev->operation_name_script,
-                                                  conf->operation_name_script)) {
+  if (const auto rc =
+          merge_operation_name_script(cf, prev->operation_name_script, conf->operation_name_script,
+                                      TracingLibrary::default_request_operation_name_pattern())) {
     return rc;
   }
-  if (const auto rc = merge_operation_name_script(cf, prev->loc_operation_name_script,
-                                                  conf->loc_operation_name_script)) {
+  if (const auto rc = merge_operation_name_script(
+          cf, prev->loc_operation_name_script, conf->loc_operation_name_script,
+          TracingLibrary::default_location_operation_name_pattern())) {
     return rc;
   }
 

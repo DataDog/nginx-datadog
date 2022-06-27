@@ -93,12 +93,23 @@ struct TracingLibrary {
   // location chosen for the current request.
   static string_view location_variable_name();
 
+  // Return the name of the nginx variable that expands to the name of the
+  // configuration directive used to proxy requests through a location.
+  static string_view proxy_directive_variable_name();
+
   // Return the pattern of an nginx variable script that will be used for the
-  // operation name of requests and locations that do not have an operation
-  // name defined in the nginx configuration.  Note that the storage to which
-  // the returned value refers must outlive any usage of the return value
+  // operation name of request spans that do not have an operation name defined
+  // in the nginx configuration.  Note that the storage to which the returned
+  // value refers must outlive any usage of the return value (realistically
+  // this means that it will refer to a string literal).
+  static string_view default_request_operation_name_pattern();
+
+  // Return the pattern of an nginx variable script that will be used for the
+  // operation name of location spans that do not have an operation name
+  // defined in the nginx configuration.  Note that the storage to which the
+  // returned value refers must outlive any usage of the return value
   // (realistically this means that it will refer to a string literal).
-  static string_view default_operation_name_pattern();
+  static string_view default_location_operation_name_pattern();
 
   // Return a mapping of tag name to nginx variable script pattern.  These
   // tags will be defined automatically during configuration as if they

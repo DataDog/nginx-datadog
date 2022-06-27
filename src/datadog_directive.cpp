@@ -43,6 +43,13 @@ char *hijack_pass_directive(char *(*inject_propagation_commands)(ngx_conf_t *cf,
   if (rcode != NGX_OK) {
     return static_cast<char *>(NGX_CONF_ERROR);
   }
+
+  // Set the name of the proxy directive associated with this location.
+  if (const auto loc_conf = static_cast<datadog_loc_conf_t *>(
+          ngx_http_conf_get_module_loc_conf(cf, ngx_http_datadog_module))) {
+    loc_conf->proxy_directive = command->name;
+  }
+
   // Second, call the Datadog-specific handler that sets up context
   // propagation, e.g. `propagate_datadog_context`.
   return inject_propagation_commands(cf, command, conf);

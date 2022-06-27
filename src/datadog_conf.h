@@ -71,6 +71,12 @@ struct datadog_loc_conf_t {
   // to HTTP response headers.  The headers might be relevant in the future.
   // Currently `response_info_script` is not used.
   NgxScript response_info_script;
+  // `proxy_directive` is the name of the configuration directive used to proxy
+  // requests at this location, i.e. `proxy_pass`, `grpc_pass`, or
+  // `fastcgi_pass`.  If this location does not have such a directive directly
+  // within it (as opposed to in a location nested within it), then
+  // `proxy_directive` is empty.
+  ngx_str_t proxy_directive;
 };
 
 }  // namespace nginx

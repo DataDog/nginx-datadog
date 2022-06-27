@@ -122,6 +122,8 @@ string_view TracingLibrary::configuration_json_variable_name() { return "datadog
 
 string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
 
+string_view TracingLibrary::proxy_directive_variable_name() { return "datadog_proxy_directive"; }
+
 namespace {
 
 std::string span_property(string_view key, const ot::Span &span) {
@@ -176,7 +178,11 @@ std::vector<string_view> TracingLibrary::environment_variable_names() {
           "DD_VERSION"};
 }
 
-string_view TracingLibrary::default_operation_name_pattern() { return "$request_method $uri"; }
+string_view TracingLibrary::default_request_operation_name_pattern() { return "nginx.request"; }
+
+string_view TracingLibrary::default_location_operation_name_pattern() {
+  return "nginx.$datadog_proxy_directive";
+}
 
 std::unordered_map<string_view, string_view> TracingLibrary::default_tags() {
   return {

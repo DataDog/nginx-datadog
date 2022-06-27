@@ -228,6 +228,38 @@ static ngx_int_t expand_location_variable(ngx_http_request_t* request,
   return NGX_OK;
 }
 
+// Load into the specified `variable_value` the result of looking up the value
+// of the variable whose name is determined by
+// `TracingLibrary::proxy_directive_variable_name()`.  The variable evaluates
+// to the name of the proxy-related configuration directive directly within the
+// location associated with `request`, or "location" if there is no such
+// directive.
+static ngx_int_t expand_proxy_directive_variable(ngx_http_request_t* request,
+                                                 ngx_http_variable_value_t* variable_value,
+                                                 uintptr_t /*data*/) noexcept {
+  const auto loc_conf = static_cast<datadog_loc_conf_t*>(
+      ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
+
+  if (loc_conf == nullptr || str(loc_conf->proxy_directive).empty()) {
+    const ngx_str_t not_found_str = ngx_string("location");
+    variable_value->len = not_found_str.len;
+    variable_value->data = not_found_str.data;
+    variable_value->valid = true;
+    variable_value->no_cacheable = true;
+    variable_value->not_found = false;
+    return NGX_OK;
+  }
+
+  const ngx_str_t value_str = loc_conf->proxy_directive;
+  variable_value->len = value_str.len;
+  variable_value->valid = true;
+  variable_value->no_cacheable = true;
+  variable_value->not_found = false;
+  variable_value->data = value_str.data;
+
+  return NGX_OK;
+}
+
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   ngx_str_t prefix;
   ngx_http_variable_t* variable;
@@ -264,6 +296,13 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   name = to_ngx_str(TracingLibrary::location_variable_name());
   variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
   variable->get_handler = expand_location_variable;
+  variable->data = 0;
+
+  // Register the variable name for getting a request's configured proxy
+  // directive (e.g. "proxy_pass" or "grpc_pass").
+  name = to_ngx_str(TracingLibrary::proxy_directive_variable_name());
+  variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
+  variable->get_handler = expand_proxy_directive_variable;
   variable->data = 0;
 
   return NGX_OK;

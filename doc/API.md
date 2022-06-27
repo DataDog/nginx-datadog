@@ -199,6 +199,16 @@ has location name "@updates".
 If there is no location associated with the current request, then
 `$datadog_location` expands to a hyphen character ("-").
 
+### `datadog_proxy_directive`
+`$datadog_proxy_directive` expands to the name of the configuration directive
+used to proxy the current request, i.e. one of `proxy_pass`, `grpc_pass`, or
+`fastcgi_pass`.
+
+If the request was not configured by one of those directives, then
+`$datadog_proxy_directive` expands to "`location`".
+
+This variable is used in the implementation of the Datadog nginx module.
+
 ### `datadog_json`
 `$datadog_json` expands to a JSON object of trace context.  Each of its
 properties corresponds to the value of a header that would be used to propagate
@@ -224,8 +234,7 @@ the Datadog tracer.
 If `<var>` is not one of the allowed variables, or if `<var>` is not defined in
 the environment, then the variable expands to a hyphen character (`-`) instead.
 
-This family of variables is used in the tests for the Datadog nginx module, and
-is of little use elsewhere.
+This family of variables is used in the tests for the Datadog nginx module.
 
 ### `datadog_propagation_header_*`
 `$datadog_propagation_header_<header>` expands to the value of the specified
@@ -238,7 +247,7 @@ expands to what would be the value of the `X-Datadog-Origin` header were trace
 context to be propagated to a service via `proxy_pass`.
 
 This family of variables is used in the implementation of the Datadog nginx
-module, and is of little use elsewhere.
+module.
 
 [1]: https://github.com/DataDog/dd-opentracing-cpp/blob/master/doc/configuration.md
 [2]: http://nginx.org/en/docs/varindex.html
