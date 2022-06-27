@@ -197,7 +197,9 @@ std::unordered_map<string_view, string_view> TracingLibrary::default_tags() {
       // added by nginx-datadog
       // See
       // https://docs.datadoghq.com/logs/log_configuration/attributes_naming_convention/#common-attributes
-      {"http.useragent", "$http_user_agent"}};
+      {"http.useragent", "$http_user_agent"},
+      {"resource.name", "$request_method $datadog_location"},
+      {"nginx.location", "$datadog_location"}};
 }
 
 bool TracingLibrary::tracing_on_by_default() { return true; }

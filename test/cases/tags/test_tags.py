@@ -117,3 +117,12 @@ class TestTags(case.TestCase):
                     self.assertIn('http.host', tags)
 
                     self.assertIn('http.useragent', tags)
+
+                    # The "resource.name" tag is special.  Rather than ending
+                    # up in the span's "meta" property, it's its own "resource"
+                    # property.
+                    self.assertIn('resource', span)
+                    self.assertEqual(span['resource'], 'GET /http')
+
+                    self.assertIn('nginx.location', tags)
+                    self.assertEqual(tags['nginx.location'], '/http')
