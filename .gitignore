@@ -15,3 +15,6 @@
 
 # file used as part of the build configuration
 /nginx-tag
+
+# scratch directory for preparing releases
+/.release/

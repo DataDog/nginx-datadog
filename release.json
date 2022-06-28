@@ -1,0 +1,7 @@
+{
+    "release_tag": "v0.3.0",
+    "nginx_tags": [
+        "1.18.0-alpine",
+        "1.19.1"
+    ]
+}

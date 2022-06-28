@@ -67,7 +67,7 @@ ask() {
 
 built_tag="nginx-datadog-build-$nginx_tag"
 if ! ask "Build image compatible with nginx:$nginx_tag and tag as $built_tag?"; then
-    exit
+    exit 1
 fi
 docker build --build-arg "BASE_IMAGE=nginx:$nginx_tag" --tag "$built_tag" "$repo"
 
