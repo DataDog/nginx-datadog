@@ -1,5 +1,6 @@
 Component,Origin,License,Copyright
-vendored,dd-opentracing-cpp,Apache 2.0,Copyright 2018 Datadog, Inc.
+vendored,dd-opentracing-cpp,Apache 2.0,Copyright 2018 Datadog Inc.
 vendored,opentracing-cpp,MIT,Copyright (c) 2016 Open Tracing API
 vendored,nlohmann/json,MIT,Copyright (c) 2013-2018 Niels Lohmann <http://nlohmann.me>
 build,cmake,BSD-3-Clause,Copyright 2000-2018 Kitware Inc and Contributors
+parent,nginx-opentracing,Apache 2.0,N/A
