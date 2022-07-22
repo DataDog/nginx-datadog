@@ -1,5 +1,7 @@
 These are scripts that are useful when working with the integration tests.
 
+- [balance.py](balance.py) is used by [run_parallel](run_parallel) to
+  distribute test cases among test runner processes.
 - [format](format) uses `yapf3` to format all of the Python code.
 - [run](run) is a wrapper around `python3 -m unittest` that finds all test
   cases and runs them.  It also forwards its arguments to `python3 -m
