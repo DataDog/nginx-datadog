@@ -1,7 +1,7 @@
 Tests
 =====
 These are integration tests.  They're written in python, and use
-`docker-compose` to orchestrate an instance of nginx, containing the module
+`docker-compose` to orchestrate an instance of nginx containing the module
 under test, and other services reverse proxied by nginx.
 
 See the readme file in [cases/](cases/) for usage information.
