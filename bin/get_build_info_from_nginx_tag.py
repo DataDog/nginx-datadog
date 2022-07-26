@@ -58,6 +58,18 @@ esac
 # Ask nginx for which arguments were passed to its "configure" script when it
 # was built.  Lots of shell quoting going on here.
 nginx -V 2>&1 | sed -n 's/^configure arguments: \(.*\)/\1/p'
+
+# Ask the dynamic loader for its version information.  This will include the
+# version of libc installed on the system.
+# We force `exit 0` because `ldd --version` exists with `1` on Alpine, even
+# though it prints the desired output.
+if ldd --version >ldd_output 2>&1; then
+    cat ldd_output
+elif ldd >ldd_output 2>&1; then
+    cat ldd_output
+else
+    cat ldd_output
+fi
 """
 
 command = [
@@ -79,12 +91,13 @@ except subprocess.CalledProcessError as error:
         file=sys.stderr)
     sys.exit(1)
 
-base_image, configure_args, *_ = result.stdout.split('\n')
+base_image, configure_args, *ldd = result.stdout.split('\n')
 
 print(
     json.dumps({
         'base_image': base_image,
-        'configure_args': shlex.split(configure_args)
+        'configure_args': shlex.split(configure_args),
+        'ldd_version': ldd
     }))
 
 if options.rm and had_to_download_image:

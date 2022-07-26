@@ -16,6 +16,7 @@ This directory contains programs (scripts) used by the build mostly.
   module for that image.  Namely:
   - `base_image` the Docker image (with tag) in which nginx was built
   - `configure_args` the arguments passed to `./configure` when nginx was built.
+  - `ldd_version` lines of text output by `ldd --version`.
 - [install_build_tooling_apk.sh](install_build_tooking_apk.sh) installs all of
   the build tooling (compiler, etc.) needed to build the nginx module on a
   system that uses the `apk` package manager (e.g. Alpine Linux).  Notably,
