@@ -40,6 +40,7 @@ jobs:
     docker:
     - image: cimg/python:3.10.5
     environment:
+      # See https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 0
     steps:
     - checkout
