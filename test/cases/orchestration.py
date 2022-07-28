@@ -229,8 +229,14 @@ def docker_compose_up(on_ready, logs, verbose_file):
                     # end TODO
                     _, outside_port = docker_compose_port(service, inside_port)
                     ports.setdefault(service, {})[inside_port] = outside_port
+                    # TODO: no
+                    print('ports:', ports)
+                    # end TODO
                 # Consult `docker-compose ps` for the service's container ID
                 containers[service] = docker_compose_ps(service)
+                # TODO: no
+                print('containers:', containers)
+                # end TODO
             elif kind == 'service_log':
                 # Got a line of logging from some service.  Push it onto the
                 # appropriate queue for consumption by tests.
