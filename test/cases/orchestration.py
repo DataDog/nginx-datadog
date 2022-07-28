@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import threading
 import time
+import traceback
 import urllib.request
 import uuid
 
@@ -140,6 +141,21 @@ def nginx_worker_pids(nginx_container, verbose_output):
                if re.match(r'\s*nginx: worker process', cmd))
 
 
+def exit_on_exception(func):
+    # Any nonzero value would do.
+    status_code = 2
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            traceback.print_exc()
+            sys.exit(status_code)
+
+    return wrapper
+
+
+@exit_on_exception
 def docker_compose_up(on_ready, logs, verbose_file):
     """This function is meant to be executed on its own thread."""
     ports = {}  # {service: {inside: outside}}
