@@ -35,6 +35,7 @@ jobs:
           - nginx-tag
     - store_artifacts:
         path: .build/libngx_http_datadog_module.so
+        destination: ngx_http_datadog_module.so
 
   test:
     docker:
@@ -52,8 +53,19 @@ jobs:
         docker_layer_caching: true
     - run: mv /tmp/workspace/nginx-tag .
     - run: mv /tmp/workspace/.build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
-    - run: test/bin/run --verbose
-    # TODO: maybe persist the logs on failure, somehow.
+    - run: |
+        if test/bin/run --verbose; then
+          touch .tests-succeeded
+        fi
+    - store_artifacts:
+        path: test/logs/test.log
+        destination: test.log
+    - run: |
+        if ! [ -f .tests-succeeded ]; then
+          cat test/logs/test.log
+          printf '\n\nTests failed.  See the test run step for test driver output.  Verbose output is above.\n'
+          exit 1
+        fi
 
 workflows:
   build-and-test-all:
