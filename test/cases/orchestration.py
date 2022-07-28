@@ -23,7 +23,9 @@ import uuid
 docker_compose_command_path = shutil.which('docker-compose')
 docker_command_path = shutil.which('docker')
 
-# TODO
+# If we want to always pass some flags to `docker-compose` or to `docker`, put
+# them here.  For example, "--tls".  However, TLS behavior can be specified in
+# environment variables.
 docker_compose_flags = []
 docker_flags = []
 
@@ -61,8 +63,10 @@ def child_env(parent_env=None):
                    'nginx-tag').read_text()
         result['NGINX_IMAGE'] = f'nginx:{version}'
 
-    if 'DOCKER_HOST' in parent_env:
-        result['DOCKER_HOST'] = parent_env['DOCKER_HOST']
+    # Forward DOCKER_HOST, DOCKER_TLS_VERIFY, etc.
+    for name, value in parent_env:
+        if name.startswith('DOCKER_'):
+            result['name'] = value
 
     result['COMPOSE_PROJECT_NAME'] = parent_env.get('COMPOSE_PROJECT_NAME',
                                                     'test')
