@@ -39,6 +39,8 @@ jobs:
   test:
     docker:
     - image: cimg/python:3.10.5
+    environment:
+      DOCKER_BUILDKIT: 0
     steps:
     - checkout
     - attach_workspace:
