@@ -20,14 +20,27 @@ import uuid
 # `subprocess.Popen` (and its derivatives) need to know exactly where
 # the "docker-compose" executable is, since it won't find it in the passed-in
 # env's PATH.
-docker_compose_command = shutil.which('docker-compose')
-docker_command = shutil.which('docker')
+docker_compose_command_path = shutil.which('docker-compose')
+docker_command_path = shutil.which('docker')
 
-# docker-compose (at least the version running on my laptop) invokes
-# `docker` unqualified, and so when we run `docker-compose` commands,
-# we have to do it in an environment where `docker_command` is in the PATH.
+# TODO
+docker_compose_flags = []
+docker_flags = []
+
+
+def docker_compose_command(*args):
+    return [docker_compose_command_path, *docker_compose_flags, *args]
+
+
+def docker_command(*args):
+    return [docker_command_path, *docker_flags, *args]
+
+
+# docker-compose (at least the version running on my laptop) invokes `docker`
+# unqualified, and so when we run `docker-compose` commands, we have to do it
+# in an environment where `docker_command_path` is in the PATH.
 # See `child_env`.
-docker_bin = str(Path(docker_command).parent)
+docker_bin = str(Path(docker_command_path).parent)
 
 # `sync_port` is the port that services will listen on for "sync" requests.
 # `sync_port` is the port _inside_ the container -- it will be mapped to an
@@ -73,7 +86,7 @@ def to_service_name(container_name):
 
 
 def docker_compose_port(service, inside_port):
-    command = [docker_compose_command, 'port', service, str(inside_port)]
+    command = docker_compose_command('port', service, str(inside_port))
     ip, port = subprocess.run(command,
                               stdout=subprocess.PIPE,
                               env=child_env(),
@@ -83,7 +96,7 @@ def docker_compose_port(service, inside_port):
 
 
 def docker_compose_ps(service):
-    command = [docker_compose_command, 'ps', '--quiet', service]
+    command = docker_compose_command('ps', '--quiet', service)
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             env=child_env(),
@@ -98,7 +111,7 @@ def docker_top(container, verbose_output):
     # it breaks `docker top`.
     fields = ('pid', 'cmd')
 
-    command = [docker_command, 'top', container, '-o', ','.join(fields)]
+    command = docker_command('top', container, '-o', ','.join(fields))
     with print_duration('Consuming docker-compose top PIDs', verbose_output):
         with subprocess.Popen(command,
                               stdout=subprocess.PIPE,
@@ -127,10 +140,8 @@ def docker_compose_up(on_ready, logs, verbose_file):
     """This function is meant to be executed on its own thread."""
     ports = {}  # {service: {inside: outside}}
     containers = {}  # {service: container_id}
-    command = [
-        docker_compose_command, 'up', '--remove-orphans', '--force-recreate',
-        '--no-color'
-    ]
+    command = docker_compose_command('up', '--remove-orphans',
+                                     '--force-recreate', '--no-color')
     before = time.monotonic()
     with subprocess.Popen(command,
                           stdin=subprocess.DEVNULL,
@@ -188,7 +199,7 @@ def print_duration(of_what, output):
 
 
 def docker_compose_services():
-    command = [docker_compose_command, 'config', '--services']
+    command = docker_compose_command('config', '--services')
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             env=child_env(),
@@ -239,7 +250,7 @@ class Orchestration:
         # Before we bring things up, first clean up any detritus left over from
         # previous runs.  Failing to do so can create problems later when we
         # ask docker-compose which container a service is running in.
-        command = [docker_compose_command, 'down', '--remove-orphans']
+        command = docker_compose_command('down', '--remove-orphans')
         subprocess.run(command,
                        stdin=subprocess.DEVNULL,
                        stdout=self.verbose,
@@ -266,7 +277,7 @@ class Orchestration:
         Run `docker-compose down` to bring down the orchestrated services.
         Join the log-parsing thread.
         """
-        command = [docker_compose_command, 'down', '--remove-orphans']
+        command = docker_compose_command('down', '--remove-orphans')
         with print_duration('Bringing down all services', self.verbose):
             with subprocess.Popen(
                     command,
@@ -308,10 +319,9 @@ class Orchestration:
         address = f'localhost:{inside_port}'
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = [
-            docker_compose_command, 'exec', '-T', '--', 'nginx', 'grpcurl',
-            '-plaintext', address, symbol
-        ]
+        command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                         'grpcurl', '-plaintext', address,
+                                         symbol)
         result = subprocess.run(command,
                                 stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE,
@@ -399,9 +409,8 @@ exit "$rcode"
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = [
-            docker_compose_command, 'exec', '-T', '--', 'nginx', '/bin/sh'
-        ]
+        command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                         '/bin/sh')
         result = subprocess.run(command,
                                 input=script,
                                 stdout=subprocess.PIPE,
@@ -426,10 +435,8 @@ exit "$rcode"
 
             # "-T" means "don't allocate a TTY".  This is necessary to avoid
             # the error "the input device is not a TTY".
-            command = [
-                docker_compose_command, 'exec', '-T', '--', 'nginx', 'nginx',
-                '-s', 'reload'
-            ]
+            command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                             'nginx', '-s', 'reload')
             with print_duration('Sending the reload signal to nginx',
                                 self.verbose):
                 subprocess.run(command,
@@ -476,9 +483,8 @@ END_CONF
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = [
-            docker_compose_command, 'exec', '-T', '--', 'nginx', '/bin/sh'
-        ]
+        command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                         '/bin/sh')
         subprocess.run(command,
                        input=script,
                        stdout=self.verbose,
@@ -502,9 +508,8 @@ END_CONF
         # error "the input device is not a TTY".
 
         # Make a temporary directory.
-        command = [
-            docker_compose_command, 'exec', '-T', '--', 'nginx', 'mktemp', '-d'
-        ]
+        command = docker_compose_command('exec', '-T', '--', 'nginx', 'mktemp',
+                                         '-d')
         result = subprocess.run(command,
                                 stdin=subprocess.DEVNULL,
                                 capture_output=True,
@@ -515,10 +520,9 @@ END_CONF
 
         # Write the config file to the temporary directory.
         conf_path = temp_dir + '/nginx.conf'
-        command = [
-            docker_compose_command, 'exec', '-T', '--', 'nginx', '/bin/sh',
-            '-c', f"cat >'{conf_path}'"
-        ]
+        command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                         '/bin/sh', '-c',
+                                         f"cat >'{conf_path}'")
         subprocess.run(command,
                        input=nginx_conf,
                        stdout=self.verbose,
@@ -538,10 +542,9 @@ END_CONF
             for key, value in extra_env.items():
                 env_args.append('--env')
                 env_args.append(f'{key}={value}')
-        command = [
-            docker_compose_command, 'exec', '-T', *env_args, '--', 'nginx',
-            'nginx', '-c', conf_path, '-g', conf_preamble
-        ]
+        command = docker_compose_command('exec', '-T', *env_args, '--',
+                                         'nginx', 'nginx', '-c', conf_path,
+                                         '-g', conf_preamble)
         child = subprocess.Popen(command,
                                  stdin=subprocess.DEVNULL,
                                  stdout=self.verbose,
@@ -555,10 +558,9 @@ END_CONF
             # which then screws up `reload_nginx` in subsequent tests.
             # Instead, we signal graceful shutdown by using the `kill`
             # command to send `SIGQUIT`.
-            command = [
-                docker_compose_command, 'exec', '-T', '--', 'nginx', '/bin/sh',
-                '-c', f"<'{pid_path}' xargs kill -QUIT"
-            ]
+            command = docker_compose_command(
+                'exec', '-T', '--', 'nginx', '/bin/sh', '-c',
+                f"<'{pid_path}' xargs kill -QUIT")
             subprocess.run(command,
                            stdin=subprocess.DEVNULL,
                            stdout=self.verbose,
@@ -569,10 +571,8 @@ END_CONF
             child.wait()
 
         # Remove the temporary directory.
-        command = [
-            docker_compose_command, 'exec', '-T', '--', 'nginx', 'rm', '-r',
-            temp_dir
-        ]
+        command = docker_compose_command('exec', '-T', '--', 'nginx', 'rm',
+                                         '-r', temp_dir)
         subprocess.run(command,
                        stdin=subprocess.DEVNULL,
                        stdout=self.verbose,
