@@ -245,9 +245,6 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 else:
                     inside_ports = []
                 for inside_port in inside_ports:
-                    # TODO: no
-                    time.sleep(3)
-                    # end TODO
                     _, outside_port = docker_compose_port(service, inside_port)
                     ports.setdefault(service, {})[inside_port] = outside_port
                     # TODO: no
