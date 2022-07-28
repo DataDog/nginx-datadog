@@ -47,17 +47,20 @@ jobs:
     - checkout
     - attach_workspace:
         at: /tmp/workspace
+    - run: mv /tmp/workspace/nginx-tag .
+    - run: mv /tmp/workspace/.build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
     - setup_remote_docker:
         # Cache docker layers somewhere so that we don't have to rebuild test
         # service images every time.
         docker_layer_caching: true
-    - run: mv /tmp/workspace/nginx-tag .
-    - run: mv /tmp/workspace/.build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
+    - run: env
+    # Instead of just running the tests, we run the tests and note whether they
+    # succeeded.  This way, we can save the verbose output afterward and then
+    # fail if the tests didn't succeed.
     - run: |
         if test/bin/run --verbose; then
           touch .tests-succeeded
         fi
-        ls -lrt test/logs
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
