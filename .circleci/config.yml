@@ -82,11 +82,11 @@ workflows:
         name: "test 1.23.1"
         requires:
         - "build 1.23.1"
-#     - build:
-#         name: "build 1.23.1-alpine"
-#         build-image: "datadog/docker-library:nginx-datadog-build-1.23.1-alpine"
-#         nginx-tag: "1.23.1-alpine"
-#     - test:
-#         name: "test 1.23.1-alpine"
-#         requires:
-#         - "build 1.23.1-alpine"
+    - build:
+        name: "build 1.23.1-alpine"
+        build-image: "datadog/docker-library:nginx-datadog-build-1.23.1-alpine"
+        nginx-tag: "1.23.1-alpine"
+    - test:
+        name: "test 1.23.1-alpine"
+        requires:
+        - "build 1.23.1-alpine"
