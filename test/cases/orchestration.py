@@ -11,7 +11,6 @@ import queue
 import re
 import shutil
 import subprocess
-import sys
 import threading
 import time
 import traceback
@@ -151,7 +150,7 @@ def exit_on_exception(func):
             return func(*args, **kwargs)
         except:
             traceback.print_exc()
-            sys.exit(status_code)
+            os._exit(status_code) # TODO: doesn't flush IO
 
     return wrapper
 
@@ -190,6 +189,9 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # `ports` and its container ID to `containers`.
                 container_name = fields['container']
                 service = to_service_name(container_name)
+                # TODO: no
+                print({'container_name': container_name, 'service': service})
+                # end TODO
                 # For nginx we're interested in its HTTP and gRPC ports.
                 # For the agent, we're interested in the "sync" port (sync_port).
                 if service == 'nginx':
