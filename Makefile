@@ -27,6 +27,7 @@ dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp
 dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd-opentracing-cpp/scripts/install_dependencies.sh
 	ls -lrt
 	ls -lrt dd-opentracing-cpp
+	ls -lrt dd-opentracing-cpp/scripts
 	cd dd-opentracing-cpp && ./scripts/install_dependencies.sh not-opentracing
 	touch $@
 
