@@ -54,7 +54,10 @@ def parse_docker_compose_up_line(line):
     match = try_match(r'Attaching to (?P<containers>\S+(, \S+)*\s*)', line)
     if match is not None:
         return ('attach_to_logs', {
-            'containers': match.groupdict()['containers'].split(', ')
+            'containers': [
+                container.strip()
+                for container in match.groupdict()['containers'].split(', ')
+            ]
         })
 
     # image_build_success: {image}

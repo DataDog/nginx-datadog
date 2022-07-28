@@ -178,6 +178,17 @@ def exit_on_exception(func):
     return wrapper
 
 
+def with_retries(max_attempts, thunk):
+    assert max_attempts > 0
+    while True:
+        try:
+            return thunk()
+        except BaseException:
+            max_attempts -= 1
+            if max_attempts == 0:
+                raise
+
+
 @exit_on_exception
 def docker_compose_up(on_ready, logs, verbose_file):
     """This function is meant to be executed on its own thread."""
@@ -208,13 +219,23 @@ def docker_compose_up(on_ready, logs, verbose_file):
                     flush=True)
                 on_ready({'ports': ports, 'containers': containers})
             elif kind == 'finish_create_container':
-                # Started a container.  Add its ephemeral port mappings to
-                # `ports` and its container ID to `containers`.
+                # Started a container.  Add its container ID to `containers`
+                # and its ephemeral port mappings to `ports`.
                 container_name = fields['container']
                 service = to_service_name(container_name)
                 # TODO: no
                 print({'container_name': container_name, 'service': service})
                 # end TODO
+                # Consult `docker-compose ps` for the service's container ID.
+                # Since we're handling a finish_create_container event, you'd
+                # think that the container would be available now.  However,
+                # with CircleCI's remote docker setup, there's a race here
+                # where docker-compose does not yet know which container
+                # corresponds to `service` (even though it just told us that
+                # the container was created).  So, we retry a few times.
+                containers[service] = with_retries(
+                    5, lambda: docker_compose_ps(service))
+
                 # For nginx we're interested in its HTTP and gRPC ports.
                 # For the agent, we're interested in the "sync" port (sync_port).
                 if service == 'nginx':
@@ -232,8 +253,6 @@ def docker_compose_up(on_ready, logs, verbose_file):
                     # TODO: no
                     print('ports:', ports)
                     # end TODO
-                # Consult `docker-compose ps` for the service's container ID
-                containers[service] = docker_compose_ps(service)
                 # TODO: no
                 print('containers:', containers)
                 # end TODO
