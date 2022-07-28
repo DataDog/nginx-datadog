@@ -11,6 +11,7 @@ import queue
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import traceback
