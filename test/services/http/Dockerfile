@@ -9,4 +9,6 @@ WORKDIR /opt/app
 RUN apk update && apk add nodejs npm
 RUN npm install dd-trace
 
+COPY ./http.js /opt/app/http.js
+
 CMD ["node", "--require", "dd-trace/init", "http.js"]

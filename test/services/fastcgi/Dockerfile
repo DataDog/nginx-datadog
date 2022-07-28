@@ -9,4 +9,6 @@ WORKDIR /opt/app
 RUN apk update && apk add nodejs npm
 RUN npm install dd-trace@2.4.2 node-fastcgi
 
+COPY ./fastcgi.js /opt/app/fastcgi.js
+
 CMD ["node", "fastcgi.js"]

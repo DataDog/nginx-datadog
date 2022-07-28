@@ -9,4 +9,6 @@ WORKDIR /opt/app
 RUN apk update && apk add nodejs npm
 RUN npm install dd-trace @grpc/grpc-js @grpc/proto-loader grpc-node-server-reflection yarn
 
+COPY ./grpc.js ./grpc.proto /opt/app/
+
 CMD ["node", "--require", "dd-trace/init", "grpc.js"]

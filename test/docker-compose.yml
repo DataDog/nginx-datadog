@@ -35,8 +35,6 @@ services:
       dockerfile: ./Dockerfile
     ports:
       - "0:8888" # for synchronizing with log
-    volumes:
-      - './services/agent/agent.js:/opt/app/agent.js:ro'
 
   # `http` is an HTTP server that is reverse proxied by `nginx`.  It listens
   # on port 8080 and responds with a JSON object containing the name of
@@ -52,8 +50,6 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=http
-    volumes:
-      - './services/http/http.js:/opt/app/http.js:ro'
     depends_on:
       - agent
 
@@ -70,8 +66,6 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=fastcgi
-    volumes:
-      - './services/fastcgi/fastcgi.js:/opt/app/fastcgi.js:ro'
     depends_on:
       - agent
 
@@ -90,8 +84,5 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=grpc
-    volumes:
-      - './services/grpc/grpc.js:/opt/app/grpc.js:ro'
-      - './services/grpc/grpc.proto:/opt/app/grpc.proto:ro'
     depends_on:
       - agent
