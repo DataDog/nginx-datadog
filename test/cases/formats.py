@@ -86,9 +86,14 @@ def parse_trace(log_line):
     `log_line`, or return `None` if `log_line` is not a trace.
     """
     try:
-        return json.loads(log_line)
+        trace = json.loads(log_line)
     except json.decoder.JSONDecodeError:
         return None
+
+    if not isinstance(trace, list):
+        return None
+
+    return trace
 
 
 def parse_access_log_sync_line(log_line):
