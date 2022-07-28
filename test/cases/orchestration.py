@@ -245,7 +245,8 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 else:
                     inside_ports = []
                 for inside_port in inside_ports:
-                    _, outside_port = docker_compose_port(service, inside_port)
+                    # `with_retries` for the same reason as above.
+                    _, outside_port = with_retries(5, lambda: docker_compose_port(service, inside_port))
                     ports.setdefault(service, {})[inside_port] = outside_port
                     # TODO: no
                     print('ports:', ports)
