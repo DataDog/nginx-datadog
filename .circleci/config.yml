@@ -9,6 +9,21 @@ jobs:
         type: string
     docker:
     - image:  << parameters.build-image >>
+    resource_class: medium
+    environment:
+      # The `resource_class` implies a memory limit and supposedly a CPU count
+      # limit.  However, either there is no actual CPU count limit, or the
+      # limit cannot be determined from within the running job.
+      # Instead, the number of CPUs on the host machine is all we can see.
+      # This means that a command like `make --jobs=$(nproc)` is likely to run
+      # out of memory, because while the `resource_class` says it has 2 CPUs,
+      # `nproc` will report something like 36.  `make` will then spawn a bunch
+      # of processes, and the job will run out of memory.
+      # So, here we hard-code the number of CPUs supposedly offered by the
+      # `resource_class`.  For information about the `resource_class` values,
+      # see:
+      # https://circleci.com/docs/2.0/configuration-reference/
+      MAKE_JOB_COUNT: 2
     steps:
     - checkout
     - run: printf << parameters.nginx-tag >> >nginx-tag

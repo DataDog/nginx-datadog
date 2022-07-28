@@ -4,10 +4,11 @@
 # nginx source version only.
 NGINX_VERSION = $(shell sed 's/-.*//' nginx-tag)
 BUILD_DIR ?= .build
+MAKE_JOB_COUNT ?= $(shell nproc)
 
 .PHONY: build
 build: build-deps nginx/objs/Makefile sources
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF .. && make -j VERBOSE=1
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
 	@echo 'build successful 👍'
 
 .PHONY: sources
