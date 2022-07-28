@@ -57,6 +57,7 @@ jobs:
         if test/bin/run --verbose; then
           touch .tests-succeeded
         fi
+        ls -lrt test/logs
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
