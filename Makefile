@@ -29,7 +29,7 @@ dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd
 	ls -lrt
 	ls -lrt dd-opentracing-cpp
 	ls -lrt dd-opentracing-cpp/scripts
-	cd dd-opentracing-cpp && ./scripts/install_dependencies.sh not-opentracing
+	cd dd-opentracing-cpp && ls ./scripts && ./scripts/install_dependencies.sh not-opentracing
 	touch $@
 
 nginx/objs/Makefile: nginx/ module/config
