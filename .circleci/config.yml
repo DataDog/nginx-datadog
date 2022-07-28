@@ -11,7 +11,7 @@ jobs:
     - image:  << parameters.build-image >>
     steps:
     - checkout
-    - run: printf << parameters.nginx.tag >> >nginx-tag
+    - run: printf << parameters.nginx-tag >> >nginx-tag
     - run: make build
     - store_artifacts:
         path: .build/libngx_http_datadog_module.so
@@ -21,9 +21,9 @@ workflows:
     jobs:
     - build:
         name: "build 1.23.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-1.23.1",
+        build-image: "datadog/docker-library:nginx-datadog-build-1.23.1"
         nginx-tag: "1.23.1"
-    -build:
+    - build:
         name: "build 1.23.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-1.23.1-alpine"
         nginx-tag: "1.23.1-alpine"
