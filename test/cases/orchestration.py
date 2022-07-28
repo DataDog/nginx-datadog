@@ -64,7 +64,7 @@ def child_env(parent_env=None):
         result['NGINX_IMAGE'] = f'nginx:{version}'
 
     # Forward DOCKER_HOST, DOCKER_TLS_VERIFY, etc.
-    for name, value in parent_env:
+    for name, value in parent_env.items():
         if name.startswith('DOCKER_'):
             result['name'] = value
 
