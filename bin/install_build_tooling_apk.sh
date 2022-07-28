@@ -6,7 +6,7 @@ set -e
 apk update
 
 # for downloading releases of build dependencies, unpacking them, and building them
-apk add build-base libtool autoconf wget tar curl git openssh
+apk add build-base libtool autoconf wget tar curl git openssh bash
 
 # nproc, etc.
 apk add coreutils
