@@ -58,7 +58,7 @@ jobs:
     # succeeded.  This way, we can save the verbose output afterward and then
     # fail if the tests didn't succeed.
     - run: |
-        if test/bin/run --verbose; then
+        if test/bin/run --verbose cases.smoke.test_smoke.TestSmoke; then
           touch .tests-succeeded
         fi
     - store_artifacts:
