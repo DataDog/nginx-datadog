@@ -66,7 +66,7 @@ def child_env(parent_env=None):
     # Forward DOCKER_HOST, DOCKER_TLS_VERIFY, etc.
     for name, value in parent_env.items():
         if name.startswith('DOCKER_'):
-            result['name'] = value
+            result[name] = value
 
     result['COMPOSE_PROJECT_NAME'] = parent_env.get('COMPOSE_PROJECT_NAME',
                                                     'test')
