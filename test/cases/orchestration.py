@@ -69,8 +69,12 @@ def child_env(parent_env=None):
         if name.startswith('DOCKER_'):
             result[name] = value
 
+    # Forward COMPOSE_PROJECT_NAME (with default), COMPOSE_VERSION, etc.
     result['COMPOSE_PROJECT_NAME'] = parent_env.get('COMPOSE_PROJECT_NAME',
                                                     'test')
+    for name, value in parent_env.items():
+        if name.startswith('COMPOSE_'):
+            result[name] = value
 
     result['PATH'] = docker_bin
 
