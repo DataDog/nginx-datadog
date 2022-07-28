@@ -1,0 +1,25 @@
+version: 2.1
+
+jobs:
+  build:
+    parameters:
+      build-image:
+        type: string
+    docker:
+    - image:  << parameters.build-image >>
+    steps:
+    - checkout
+    - run: make build
+    - store_artifacts:
+        path: .build/libngx_http_datadog_module.so
+
+workflows:
+  build-all:
+    jobs:
+    - build:
+        matrix:
+          parameters:
+            build-image: [
+              "datadog/docker-library:nginx-datadog-build-1.23.1",
+              "datadog/docker-library:nginx-datadog-build-1.23.1-alpine"
+            ]
