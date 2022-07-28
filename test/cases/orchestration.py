@@ -87,7 +87,26 @@ def to_service_name(container_name):
     # now those two are the same, but I don't want the location of these tests
     # to be able to break this.  See mention of COMPOSE_PROJECT_NAME in
     # `child_env()`.
-    return '_'.join(container_name.split('_')[1:-1])
+    #
+    # When I run docker-compose locally on my machine, the parts of the
+    # container name are separated by underscore ("_"), while when I run
+    # docker-compose in CircleCI, hyphen ("-") is used.  Go with whichever is
+    # being used.
+    if '_' in container_name and '-' in container_name:
+        raise Exception(
+            f"Container name {json.dumps(container_name)} contains both underscores and hyphens.  I can't tell which is being used as a delimiter."
+        )
+
+    if '_' in container_name:
+        delimiter = '_'
+    elif '-' in container_name:
+        delimiter = '-'
+    else:
+        raise Exception(
+            f"Container name {json.dumps(container_name)} contains neither underscores nor hyphens.  I don't know which delimiter to use."
+        )
+
+    return delimiter.join(container_name.split(delimiter)[1:-1])
 
 
 def docker_compose_port(service, inside_port):
@@ -150,7 +169,7 @@ def exit_on_exception(func):
             return func(*args, **kwargs)
         except:
             traceback.print_exc()
-            os._exit(status_code) # TODO: doesn't flush IO
+            os._exit(status_code)  # TODO: doesn't flush IO
 
     return wrapper
 
