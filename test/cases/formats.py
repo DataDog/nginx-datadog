@@ -32,6 +32,24 @@ def parse_docker_compose_up_line(line):
             'container': match.groupdict()['container']
         })
 
+    # Different docker-compose setups (versions?) produce different output
+    # when a container is creating/created.  Here are the other flavors of
+    # begin_create_container and finish_create_container.
+
+    # begin_create_container: {container}
+    match = try_match(r'Container (?P<container>\S+)\s+Creating\s*', line)
+    if match is not None:
+        return ('begin_create_container', {
+            'container': match.groupdict()['container']
+        })
+
+    # finish_create_container: {container}
+    match = try_match(r'Container (?P<container>\S+)\s+Created\s*', line)
+    if match is not None:
+        return ('finish_create_container', {
+            'container': match.groupdict()['container']
+        })
+
     # attach_to_logs:  {'containers': [container, ...]}
     match = try_match(r'Attaching to (?P<containers>\S+(, \S+)*\s*)', line)
     if match is not None:
