@@ -217,7 +217,10 @@ def docker_compose_up(on_ready, logs, verbose_file):
                     f'It took {after - before} seconds to start all services.',
                     file=verbose_file,
                     flush=True)
+                # TODO: no, is it another race?
+                time.sleep(5)
                 on_ready({'ports': ports, 'containers': containers})
+                # end TODO
             elif kind == 'finish_create_container':
                 # Started a container.  Add its container ID to `containers`
                 # and its ephemeral port mappings to `ports`.
