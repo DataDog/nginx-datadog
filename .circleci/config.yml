@@ -57,6 +57,8 @@ jobs:
     # Instead of just running the tests, we run the tests and note whether they
     # succeeded.  This way, we can save the verbose output afterward and then
     # fail if the tests didn't succeed.
+    # TODO: This sucks, though.  Find a better way.  The output of a failed test
+    # runner should be red in the CI interface.
     - run: |
         if test/bin/run --verbose; then
           touch .tests-succeeded
