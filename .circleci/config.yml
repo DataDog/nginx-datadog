@@ -55,7 +55,6 @@ jobs:
         docker_layer_caching: true
     - run: |
         env | sort
-        cat /etc/hostname
     # Instead of just running the tests, we run the tests and note whether they
     # succeeded.  This way, we can save the verbose output afterward and then
     # fail if the tests didn't succeed.

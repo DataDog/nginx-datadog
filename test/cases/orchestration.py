@@ -164,6 +164,10 @@ def nginx_worker_pids(nginx_container, verbose_output):
                if re.match(r'\s*nginx: worker process', cmd))
 
 
+# When a function runs on its own thread, like `docker_compose_up`, exceptions
+# that escape the function do not terminate the interpreter.  This wrapper
+# calls the rather abrupt `os._exit` with a failure status code if the
+# decorated function raises any exception.
 def exit_on_exception(func):
     # Any nonzero value would do.
     status_code = 2
@@ -217,10 +221,7 @@ def docker_compose_up(on_ready, logs, verbose_file):
                     f'It took {after - before} seconds to start all services.',
                     file=verbose_file,
                     flush=True)
-                # TODO: no, is it another race?
-                time.sleep(5)
                 on_ready({'ports': ports, 'containers': containers})
-                # end TODO
             elif kind == 'finish_create_container':
                 # Started a container.  Add its container ID to `containers`
                 # and its ephemeral port mappings to `ports`.
@@ -249,7 +250,8 @@ def docker_compose_up(on_ready, logs, verbose_file):
                     inside_ports = []
                 for inside_port in inside_ports:
                     # `with_retries` for the same reason as above.
-                    _, outside_port = with_retries(5, lambda: docker_compose_port(service, inside_port))
+                    _, outside_port = with_retries(
+                        5, lambda: docker_compose_port(service, inside_port))
                     ports.setdefault(service, {})[inside_port] = outside_port
                     # TODO: no
                     print('ports:', ports)
