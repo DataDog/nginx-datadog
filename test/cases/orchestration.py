@@ -210,8 +210,6 @@ def docker_compose_up(on_ready, logs, verbose_file):
                     f'It took {after - before} seconds to start all services.',
                     file=verbose_file,
                     flush=True)
-                time.sleep(
-                    3)  #  TODO: Disgusting!  Shameful!  Pitiful!  Outrageous!
                 on_ready({'containers': containers})
             elif kind == 'finish_create_container':
                 # Started a container.  Add its container ID to `containers`.
@@ -540,9 +538,7 @@ exit "$rcode"
         `nginx_conf_text` and reload nginx.  Return the `(status, log_lines)`
         returned by the call to `nginx_test_config`.
         """
-        print('Before nginx_test_config', flush=True)  # TODO: no
         status, log_lines = self.nginx_test_config(nginx_conf_text, file_name)
-        print('After nginx_test_config', flush=True)  # TODO: no
         if status:
             return status, log_lines
 
@@ -553,7 +549,6 @@ END_CONF
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        print('Before docker-compose exec', flush=True)  # TODO: no
         command = docker_compose_command('exec', '-T', '--', 'nginx',
                                          '/bin/sh')
         subprocess.run(command,
@@ -563,11 +558,8 @@ END_CONF
                        env=child_env(),
                        check=True,
                        encoding='utf8')
-        print('After docker-compose exec', flush=True)  # TODO: no
 
-        print('Before reload_nginx', flush=True)  # TODO: no
         self.reload_nginx()
-        print('After reload_nginx', flush=True)  # TODO: no
         return status, log_lines
 
     @contextlib.contextmanager
