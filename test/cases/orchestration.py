@@ -207,9 +207,10 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # to our caller.
                 after = time.monotonic()
                 print(
-                    f'It took {after - before} seconds to start all services.  Containers: {containers}',
+                    f'It took {after - before} seconds to start all services.',
                     file=verbose_file,
                     flush=True)
+                sleep(3) #  TODO: Disgusting!  Shameful!  Pitiful!  Outrageous!
                 on_ready({'containers': containers})
             elif kind == 'finish_create_container':
                 # Started a container.  Add its container ID to `containers`.
