@@ -61,7 +61,7 @@ jobs:
     # TODO: This sucks, though.  Find a better way.  The output of a failed test
     # runner should be red in the CI interface.
     - run: |
-        if test/bin/run --verbose cases.operation_name.test_operation_name.TestOperationName.test_default_in_location; then
+        if test/bin/run --verbose; then
           touch .tests-succeeded
         fi
     - store_artifacts:
