@@ -12,8 +12,21 @@ def parse_docker_compose_up_line(line):
     # service_log: {service, payload}
     match = try_match(r'(?P<service>\S+)_\d+\s*\| (?P<payload>.*)\n', line)
     if match is not None:
+        # Some docker-compose setups (versions?) prefix the service name by the
+        # project name, other don't.  The parts of the name are
+        # underscore-delimited, and we don't use service names with underscores
+        # in them, so we can pull apart the name here.
+        parts = match.groupdict()['service'].split('_')
+        if len(parts) == 2:
+            service = parts[1]
+        elif len(parts) == 1:
+            service = parts[0]
+        else:
+            raise Exception(
+                f"Log line's service name has unexpected format: {match.groupdict()} in: {line}"
+            )
         return ('service_log', {
-            'service': match.groupdict()['service'],
+            'service': service,
             'payload': match.groupdict()['payload']
         })
 
