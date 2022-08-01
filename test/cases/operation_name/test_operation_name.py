@@ -127,20 +127,26 @@ class TestOperationName(case.TestCase):
     def run_operation_name_test(self, conf_relative_path, on_chunk):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
+        print('Before nginx_replace_config', flush=True) # TODO: no
         status, log_lines = self.orch.nginx_replace_config(
             conf_text, conf_path.name)
+        print('After nginx_replace_config', flush=True) # TODO: no
         self.assertEqual(0, status, log_lines)
 
         # Clear any outstanding logs from the agent.
         self.orch.sync_service('agent')
 
+        print('Before send_nginx_http_request') # TODO: no
         status, _ = self.orch.send_nginx_http_request('/foo')
+        print('After send_nginx_http_request') # TODO: no
         self.assertEqual(200, status)
 
         # Reload nginx to force it to send its traces.
         self.orch.reload_nginx()
 
+        print('Before sync_service("agent")') # TODO: no
         log_lines = self.orch.sync_service('agent')
+        print('After sync_service("agent")') # TODO: no
         # Find the trace that came from nginx, and pass its chunks (groups of
         # spans) to the callback.
         found_nginx_trace = False
