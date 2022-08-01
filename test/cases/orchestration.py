@@ -207,7 +207,7 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # to our caller.
                 after = time.monotonic()
                 print(
-                    f'It took {after - before} seconds to start all services.',
+                    f'It took {after - before} seconds to start all services.  Containers: {containers}',
                     file=verbose_file,
                     flush=True)
                 on_ready({'containers': containers})
