@@ -410,8 +410,10 @@ class Orchestration:
         the service's log.
         """
         token = str(uuid.uuid4())
+        print('Before curl in sync_service')
         fields, body = curl(f'http://{service}:{sync_port}',
                             headers={'X-Datadog-Test-Sync-Token': token})
+        print('After curl in sync_service')
 
         assert fields['response_code'] == 200
 
@@ -419,7 +421,9 @@ class Orchestration:
         q = self.logs[service]
         sync_message = f'SYNC {token}'
         while True:
+            print('Before q.get() in sync_service')
             line = q.get()
+            print('After q.get() in sync_service')
             if line.strip() == sync_message:
                 return log_lines
             log_lines.append(line)

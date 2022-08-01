@@ -134,7 +134,9 @@ class TestOperationName(case.TestCase):
         self.assertEqual(0, status, log_lines)
 
         # Clear any outstanding logs from the agent.
+        print('Before sync_service("agent")') # TODO
         self.orch.sync_service('agent')
+        print('After sync_service("agent")') # TODO
 
         print('Before send_nginx_http_request') # TODO: no
         status, _ = self.orch.send_nginx_http_request('/foo')
