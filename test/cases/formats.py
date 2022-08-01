@@ -10,13 +10,15 @@ def try_match(pattern, subject):
 
 def parse_docker_compose_up_line(line):
     # service_log: {service, payload}
-    match = try_match(r'(?P<service>\S+)_\d+\s*\| (?P<payload>.*)\n', line)
+    match = try_match(
+        r'(?P<service>\S+)(?P<delimiter>[_-])\d+\s*\| (?P<payload>.*)\n', line)
     if match is not None:
         # Some docker-compose setups (versions?) prefix the service name by the
-        # project name, other don't.  The parts of the name are
-        # underscore-delimited, and we don't use service names with underscores
-        # in them, so we can pull apart the name here.
-        parts = match.groupdict()['service'].split('_')
+        # project name, other don't.  The parts of the name are delimited by
+        # either underscores or hyphens, and we don't use service names with
+        # either delimiter in them, so we can pull apart the name here.
+        delimiter = match.groupdict()['delimiter']
+        parts = match.groupdict()['service'].split(delimiter)
         if len(parts) == 2:
             service = parts[1]
         elif len(parts) == 1:
