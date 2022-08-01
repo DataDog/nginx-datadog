@@ -10,7 +10,6 @@ function handleTraceSegments(segments) {
 }
 
 const requestListener = function (request, response) {
-  // console.log('Received a request.');
   let body = [];
   request.on('data', chunk => {
     // console.log('Received a chunk of data.');

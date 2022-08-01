@@ -2,11 +2,7 @@
 ARG NGINX_IMAGE
 FROM ${NGINX_IMAGE}
 
-# Install `grpcurl`, a gRPC command line client, for use by the integration test driver.
-# Nginx itself does not need this.  The integration test driver will
-# 'docker-compose exec' into this container to run `grpcurl`.
-#
-# Also install the `kill` command (`procps` package on Debian), so that one-off
+# Install the `kill` command (`procps` package on Debian), so that one-off
 # nginx instances that are started via `docker-compose exec` can be signaled to
 # gracefully shutdown.
 COPY ./install_tools.sh /tmp/

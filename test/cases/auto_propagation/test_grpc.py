@@ -32,7 +32,7 @@ class TestGRPC(case.TestCase):
         self.assertEqual(status, 0, log_lines)
 
         status, body = self.orch.send_nginx_grpc_request(
-            'upstream.Upstream.GetMetadata', inside_port=1337)
+            'upstream.Upstream.GetMetadata', port=1337)
         self.assertEqual(status, 0, body)
         response = json.loads(body)
         self.assertEqual(response['service'], 'grpc')

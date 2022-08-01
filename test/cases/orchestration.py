@@ -11,10 +11,10 @@ import queue
 import re
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import traceback
-import urllib.request
 import uuid
 
 # Since we override the environment variables of child processes,
@@ -113,16 +113,6 @@ def to_service_name(container_name):
     return delimiter.join(container_name.split(delimiter)[1:-1])
 
 
-def docker_compose_port(service, inside_port):
-    command = docker_compose_command('port', service, str(inside_port))
-    ip, port = subprocess.run(command,
-                              stdout=subprocess.PIPE,
-                              env=child_env(),
-                              encoding='utf8',
-                              check=True).stdout.split(':')
-    return ip, int(port)
-
-
 def docker_compose_ps(service):
     command = docker_compose_command('ps', '--quiet', service)
     result = subprocess.run(command,
@@ -164,24 +154,6 @@ def nginx_worker_pids(nginx_container, verbose_output):
                if re.match(r'\s*nginx: worker process', cmd))
 
 
-# When a function runs on its own thread, like `docker_compose_up`, exceptions
-# that escape the function do not terminate the interpreter.  This wrapper
-# calls the rather abrupt `os._exit` with a failure status code if the
-# decorated function raises any exception.
-def exit_on_exception(func):
-    # Any nonzero value would do.
-    status_code = 2
-
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except:
-            traceback.print_exc()
-            os._exit(status_code)  # TODO: doesn't flush IO
-
-    return wrapper
-
-
 def with_retries(max_attempts, thunk):
     assert max_attempts > 0
     while True:
@@ -193,78 +165,57 @@ def with_retries(max_attempts, thunk):
                 raise
 
 
-@exit_on_exception
 def docker_compose_up(on_ready, logs, verbose_file):
     """This function is meant to be executed on its own thread."""
-    ports = {}  # {service: {inside: outside}}
-    containers = {}  # {service: container_id}
-    command = docker_compose_command('up', '--remove-orphans',
-                                     '--force-recreate', '--no-color')
-    before = time.monotonic()
-    with subprocess.Popen(command,
-                          stdin=subprocess.DEVNULL,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT,
-                          env=child_env(),
-                          encoding='utf8') as child:
-        for line in child.stdout:
-            kind, fields = formats.parse_docker_compose_up_line(line)
-            print(json.dumps([time.monotonic(), kind, fields]),
-                  file=verbose_file,
-                  flush=True)
+    try:
+        containers = {}  # {service: container_id}
+        command = docker_compose_command('up', '--remove-orphans',
+                                         '--force-recreate', '--no-color')
+        before = time.monotonic()
+        with subprocess.Popen(command,
+                              stdin=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT,
+                              env=child_env(),
+                              encoding='utf8') as child:
+            for line in child.stdout:
+                kind, fields = formats.parse_docker_compose_up_line(line)
+                print(json.dumps([time.monotonic(), kind, fields]),
+                      file=verbose_file,
+                      flush=True)
 
-            if kind == 'attach_to_logs':
-                # Done starting containers.  Time to deliver the ephemeral port
-                # mappings and container IDs to our caller.
-                after = time.monotonic()
-                print(
-                    f'It took {after - before} seconds to start all services.',
-                    file=verbose_file,
-                    flush=True)
-                on_ready({'ports': ports, 'containers': containers})
-            elif kind == 'finish_create_container':
-                # Started a container.  Add its container ID to `containers`
-                # and its ephemeral port mappings to `ports`.
-                container_name = fields['container']
-                service = to_service_name(container_name)
-                # TODO: no
-                print({'container_name': container_name, 'service': service})
-                # end TODO
-                # Consult `docker-compose ps` for the service's container ID.
-                # Since we're handling a finish_create_container event, you'd
-                # think that the container would be available now.  However,
-                # with CircleCI's remote docker setup, there's a race here
-                # where docker-compose does not yet know which container
-                # corresponds to `service` (even though it just told us that
-                # the container was created).  So, we retry a few times.
-                containers[service] = with_retries(
-                    5, lambda: docker_compose_ps(service))
-
-                # For nginx we're interested in its HTTP and gRPC ports.
-                # For the agent, we're interested in the "sync" port (sync_port).
-                if service == 'nginx':
-                    inside_ports = [80, 8080, 1337]
-                elif service == 'agent':
-                    inside_ports = [sync_port]
-                else:
-                    inside_ports = []
-                for inside_port in inside_ports:
-                    # `with_retries` for the same reason as above.
-                    _, outside_port = with_retries(
-                        5, lambda: docker_compose_port(service, inside_port))
-                    ports.setdefault(service, {})[inside_port] = outside_port
-                    # TODO: no
-                    print('ports:', ports)
-                    # end TODO
-                # TODO: no
-                print('containers:', containers)
-                # end TODO
-            elif kind == 'service_log':
-                # Got a line of logging from some service.  Push it onto the
-                # appropriate queue for consumption by tests.
-                service = fields['service']
-                payload = fields['payload']
-                logs[service].put(payload)
+                if kind == 'attach_to_logs':
+                    # Done starting containers.  Time to deliver the container IDs
+                    # to our caller.
+                    after = time.monotonic()
+                    print(
+                        f'It took {after - before} seconds to start all services.',
+                        file=verbose_file,
+                        flush=True)
+                    on_ready({'containers': containers})
+                elif kind == 'finish_create_container':
+                    # Started a container.  Add its container ID to `containers`.
+                    container_name = fields['container']
+                    service = to_service_name(container_name)
+                    # Consult `docker-compose ps` for the service's container ID.
+                    # Since we're handling a finish_create_container event, you'd
+                    # think that the container would be available now.  However,
+                    # with CircleCI's remote docker setup, there's a race here
+                    # where docker-compose does not yet know which container
+                    # corresponds to `service` (even though it just told us that
+                    # the container was created).  So, we retry a few times.
+                    containers[service] = with_retries(
+                        5, lambda: docker_compose_ps(service))
+                elif kind == 'service_log':
+                    # Got a line of logging from some service.  Push it onto the
+                    # appropriate queue for consumption by tests.
+                    service = fields['service']
+                    payload = fields['payload']
+                    logs[service].put(payload)
+    except:
+        traceback.print_exc()
+        current_exception = sys.exc_info()[1]
+        on_ready(current_exception)
 
 
 @contextlib.contextmanager
@@ -285,6 +236,39 @@ def docker_compose_services():
     return result.stdout.split()
 
 
+def curl(url, headers, stderr=None):
+    def header_args():
+        for name, value in headers.items():
+            yield '--header'
+            yield f'{name}: {value}'
+
+    # "curljson.sh" is a script that lives in the "client" docker-compose
+    # service.  It's a wrapper around "curl" that outputs a JSON object of
+    # information on the first line, and outputs a JSON string of the response
+    # body on the second line.  See the documentation of the "json" format for
+    # the "--write-out" option in curl's manual for more information on the
+    # properties of the JSON object.
+
+    # "-T" means "don't allocate a TTY".  This prevents `jq` from outputting in
+    # color.
+    command = docker_compose_command('exec', '-T', '--', 'client',
+                                     'curljson.sh', *header_args(), url)
+    result = subprocess.run(command,
+                            stdout=subprocess.PIPE,
+                            stderr=stderr,
+                            env=child_env(),
+                            encoding='utf8',
+                            check=True)
+    fields_json, body_json, *rest = result.stdout.split('\n')
+    if any(line for line in rest):
+        raise Exception('Unexpected trailing output to curljson.sh: ' +
+                        json.dumps(rest))
+
+    fields = json.loads(fields_json)
+    body = json.loads(body_json)
+    return fields, body
+
+
 class Orchestration:
     """A handle for a `docker-compose` session.
     
@@ -303,9 +287,6 @@ class Orchestration:
     # - `up_thread` is the `threading.Thread` running `docker-compose up`.
     # - `logs` is a `dict` that maps service name to a `queue.SimpleQueue` of log
     #   lines.
-    # - `ports` is a `dict` {service: {inside: outside}} that, per service,
-    #   maps port bindings from the port inside the service to the port outside
-    #   (which will be an ephemeral port chosen by the system at runtime).
     # - `containers` is a `dict` {service: container ID} that, per service,
     #   maps to the Docker container ID in which the service is running.
     # - `services` is a `list` of service names as defined in the
@@ -318,11 +299,9 @@ class Orchestration:
         Run `docker-compose up` to bring up the orchestrated services.  Begin
         parsing their logs on a separate thread.
         """
-        # self.verbose = (Path(__file__).parent.resolve().parent /
-        #                 'logs/docker-compose-verbose.log').open('a')
         project_name = child_env()['COMPOSE_PROJECT_NAME']
         self.verbose = (Path(__file__).parent.resolve().parent /
-                        f'logs/{project_name}.log').open('a')
+                        f'logs/{project_name}.log').open('w')
 
         # Before we bring things up, first clean up any detritus left over from
         # previous runs.  Failing to do so can create problems later when we
@@ -344,7 +323,9 @@ class Orchestration:
                                                 self.verbose))
         self.up_thread.start()
         runtime_info = ready_queue.get()
-        self.ports = runtime_info['ports']
+        # If the thread threw, exit the interpreter.
+        if isinstance(runtime_info, BaseException):
+            raise runtime_info
         self.containers = runtime_info['containers']
         print(runtime_info, file=self.verbose, flush=True)
 
@@ -373,30 +354,26 @@ class Orchestration:
 
         self.verbose.close()
 
-    def send_nginx_http_request(self, path, inside_port=80, headers={}):
+    def send_nginx_http_request(self, path, port=80, headers={}):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
-        outside_port = self.ports['nginx'][inside_port]
-        url = f'http://localhost:{outside_port}{path}'
+        url = f'http://nginx:{port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
-        timeout_seconds = 3
-        response = urllib.request.urlopen(urllib.request.Request(
-            url, headers=headers),
-                                          timeout=timeout_seconds)
-        return (response.status, response.read())
+        fields, body = curl(url, headers, stderr=self.verbose)
+        return (fields['response_code'], body)
 
-    def send_nginx_grpc_request(self, symbol, inside_port=1337):
+    def send_nginx_grpc_request(self, symbol, port=1337):
         """Send an empty gRPC request to the nginx endpoint at "/", where
         the gRPC request is named by `symbol`, which has the form
         "package.service.request".  The request is made using the `grpcurl`
         command line utility.  Return the exit status of `grpcurl` and its
         combined stdout and stderr as a tuple `(status, output)`.
         """
-        address = f'localhost:{inside_port}'
+        address = f'nginx:{port}'
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = docker_compose_command('exec', '-T', '--', 'nginx',
+        command = docker_compose_command('exec', '-T', '--', 'client',
                                          'grpcurl', '-plaintext', address,
                                          symbol)
         result = subprocess.run(command,
@@ -420,14 +397,11 @@ class Orchestration:
         where `log_lines` is a chronological list of strings, each a line from
         the service's log.
         """
-        outside_port = self.ports[service][sync_port]
         token = str(uuid.uuid4())
-        request = urllib.request.Request(
-            f'http://localhost:{outside_port}',
-            headers={'X-Datadog-Test-Sync-Token': token})
+        fields, body = curl(f'http://{service}:{sync_port}',
+                            headers={'X-Datadog-Test-Sync-Token': token})
 
-        result = urllib.request.urlopen(request)
-        assert result.status == 200
+        assert fields['response_code'] == 200
 
         log_lines = []
         q = self.logs[service]

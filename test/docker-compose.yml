@@ -14,10 +14,6 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=nginx
-    ports:
-      - "0:80" # HTTP/1.1
-      - "0:8080" # alternative HTTP/1.1, for testing environment variables
-      - "0:1337" # HTTP/2 for gRPC
     depends_on:
       - http
       - fastcgi
@@ -33,8 +29,6 @@ services:
     build:
       context: ./services/agent
       dockerfile: ./Dockerfile
-    ports:
-      - "0:8888" # for synchronizing with log
 
   # `http` is an HTTP server that is reverse proxied by `nginx`.  It listens
   # on port 8080 and responds with a JSON object containing the name of
@@ -86,3 +80,17 @@ services:
       - DD_SERVICE=grpc
     depends_on:
       - agent
+
+  # `client` is a container that exists solely so that the test runner can
+  # `docker-compose exec` into it to run command line tools such as `curl` and
+  # `grpcurl`.  This way, the test runner's network doesn't need access to the
+  # network created by docker-compose.  The test runner interacts with the
+  # docker-compose services via `docker-compose` and `docker` commands only.
+  # This became necessary when these tests were integrated into CircleCI --
+  # CircleCI's container-based remote-docker docker-compose setup does not
+  # allow a host port binding.
+  client:
+    image: nginx-datadog-test-services-client
+    build:
+      context: ./services/client
+      dockerfile: ./Dockerfile

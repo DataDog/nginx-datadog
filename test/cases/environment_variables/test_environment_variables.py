@@ -16,7 +16,6 @@ def with_staggered_retries(thunk, retry_interval_seconds, max_attempts):
 
 
 def parse_body(body):
-    body = body.decode('utf8')
     result = {}
     for line in body.split('\n'):
         i_sep = line.index(' ')
@@ -55,7 +54,7 @@ class TestEnvironmentVariables(case.TestCase):
             # The just-started nginx probably isn't ready yet, so retry sending
             # the request a few times if it fails initially.
             # "A few" is actually a lot, because when the tests are running in
-            # parallel, it can take a while for the network binding to set up.
+            # parallel, it can take a while to set up.
             status, body = with_staggered_retries(
                 lambda: self.orch.send_nginx_http_request('/', 8080),
                 retry_interval_seconds=0.25,
