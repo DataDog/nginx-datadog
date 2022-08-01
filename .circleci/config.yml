@@ -39,6 +39,9 @@ jobs:
 
   test:
     docker:
+    # "cimg" means "convenience image."  Helpful images provided by CircleCI.
+    # This one contains Python, docker-compose, and a bunch of other things.
+    # See https://circleci.com/docs/circleci-images
     - image: cimg/python:3.10.5
     environment:
       # See https://github.com/containers/podman/issues/13889
