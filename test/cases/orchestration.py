@@ -165,57 +165,71 @@ def with_retries(max_attempts, thunk):
                 raise
 
 
+# When a function runs on its own thread, like `docker_compose_up`, exceptions
+# that escape the function do not terminate the interpreter.  This wrapper
+# calls the rather abrupt `os._exit` with a failure status code if the
+# decorated function raises any exception.
+def exit_on_exception(func):
+    # Any nonzero value would do.
+    status_code = 2
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            traceback.print_exc()
+            os._exit(status_code)  # TODO: doesn't flush IO
+
+    return wrapper
+
+
+@exit_on_exception
 def docker_compose_up(on_ready, logs, verbose_file):
     """This function is meant to be executed on its own thread."""
-    try:
-        containers = {}  # {service: container_id}
-        command = docker_compose_command('up', '--remove-orphans',
-                                         '--force-recreate', '--no-color')
-        before = time.monotonic()
-        with subprocess.Popen(command,
-                              stdin=subprocess.DEVNULL,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.STDOUT,
-                              env=child_env(),
-                              encoding='utf8') as child:
-            for line in child.stdout:
-                kind, fields = formats.parse_docker_compose_up_line(line)
-                print(json.dumps([time.monotonic(), kind, fields]),
-                      file=verbose_file,
-                      flush=True)
+    containers = {}  # {service: container_id}
+    command = docker_compose_command('up', '--remove-orphans',
+                                     '--force-recreate', '--no-color')
+    before = time.monotonic()
+    with subprocess.Popen(command,
+                          stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT,
+                          env=child_env(),
+                          encoding='utf8') as child:
+        for line in child.stdout:
+            kind, fields = formats.parse_docker_compose_up_line(line)
+            print(json.dumps([time.monotonic(), kind, fields]),
+                  file=verbose_file,
+                  flush=True)
 
-                if kind == 'attach_to_logs':
-                    # Done starting containers.  Time to deliver the container IDs
-                    # to our caller.
-                    after = time.monotonic()
-                    print(
-                        f'It took {after - before} seconds to start all services.',
-                        file=verbose_file,
-                        flush=True)
-                    on_ready({'containers': containers})
-                elif kind == 'finish_create_container':
-                    # Started a container.  Add its container ID to `containers`.
-                    container_name = fields['container']
-                    service = to_service_name(container_name)
-                    # Consult `docker-compose ps` for the service's container ID.
-                    # Since we're handling a finish_create_container event, you'd
-                    # think that the container would be available now.  However,
-                    # with CircleCI's remote docker setup, there's a race here
-                    # where docker-compose does not yet know which container
-                    # corresponds to `service` (even though it just told us that
-                    # the container was created).  So, we retry a few times.
-                    containers[service] = with_retries(
-                        5, lambda: docker_compose_ps(service))
-                elif kind == 'service_log':
-                    # Got a line of logging from some service.  Push it onto the
-                    # appropriate queue for consumption by tests.
-                    service = fields['service']
-                    payload = fields['payload']
-                    logs[service].put(payload)
-    except:
-        traceback.print_exc()
-        current_exception = sys.exc_info()[1]
-        on_ready(current_exception)
+            if kind == 'attach_to_logs':
+                # Done starting containers.  Time to deliver the container IDs
+                # to our caller.
+                after = time.monotonic()
+                print(
+                    f'It took {after - before} seconds to start all services.',
+                    file=verbose_file,
+                    flush=True)
+                on_ready({'containers': containers})
+            elif kind == 'finish_create_container':
+                # Started a container.  Add its container ID to `containers`.
+                container_name = fields['container']
+                service = to_service_name(container_name)
+                # Consult `docker-compose ps` for the service's container ID.
+                # Since we're handling a finish_create_container event, you'd
+                # think that the container would be available now.  However,
+                # with CircleCI's remote docker setup, there's a race here
+                # where docker-compose does not yet know which container
+                # corresponds to `service` (even though it just told us that
+                # the container was created).  So, we retry a few times.
+                containers[service] = with_retries(
+                    5, lambda: docker_compose_ps(service))
+            elif kind == 'service_log':
+                # Got a line of logging from some service.  Push it onto the
+                # appropriate queue for consumption by tests.
+                service = fields['service']
+                payload = fields['payload']
+                logs[service].put(payload)
 
 
 @contextlib.contextmanager
@@ -323,9 +337,6 @@ class Orchestration:
                                                 self.verbose))
         self.up_thread.start()
         runtime_info = ready_queue.get()
-        # If the thread threw, exit the interpreter.
-        if isinstance(runtime_info, BaseException):
-            raise runtime_info
         self.containers = runtime_info['containers']
         print(runtime_info, file=self.verbose, flush=True)
 
