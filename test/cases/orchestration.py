@@ -165,6 +165,18 @@ def with_retries(max_attempts, thunk):
                 raise
 
 
+def ready_services():
+    """Return the set of names of services that are "ready"."""
+    command = docker_compose_command('ps', '--services', '--filter',
+                                     'status=running')
+    result = subprocess.run(command,
+                            stdout=subprocess.PIPE,
+                            env=child_env(),
+                            encoding='utf8',
+                            check=True)
+    return set(result.stdout.strip().split('\n'))
+
+
 # When a function runs on its own thread, like `docker_compose_up`, exceptions
 # that escape the function do not terminate the interpreter.  This wrapper
 # calls the rather abrupt `os._exit` with a failure status code if the
@@ -207,9 +219,18 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # to our caller.
                 after = time.monotonic()
                 print(
-                    f'It took {after - before} seconds to start all services.',
+                    f'It took {after - before} seconds to create all service containers.',
                     file=verbose_file,
                     flush=True)
+                with print_duration('Waiting for services to be ready',
+                                    verbose_file):
+                    while len(ready_services()) != len(containers):
+                        poll_seconds = 0.1
+                        print('Not all services are ready.  Going to wait',
+                              poll_seconds,
+                              'seconds',
+                              file=verbose_file)
+                        time.sleep(poll_seconds)
                 on_ready({'containers': containers})
             elif kind == 'finish_create_container':
                 # Started a container.  Add its container ID to `containers`.
