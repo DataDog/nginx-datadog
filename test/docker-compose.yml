@@ -13,7 +13,7 @@ services:
     environment:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
-      - DD_SERVICE=nginx
+      # - DD_SERVICE=nginx
     depends_on:
       - http
       - fastcgi

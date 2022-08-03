@@ -41,7 +41,7 @@ wget https://github.com/Kitware/CMake/releases/download/v$cmake_version/cmake-$c
 tar -xzvf cmake-$cmake_version.tar.gz
 cd cmake-$cmake_version
 ./bootstrap
-make -j "$(nproc)"
+make --jobs="${MAKE_JOB_COUNT:-$(nproc)}"
 make install
 cd "$starting_dir"
 rm -rf /tmp/build-cmake
