@@ -34,6 +34,20 @@ Generally, nginx images tagged without a hyphen are built on Debian with
 [glibc][6], while nginx images tagged with a trailing "`-alpine`" are built on
 Alpine with [musl libc][7].
 
+Default Behavior
+----------------
+Unless otherwise configured, `ngx_http_datadog_module` adds the following
+default tracing behavior to nginx:
+- Connect to the Datadog agent at `http://localhost:8126`.
+- Create one span per request:
+    - Service name is the value of the `DD_SERVICE` environment variable.
+    - Operation name is "nginx.request".
+    - Resource name is `"$request_method $datadog_location"`, e.g. "GET /api".
+    - Includes multiple `http.*` [tags][8].
+
+Custom configuration can be specified via the [datadog](doc/API.md#datadog)
+directive in nginx's configuration file.
+
 Build
 -----
 [Makefile](Makefile) is a [GNU make][1] compatible makefile.
@@ -81,3 +95,4 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [5]: https://hub.docker.com/layers/nginx/library/nginx/1.19.1-alpine/images/sha256-966f134cf5ddeb12a56ede0f40fff754c0c0a749182295125f01a83957391d84
 [6]: https://www.gnu.org/software/libc/
 [7]: https://www.musl-libc.org/
+[8]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
