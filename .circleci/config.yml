@@ -78,7 +78,7 @@ jobs:
         fi
 
 workflows:
-  build-and-test-all:
+  build-and-test-latest:
     jobs:
     - build:
         name: "build 1.23.1"
