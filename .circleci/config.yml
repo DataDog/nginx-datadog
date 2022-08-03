@@ -77,6 +77,12 @@ jobs:
           exit 1
         fi
 
+  dummy:
+    docker:
+    - image: alpine:latest
+    steps:
+    - run: echo 'Hello, world!'
+
 workflows:
   build-and-test-latest:
     jobs:
@@ -96,3 +102,6 @@ workflows:
         name: "test 1.23.1-alpine"
         requires:
         - "build 1.23.1-alpine"
+  dummy:
+    jobs:
+    - dummy
