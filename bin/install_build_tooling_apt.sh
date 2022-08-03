@@ -34,6 +34,7 @@ DEBIAN_FRONTENT=noninteractive apt-get upgrade --yes
 # are inherited by targets that eventually will link the produced object files.
 install libssl-dev # cmake likes to have openssl sources available
 cmake_version=3.21.1
+starting_dir=$(pwd)
 mkdir -p /tmp/build-cmake
 cd /tmp/build-cmake
 wget https://github.com/Kitware/CMake/releases/download/v$cmake_version/cmake-$cmake_version.tar.gz
@@ -42,3 +43,5 @@ cd cmake-$cmake_version
 ./bootstrap
 make -j "$(nproc)"
 make install
+cd "$starting_dir"
+rm -rf /tmp/build-cmake
