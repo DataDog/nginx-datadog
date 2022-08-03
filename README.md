@@ -40,13 +40,13 @@ Unless otherwise configured, `ngx_http_datadog_module` adds the following
 default tracing behavior to nginx:
 - Connect to the Datadog agent at `http://localhost:8126`.
 - Create one span per request:
-    - Service name is the value of the `DD_SERVICE` environment variable.
+    - Service name is "nginx".
     - Operation name is "nginx.request".
     - Resource name is `"$request_method $datadog_location"`, e.g. "GET /api".
     - Includes multiple `http.*` [tags][8].
 
 Custom configuration can be specified via the [datadog](doc/API.md#datadog)
-directive in nginx's configuration file.
+directive in nginx's configuration file, or via [environment variables][9].
 
 Build
 -----
@@ -96,3 +96,4 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [6]: https://www.gnu.org/software/libc/
 [7]: https://www.musl-libc.org/
 [8]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
+[9]: https://github.com/DataDog/dd-opentracing-cpp/blob/master/doc/configuration.md
