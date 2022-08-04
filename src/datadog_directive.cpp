@@ -444,7 +444,7 @@ char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexc
     std::string modified_error;
     modified_error.append(error, 0, pos + prefix.size());
     modified_error += std::to_string(line + starting_line - 1);
-    modified_error.append(error, pos + prefix.size() + end_pos);
+    modified_error.append(error, pos + prefix.size() + end_pos, std::string::npos);
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                   "Error reading \"datadog { ... }\" configuration block: %s",
                   modified_error.c_str());
