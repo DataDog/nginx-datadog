@@ -36,6 +36,9 @@ jobs:
     - store_artifacts:
         path: .build/libngx_http_datadog_module.so
         destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: nginx-tag
+        destination: nginx-tag
 
   test:
     docker:
