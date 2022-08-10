@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TODO - Document this
+"""Build, test, and publish a GitHub release of this library.
 """
 
 import argparse
@@ -295,13 +295,7 @@ def handle_job(job, work_dir):
 work_dir = Path(tempfile.mkdtemp())
 print('Working directory is', work_dir)
 
-# Now get the jobs for the workflow.  Each job will be either a build or a test
-# of a build.
-#
-# Each test depends on the success of a build, so we know that a build's
-# artifacts are kosher once the corresponding test has succeeded.
-#
-# TODO: Describe it better than that.
+# Poll jobs until all are done.
 done_jobs = set()  # job numbers (not IDs)
 while True:
     jobs = send_ci_request_paged(f'/workflow/{workflow_id}/job')

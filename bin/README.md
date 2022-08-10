@@ -31,26 +31,15 @@ This directory contains programs (scripts) used by the build mostly.
 - [nginx_release_downloads.sh](nginx_release_downloads.sh) downloads and parses
   `nginx.org/download` to produce a list of nginx versions together with a link
   to the gzipped tarball of the corresponding source release.
-- [release.sh](release.sh) publishes a draft Github release of this repository.
-  It requires the `gh` command line tool in order to interface with Github.  It
-  reads from the file `release.json`, which contains a JSON object like the
-  following:
-    - `release_tag` is the git tag to create on the current tree and to
-      associate with the release.
-    - `nginx_tags` is an array of nginx Docker image tags.  The module will be
-      built for each nginx image so specified.
-```json
-{
-    "release_tag": "v0.3.0",
-    "nginx_tags": [
-        "1.18.0-alpine",
-        "1.19.1"
-    ]
-}
-```
+- [release.py](release.py) Tags the current HEAD for release, kicks off a
+  build/test pipeline on CircleCI, downloads the resulting nginx modules,
+  compresses and signs them, and then publishes a draft prerelease to GitHub.
 - [run_in_build_image.sh](run_in_build_image.sh) deduces an nginx image from
   the `nginx-tag` file at the root of this repository, and then executes its
   command line arguments in a Docker container from the deduced image.  The
   root of this repository is mounted into the container as `/mnt/repo`.  This
   script is used by the `built-in-docker` target of the `Makefile` at the root
-  of this repository. 
+  of this repository.
+- [generate_jobs_yaml.sh](generate_jobs_yaml.sh) prints a snippet of YAML that
+  is meant to be added to a "workflow" in CircleCI's
+  [config.yml](../.circleci/config.yml).  It saves a lot of typing.
