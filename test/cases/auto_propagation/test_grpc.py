@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 class TestGRPC(case.TestCase):
+
     def test_auto_propagation(self):
         return self.run_test('./conf/grpc_auto.conf', should_propagate=True)
 

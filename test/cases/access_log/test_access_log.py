@@ -8,6 +8,7 @@ import shlex
 
 
 class TestAccessLog(case.TestCase):
+
     def test_default_format(self):
         """Verify that the default access log format contains the trace ID
         and span ID.

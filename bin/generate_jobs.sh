@@ -15,9 +15,15 @@ cd "$REPO"
     name: "build $nginx_tag"
     build-image: "datadog/docker-library:nginx-datadog-build-$nginx_tag"
     nginx-tag: "$nginx_tag"
+    filters:
+      tags:
+        only: /^v[0-9]+\.[0-9]+\.[0-9]+/
 - test:
     name: "test $nginx_tag"
     requires:
     - "build $nginx_tag"
+    filters:
+      tags:
+        only: /^v[0-9]+\.[0-9]+\.[0-9]+/
 END_SNIPPET
 done } | sed "s/^/$indentation/"

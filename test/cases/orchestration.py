@@ -272,6 +272,7 @@ def docker_compose_services():
 
 
 def curl(url, headers, stderr=None):
+
     def header_args():
         for name, value in headers.items():
             yield '--header'

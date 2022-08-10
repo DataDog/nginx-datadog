@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 class TestTags(case.TestCase):
+
     def run_custom_tags_test(self, conf_relative_path):
         """Verify that spans produced by an nginx configured using the
         specified nginx `conf_text` (from a file having the specified

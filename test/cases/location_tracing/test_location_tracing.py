@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 class TestLocationTracing(case.TestCase):
+
     def test_no_location_tracing_by_default(self):
         """Verify that `location` blocks are not traced by default.
 

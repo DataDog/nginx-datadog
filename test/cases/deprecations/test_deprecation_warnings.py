@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 class TestDeprecationWarnings(case.TestCase):
+
     def test_opentracing_trace_locations(self):
         directive = 'opentracing_trace_locations'
         return self.run_test_for_config(f'conf/{directive}.conf', directive)

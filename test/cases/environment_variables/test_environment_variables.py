@@ -24,6 +24,7 @@ def parse_body(body):
 
 
 class TestEnvironmentVariables(case.TestCase):
+
     def test_environment_variables(self):
         nginx_conf = (Path(__file__).parent / 'conf' /
                       'nginx.conf').read_text()

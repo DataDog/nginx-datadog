@@ -296,8 +296,8 @@ char *hijack_fastcgi_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) no
   return hijack_pass_directive(&propagate_fastcgi_datadog_context, cf, command, conf);
 }
 
-char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
-                                     void *conf) noexcept try {
+char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept
+    try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
   if (!main_conf->is_tracer_configured) {

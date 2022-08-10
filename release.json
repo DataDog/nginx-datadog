@@ -1,6 +1,7 @@
 {
     "release_tag": "v0.4.0",
     "nginx_tags": [
+        "1.23.1-alpine",
         "1.23.1",
         "1.23.0-alpine",
         "1.23.0",

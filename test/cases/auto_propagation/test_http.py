@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 class TestHTTP(case.TestCase):
+
     def test_auto_propagation(self):
         return self.run_test('./conf/http_auto.conf', should_propagate=True)
 

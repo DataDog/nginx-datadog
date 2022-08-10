@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 class TestSmoke(case.TestCase):
+
     def test_smoke(self):
         conf_path = Path(__file__).parent / './conf/nginx.conf'
         conf_text = conf_path.read_text()

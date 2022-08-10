@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 class TestVariables(case.TestCase):
+
     def test_in_access_log_format(self):
         conf_path = Path(__file__).parent / './conf/in_access_log_format.conf'
         conf_text = conf_path.read_text()

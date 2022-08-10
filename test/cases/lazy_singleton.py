@@ -15,6 +15,7 @@ class LazySingleton:
         with some_singleton.context() as instance:
             print('leased a reference to', instance)
     """
+
     def __init__(self, make, start, stop):
         """
         `make()` returns an instance.

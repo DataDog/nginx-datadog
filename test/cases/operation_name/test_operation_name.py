@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 class TestOperationName(case.TestCase):
+
     def test_default_in_request(self):
         """Verify that the request span's operation name matches the default
         pattern when not otherwise configured.
@@ -42,6 +43,7 @@ class TestOperationName(case.TestCase):
         `location` block causes the resulting request span's operation name to
         match the setting.
         """
+
         def on_chunk(chunk):
             first, *rest = chunk
             self.assertEqual(0, len(rest), chunk)
@@ -55,6 +57,7 @@ class TestOperationName(case.TestCase):
         `server` block causes the resulting request span's operation name to
         match the setting.
         """
+
         def on_chunk(chunk):
             first, *rest = chunk
             self.assertEqual(0, len(rest), chunk)
@@ -68,6 +71,7 @@ class TestOperationName(case.TestCase):
         block causes the resulting request span's operation name to match the
         setting.
         """
+
         def on_chunk(chunk):
             first, *rest = chunk
             self.assertEqual(0, len(rest), chunk)
@@ -82,6 +86,7 @@ class TestOperationName(case.TestCase):
         to match the setting.  Note that the `datadog_trace_locations on`
         directive must also be used.
         """
+
         def on_chunk(chunk):
             first, *rest = chunk
             self.assertEqual(1, len(rest), chunk)
@@ -98,6 +103,7 @@ class TestOperationName(case.TestCase):
         to match the setting.  Note that the `datadog_trace_locations on`
         directive must also be used.
         """
+
         def on_chunk(chunk):
             first, *rest = chunk
             self.assertEqual(1, len(rest), chunk)
@@ -114,6 +120,7 @@ class TestOperationName(case.TestCase):
         match the setting.  Note that the `datadog_trace_locations on`
         directive must also be used.
         """
+
         def on_chunk(chunk):
             first, *rest = chunk
             self.assertEqual(1, len(rest), chunk)

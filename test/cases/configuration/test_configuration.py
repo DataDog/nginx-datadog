@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 class TestConfiguration(case.TestCase):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.default_config = None
