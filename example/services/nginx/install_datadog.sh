@@ -2,6 +2,8 @@
 
 set -e
 
+# Install the command line tools needed to fetch and extract the module.
+# Both `apt-get` (Debian, Ubuntu) and `apk` (Alpine) are supported.
 if command -v apt-get >/dev/null 2>&1; then
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y tar wget curl jq

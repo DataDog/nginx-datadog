@@ -1,5 +1,4 @@
-# Build an nginx container that includes the module and plugin required for
-# Datadog tracing.
+# Build an nginx container that includes the module for Datadog tracing.
 ARG NGINX_IMAGE
 FROM ${NGINX_IMAGE}
 
