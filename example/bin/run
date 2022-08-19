@@ -1,0 +1,15 @@
+#!/bin/sh
+
+set -e
+
+cd $(dirname "$0")/..
+
+export NGINX_IMAGE_TAG=${NGINX_IMAGE_TAG:-1.23.1}
+export NGINX_IMAGE=nginx:$NGINX_IMAGE_TAG
+
+if [ "$DD_API_KEY" = '' ]; then
+    >&2 echo 'The environment variable DD_API_KEY must be set to a Datadog API key.'
+    exit 1
+fi
+
+docker-compose up --build --abort-on-container-exit --remove-orphans

@@ -1,0 +1,83 @@
+version: "3.2"
+services:
+    
+  # `nginx` TODO
+  nginx:
+    build:
+      context: ./services/nginx
+      dockerfile: ./Dockerfile
+      args:
+        NGINX_IMAGE: ${NGINX_IMAGE}
+        NGINX_IMAGE_TAG: ${NGINX_IMAGE_TAG}
+    environment:
+      - DD_AGENT_HOST=agent
+    volumes:
+      - './services/nginx/nginx.conf:/etc/nginx/nginx.conf:ro'
+    depends_on:
+      - http
+      - fastcgi
+      - grpc
+      - agent
+
+  # `agent` is the Datadog Agent to which traces are sent.
+  # `agent` needs an API key set in the environment as the
+  # `DD_API_KEY` environment variable.
+  agent:
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - '/proc/:/host/proc/:ro'
+      - '/sys/fs/cgroup/:/host/sys/fs/cgroup:ro'
+    environment:
+      - DD_API_KEY
+      - DD_APM_ENABLED=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE=name:datadog-agent
+      - DD_LOG_LEVEL=ERROR
+    image: 'datadog/agent'
+
+  # `http` is an HTTP server that is reverse proxied by `nginx`.
+  http:
+    build:
+      context: ./services/http
+      dockerfile: ./Dockerfile
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+      - DD_SERVICE=http
+    depends_on:
+      - agent
+
+  # `fastcgi` is a FastCGI server that is reverse proxied by `nginx`.
+  fastcgi:
+    build:
+      context: ./services/fastcgi
+      dockerfile: ./Dockerfile
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+      - DD_SERVICE=fastcgi
+    depends_on:
+      - agent
+
+  # `grpc` is a gRPC server that is reverse proxied by `nginx`.
+  grpc:
+    build:
+      context: ./services/grpc
+      dockerfile: ./Dockerfile
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+      - DD_SERVICE=grpc
+    depends_on:
+      - agent
+
+  # `client` is a container that exists solely so that the host can
+  # `docker-compose exec` into it to run command line tools such as `curl` and
+  # `grpcurl`.  This way, the host's network doesn't need access to the network
+  # created by docker-compose.  The host interacts with the docker-compose
+  # services via `docker-compose` and `docker` commands only.
+  client:
+    build:
+      context: ./services/client
+      dockerfile: ./Dockerfile
