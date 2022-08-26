@@ -34,9 +34,9 @@ std::string getConfigurationJSON(const ot::Tracer &tracer);
 namespace nginx {
 namespace {
 
-const string_view DEFAULT_CONFIG = R"json({"service": "nginx"})json";
+const std::string_view DEFAULT_CONFIG = R"json({"service": "nginx"})json";
 
-string_view or_default(string_view config_json) {
+string_view or_default(std::string_view config_json) {
   if (config_json.empty()) {
     return DEFAULT_CONFIG;
   }
@@ -53,7 +53,7 @@ class NginxLogFunc {
  public:
   NginxLogFunc() : mutex_(std::make_shared<std::mutex>()) {}
 
-  void operator()(::datadog::opentracing::LogLevel level, string_view message) {
+  void operator()(::datadog::opentracing::LogLevel level, std::string_view message) {
     int ngx_level = NGX_LOG_STDERR;
 
     switch (level) {
@@ -76,7 +76,7 @@ class NginxLogFunc {
 
 }  // namespace
 
-std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(string_view configuration,
+std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(std::string_view configuration,
                                                         std::string &error) {
   const std::string config_str = or_default(configuration);
   auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
@@ -93,7 +93,7 @@ std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(string_view configuratio
   return ::datadog::opentracing::makeTracer(*maybe_options);
 }
 
-std::vector<string_view> TracingLibrary::propagation_header_names(string_view configuration,
+std::vector<string_view> TracingLibrary::propagation_header_names(std::string_view configuration,
                                                                   std::string &error) {
   const std::string config_str = or_default(configuration);
   auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
@@ -123,7 +123,7 @@ string_view TracingLibrary::proxy_directive_variable_name() { return "datadog_pr
 
 namespace {
 
-std::string span_property(string_view key, const ot::Span &span) {
+std::string span_property(std::string_view key, const ot::Span &span) {
   const auto not_found = "-";
 
   if (key == "trace_id") {
@@ -181,7 +181,7 @@ string_view TracingLibrary::default_location_operation_name_pattern() {
   return "nginx.$datadog_proxy_directive";
 }
 
-std::unordered_map<string_view, string_view> TracingLibrary::default_tags() {
+std::unordered_map<string_view, std::string_view> TracingLibrary::default_tags() {
   return {
       // originally defined by nginx-opentracing
       {"component", "nginx"},

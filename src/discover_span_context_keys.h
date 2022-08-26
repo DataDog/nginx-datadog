@@ -1,6 +1,6 @@
 #pragma once
 
-#include "string_view.h"
+#include <string_view>
 
 extern "C" {
 #include <nginx.h>
@@ -19,7 +19,7 @@ namespace nginx {
 // `tracer_config`.  If an error occurs, print a diagnostic to the specified
 // `log` and return `nullptr`.
 ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
-                                        string_view tracer_config);
+                                        std::string_view tracer_config);
 
 }  // namespace nginx
 }  // namespace datadog

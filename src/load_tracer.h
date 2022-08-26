@@ -2,7 +2,7 @@
 
 
 #include "dd.h"
-#include "string_view.h"
+#include <string_view>
 
 extern "C" {
 #include <nginx.h>
@@ -17,7 +17,7 @@ namespace nginx {
 // Return a tracer instance configured using the specified `tracer_config`, or
 // return `nullptr` if an error occurs.  If an error occurs, log a diagnostic
 // using the specified `log`.
-std::shared_ptr<ot::Tracer> load_tracer(ngx_log_t* log, string_view tracer_config);
+std::shared_ptr<ot::Tracer> load_tracer(ngx_log_t* log, std::string_view tracer_config);
 
 }  // namespace nginx
 }  // namespace datadog

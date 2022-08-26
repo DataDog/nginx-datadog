@@ -7,7 +7,7 @@
 #include "ngx_http_datadog_module.h"
 #include "dd.h"
 #include "string_util.h"
-#include "string_view.h"
+#include <string_view>
 
 namespace datadog {
 namespace nginx {
@@ -41,7 +41,7 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
 }
 
 ngx_str_t DatadogContext::lookup_propagation_header_variable_value(ngx_http_request_t *request,
-                                                                   string_view key) {
+                                                                   std::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
@@ -51,7 +51,7 @@ ngx_str_t DatadogContext::lookup_propagation_header_variable_value(ngx_http_requ
 }
 
 ngx_str_t DatadogContext::lookup_span_variable_value(ngx_http_request_t *request,
-                                                     string_view key) {
+                                                     std::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{"lookup_span_variable_value failed: could not find request trace"};

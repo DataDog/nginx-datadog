@@ -8,7 +8,7 @@
 
 #include "datadog_conf.h"
 #include "propagation_header_querier.h"
-#include "string_view.h"
+#include <string_view>
 
 extern "C" {
 #include <nginx.h>
@@ -30,8 +30,8 @@ class RequestTracing {
 
   void on_log_request();
 
-  ngx_str_t lookup_propagation_header_variable_value(string_view key);
-  ngx_str_t lookup_span_variable_value(string_view key);
+  ngx_str_t lookup_propagation_header_variable_value(std::string_view key);
+  ngx_str_t lookup_span_variable_value(std::string_view key);
 
   ngx_http_request_t *request() const { return request_; }
 

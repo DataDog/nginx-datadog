@@ -8,7 +8,7 @@
 
 #include "dd.h"
 #include "string_util.h"
-#include "string_view.h"
+#include <string_view>
 
 namespace datadog {
 namespace nginx {

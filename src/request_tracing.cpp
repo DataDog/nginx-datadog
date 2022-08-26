@@ -251,11 +251,11 @@ void RequestTracing::on_log_request() {
 // called for the same active span context, it will only be expanded once.
 //
 // See propagate_datadog_context
-ngx_str_t RequestTracing::lookup_propagation_header_variable_value(string_view key) {
+ngx_str_t RequestTracing::lookup_propagation_header_variable_value(std::string_view key) {
   return propagation_header_querier_.lookup_value(request_, active_span(), key);
 }
 
-ngx_str_t RequestTracing::lookup_span_variable_value(string_view key) {
+ngx_str_t RequestTracing::lookup_span_variable_value(std::string_view key) {
   return to_ngx_str(request_->pool, TracingLibrary::span_variables().resolve(key, active_span()));
 }
 

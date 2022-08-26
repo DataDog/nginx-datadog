@@ -19,7 +19,7 @@
 #include "ngx_script.h"
 #include "dd.h"
 #include "string_util.h"
-#include "string_view.h"
+#include <string_view>
 #include "tracing_library.h"
 
 namespace datadog {
@@ -61,14 +61,14 @@ char *hijack_pass_directive(char *(*inject_propagation_commands)(ngx_conf_t *cf,
 // An empty configuration instructs the member functions of `TracingLibrary` to
 // substitute a default configuration instead of interpreting the string as a
 // JSON encoded configuration.
-const string_view TRACER_CONF_DEFAULT;
+const std::string_view TRACER_CONF_DEFAULT;
 
 // Mark the place in the specified `conf` (at the current `command`) where the
 // Datadog tracer was configured with the specified `tracer_conf`.  This might
 // happen explicitly when the `datadog {...}` configuration directive is
 // encountered, or implicitly if certain other directives are encountered
 // first.
-char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, string_view tracer_conf) {
+char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, std::string_view tracer_conf) {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(conf, ngx_http_datadog_module));
 
@@ -111,7 +111,7 @@ static char *set_script(ngx_conf_t *cf, ngx_command_t *command, NgxScript &scrip
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-static ngx_str_t make_propagation_header_variable(ngx_pool_t *pool, string_view key) {
+static ngx_str_t make_propagation_header_variable(ngx_pool_t *pool, std::string_view key) {
   auto prefix = TracingLibrary::propagation_header_variable_name_prefix();
   // result = "$" + prefix + key
   auto size = 1 + prefix.size() + key.size();
@@ -128,8 +128,8 @@ static ngx_str_t make_propagation_header_variable(ngx_pool_t *pool, string_view 
 }
 
 // Converts keys to match the naming convention used by CGI parameters.
-static ngx_str_t make_fastcgi_span_context_key(ngx_pool_t *pool, string_view key) {
-  static const string_view http_prefix = "HTTP_";
+static ngx_str_t make_fastcgi_span_context_key(ngx_pool_t *pool, std::string_view key) {
+  static const std::string_view http_prefix = "HTTP_";
   auto size = http_prefix.size() + key.size();
   auto data = static_cast<char *>(ngx_palloc(pool, size));
   if (data == nullptr) throw std::bad_alloc{};
@@ -197,7 +197,7 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t *command, void *co
   // For each propagation header (from `span_context_keys`), add a
   // "proxy_set_header ...;" directive to the configuration and then process
   // the injected directive by calling `datadog_conf_handler`.
-  auto keys = static_cast<string_view *>(main_conf->span_context_keys->elts);
+  auto keys = static_cast<std::string_view *>(main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
   auto old_args = cf->args;
@@ -235,14 +235,14 @@ char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf, ngx_command_t *
   const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
   assert(cf->args->nelts >= 1);
 
-  const string_view deprecated_prefix{"opentracing_"};
+  const std::string_view deprecated_prefix{"opentracing_"};
   assert(starts_with(str(elements[0]), deprecated_prefix));
 
   // This `std::string` is the storage for a `ngx_str_t` used below.  This is
   // valid if we are certain that copies of / references to the `ngx_str_t` will
   // not outlive this `std::string` (they won't).
   std::string new_name{"datadog_"};
-  const string_view suffix = slice(str(elements[0]), deprecated_prefix.size());
+  const std::string_view suffix = slice(str(elements[0]), deprecated_prefix.size());
   new_name.append(suffix.data(), suffix.size());
 
   const ngx_str_t new_name_ngx = to_ngx_str(new_name);
@@ -281,7 +281,7 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
   }
-  auto keys = static_cast<string_view *>(main_conf->span_context_keys->elts);
+  auto keys = static_cast<std::string_view *>(main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
   auto old_args = cf->args;
@@ -333,7 +333,7 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command, voi
   if (main_conf->span_context_keys == nullptr) {
     return static_cast<char *>(NGX_CONF_OK);
   }
-  auto keys = static_cast<string_view *>(main_conf->span_context_keys->elts);
+  auto keys = static_cast<std::string_view *>(main_conf->span_context_keys->elts);
   auto num_keys = static_cast<int>(main_conf->span_context_keys->nelts);
 
   auto old_args = cf->args;
@@ -454,7 +454,7 @@ char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command, void * /*conf*/) 
     // It can appear as part of the `.what()` message in a predictable way,
     // though, so we extract it if present.
     error = json_error.what();
-    const string_view prefix = " at line ";
+    const std::string_view prefix = " at line ";
     const auto pos = error.find(prefix.data(), 0, prefix.size());
     if (pos == std::string::npos) {
       ngx_log_error(NGX_LOG_ERR, cf->log, 0,
@@ -534,7 +534,7 @@ char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command, void *conf) noe
   const auto values = static_cast<const ngx_str_t *>(cf->args->elts);
   assert(cf->args->nelts == 2);
 
-  string_view preferred;
+  std::string_view preferred;
   if (str(values[1]) == "on") {
     loc_conf->enable = true;
     preferred = "datadog_enable";

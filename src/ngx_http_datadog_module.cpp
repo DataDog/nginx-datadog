@@ -17,7 +17,7 @@
 #include "log_conf.h"
 #include "dd.h"
 #include "string_util.h"
-#include "string_view.h"
+#include <string_view>
 #include "tracing_library.h"
 
 extern "C" {
@@ -260,6 +260,44 @@ ngx_module_t ngx_http_datadog_module = {
     NGX_MODULE_V1_PADDING
 };
 // clang-format on
+
+// Configure nginx to set the environment variable as indicated by the
+// specified `entry` in the context of the specified `cycle`.  `entry` is a
+// string in one of the following forms:
+//
+// 1. "FOO"
+// 2. "FOO=value"
+//
+// The environment variable name in this example is "FOO".  In the case of the
+// first form, the value of the environment variable will be inherited from the
+// parent process.  In the case of the second form, the value of the
+// environment variable will be as specified after the equal sign.
+//
+// Note that `ngx_set_env` is adapted from the function of the same name in
+// `nginx.c` within the nginx source code.
+static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
+  ngx_core_conf_t *ccf = (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+
+  ngx_str_t *value, *var;
+  ngx_uint_t i;
+
+  var = (ngx_str_t *)ngx_array_push(&ccf->env);
+  if (var == NULL) {
+    return NGX_CONF_ERROR;
+  }
+
+  const ngx_str_t entry_str = to_ngx_str(entry);
+  *var = entry_str;
+
+  for (i = 0; i < var->len; i++) {
+    if (var->data[i] == '=') {
+      var->len = i;
+      return NGX_CONF_OK;
+    }
+  }
+
+  return NGX_CONF_OK;
+}
 
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
   // If tracing has not so far been configured, then give it a default
