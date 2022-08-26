@@ -1,6 +1,5 @@
 #include "datadog_directive.h"
 
-#include <opentracing/string_view.h>
 
 #include <algorithm>
 #include <cctype>

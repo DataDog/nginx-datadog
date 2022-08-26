@@ -1,7 +1,5 @@
 #include "extract_span_context.h"
 
-#include <opentracing/propagation.h>
-#include <opentracing/tracer.h>
 
 #include "array_util.h"
 #include "string_view.h"

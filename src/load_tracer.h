@@ -1,6 +1,5 @@
 #pragma once
 
-#include <opentracing/dynamic_load.h>
 
 #include "ot.h"
 #include "string_view.h"

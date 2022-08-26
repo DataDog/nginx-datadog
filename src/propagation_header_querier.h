@@ -1,6 +1,5 @@
 #pragma once
 
-#include <opentracing/span.h>
 
 #include <utility>
 #include <vector>

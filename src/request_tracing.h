@@ -1,6 +1,5 @@
 #pragma once
 
-#include <opentracing/tracer.h>
 
 #include <chrono>
 #include <memory>

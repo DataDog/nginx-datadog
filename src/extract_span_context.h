@@ -1,7 +1,5 @@
 #pragma once
 
-#include <opentracing/span.h>
-#include <opentracing/tracer.h>
 
 #include <memory>
 

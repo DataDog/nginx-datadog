@@ -1,6 +1,5 @@
 #include "ngx_http_datadog_module.h"
 
-#include <opentracing/dynamic_load.h>
 
 #include <cstdlib>
 #include <exception>

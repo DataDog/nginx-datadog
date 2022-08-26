@@ -9,10 +9,8 @@
 // could in principle be made compatible with this project by changing the
 // implementations of `TracingLibrary`'s static member functions.
 
-#include <opentracing/tracer.h>
 
 #include <memory>
-#include <opentracing/variant/variant.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>

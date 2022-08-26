@@ -1,9 +1,7 @@
 #include "tracing_library.h"
 
 #include <datadog/opentracing.h>
-#include <opentracing/tracer_factory.h>
 
-#include <opentracing/expected/expected.hpp>
 
 #include "string_util.h"
 

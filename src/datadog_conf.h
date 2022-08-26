@@ -10,7 +10,6 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-#include <opentracing/span.h>
 
 #include <string>
 #include <vector>

@@ -7,7 +7,6 @@
 // `opentracing::string_view`.  This header file also declares extensions to
 // the type, such as a specialization of `std::hash`.
 
-#include <opentracing/string_view.h>
 
 #include <functional>
 

@@ -1,7 +1,5 @@
 #include "propagation_header_querier.h"
 
-#include <opentracing/propagation.h>
-#include <opentracing/tracer.h>
 
 #include <algorithm>
 #include <cassert>
