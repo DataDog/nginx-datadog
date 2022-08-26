@@ -1,6 +1,5 @@
 #include "tracing_library.h"
 
-#include <datadog/opentracing.h>
 
 
 #include "string_util.h"
