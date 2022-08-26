@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 #include "ngx_http_datadog_module.h"
-#include "ot.h"
+#include "dd.h"
 #include "string_util.h"
 #include "string_view.h"
 

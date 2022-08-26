@@ -15,7 +15,7 @@
 #include "defer.h"
 #include "load_tracer.h"
 #include "log_conf.h"
-#include "ot.h"
+#include "dd.h"
 #include "string_util.h"
 #include "string_view.h"
 #include "tracing_library.h"

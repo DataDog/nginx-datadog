@@ -4,12 +4,13 @@
 #include <chrono>
 #include <ctime>
 #include <sstream>
+#include <string>
 #include <stdexcept>
 
 #include "array_util.h"
-#include "extract_span_context.h"
+#include "ngx_header_reader.h"
 #include "ngx_http_datadog_module.h"
-#include "ot.h"
+#include "dd.h"
 #include "string_util.h"
 #include "tracing_library.h"
 
@@ -62,26 +63,26 @@ static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request, ot::
   for_each<datadog_tag_t>(*tags, add_tag);
 }
 
-static void add_status_tags(const ngx_http_request_t *request, ot::Span &span) {
+static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
   // Check for errors.
   auto status = request->headers_out.status;
   auto status_line = to_string(request->headers_out.status_line);
-  if (status != 0) span.SetTag("http.status_code", status);
-  if (status_line.data()) span.SetTag("http.status_line", status_line);
+  if (status != 0) span.set_tag("http.status_code", std::to_string(status));
+  if (status_line.data()) span.set_tag("http.status_line", status_line);
   // Treat any 5xx code as an error.
   if (status >= 500) {
-    span.SetTag("error", true);
+    span.set_tag("error", "1");
     span.Log({{"event", "error"}, {"message", status_line}});
   }
 }
 
-static void add_upstream_name(const ngx_http_request_t *request, ot::Span &span) {
+static void add_upstream_name(const ngx_http_request_t *request, dd::Span &span) {
   if (!request->upstream || !request->upstream->upstream ||
       !request->upstream->upstream->host.data)
     return;
   auto host = request->upstream->upstream->host;
   auto host_str = to_string(host);
-  span.SetTag("upstream.name", host_str);
+  span.set_tag("upstream.name", host_str);
 }
 
 // Convert the epoch denoted by epoch_seconds, epoch_milliseconds to an
@@ -93,10 +94,21 @@ static std::chrono::system_clock::time_point to_system_timestamp(time_t epoch_se
   return std::chrono::system_clock::from_time_t(std::time_t{0}) + epoch_duration;
 }
 
+// TODO: document
+static dd::TimePoint estimate_past_time_point(std::chrono::system_clock::time_point before) {
+  dd::TimePoint now = dd::default_clock();
+  auto elapsed = now.wall - before;
+
+  dd::TimePoint result;
+  result.wall = before;
+  result.tick = now.tick - elapsed;
+  return result;
+}
+
 RequestTracing::RequestTracing(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
                                datadog_loc_conf_t *loc_conf,
-                               const ot::SpanContext *parent_span_context)
+                               std::optional<dd::Span> parent)
     : request_{request},
       main_conf_{static_cast<datadog_main_conf_t *>(
           ngx_http_get_module_main_conf(request_, ngx_http_datadog_module))},
@@ -107,36 +119,49 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // and so no `RequestTracing` objects are ever instantiated.
   assert(main_conf_);
 
-  auto tracer = ot::Tracer::Global();
+  auto* tracer = global_tracer();
   if (!tracer) throw std::runtime_error{"no global tracer set"};
-
-  std::unique_ptr<ot::SpanContext> extracted_context = nullptr;
-  if (parent_span_context == nullptr && loc_conf_->trust_incoming_span) {
-    extracted_context = extract_span_context(*tracer, request_);
-    parent_span_context = extracted_context.get();
-  }
 
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
                  "starting Datadog request span for %p", request_);
-  request_span_ = tracer->StartSpan(
-      get_request_operation_name(request_, core_loc_conf_, loc_conf_),
-      {ot::ChildOf(parent_span_context),
-       ot::StartTimestamp{to_system_timestamp(request->start_sec, request->start_msec)}});
-  if (!request_span_) throw std::runtime_error{"tracer->StartSpan failed"};
+
+  dd::SpanConfig config;
+  auto start_timestamp = to_system_timestamp(request->start_sec, request->start_msec);
+  config.start = estimate_past_time_point(start_timestamp);
+  config.name = get_request_operation_name(request_, core_loc_conf_, loc_conf_);
+
+  if (!parent && loc_conf_->trust_incoming_span) {
+    NgxHeaderReader reader{request};
+    auto maybe_span = tracer->extract_or_create_span(reader, config);
+    if (auto *error = maybe_span.if_error()) {
+     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                   "failed to extract a Datadog span request %p: [error code %d]: %s", request, error->code, error->message.c_str());
+    } else {
+      request_span_ = *maybe_span;
+    }
+  }
+
+  if (!request_span_) {
+    if (parent) {
+      request_span_ = parent->create_child(config);
+    } else {
+      request_span_ = tracer->create_span(config);
+    }
+  }
 
   if (loc_conf_->enable_locations) {
     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
                    "starting Datadog location span for \"%V\"(%p) in request %p",
                    &core_loc_conf->name, loc_conf_, request_);
-    span_ = tracer->StartSpan(get_loc_operation_name(request_, core_loc_conf_, loc_conf_),
-                              {ot::ChildOf(&request_span_->context())});
-    if (!span_) throw std::runtime_error{"tracer->StartSpan failed"};
+    dd::SpanConfig config;
+    config.name = get_loc_operation_name(request_, core_loc_conf_, loc_conf_);
+    span_ = request_span_.create_child(config);
   }
 }
 
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                                      datadog_loc_conf_t *loc_conf) {
-  on_exit_block();
+  on_exit_block(std::chrono::steady_clock::now());
   core_loc_conf_ = core_loc_conf;
   loc_conf_ = loc_conf;
 
@@ -144,14 +169,13 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
                    "starting Datadog location span for \"%V\"(%p) in request %p",
                    &core_loc_conf->name, loc_conf_, request_);
-    span_ = request_span_->tracer().StartSpan(
-        get_loc_operation_name(request_, core_loc_conf, loc_conf),
-        {ot::ChildOf(&request_span_->context())});
-    if (!span_) throw std::runtime_error{"tracer->StartSpan failed"};
+    dd::SpanConfig config;
+    config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
+    span_ = request_span_.create_child(config);
   }
 }
 
-const ot::Span &RequestTracing::active_span() const {
+dd::Span &RequestTracing::active_span() {
   if (loc_conf_->enable_locations) {
     return *span_;
   } else {
@@ -176,10 +200,15 @@ void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_
     // name again.
     //
     // See on_log_request below
+<<<<<<< HEAD
     span_->SetOperationName(get_loc_operation_name(request_, core_loc_conf_, loc_conf_));
     span_->SetTag("resource.name", get_loc_resource_name(request_, loc_conf_));
 
     span_->Finish({ot::FinishTimestamp{finish_timestamp}});
+=======
+    span_->set_operation_name(get_loc_operation_name(request_, core_loc_conf_, loc_conf_));
+    span_->set_end_time(finish_timestamp);
+>>>>>>> 9148b2c (CHECKPOINT: giving it hell)
   } else {
     add_script_tags(loc_conf_->tags, request_, *request_span_);
   }
@@ -187,7 +216,6 @@ void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_
 
 void RequestTracing::on_log_request() {
   auto finish_timestamp = std::chrono::steady_clock::now();
-
   on_exit_block(finish_timestamp);
 
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
@@ -202,14 +230,18 @@ void RequestTracing::on_log_request() {
   // pointed to by the datadog_operation_name directive
   auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
       ngx_http_get_module_loc_conf(request_, ngx_http_core_module));
+<<<<<<< HEAD
   request_span_->SetOperationName(get_request_operation_name(request_, core_loc_conf, loc_conf_));
   request_span_->SetTag("resource.name", get_request_resource_name(request_, loc_conf_));
+=======
+  request_span_->set_operation_name(get_request_operation_name(request_, core_loc_conf, loc_conf_));
+>>>>>>> 9148b2c (CHECKPOINT: giving it hell)
 
   // Note: At this point, we could run an `NginxScript` to interrogate the
   // proxied server's response headers, e.g. to retrieve a deferred sampling
   // decision.
 
-  request_span_->Finish({ot::FinishTimestamp{finish_timestamp}});
+  request_span_->set_end_time(finish_timestamp);
 }
 
 // Expands the active span context into a list of key-value pairs and returns

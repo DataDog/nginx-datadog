@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ot.h"
+#include "dd.h"
 #include "string_view.h"
 
 namespace datadog {

@@ -17,7 +17,7 @@
 #include "ngx_filebuf.h"
 #include "ngx_http_datadog_module.h"
 #include "ngx_script.h"
-#include "ot.h"
+#include "dd.h"
 #include "string_util.h"
 #include "string_view.h"
 #include "tracing_library.h"

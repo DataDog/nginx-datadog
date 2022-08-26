@@ -6,15 +6,15 @@
 #include <iterator>
 #include <new>
 
-#include "ot.h"
+#include "dd.h"
 #include "string_util.h"
 #include "string_view.h"
 
 namespace datadog {
 namespace nginx {
 
-ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request, const ot::Span& span,
-                                                 string_view key) {
+ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request, const dd::Span& span,
+                                                 std::string_view key) {
   if (&span != values_span_) {
     expand_values(request, span);
   }
@@ -30,37 +30,32 @@ ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request, co
 }
 
 namespace {
-class SpanContextValueExpander : public ot::HTTPHeadersWriter {
+
+class SpanContextValueWriter : public dd::DictWriter {
+  std::vector<std::pair<std::string, std::string>>* span_context_expansion_;
+  std::string* buffer_;
+
  public:
   explicit SpanContextValueExpander(
-      std::vector<std::pair<std::string, std::string>>& span_context_expansion)
-      : span_context_expansion_(span_context_expansion) {}
+      std::unordered_map<std::string, std::string>& span_context_expansion, std::string& buffer)
+      : span_context_expansion_(&span_context_expansion), buffer_(&buffer) {}
 
-  ot::expected<void> Set(ot::string_view key, ot::string_view value) const override {
-    std::string key_copy;
-    key_copy.reserve(key.size());
-    std::transform(std::begin(key), std::end(key), std::back_inserter(key_copy),
+  void set(std::string_view key, std::string_view value) override {
+    // TODO
+    buffer->clear()
+    std::transform(key.begin(), key.end(), std::back_inserter(*buffer_),
                    header_transform_char);
-
-    span_context_expansion_.emplace_back(std::move(key_copy), value);
-    return {};
+    span_context_expansion.insert_or_assign(*buffer, value);
   }
-
- private:
-  std::vector<std::pair<std::string, std::string>>& span_context_expansion_;
 };
+
 }  // namespace
 
-void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const ot::Span& span) {
+void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const dd::Span& span) {
   values_span_ = &span;
   span_context_expansion_.clear();
-  SpanContextValueExpander carrier{span_context_expansion_};
-  auto was_successful = span.tracer().Inject(span.context(), carrier);
-  if (!was_successful) {
-    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                  "Tracer.inject() failed for request %p: %s", request,
-                  was_successful.error().message().c_str());
-  }
+  SpanContextValueWriter writer{span_context_expansion_, buffer_};
+  span.inject(writer);
 }
 
 }  // namespace nginx
