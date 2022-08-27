@@ -6,6 +6,8 @@
 #include <iterator>
 #include <new>
 
+#include <datadog/dict_writer.h>
+
 #include "dd.h"
 #include "string_util.h"
 #include <string_view>
@@ -36,7 +38,7 @@ class SpanContextValueWriter : public dd::DictWriter {
   std::string* buffer_;
 
  public:
-  explicit SpanContextValueExpander(
+  explicit SpanContextValueWriter(
       std::unordered_map<std::string, std::string>& span_context_expansion, std::string& buffer)
       : span_context_expansion_(&span_context_expansion), buffer_(&buffer) {}
 

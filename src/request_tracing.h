@@ -24,7 +24,7 @@ class RequestTracing {
  public:
   RequestTracing(ngx_http_request_t *request, ngx_http_core_loc_conf_t *core_loc_conf,
                  datadog_loc_conf_t *loc_conf,
-                 std::optional<dd::Span> parent = std::nullopt);
+                 dd::Span* parent = nullptr);
 
   void on_change_block(ngx_http_core_loc_conf_t *core_loc_conf, datadog_loc_conf_t *loc_conf);
 
@@ -35,6 +35,8 @@ class RequestTracing {
 
   ngx_http_request_t *request() const { return request_; }
 
+  dd::Span &active_span();
+
  private:
   ngx_http_request_t *request_;
   datadog_main_conf_t *main_conf_;
@@ -43,8 +45,6 @@ class RequestTracing {
   PropagationHeaderQuerier propagation_header_querier_;
   std::optional<dd::Span> request_span_;
   std::optional<dd::Span> span_;
-
-  dd::Span &active_span();
 
   void on_exit_block(
       std::chrono::steady_clock::time_point finish_timestamp);

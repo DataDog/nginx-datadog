@@ -11,8 +11,6 @@
 
 namespace datadog {
 namespace nginx {
-std::unique_ptr<ot::SpanContext> extract_span_context(const ot::Tracer &tracer,
-                                                      const ngx_http_request_t *request);
 
 DatadogContext::DatadogContext(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
@@ -29,7 +27,8 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
   }
 
   // This is a new subrequest so add a RequestTracing for it.
-  traces_.emplace_back(request, core_loc_conf, loc_conf, &traces_[0].context());
+  // TODO: Should `active_span` be `request_span` instead?
+  traces_.emplace_back(request, core_loc_conf, loc_conf, &traces_[0].active_span());
 }
 
 void DatadogContext::on_log_request(ngx_http_request_t *request) {

@@ -112,7 +112,7 @@ static ngx_int_t expand_environment_variable(ngx_http_request_t* request,
   auto prefix_length = TracingLibrary::environment_variable_name_prefix().size();
   auto suffix = slice(variable_name, prefix_length);
 
-  std::string env_var_name = suffix;
+  std::string env_var_name{suffix.data(), suffix.size()};
   std::transform(env_var_name.begin(), env_var_name.end(), env_var_name.begin(), to_upper);
 
   const auto allow_list = TracingLibrary::environment_variable_names();
@@ -149,24 +149,11 @@ static ngx_int_t expand_environment_variable(ngx_http_request_t* request,
 static ngx_int_t expand_configuration_variable(ngx_http_request_t* request,
                                                ngx_http_variable_value_t* variable_value,
                                                uintptr_t /*data*/) noexcept {
-  const auto tracer = ot::Tracer::Global();
-  // No tracer?  No configuration.
-  if (tracer == nullptr) {
+    // TODO
     variable_value->valid = true;
     variable_value->no_cacheable = true;
     variable_value->not_found = true;
     return NGX_OK;
-  }
-
-  const std::string value = TracingLibrary::configuration_json(*tracer);
-  const ngx_str_t value_str = to_ngx_str(request->pool, value);
-  variable_value->len = value_str.len;
-  variable_value->valid = true;
-  variable_value->no_cacheable = true;
-  variable_value->not_found = false;
-  variable_value->data = value_str.data;
-
-  return NGX_OK;
 }
 
 // Load into the specified `variable_value` the result of looking up the value

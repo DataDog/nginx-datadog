@@ -58,7 +58,7 @@ static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request, ot::
   auto add_tag = [&](const datadog_tag_t &tag) {
     auto key = tag.key_script.run(request);
     auto value = tag.value_script.run(request);
-    if (key.data && value.data) span.SetTag(to_string(key), to_string(value));
+    if (key.data && value.data) span.set_tag(to_string(key), to_string(value));
   };
   for_each<datadog_tag_t>(*tags, add_tag);
 }
@@ -108,7 +108,7 @@ static dd::TimePoint estimate_past_time_point(std::chrono::system_clock::time_po
 RequestTracing::RequestTracing(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
                                datadog_loc_conf_t *loc_conf,
-                               std::optional<dd::Span> parent)
+                               dd::Span* parent)
     : request_{request},
       main_conf_{static_cast<datadog_main_conf_t *>(
           ngx_http_get_module_main_conf(request_, ngx_http_datadog_module))},
@@ -195,20 +195,14 @@ void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_
     add_status_tags(request_, *span_);
     add_upstream_name(request_, *span_);
 
-    // If the location operation name is dependent upon a variable, it may not
-    // have been available when the span was first created, so set the operation
-    // name again.
+    // If the location operation name and/or resource name is dependent upon a
+    // variable, it may not have been available when the span was first created,
+    // so evaluate them again.
     //
     // See on_log_request below
-<<<<<<< HEAD
-    span_->SetOperationName(get_loc_operation_name(request_, core_loc_conf_, loc_conf_));
-    span_->SetTag("resource.name", get_loc_resource_name(request_, loc_conf_));
-
-    span_->Finish({ot::FinishTimestamp{finish_timestamp}});
-=======
     span_->set_operation_name(get_loc_operation_name(request_, core_loc_conf_, loc_conf_));
+    span_->set_resource_name(get_loc_resource_name(request_, loc_conf_));
     span_->set_end_time(finish_timestamp);
->>>>>>> 9148b2c (CHECKPOINT: giving it hell)
   } else {
     add_script_tags(loc_conf_->tags, request_, *request_span_);
   }
@@ -224,18 +218,15 @@ void RequestTracing::on_log_request() {
   add_script_tags(main_conf_->tags, request_, *request_span_);
   add_upstream_name(request_, *request_span_);
 
-  // When datadog_operation_name points to a variable and it can be initialized
-  // or modified at any phase of the request, so set the span operation name at
-  // request exit phase, which will take the latest value of the variable
-  // pointed to by the datadog_operation_name directive
+  // When datadog_operation_name points to a variable, then it can be
+  // initialized or modified at any phase of the request, so set the span
+  // operation name at request exit phase, which will take the latest value of
+  // the variable pointed to by the datadog_operation_name directive. Similarly
+  // with resource name.
   auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
       ngx_http_get_module_loc_conf(request_, ngx_http_core_module));
-<<<<<<< HEAD
-  request_span_->SetOperationName(get_request_operation_name(request_, core_loc_conf, loc_conf_));
-  request_span_->SetTag("resource.name", get_request_resource_name(request_, loc_conf_));
-=======
   request_span_->set_operation_name(get_request_operation_name(request_, core_loc_conf, loc_conf_));
->>>>>>> 9148b2c (CHECKPOINT: giving it hell)
+  request_span_->set_resource_name(get_request_resource_name(request_, loc_conf_));
 
   // Note: At this point, we could run an `NginxScript` to interrogate the
   // proxied server's response headers, e.g. to retrieve a deferred sampling

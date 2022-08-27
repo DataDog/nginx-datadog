@@ -1,4 +1,4 @@
-#include "extract_span_context.h"
+#include "ngx_header_reader.h"
 
 namespace datadog {
 namespace nginx {

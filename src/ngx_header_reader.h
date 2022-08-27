@@ -8,6 +8,8 @@
 #include <string_view>
 #include <unordered_map>
 
+#include <datadog/dict_reader.h>
+
 #include "array_util.h"
 #include "dd.h"
 
@@ -26,11 +28,11 @@ class NgxHeaderReader : public dd::DictReader {
   mutable std::string buffer_;
 
 public:
-  explicit NgxHeaderReader(const ngx_http_request_t *request) : request_(request) {
+  explicit NgxHeaderReader(const ngx_http_request_t *request) {
     for_each<ngx_table_elt_t>(request->headers_in.headers, [&](const ngx_table_elt_t &header) {
       auto key = std::string_view{reinterpret_cast<char *>(header.lowcase_key), header.key.len};
       auto value = std::string_view{reinterpret_cast<char *>(header.value.data), header.value.len};
-      header_.emplace(key, value);
+      headers_.emplace(key, value);
     });
   }
 

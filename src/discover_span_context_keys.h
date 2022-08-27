@@ -12,7 +12,7 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-// Return an nginx array whose elements are `string_view` objects referring
+// Return an nginx array whose elements are `std::string_view` objects referring
 // to the names of span tags injected for context propagation.  Use the
 // specified `pool` to supply memory.  Determine the names of the relevant span
 // tags by consulting a tracer configuration using the specified

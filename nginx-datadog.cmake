@@ -16,23 +16,25 @@ target_sources(nginx_datadog
         src/datadog_directive.cpp
         src/datadog_handler.cpp
         src/datadog_variable.cpp
+        src/dd.cpp
         src/defer.cpp
         src/discover_span_context_keys.cpp
-        src/extract_span_context.cpp
+        src/global_tracer.cpp
         src/json.cpp
-        src/load_tracer.cpp
         src/log_conf.cpp
         src/ngx_filebuf.cpp
+        src/ngx_header_reader.cpp
         src/ngx_http_datadog_module.cpp
         src/ngx_script.cpp
-        src/ot.cpp
         src/propagation_header_querier.cpp
         src/request_tracing.cpp
         src/string_util.cpp
-        src/string_view.cpp
         src/tracing_library.cpp
 )
 
-include_directories(
-    src/
+target_include_directories(
+    nginx_datadog
+    PRIVATE
+        src/
+        dd-trace-cpp/src/
 )
