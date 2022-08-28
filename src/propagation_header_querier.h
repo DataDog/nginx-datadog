@@ -4,8 +4,8 @@
 
 #include <string>
 #include <string_view>
-#include <utility>
 #include <unordered_map>
+#include <utility>
 
 #include "datadog_conf.h"
 #include "dd.h"
@@ -24,7 +24,8 @@ class PropagationHeaderQuerier {
  public:
   PropagationHeaderQuerier() noexcept {}
 
-  ngx_str_t lookup_value(ngx_http_request_t* request, const dd::Span& span, std::string_view key);
+  ngx_str_t lookup_value(ngx_http_request_t* request, const dd::Span& span,
+                         std::string_view key);
 
  private:
   const dd::Span* values_span_ = nullptr;

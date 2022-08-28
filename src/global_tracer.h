@@ -1,6 +1,7 @@
 #pragma once
 
 #include <datadog/tracer.h>
+
 #include "dd.h"
 
 namespace datadog {

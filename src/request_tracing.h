@@ -5,10 +5,10 @@
 #include <chrono>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "datadog_conf.h"
 #include "propagation_header_querier.h"
-#include <string_view>
 
 extern "C" {
 #include <nginx.h>
@@ -22,11 +22,12 @@ namespace nginx {
 
 class RequestTracing {
  public:
-  RequestTracing(ngx_http_request_t *request, ngx_http_core_loc_conf_t *core_loc_conf,
-                 datadog_loc_conf_t *loc_conf,
-                 dd::Span* parent = nullptr);
+  RequestTracing(ngx_http_request_t *request,
+                 ngx_http_core_loc_conf_t *core_loc_conf,
+                 datadog_loc_conf_t *loc_conf, dd::Span *parent = nullptr);
 
-  void on_change_block(ngx_http_core_loc_conf_t *core_loc_conf, datadog_loc_conf_t *loc_conf);
+  void on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
+                       datadog_loc_conf_t *loc_conf);
 
   void on_log_request();
 
@@ -46,8 +47,7 @@ class RequestTracing {
   std::optional<dd::Span> request_span_;
   std::optional<dd::Span> span_;
 
-  void on_exit_block(
-      std::chrono::steady_clock::time_point finish_timestamp);
+  void on_exit_block(std::chrono::steady_clock::time_point finish_timestamp);
 };
 
 }  // namespace nginx

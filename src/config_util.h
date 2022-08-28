@@ -37,7 +37,8 @@ enum class CommentPolicy {
 //
 // The language is more permissive than JSON, and supports most curly brace
 // delimited YAML.
-std::istream& scan_config_block(std::istream& input, std::string& output, std::string& error,
+std::istream& scan_config_block(std::istream& input, std::string& output,
+                                std::string& error,
                                 CommentPolicy comment_policy);
 
 }  // namespace nginx

@@ -1,13 +1,13 @@
 #include "tracing_library.h"
 
-#include "string_util.h"
-
 #include <datadog/error.h>
 #include <datadog/expected.h>
 #include <datadog/logger.h>
+#include <datadog/span.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
-#include <datadog/span.h>
+
+#include "string_util.h"
 
 extern "C" {
 #include <ngx_core.h>
@@ -49,19 +49,20 @@ class NgxLogger : public dd::Logger {
     std::string message = stream.str();
 
     std::lock_guard<std::mutex> lock(mutex_);
-    (void) ngx_write_fd(ngx_stderr, message.data(), message.size());
+    (void)ngx_write_fd(ngx_stderr, message.data(), message.size());
   }
 
   void log_error(const dd::Error& error) override {
     const ngx_str_t ngx_message = to_ngx_str(error.message);
-    
+
     std::lock_guard<std::mutex> lock(mutex_);
-    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "datadog: [error code %d] %V", int(error.code), &ngx_message);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "datadog: [error code %d] %V",
+                  int(error.code), &ngx_message);
   }
 
   void log_error(std::string_view message) override {
     const ngx_str_t ngx_message = to_ngx_str(message);
-    
+
     std::lock_guard<std::mutex> lock(mutex_);
     ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "datadog: %V", &ngx_message);
   }
@@ -69,14 +70,15 @@ class NgxLogger : public dd::Logger {
 
 }  // namespace
 
-dd::Expected<dd::Tracer> TracingLibrary::make_tracer(std::string_view json_config) {
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
+    std::string_view json_config) {
   // TODO: create a `dd::TracerConfig` from the JSON.
-  (void) json_config;
+  (void)json_config;
 
   dd::TracerConfig config;
   config.defaults.service = "dd-trace-cpp-nginx";
   config.logger = std::make_shared<NgxLogger>();
-  
+
   auto final_config = dd::finalize_config(config);
   if (!final_config) {
     return final_config.error();
@@ -85,37 +87,45 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(std::string_view json_confi
   return dd::Tracer(*final_config);
 }
 
-std::vector<std::string_view> TracingLibrary::propagation_header_names(std::string_view configuration,
-                                                                  std::string &error) {
+std::vector<std::string_view> TracingLibrary::propagation_header_names(
+    std::string_view configuration, std::string& error) {
   // TODO: Parse `configuration` to figure out the propagation styles, and then
   // get the corresponding upstream request header names.
   // For now, I hard-code for the Datadog style.
   (void)configuration;
   (void)error;
-  
+
   return {
-    "x-datadog-trace-id",
-    "x-datadog-parent-id",
-    "x-datadog-sampling-priority",
-    "x-datadog-origin",
-    };
+      "x-datadog-trace-id",
+      "x-datadog-parent-id",
+      "x-datadog-sampling-priority",
+      "x-datadog-origin",
+  };
 }
 
 std::string_view TracingLibrary::propagation_header_variable_name_prefix() {
   return "datadog_propagation_header_";
 }
 
-std::string_view TracingLibrary::environment_variable_name_prefix() { return "datadog_env_"; }
+std::string_view TracingLibrary::environment_variable_name_prefix() {
+  return "datadog_env_";
+}
 
-std::string_view TracingLibrary::configuration_json_variable_name() { return "datadog_config_json"; }
+std::string_view TracingLibrary::configuration_json_variable_name() {
+  return "datadog_config_json";
+}
 
-std::string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
+std::string_view TracingLibrary::location_variable_name() {
+  return "datadog_location";
+}
 
-std::string_view TracingLibrary::proxy_directive_variable_name() { return "datadog_proxy_directive"; }
+std::string_view TracingLibrary::proxy_directive_variable_name() {
+  return "datadog_proxy_directive";
+}
 
 namespace {
 
-std::string span_property(std::string_view key, const dd::Span &span) {
+std::string span_property(std::string_view key, const dd::Span& span) {
   const auto not_found = "-";
 
   if (key == "trace_id") {
@@ -137,10 +147,10 @@ NginxVariableFamily TracingLibrary::span_variables() {
 }
 
 std::vector<std::string_view> TracingLibrary::environment_variable_names() {
-  return {// These environment variable names are taken from `tracer_options.cpp`
-          // and `tracer.cpp` in the `dd-opentracing-cpp` repository.
-          // I did `git grep '"DD_\w\+"' -- src/` in the `dd-opentracing-cpp`
-          // repository.
+  return {// These environment variable names are taken from
+          // `tracer_options.cpp` and `tracer.cpp` in the `dd-opentracing-cpp`
+          // repository. I did `git grep '"DD_\w\+"' -- src/` in the
+          // `dd-opentracing-cpp` repository.
           "DD_AGENT_HOST",
           "DD_ENV",
           "DD_PROPAGATION_STYLE_EXTRACT",
@@ -163,13 +173,16 @@ std::vector<std::string_view> TracingLibrary::environment_variable_names() {
           "DD_VERSION"};
 }
 
-std::string_view TracingLibrary::default_request_operation_name_pattern() { return "nginx.request"; }
+std::string_view TracingLibrary::default_request_operation_name_pattern() {
+  return "nginx.request";
+}
 
 std::string_view TracingLibrary::default_location_operation_name_pattern() {
   return "nginx.$datadog_proxy_directive";
 }
 
-std::unordered_map<std::string_view, std::string_view> TracingLibrary::default_tags() {
+std::unordered_map<std::string_view, std::string_view>
+TracingLibrary::default_tags() {
   return {
       // originally defined by nginx-opentracing
       {"component", "nginx"},
@@ -192,7 +205,7 @@ bool TracingLibrary::tracing_on_by_default() { return true; }
 
 bool TracingLibrary::trace_locations_by_default() { return false; }
 
-std::string TracingLibrary::configuration_json(const dd::Tracer &tracer) {
+std::string TracingLibrary::configuration_json(const dd::Tracer& tracer) {
   // TODO
   (void)tracer;
   return "{\"implemented\": \"not\"}";

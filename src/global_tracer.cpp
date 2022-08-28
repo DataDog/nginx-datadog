@@ -12,19 +12,15 @@ std::optional<dd::Tracer> instance;
 }  // namespace
 
 dd::Tracer* global_tracer() {
-    if (instance) {
-        return &*instance;
-    }
-    return nullptr;
+  if (instance) {
+    return &*instance;
+  }
+  return nullptr;
 }
 
-void reset_global_tracer() {
-    instance.reset();
-}
+void reset_global_tracer() { instance.reset(); }
 
-void reset_global_tracer(dd::Tracer&& tracer) {
-    instance = std::move(tracer);
-}
+void reset_global_tracer(dd::Tracer&& tracer) { instance = std::move(tracer); }
 
 }  // namespace nginx
 }  // namespace datadog

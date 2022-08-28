@@ -1,14 +1,13 @@
 #pragma once
 
-
 #include <chrono>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include "datadog_conf.h"
 #include "propagation_header_querier.h"
 #include "request_tracing.h"
-#include <string_view>
 
 extern "C" {
 #include <nginx.h>
@@ -22,17 +21,21 @@ namespace nginx {
 
 class DatadogContext {
  public:
-  DatadogContext(ngx_http_request_t* request, ngx_http_core_loc_conf_t* core_loc_conf,
+  DatadogContext(ngx_http_request_t* request,
+                 ngx_http_core_loc_conf_t* core_loc_conf,
                  datadog_loc_conf_t* loc_conf);
 
-  void on_change_block(ngx_http_request_t* request, ngx_http_core_loc_conf_t* core_loc_conf,
+  void on_change_block(ngx_http_request_t* request,
+                       ngx_http_core_loc_conf_t* core_loc_conf,
                        datadog_loc_conf_t* loc_conf);
 
   void on_log_request(ngx_http_request_t* request);
 
-  ngx_str_t lookup_propagation_header_variable_value(ngx_http_request_t* request, std::string_view key);
+  ngx_str_t lookup_propagation_header_variable_value(
+      ngx_http_request_t* request, std::string_view key);
 
-  ngx_str_t lookup_span_variable_value(ngx_http_request_t* request, std::string_view key);
+  ngx_str_t lookup_span_variable_value(ngx_http_request_t* request,
+                                       std::string_view key);
 
  private:
   std::vector<RequestTracing> traces_;

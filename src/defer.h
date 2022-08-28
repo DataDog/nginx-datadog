@@ -14,7 +14,8 @@
 // the enclosing function returns or throws an exception ("!"), but only if
 // `guard` has been initialized ("←").
 //
-//     int inject_config(Config* conf, const char* old_name, const char* new_name) try {
+//     int inject_config(Config* conf, const char* old_name, const char*
+//     new_name) try {
 //         if (std::strcmp(old_name, new_name) == 0) {
 //             return 0;
 //         }
@@ -56,7 +57,8 @@ class CleanupFuncGuard {
   bool active_;  // whether to call `on_destroy_` in the destructor
 
  public:
-  explicit CleanupFuncGuard(Func&& func) : on_destroy_(std::move(func)), active_(true) {}
+  explicit CleanupFuncGuard(Func&& func)
+      : on_destroy_(std::move(func)), active_(true) {}
 
   CleanupFuncGuard(CleanupFuncGuard&& other)
       : on_destroy_(std::move(other.on_destroy_)), active_(true) {

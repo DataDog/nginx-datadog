@@ -1,21 +1,21 @@
 #include "propagation_header_querier.h"
 
+#include <datadog/dict_writer.h>
 
 #include <algorithm>
 #include <cassert>
 #include <iterator>
 #include <new>
-
-#include <datadog/dict_writer.h>
+#include <string_view>
 
 #include "dd.h"
 #include "string_util.h"
-#include <string_view>
 
 namespace datadog {
 namespace nginx {
 
-ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request, const dd::Span& span,
+ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request,
+                                                 const dd::Span& span,
                                                  std::string_view key) {
   if (&span != values_span_) {
     expand_values(request, span);
@@ -39,7 +39,8 @@ class SpanContextValueWriter : public dd::DictWriter {
 
  public:
   explicit SpanContextValueWriter(
-      std::unordered_map<std::string, std::string>& span_context_expansion, std::string& buffer)
+      std::unordered_map<std::string, std::string>& span_context_expansion,
+      std::string& buffer)
       : span_context_expansion_(&span_context_expansion), buffer_(&buffer) {}
 
   void set(std::string_view key, std::string_view value) override {
@@ -52,7 +53,8 @@ class SpanContextValueWriter : public dd::DictWriter {
 
 }  // namespace
 
-void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const dd::Span& span) {
+void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request,
+                                             const dd::Span& span) {
   values_span_ = &span;
   span_context_expansion_.clear();
   SpanContextValueWriter writer{span_context_expansion_, buffer_};

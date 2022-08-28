@@ -1,6 +1,5 @@
 #include "ngx_http_datadog_module.h"
 
-
 #include <cstdlib>
 #include <exception>
 #include <iterator>
@@ -12,10 +11,10 @@
 #include "datadog_directive.h"
 #include "datadog_handler.h"
 #include "datadog_variable.h"
-#include "defer.h"
-#include "log_conf.h"
 #include "dd.h"
+#include "defer.h"
 #include "global_tracer.h"
+#include "log_conf.h"
 #include "string_util.h"
 #include "tracing_library.h"
 
@@ -45,10 +44,11 @@ using namespace datadog::nginx;
 // "datadog_trace_locations".  The `ngx_command_t::type` bitmask of the two
 // versions must match.  To ensure this, `DEFINE_COMMAND_WITH_OLD_ALIAS` is a
 // macro that defines both commands at the same time.
-#define DEFINE_COMMAND_WITH_OLD_ALIAS(NAME, OLD_NAME, TYPE, SET, CONF, OFFSET, POST) \
-  {ngx_string(NAME), TYPE, SET, CONF, OFFSET, POST}, {                               \
-    ngx_string(OLD_NAME), TYPE, delegate_to_datadog_directive_with_warning,          \
-        NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                         \
+#define DEFINE_COMMAND_WITH_OLD_ALIAS(NAME, OLD_NAME, TYPE, SET, CONF, OFFSET, \
+                                      POST)                                    \
+  {ngx_string(NAME), TYPE, SET, CONF, OFFSET, POST}, {                         \
+    ngx_string(OLD_NAME), TYPE, delegate_to_datadog_directive_with_warning,    \
+        NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                   \
   }
 
 // Part of configuring a command is saying where the command is allowed to
@@ -275,7 +275,8 @@ ngx_module_t ngx_http_datadog_module = {
 // Note that `ngx_set_env` is adapted from the function of the same name in
 // `nginx.c` within the nginx source code.
 static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
-  ngx_core_conf_t *ccf = (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+  ngx_core_conf_t *ccf =
+      (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
   ngx_str_t *value, *var;
   ngx_uint_t i;
@@ -298,7 +299,16 @@ static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
   return NGX_CONF_OK;
 }
 
-static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
+static ngx_int_t datadog_master_process_post_config(
+    ngx_cycle_t *cycle) noexcept {
+  // Forward tracer-specific environment variables to worker processes.
+  for (const auto &env_var_name :
+       TracingLibrary::environment_variable_names()) {
+    if (const void *const error = ngx_set_env(env_var_name, cycle)) {
+      return ngx_int_t(error);
+    }
+  }
+
   // If tracing has not so far been configured, then give it a default
   // configuration.  This means that the nginx configuration did not use the
   // `datadog` directive, and did not use any overridden directives, such as
@@ -341,8 +351,8 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   }
 
   // Add handlers to create tracing data.
-  auto handler = static_cast<ngx_http_handler_pt *>(
-      ngx_array_push(&core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
+  auto handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
+      &core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_enter_block;
 
@@ -354,7 +364,8 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();
   if (tags.empty()) return NGX_OK;
-  main_conf->tags = ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
+  main_conf->tags =
+      ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
   if (!main_conf->tags) return NGX_ERROR;
   for (const auto &tag : tags) {
     if (add_datadog_tag(cf, main_conf->tags, to_ngx_str(tag.first), to_ngx_str(tag.second)) !=
@@ -375,14 +386,17 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 
   auto maybe_tracer = TracingLibrary::make_tracer(str(main_conf->tracer_conf));
   if (auto *error = maybe_tracer.if_error()) {
-    ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "Failed to construct tracer: [error code %d] %s", int(error->code), error->message.c_str());
+    ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                  "Failed to construct tracer: [error code %d] %s",
+                  int(error->code), error->message.c_str());
     return NGX_ERROR;
   }
 
   reset_global_tracer(std::move(*maybe_tracer));
   return NGX_OK;
 } catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s", e.what());
+  ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s",
+                e.what());
   return NGX_ERROR;
 }
 
@@ -396,8 +410,8 @@ static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
 // create_datadog_main_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
-  auto main_conf =
-      static_cast<datadog_main_conf_t *>(ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
+  auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
   // Default initialize members.
   if (main_conf) {
     *main_conf = datadog_main_conf_t();
@@ -424,8 +438,8 @@ static bool is_server_block_begin(const ngx_conf_t *conf) {
 // create_datadog_loc_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
-  auto loc_conf =
-      static_cast<datadog_loc_conf_t *>(ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
+  auto loc_conf = static_cast<datadog_loc_conf_t *>(
+      ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
   if (!loc_conf) return nullptr;
 
   // Trace ID and span ID are automatically added to the access log by altering
@@ -459,7 +473,8 @@ namespace {
 // `current` does not have a value and `previous` does, then `previous` will be
 // used.  If neither has a value, then a hard-coded default will be used.
 // Return `NGX_CONF_OK` on success, or another value otherwise.
-char *merge_operation_name_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
+char *merge_operation_name_script(ngx_conf_t *conf, NgxScript &previous,
+                                  NgxScript &current,
                                   std::string_view default_pattern) {
   if (current.is_valid()) {
     return NGX_CONF_OK;
@@ -476,16 +491,41 @@ char *merge_operation_name_script(ngx_conf_t *conf, NgxScript &previous, NgxScri
   return NGX_CONF_OK;
 }
 
+char *merge_response_info_script(ngx_conf_t *conf, NgxScript &previous,
+                                 NgxScript &current) {
+  // The response info script is the same for each `datadog_loc_conf_t`.  The
+  // only reason it's a member of `datadog_loc_conf_t` is so that it is
+  // available at the end of each request, when we might like to inspect e.g.
+  // response headers.
+  if (current.is_valid()) {
+    return NGX_CONF_OK;
+  }
+
+  if (!previous.is_valid()) {
+    // Response header inspection is not currently used by this module, but I'm
+    // leaving the boilerplate for future use.
+    const ngx_int_t rc = previous.compile(conf, ngx_string(""));
+    if (rc != NGX_OK) {
+      return (char *)NGX_CONF_ERROR;
+    }
+  }
+
+  current = previous;
+  return NGX_CONF_OK;
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
 // merge_datadog_loc_conf
 //------------------------------------------------------------------------------
-static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) noexcept {
+static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
+                                    void *child) noexcept {
   auto prev = static_cast<datadog_loc_conf_t *>(parent);
   auto conf = static_cast<datadog_loc_conf_t *>(child);
 
-  ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
+  ngx_conf_merge_value(conf->enable, prev->enable,
+                       TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
 

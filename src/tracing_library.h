@@ -9,14 +9,14 @@
 // interface.  When the nginx module has a "question" about its behavior that
 // could be answered by the tracing library, the answer is in `TracingLibrary`.
 
+#include <datadog/expected.h>
+#include <datadog/tracer.h>
+
 #include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
-#include <datadog/expected.h>
-#include <datadog/tracer.h>
 
 #include "dd.h"
 
@@ -42,11 +42,11 @@ struct TracingLibrary {
   // configuration, e.g. optional B3 propagation).  If `configuration` is
   // empty, use a default configuration.  If an error occurs, assign a
   // diagnostic to the specified `error`.  Note that the storage to which
-  // each returned `std::string_view` refers must outlive any usage of the return
-  // value (realistically this means that they will refer to string
+  // each returned `std::string_view` refers must outlive any usage of the
+  // return value (realistically this means that they will refer to string
   // literals).
-  static std::vector<std::string_view> propagation_header_names(std::string_view configuration,
-                                                           std::string &error);
+  static std::vector<std::string_view> propagation_header_names(
+      std::string_view configuration, std::string &error);
 
   // Return the common prefix of all variable names that map to trace context
   // propagation headers.  The portion of the variable name after the common
