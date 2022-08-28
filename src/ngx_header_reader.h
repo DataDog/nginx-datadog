@@ -36,7 +36,7 @@ public:
     });
   }
 
-  std::optional<std::string_view> lookup(std::string_view key) const {
+  std::optional<std::string_view> lookup(std::string_view key) const override {
     buffer_.clear();
     std::transform(key.begin(), key.end(), std::back_inserter(buffer_), [](unsigned char ch) { return std::tolower(ch); });
     const auto found = headers_.find(buffer_);
@@ -44,6 +44,14 @@ public:
       return found->second;
     }
     return std::nullopt;
+  }
+
+  void visit(
+      const std::function<void(std::string_view key, std::string_view value)>&
+          visitor) const override {
+    for (const auto& [key, value] : headers_) {
+      visitor(key, value);
+    }
   }
 };
 

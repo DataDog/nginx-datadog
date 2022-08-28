@@ -6,11 +6,16 @@
 #include <sstream>
 #include <string>
 #include <stdexcept>
+#include <utility>
+
+#include <datadog/span_config.h>
+#include <datadog/span.h>
 
 #include "array_util.h"
 #include "ngx_header_reader.h"
 #include "ngx_http_datadog_module.h"
 #include "dd.h"
+#include "global_tracer.h"
 #include "string_util.h"
 #include "tracing_library.h"
 
@@ -72,7 +77,6 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
   // Treat any 5xx code as an error.
   if (status >= 500) {
     span.set_tag("error", "1");
-    span.Log({{"event", "error"}, {"message", status_line}});
   }
 }
 
@@ -137,7 +141,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
      ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                    "failed to extract a Datadog span request %p: [error code %d]: %s", request, error->code, error->message.c_str());
     } else {
-      request_span_ = *maybe_span;
+      request_span_ = std::move(*maybe_span);
     }
   }
 
@@ -155,7 +159,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
                    &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
     config.name = get_loc_operation_name(request_, core_loc_conf_, loc_conf_);
-    span_ = request_span_.create_child(config);
+    span_ = request_span_->create_child(config);
   }
 }
 
@@ -171,7 +175,8 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                    &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
-    span_ = request_span_.create_child(config);
+    assert(request_span_);  // TODO: Can we assume this?
+    span_ = request_span_->create_child(config);
   }
 }
 

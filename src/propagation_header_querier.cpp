@@ -34,7 +34,7 @@ ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request, co
 namespace {
 
 class SpanContextValueWriter : public dd::DictWriter {
-  std::vector<std::pair<std::string, std::string>>* span_context_expansion_;
+  std::unordered_map<std::string, std::string>* span_context_expansion_;
   std::string* buffer_;
 
  public:
@@ -43,11 +43,10 @@ class SpanContextValueWriter : public dd::DictWriter {
       : span_context_expansion_(&span_context_expansion), buffer_(&buffer) {}
 
   void set(std::string_view key, std::string_view value) override {
-    // TODO
-    buffer->clear()
+    buffer_->clear();
     std::transform(key.begin(), key.end(), std::back_inserter(*buffer_),
                    header_transform_char);
-    span_context_expansion.insert_or_assign(*buffer, value);
+    span_context_expansion_->insert_or_assign(*buffer_, value);
   }
 };
 

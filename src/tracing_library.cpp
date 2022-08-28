@@ -33,7 +33,7 @@ std::string_view or_default(std::string_view config_json) {
   return config_json;
 }
 
-class NginxLogger : public dd::Logger {
+class NgxLogger : public dd::Logger {
   std::mutex mutex_;
 
  public:
@@ -46,11 +46,10 @@ class NginxLogger : public dd::Logger {
   void log_startup(const dd::Logger::LogFunc& write) override {
     std::ostringstream stream;
     write(stream);
-    const std::string message = stream.str();
-    const ngx_str_t ngx_message = to_ngx_str(buffer);
+    std::string message = stream.str();
 
     std::lock_guard<std::mutex> lock(mutex_);
-    (void) ngx_write_fd(ngx_stderr, ngx_message.data(), ngx_message.size());
+    (void) ngx_write_fd(ngx_stderr, message.data(), message.size());
   }
 
   void log_error(const dd::Error& error) override {
@@ -71,9 +70,8 @@ class NginxLogger : public dd::Logger {
 }  // namespace
 
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(std::string_view json_config) {
-  const std::string config_str = or_default(json_config);
   // TODO: create a `dd::TracerConfig` from the JSON.
-  (void) config_str;
+  (void) json_config;
 
   dd::TracerConfig config;
   config.defaults.service = "dd-trace-cpp-nginx";
@@ -84,7 +82,7 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(std::string_view json_confi
     return final_config.error();
   }
 
-  return dd::Tracer(final_config);
+  return dd::Tracer(*final_config);
 }
 
 std::vector<std::string_view> TracingLibrary::propagation_header_names(std::string_view configuration,
@@ -103,17 +101,17 @@ std::vector<std::string_view> TracingLibrary::propagation_header_names(std::stri
     };
 }
 
-string_view TracingLibrary::propagation_header_variable_name_prefix() {
+std::string_view TracingLibrary::propagation_header_variable_name_prefix() {
   return "datadog_propagation_header_";
 }
 
-string_view TracingLibrary::environment_variable_name_prefix() { return "datadog_env_"; }
+std::string_view TracingLibrary::environment_variable_name_prefix() { return "datadog_env_"; }
 
-string_view TracingLibrary::configuration_json_variable_name() { return "datadog_config_json"; }
+std::string_view TracingLibrary::configuration_json_variable_name() { return "datadog_config_json"; }
 
-string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
+std::string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
 
-string_view TracingLibrary::proxy_directive_variable_name() { return "datadog_proxy_directive"; }
+std::string_view TracingLibrary::proxy_directive_variable_name() { return "datadog_proxy_directive"; }
 
 namespace {
 
@@ -165,9 +163,9 @@ std::vector<std::string_view> TracingLibrary::environment_variable_names() {
           "DD_VERSION"};
 }
 
-string_view TracingLibrary::default_request_operation_name_pattern() { return "nginx.request"; }
+std::string_view TracingLibrary::default_request_operation_name_pattern() { return "nginx.request"; }
 
-string_view TracingLibrary::default_location_operation_name_pattern() {
+std::string_view TracingLibrary::default_location_operation_name_pattern() {
   return "nginx.$datadog_proxy_directive";
 }
 
