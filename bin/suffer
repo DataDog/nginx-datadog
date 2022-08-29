@@ -3,4 +3,4 @@
 cd $(dirname "$0")/..
 mkdir -p .build
 cd .build
-cmake .. && (make -j $(nproc) 2>&1 | head -30 | grep -E '^| error: ')
+cmake .. && (make -j $(nproc) 2>&1 >/dev/null | head -30 | grep -E '^| error: ')
