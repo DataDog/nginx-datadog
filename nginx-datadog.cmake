@@ -22,6 +22,7 @@ target_sources(nginx_datadog
         src/global_tracer.cpp
         src/json.cpp
         src/log_conf.cpp
+        src/ngx_event_scheduler.cpp
         src/ngx_filebuf.cpp
         src/ngx_header_reader.cpp
         src/ngx_http_datadog_module.cpp
