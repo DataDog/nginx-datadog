@@ -26,6 +26,7 @@ target_sources(nginx_datadog
         src/ngx_filebuf.cpp
         src/ngx_header_reader.cpp
         src/ngx_http_datadog_module.cpp
+        src/ngx_logger.cpp
         src/ngx_script.cpp
         src/propagation_header_querier.cpp
         src/request_tracing.cpp

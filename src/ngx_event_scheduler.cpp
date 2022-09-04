@@ -22,8 +22,6 @@ extern "C" void handle_event(ngx_event_t *ev) {
 
 NgxEventScheduler::Event::Event(std::function<void()> callback, std::chrono::steady_clock::duration interval)
 : callback(callback), interval(interval), event() {
-    // `-1` is a special value that indicates to nginx that it should not
-    // consider `event` an I/O event.
     event.data = this;
     event.log = ngx_cycle->log;
     event.handler = &handle_event;

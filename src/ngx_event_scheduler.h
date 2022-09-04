@@ -22,6 +22,9 @@ class NgxEventScheduler : public dd::EventScheduler {
     ngx_event_t event;
         
     Event(std::function<void()> callback, std::chrono::steady_clock::duration interval);
+    
+    Event(const Event&) = delete;
+    Event& operator=(const Event&) = delete;
   };
   
   private:

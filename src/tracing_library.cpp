@@ -2,23 +2,15 @@
 
 #include <datadog/error.h>
 #include <datadog/expected.h>
-#include <datadog/logger.h>
 #include <datadog/span.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
 
-#include "string_util.h"
-
-extern "C" {
-#include <ngx_core.h>
-#include <ngx_log.h>
-}
+#include "ngx_event_scheduler.h"
+#include "ngx_logger.h"
 
 #include <algorithm>
 #include <iterator>
-#include <memory>
-#include <mutex>
-#include <sstream>
 
 namespace datadog {
 namespace nginx {
@@ -33,41 +25,6 @@ std::string_view or_default(std::string_view config_json) {
   return config_json;
 }
 
-class NgxLogger : public dd::Logger {
-  std::mutex mutex_;
-
- public:
-  void log_error(const dd::Logger::LogFunc& write) override {
-    std::ostringstream stream;
-    write(stream);
-    log_error(stream.str());
-  }
-
-  void log_startup(const dd::Logger::LogFunc& write) override {
-    std::ostringstream stream;
-    write(stream);
-    std::string message = stream.str();
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    (void)ngx_write_fd(ngx_stderr, message.data(), message.size());
-  }
-
-  void log_error(const dd::Error& error) override {
-    const ngx_str_t ngx_message = to_ngx_str(error.message);
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "datadog: [error code %d] %V",
-                  int(error.code), &ngx_message);
-  }
-
-  void log_error(std::string_view message) override {
-    const ngx_str_t ngx_message = to_ngx_str(message);
-
-    std::lock_guard<std::mutex> lock(mutex_);
-    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "datadog: %V", &ngx_message);
-  }
-};
-
 }  // namespace
 
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
@@ -78,6 +35,7 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   dd::TracerConfig config;
   config.defaults.service = "dd-trace-cpp-nginx";
   config.logger = std::make_shared<NgxLogger>();
+  config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
 
   auto final_config = dd::finalize_config(config);
   if (!final_config) {
