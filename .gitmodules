@@ -1,6 +1,3 @@
 [submodule "opentracing-cpp"]
 	path = opentracing-cpp
 	url = git@github.com:DataDog/opentracing-cpp.git
-[submodule "dd-opentracing-cpp"]
-	path = dd-opentracing-cpp
-	url = git@github.com:dgoffredo/dd-opentracing-cpp.git
