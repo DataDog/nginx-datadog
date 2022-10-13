@@ -487,6 +487,17 @@ char *set_datadog_location_operation_name(ngx_conf_t *cf, ngx_command_t *command
   return set_script(cf, command, loc_conf->loc_operation_name_script);
 }
 
+char *set_datadog_resource_name(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  return set_script(cf, command, loc_conf->resource_name_script);
+}
+
+char *set_datadog_location_resource_name(ngx_conf_t *cf, ngx_command_t *command,
+                                         void *conf) noexcept {
+  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  return set_script(cf, command, loc_conf->loc_resource_name_script);
+}
+
 char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
   const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
   const auto values = static_cast<const ngx_str_t *>(cf->args->elts);

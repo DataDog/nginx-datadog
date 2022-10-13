@@ -20,3 +20,6 @@ COPY ngx_http_datadog_module.so ${NGINX_MODULES_DIRECTORY}
 
 ENTRYPOINT ["nginx"]
 CMD ["-g", "daemon off;"]
+
+# Override the default configuration with a minimal one.
+COPY ./nginx.conf /etc/nginx/nginx.conf

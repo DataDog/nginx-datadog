@@ -198,9 +198,10 @@ std::unordered_map<string_view, string_view> TracingLibrary::default_tags() {
       // See
       // https://docs.datadoghq.com/logs/log_configuration/attributes_naming_convention/#common-attributes
       {"http.useragent", "$http_user_agent"},
-      {"resource.name", "$request_method $datadog_location"},
       {"nginx.location", "$datadog_location"}};
 }
+
+string_view TracingLibrary::default_resource_name_pattern() { return "$request_method $uri"; }
 
 bool TracingLibrary::tracing_on_by_default() { return true; }
 

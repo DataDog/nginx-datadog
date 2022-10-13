@@ -41,7 +41,7 @@ default tracing behavior to nginx:
 - Create one span per request:
     - Service name is "nginx".
     - Operation name is "nginx.request".
-    - Resource name is `"$request_method $datadog_location"`, e.g. "GET /api".
+    - Resource name is `"$request_method $uri"`, e.g. "GET /api/book/0-345-24223-8/title".
     - Includes multiple `http.*` [tags][8].
 
 Custom configuration can be specified via the [datadog](doc/API.md#datadog)

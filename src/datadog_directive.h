@@ -38,6 +38,11 @@ char *set_datadog_operation_name(ngx_conf_t *cf, ngx_command_t *command, void *c
 char *set_datadog_location_operation_name(ngx_conf_t *cf, ngx_command_t *command,
                                           void *conf) noexcept;
 
+char *set_datadog_resource_name(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *set_datadog_location_resource_name(ngx_conf_t *cf, ngx_command_t *command,
+                                         void *conf) noexcept;
+
 char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
 char *datadog_enable(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
