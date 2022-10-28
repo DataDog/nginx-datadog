@@ -14,10 +14,14 @@ cd "$REPO"
 # Here are the supported nginx tags.
 supported_nginx_tags=$(mktemp)
 >"$supported_nginx_tags" cat <<END_NGINX_TAGS
+1.23.2-alpine
+1.23.2
 1.23.1-alpine
 1.23.1
 1.23.0-alpine
 1.23.0
+1.22.1-alpine
+1.22.1
 1.22.0-alpine
 1.22.0
 1.21.6-alpine
