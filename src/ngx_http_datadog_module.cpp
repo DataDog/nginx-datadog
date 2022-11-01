@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <exception>
+#include <iostream>  // TODO: no
 #include <iterator>
 #include <utility>
 
@@ -68,7 +69,6 @@ static ngx_uint_t anywhere =
   | NGX_HTTP_MAIN_CONF;  // the toplevel configuration, e.g. where modules are loaded
 
 static ngx_command_t datadog_commands[] = {
-
     { ngx_string("opentracing"),
       anywhere | NGX_CONF_TAKE1,
       toggle_opentracing,
@@ -213,7 +213,7 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
-
+  
     ngx_null_command
 };
 
@@ -247,6 +247,15 @@ ngx_module_t ngx_http_datadog_module = {
 };
 // clang-format on
 
+// TODO: no
+// std::ostream& TODO_log(int line) {
+//   return std::cerr << "()()()()() " << line << ". "; 
+// }
+// #define TODO_LOG TODO_log(__LINE__)
+#define TODO_LOG for (bool qwerty = true; qwerty; qwerty = false, std::cerr << '\n') std::cerr << "()()()()() " << __LINE__ << ". "
+// end TODO
+
+
 // Configure nginx to set the environment variable as indicated by the
 // specified `entry` in the context of the specified `cycle`.  `entry` is a
 // string in one of the following forms:
@@ -262,7 +271,24 @@ ngx_module_t ngx_http_datadog_module = {
 // Note that `ngx_set_env` is adapted from the function of the same name in
 // `nginx.c` within the nginx source code.
 static void *ngx_set_env(string_view entry, ngx_cycle_t *cycle) {
+  TODO_LOG << "entry: " << entry;
+  TODO_LOG << "(void*)cycle: " << static_cast<void*>(cycle);
+  TODO_LOG << "(void*)ngx_cycle: " << static_cast<volatile void*>(ngx_cycle);
+  TODO_LOG << "(void*)ngx_get_conf(cycle->conf_ctx, ngx_core_module): " << ngx_get_conf(cycle->conf_ctx, ngx_core_module);
   ngx_core_conf_t *ccf = (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+  TODO_LOG << "(void*)&ccf->env: " << static_cast<void*>(&ccf->env);
+  TODO_LOG << "ccf->env.nelts: " << ccf->env.nelts;
+  TODO_LOG << "ccf->env.size: " << ccf->env.size;
+  TODO_LOG << "ccf->env.nalloc: " << ccf->env.nalloc;
+  TODO_LOG << "(void*)ccf->env.pool: " << static_cast<void*>(ccf->env.pool);
+  TODO_LOG << "(void*)ccf->env.elts: " << static_cast<void*>(ccf->env.elts);
+  TODO_LOG << "(void*)ccf->environment: " << static_cast<void*>(ccf->environment);
+  TODO_LOG << "(void*)environ: " << static_cast<void*>(environ);
+  TODO_LOG << "ccf->user: " << ccf->user;
+  TODO_LOG << "ccf->user: " << ccf->group;
+  TODO_LOG << "(void*)ccf->username: " << static_cast<void*>(ccf->username);
+  // crash TODO_LOG << "ccf->username: " << ccf->username;
+  // crash TODO_LOG << "ccf->working_directory: " << str(ccf->working_directory);
 
   ngx_str_t *value, *var;
   ngx_uint_t i;
@@ -271,9 +297,12 @@ static void *ngx_set_env(string_view entry, ngx_cycle_t *cycle) {
   if (var == NULL) {
     return NGX_CONF_ERROR;
   }
+  TODO_LOG << "after the ngx_array_push and null check. (void*)var: " << static_cast<void*>(var);
 
   const ngx_str_t entry_str = to_ngx_str(entry);
+  TODO_LOG << "after to_ngx_str(entry)";
   *var = entry_str;
+  TODO_LOG << "after *var = entry_str";
 
   for (i = 0; i < var->len; i++) {
     if (var->data[i] == '=') {
@@ -281,17 +310,20 @@ static void *ngx_set_env(string_view entry, ngx_cycle_t *cycle) {
       return NGX_CONF_OK;
     }
   }
+  TODO_LOG << "after loop looking for '='";
 
   return NGX_CONF_OK;
 }
 
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
   // Forward tracer-specific environment variables to worker processes.
+  /* TODO: let's see how bad the corruption is...
   for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
     if (const void *const error = ngx_set_env(env_var_name, cycle)) {
       return ngx_int_t(error);
     }
   }
+  end TODO*/
 
   // If tracing has not so far been configured, then give it a default
   // configuration.  This means that the nginx configuration did not use the
