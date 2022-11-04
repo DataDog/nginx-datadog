@@ -76,9 +76,9 @@ char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, string_view tra
   main_conf->is_tracer_configured = true;
   main_conf->tracer_conf = to_ngx_str(conf->pool, tracer_conf);
   main_conf->tracer_conf_source_location =
-      conf_directive_source_location{.file_name = conf->conf_file->file.name,
-                                     .line = conf->conf_file->line,
-                                     .directive_name = command->name};
+      conf_directive_source_location_t{.file_name = conf->conf_file->file.name,
+                                       .line = conf->conf_file->line,
+                                       .directive_name = command->name};
 
   // In order for span context propagation to work, the names of the HTTP
   // headers added to requests need to be known ahead of time.

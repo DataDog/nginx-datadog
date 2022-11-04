@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <exception>
 #include <iterator>
+#include <string>
 #include <utility>
 
 #include "datadog_conf.h"
@@ -25,6 +26,7 @@ extern "C" {
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <stdlib.h>  // ::setenv
 }
 
 // clang-format off
@@ -68,7 +70,6 @@ static ngx_uint_t anywhere =
   | NGX_HTTP_MAIN_CONF;  // the toplevel configuration, e.g. where modules are loaded
 
 static ngx_command_t datadog_commands[] = {
-
     { ngx_string("opentracing"),
       anywhere | NGX_CONF_TAKE1,
       toggle_opentracing,
@@ -213,7 +214,7 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
-
+  
     ngx_null_command
 };
 
@@ -247,52 +248,7 @@ ngx_module_t ngx_http_datadog_module = {
 };
 // clang-format on
 
-// Configure nginx to set the environment variable as indicated by the
-// specified `entry` in the context of the specified `cycle`.  `entry` is a
-// string in one of the following forms:
-//
-// 1. "FOO"
-// 2. "FOO=value"
-//
-// The environment variable name in this example is "FOO".  In the case of the
-// first form, the value of the environment variable will be inherited from the
-// parent process.  In the case of the second form, the value of the
-// environment variable will be as specified after the equal sign.
-//
-// Note that `ngx_set_env` is adapted from the function of the same name in
-// `nginx.c` within the nginx source code.
-static void *ngx_set_env(string_view entry, ngx_cycle_t *cycle) {
-  ngx_core_conf_t *ccf = (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
-
-  ngx_str_t *value, *var;
-  ngx_uint_t i;
-
-  var = (ngx_str_t *)ngx_array_push(&ccf->env);
-  if (var == NULL) {
-    return NGX_CONF_ERROR;
-  }
-
-  const ngx_str_t entry_str = to_ngx_str(entry);
-  *var = entry_str;
-
-  for (i = 0; i < var->len; i++) {
-    if (var->data[i] == '=') {
-      var->len = i;
-      return NGX_CONF_OK;
-    }
-  }
-
-  return NGX_CONF_OK;
-}
-
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
-  // Forward tracer-specific environment variables to worker processes.
-  for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
-    if (const void *const error = ngx_set_env(env_var_name, cycle)) {
-      return ngx_int_t(error);
-    }
-  }
-
   // If tracing has not so far been configured, then give it a default
   // configuration.  This means that the nginx configuration did not use the
   // `datadog` directive, and did not use any overridden directives, such as
@@ -302,6 +258,16 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
   if (!main_conf->is_tracer_configured) {
     main_conf->is_tracer_configured = true;
     main_conf->tracer_conf = ngx_string("");  // default config
+  }
+
+  // Forward tracer-specific environment variables to worker processes.
+  std::string name;
+  for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
+    name = env_var_name;
+    if (const char *value = std::getenv(name.c_str())) {
+      main_conf->environment_variables.push_back(
+          environment_variable_t{.name = name, .value = value});
+    }
   }
 
   return NGX_OK;
@@ -341,6 +307,11 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
   if (!main_conf || !main_conf->is_tracer_configured) {
     return NGX_OK;
+  }
+
+  for (const auto &entry : main_conf->environment_variables) {
+    const bool overwrite = false;
+    ::setenv(entry.name.c_str(), entry.value.c_str(), overwrite);
   }
 
   std::shared_ptr<ot::Tracer> tracer = load_tracer(cycle->log, str(main_conf->tracer_conf));

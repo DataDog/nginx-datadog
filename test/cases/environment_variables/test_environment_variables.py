@@ -73,6 +73,10 @@ class TestEnvironmentVariables(case.TestCase):
                     # Env variables that are not on the allow list return "-".
                     self.assertEqual('-', worker_env[variable_name],
                                      error_context)
+                elif variable_name == 'DD_VERSION':
+                    # conf/nginx.conf has an "env" directive that overrides DD_VERSION.
+                    self.assertEqual('overridden', worker_env[variable_name],
+                                     error_context)
                 else:
                     self.assertEqual(value, worker_env[variable_name],
                                      error_context)

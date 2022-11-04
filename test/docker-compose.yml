@@ -10,6 +10,7 @@ services:
       dockerfile: ./Dockerfile
       args:
         NGINX_IMAGE: ${NGINX_IMAGE}
+        NGINX_MODULES_DIRECTORY: ${NGINX_MODULES_DIRECTORY}
     environment:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
