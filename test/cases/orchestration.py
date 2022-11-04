@@ -30,6 +30,10 @@ docker_command_path = shutil.which('docker')
 docker_compose_flags = []
 docker_flags = []
 
+# Depending on which Docker image nginx is running in, the nginx config might be
+# in different locations.  Ideally we could deduce the path to the config file
+# by parsing `nginx -V`, but that doesn't always work (e.g. OpenResty).
+nginx_conf_path = os.environ.get('NGINX_CONF_PATH', '/etc/nginx/nginx.conf')
 
 def docker_compose_command(*args):
     return [docker_compose_command_path, *docker_compose_flags, *args]
@@ -56,13 +60,9 @@ def child_env(parent_env=None):
         parent_env = os.environ
 
     result = {}
-    if 'NGINX_IMAGE' in parent_env:
-        result['NGINX_IMAGE'] = parent_env['NGINX_IMAGE']
-    else:
-        # [repo]/test/cases/orchestration.py  ->  [repo]/nginx-tag
-        version = (Path(__file__).resolve().parent.parent.parent /
-                   'nginx-tag').read_text()
-        result['NGINX_IMAGE'] = f'nginx:{version}'
+    for  name in ('NGINX_IMAGE', 'NGINX_MODULES_DIRECTORY'):
+        if name in parent_env:
+            result[name] = parent_env[name]
 
     # Forward DOCKER_HOST, DOCKER_TLS_VERIFY, etc.
     for name, value in parent_env.items():
@@ -258,7 +258,7 @@ def print_duration(of_what, output):
     before = time.monotonic()
     yield
     after = time.monotonic()
-    print(f'{of_what} took {after - before} seconds.', file=output, flush=True)
+    print(f'{of_what} took {after - before:.5} seconds.', file=output, flush=True)
 
 
 def docker_compose_services():
@@ -561,7 +561,7 @@ exit "$rcode"
             return status, log_lines
 
         script = f"""
->/etc/nginx/nginx.conf cat <<'END_CONF'
+>{nginx_conf_path} cat <<'END_CONF'
 {nginx_conf_text}
 END_CONF
 """
