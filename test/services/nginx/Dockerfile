@@ -15,6 +15,7 @@ COPY ./install_tools.sh /tmp/
 RUN /tmp/install_tools.sh
 
 ARG NGINX_MODULES_DIRECTORY
+RUN mkdir -p ${NGINX_MODULES_DIRECTORY}
 COPY ngx_http_datadog_module.so ${NGINX_MODULES_DIRECTORY}
 
 ENTRYPOINT ["nginx"]
