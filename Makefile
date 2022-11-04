@@ -84,3 +84,12 @@ test: build-in-docker
 test-parallel: build-in-docker
 	cp .docker-build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
 	test/bin/run_parallel $(TEST_ARGS)
+
+openresty.dockerfile:
+	>$@ curl https://raw.githubusercontent.com/openresty/docker-openresty/1.21.4.1-3/alpine/Dockerfile
+
+openresty.tar.gz:
+	curl 'https://openresty.org/download/openresty-1.21.4.1.tar.gz' >$@
+
+openresty: openresty.tar.gz
+	mkdir -p $@ && tar xzf $< -C $@ --strip-components 1	

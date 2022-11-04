@@ -9,7 +9,7 @@ services:
       context: .
       dockerfile: crash.dockerfile
     ports:
-      - '80:8080'
+      - '8080:80'
     cap_add:
       - SYS_PTRACE
     volumes:
