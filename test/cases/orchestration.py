@@ -35,6 +35,7 @@ docker_flags = []
 # by parsing `nginx -V`, but that doesn't always work (e.g. OpenResty).
 nginx_conf_path = os.environ.get('NGINX_CONF_PATH', '/etc/nginx/nginx.conf')
 
+
 def docker_compose_command(*args):
     return [docker_compose_command_path, *docker_compose_flags, *args]
 
@@ -60,7 +61,7 @@ def child_env(parent_env=None):
         parent_env = os.environ
 
     result = {}
-    for  name in ('NGINX_IMAGE', 'NGINX_MODULES_DIRECTORY'):
+    for name in ('NGINX_IMAGE', 'NGINX_MODULES_DIRECTORY'):
         if name in parent_env:
             result[name] = parent_env[name]
 
@@ -258,7 +259,9 @@ def print_duration(of_what, output):
     before = time.monotonic()
     yield
     after = time.monotonic()
-    print(f'{of_what} took {after - before:.5} seconds.', file=output, flush=True)
+    print(f'{of_what} took {after - before:.5} seconds.',
+          file=output,
+          flush=True)
 
 
 def docker_compose_services():

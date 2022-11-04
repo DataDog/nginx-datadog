@@ -27,8 +27,7 @@ extern "C" {
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
-
-#include <stdlib.h> // ::setenv
+#include <stdlib.h>  // ::setenv
 }
 
 // clang-format off
@@ -252,12 +251,13 @@ ngx_module_t ngx_http_datadog_module = {
 
 // TODO: no
 // std::ostream& TODO_log(int line) {
-//   return std::cerr << "()()()()() " << line << ". "; 
+//   return std::cerr << "()()()()() " << line << ". ";
 // }
 // #define TODO_LOG TODO_log(__LINE__)
-#define TODO_LOG for (bool qwerty = true; qwerty; qwerty = false, std::cerr << '\n') std::cerr << "()()()()() " << __LINE__ << ". "
+#define TODO_LOG                                                      \
+  for (bool qwerty = true; qwerty; qwerty = false, std::cerr << '\n') \
+  std::cerr << "()()()()() " << __LINE__ << ". "
 // end TODO
-
 
 // Configure nginx to set the environment variable as indicated by the
 // specified `entry` in the context of the specified `cycle`.  `entry` is a
@@ -278,8 +278,9 @@ static void *ngx_set_env(string_view entry, ngx_cycle_t *cycle) {
   TODO_LOG << "entry: " << entry;
   TODO_LOG << "(void*)cycle: " << static_cast<void*>(cycle);
   TODO_LOG << "(void*)ngx_cycle: " << static_cast<volatile void*>(ngx_cycle);
-  TODO_LOG << "(void*)ngx_get_conf(cycle->conf_ctx, ngx_core_module): " << ngx_get_conf(cycle->conf_ctx, ngx_core_module);
-  ngx_core_conf_t *ccf = (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+  TODO_LOG << "(void*)ngx_get_conf(cycle->conf_ctx, ngx_core_module): " <<
+ngx_get_conf(cycle->conf_ctx, ngx_core_module); ngx_core_conf_t *ccf = (ngx_core_conf_t
+*)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
   TODO_LOG << "(void*)&ccf->env: " << static_cast<void*>(&ccf->env);
   TODO_LOG << "ccf->env.nelts: " << ccf->env.nelts;
   TODO_LOG << "ccf->env.size: " << ccf->env.size;
@@ -328,20 +329,6 @@ std::vector<std::pair<std::string, std::string>> datadog_environment_variable_va
 }  // namespace
 
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
-  // Forward tracer-specific environment variables to worker processes.
-  datadog_environment_variable_values.clear();
-  std::string name;
-  for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
-    // TODO: no more...
-    // if (const void *const error = ngx_set_env(env_var_name, cycle)) {
-    //   return ngx_int_t(error);
-    // }
-    name = env_var_name;
-    if (const char *value = std::getenv(name.c_str())) {
-      datadog_environment_variable_values.emplace_back(name, value);
-    }
-  }
-
   // If tracing has not so far been configured, then give it a default
   // configuration.  This means that the nginx configuration did not use the
   // `datadog` directive, and did not use any overridden directives, such as
@@ -351,6 +338,16 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
   if (!main_conf->is_tracer_configured) {
     main_conf->is_tracer_configured = true;
     main_conf->tracer_conf = ngx_string("");  // default config
+  }
+
+  // Forward tracer-specific environment variables to worker processes.
+  std::string name;
+  for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
+    name = env_var_name;
+    if (const char *value = std::getenv(name.c_str())) {
+      main_conf->environment_variables.push_back(
+          environment_variable_t{.name = name, .value = value});
+    }
   }
 
   return NGX_OK;
@@ -392,13 +389,9 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  // TODO use the config
-  for (const auto& entry : datadog_environment_variable_values) {
-    const auto& name = entry.first;
-    const auto& value = entry.second;
+  for (const auto &entry : main_conf->environment_variables) {
     const bool overwrite = false;
-    TODO_LOG << "()()()() setting " << name << " to " << value << " in worker process (unless it was already set).";
-    ::setenv(name.c_str(), value.c_str(), overwrite);
+    ::setenv(entry.name.c_str(), entry.value.c_str(), overwrite);
   }
 
   std::shared_ptr<ot::Tracer> tracer = load_tracer(cycle->log, str(main_conf->tracer_conf));

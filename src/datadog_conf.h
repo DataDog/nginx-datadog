@@ -13,6 +13,7 @@ extern "C" {
 #include <opentracing/span.h>
 
 #include <string>
+#include <vector>
 
 namespace datadog {
 namespace nginx {
@@ -22,10 +23,15 @@ struct datadog_tag_t {
   NgxScript value_script;
 };
 
-struct conf_directive_source_location {
+struct conf_directive_source_location_t {
   ngx_str_t file_name;       // e.g. "nginx.conf"
   ngx_uint_t line;           // line number within the file `file_name`
   ngx_str_t directive_name;  // e.g. "proxy_pass"
+};
+
+struct environment_variable_t {
+  std::string name;
+  std::string value;
 };
 
 struct datadog_main_conf_t {
@@ -48,7 +54,7 @@ struct datadog_main_conf_t {
   // > Configuration already loaded to default configuration by
   // > [[source location]].  Explicit configuration must appear before
   // > the first [[directive name]].
-  conf_directive_source_location tracer_conf_source_location;
+  conf_directive_source_location_t tracer_conf_source_location;
   // `are_log_formats_defined` is whether we have already injected `log_format`
   // directives into the configuration.  The directives define Datadog-specific
   // access log formats; one of which will override nginx's default.
@@ -58,6 +64,13 @@ struct datadog_main_conf_t {
   // directive).
   bool are_log_formats_defined;
   ngx_array_t *span_context_keys;
+  // This module automates the forwarding of the environment variables in
+  // `TracingLibrary::environment_variable_names()`. Rather than injecting
+  // `env` directives into the configuration, or mucking around with the core
+  // module configuration, instead we grab the values from the environment
+  // of the master process and apply them later in the worker processes after
+  // `fork()`.
+  std::vector<environment_variable_t> environment_variables;
 };
 
 struct datadog_loc_conf_t {
