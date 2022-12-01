@@ -18,7 +18,7 @@ sources: dd-trace-cpp/.git nginx/
 .PHONY: build-deps
 build-deps: sources dd-trace-cpp-deps
 
-dd-trace-cpp/.git:
+dd-trace-cpp/.git libddwaf/.git:
 	git submodule update --init --recursive
 
 .PHONY: dd-trace-cpp-deps

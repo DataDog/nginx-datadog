@@ -17,10 +17,13 @@
 #include "defer.h"
 #include "global_tracer.h"
 #include "log_conf.h"
+#include "security_library.h"
 #include "string_util.h"
 #include "tracing_library.h"
 
 extern "C" {
+#include <ddwaf.h>
+
 #include <nginx.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
@@ -413,6 +416,14 @@ static ngx_int_t datadog_master_process_post_config(
     }
   }
 
+  for (const auto &env_var_name : security_library::environment_variable_names()) {
+    name = env_var_name;
+    if (const char *value = std::getenv(name.c_str())) {
+      main_conf->environment_variables.push_back(
+          environment_variable_t{.name = name, .value = value});
+    }
+  }
+
   return NGX_OK;
 }
 
@@ -467,6 +478,13 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
                   "Failed to construct tracer: [error code %d] %s",
                   int(error->code), error->message.c_str());
     return NGX_ERROR;
+  }
+
+  // FIXME check the environment variables?
+  try {
+    security_library::initialise_security_library();
+  } catch (const std::exception &e) {
+     ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "Initialising security library failed: %s", e.what());
   }
 
   reset_global_tracer(std::move(*maybe_tracer));

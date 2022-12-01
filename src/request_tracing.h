@@ -9,6 +9,8 @@
 
 #include "datadog_conf.h"
 #include "propagation_header_querier.h"
+#include "security_context.h"
+
 
 extern "C" {
 #include <nginx.h>
@@ -47,6 +49,7 @@ class RequestTracing {
   PropagationHeaderQuerier propagation_header_querier_;
   std::optional<dd::Span> request_span_;
   std::optional<dd::Span> span_;
+  security_context sec_ctx_;
 
   void on_exit_block(std::chrono::steady_clock::time_point finish_timestamp);
 };

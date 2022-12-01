@@ -20,6 +20,7 @@
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
 #include "tracing_library.h"
+#include <ddwaf.h>
 
 namespace datadog {
 namespace nginx {
@@ -295,6 +296,8 @@ void RequestTracing::on_exit_block(
 
 void RequestTracing::on_log_request() {
   auto finish_timestamp = std::chrono::steady_clock::now();
+  sec_ctx_.on_log_request(request_, *request_span_);
+
   on_exit_block(finish_timestamp);
 
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
