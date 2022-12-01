@@ -116,6 +116,39 @@ struct datadog_main_conf_t {
   //  requested trace sampling delegation. This `bool` ensures that the
   //  directive is not added more than once.
   bool is_sampling_delegation_response_header_added;
+
+  // DD_APPSEC_ENABLED
+  ngx_flag_t appsec_enabled{NGX_CONF_UNSET};
+
+  // DD_APPSEC_RULES
+  ngx_str_t appsec_ruleset_file{}; 
+
+  // DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON
+  ngx_str_t appsec_http_blocked_template_json{};
+
+  // DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML
+  ngx_str_t appsec_http_blocked_template_html{};
+
+  // DD_TRACE_CLIENT_IP_HEADER
+  ngx_str_t custom_client_ip_header{};
+
+  // DD_APPSEC_WAF_TIMEOUT (default: 0.1 s), in microseconds
+  // The default value is not set to 100 to detect when the value is unset
+  ngx_msec_t appsec_waf_timeout_ms{NGX_CONF_UNSET_MSEC};
+
+  // DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
+  ngx_str_t appsec_obfuscation_key_regex{};
+
+  // DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
+  ngx_str_t appsec_obfuscation_value_regex{};
+
+  // TODO: missing settings and their functionality
+  // DD_TRACE_CLIENT_IP_RESOLVER_ENABLED (whether to collect headers and run the
+  // client ip resolution. Also requires AppSec to be enabled or
+  // clientIpEnabled)
+  // DD_TRACE_CLIENT_IP_ENABLED (client ip without appsec)
+  // DD_APPSEC_WAF_METRICS
+  // DD_APPSEC_REPORT_TIMEOUT
 };
 
 struct datadog_sample_rate_condition_t {
@@ -215,6 +248,9 @@ struct datadog_loc_conf_t {
   // applies this location, if any.
   conf_directive_source_location_t
       allow_sampling_delegation_in_subrequests_directive;
+
+  ngx_str_t waf_thread_pool_name;
+  ngx_thread_pool_t *waf_pool;
 };
 
 }  // namespace nginx

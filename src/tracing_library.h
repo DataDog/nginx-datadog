@@ -39,7 +39,8 @@ struct TracingLibrary {
   // Return a `Tracer` created with the specified `configuration`. If
   // `configuration` is empty, use a default configuration.  If an error
   // occurs, return a `dd::Error`.
-  static dd::Expected<dd::Tracer> make_tracer(const datadog_main_conf_t& conf);
+  static dd::Expected<dd::Tracer> make_tracer(
+      const datadog_main_conf_t& conf, std::shared_ptr<dd::Logger> logger);
 
   // Return the names of HTTP headers used to inject trace context in the
   // specified `styles`. If `styles` is empty, then use the default styles

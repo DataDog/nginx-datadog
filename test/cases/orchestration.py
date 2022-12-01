@@ -297,12 +297,18 @@ def docker_compose_services():
     return result.stdout.split()
 
 
-def curl(url, headers, stderr=None):
+def curl(url, headers, stderr=None, method='GET'):
 
     def header_args():
-        for name, value in headers.items():
-            yield '--header'
-            yield f'{name}: {value}'
+        if isinstance(headers, dict):
+            for name, value in headers.items():
+                yield '--header'
+                yield f'{name}: {value}'
+        else:
+            for name, value in headers:
+                yield '--header'
+                yield f'{name}: {value}'
+
 
     # "curljson.sh" is a script that lives in the "client" docker compose
     # service.  It's a wrapper around "curl" that outputs a JSON object of
@@ -314,7 +320,7 @@ def curl(url, headers, stderr=None):
     # "-T" means "don't allocate a TTY".  This prevents `jq` from outputting in
     # color.
     command = docker_compose_command('exec', '-T', '--', 'client',
-                                     'curljson.sh', *header_args(), url)
+                                     'curljson.sh', f'-X{method}', *header_args(), url)
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             stderr=stderr,
@@ -440,13 +446,13 @@ class Orchestration:
 
         self.verbose.close()
 
-    def send_nginx_http_request(self, path, port=80, headers={}):
+    def send_nginx_http_request(self, path, port=80, headers={}, method='GET'):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
         url = f'http://nginx:{port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
-        fields, headers, body = curl(url, headers, stderr=self.verbose)
+        fields, headers, body = curl(url, headers, stderr=self.verbose, method=method)
         return (fields['response_code'], headers, body)
 
     def send_nginx_grpc_request(self, symbol, port=1337):
@@ -632,6 +638,26 @@ END_CONF
 
         self.reload_nginx()
         return status, log_lines
+
+    def nginx_replace_file(self, file, content):
+        """Replaces the contents of an arbitrary file in the nginx container."""
+
+        script = f"""
+>{file} cat <<'END_CONF'
+{content}
+END_CONF
+"""
+        # "-T" means "don't allocate a TTY".  This is necessary to avoid the
+        # error "the input device is not a TTY".
+        command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                         '/bin/sh')
+        subprocess.run(command,
+                       input=script,
+                       stdout=self.verbose,
+                       stderr=self.verbose,
+                       env=child_env(),
+                       check=True,
+                       encoding='utf8')
 
     @contextlib.contextmanager
     def custom_nginx(self, nginx_conf, extra_env=None, healthcheck_port=None):

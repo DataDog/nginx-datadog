@@ -1,0 +1,211 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "1.2.6"
+  },
+  "actions": [
+    {
+      "id": "block_501",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 501,
+        "type": "auto"
+      }
+    },
+    {
+      "id": "block_json",
+      "type": "block_request",
+      "parameters": {
+        "status_code": 403,
+        "type": "json"
+      }
+    },
+    {
+      "id": "block_html",
+      "type": "block_request",
+      "parameters": {
+        "type": "html"
+      }
+    },
+    {
+      "id": "redirect",
+      "type": "redirect_request",
+      "parameters": {
+        "status_code": 301,
+        "location": "https://www.cloudflare.com"
+      }
+    },
+    {
+      "id": "redirect_bad_status",
+      "type": "redirect_request",
+      "parameters": {
+        "status_code": 400,
+        "location": "https://www.cloudflare.com"
+      }
+    }
+  ],
+  "rules": [
+    {
+      "id": "block_default",
+      "name": "Block with default action",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^block_default$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "block_alt_code",
+      "name": "Block with alternative code",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^block_alt_code$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block_501"
+      ]
+    },
+    {
+      "id": "block_json",
+      "name": "Block forcing json",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^block_json$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block_json"
+      ]
+    },
+    {
+      "id": "block_html",
+      "name": "Block forcing html",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^block_html$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block_html"
+      ]
+    },
+    {
+      "id": "redirect",
+      "name": "Redirect with status code 301",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^redirect$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "redirect"
+      ]
+    },
+    {
+      "id": "redirect_bad_status",
+      "name": "Redirect with bad status defaults to 303",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^redirect_bad_status$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "redirect_bad_status"
+      ]
+    }
+  ]
+}

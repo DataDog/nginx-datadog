@@ -17,7 +17,7 @@ COPY ./nginx.conf /datadog-tests/nginx.conf
 COPY ./install_tools.sh /tmp/
 RUN /tmp/install_tools.sh
 
-COPY ngx_http_datadog_module.so /datadog-tests
+COPY ngx_http_datadog_module.so libddwaf.so /datadog-tests
 
 ENTRYPOINT ["nginx", "-c", "/datadog-tests/nginx.conf"]
 CMD ["-g", "daemon off;"]

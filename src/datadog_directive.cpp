@@ -20,6 +20,10 @@
 #include "string_util.h"
 #include "tracing_library.h"
 
+extern "C" {
+#include <ngx_thread_pool.h>
+}
+
 namespace datadog {
 namespace nginx {
 namespace {
@@ -807,7 +811,7 @@ static char *set_configured_value(
   // the original due to environment variables.
   dd::TracerConfig minimal_config;
   // A non-empty service name is required.
-  minimal_config.defaults.service = "dummy";
+  minimal_config.service = "dummy";
   // Set the configuration property of interest.
   set_in_dd_config(minimal_config, arg);
   auto finalized_config = dd::finalize_config(minimal_config);
@@ -840,7 +844,7 @@ char *set_datadog_service_name(ngx_conf_t *cf, ngx_command_t *command,
   return set_configured_value(
       cf, command, conf, &datadog_main_conf_t::service_name,
       [](dd::TracerConfig &config, std::string_view service_name) {
-        config.defaults.service = service_name;
+        config.service = service_name;
       },
       [](const dd::FinalizedTracerConfig &config) {
         return config.defaults.service;
@@ -854,7 +858,7 @@ char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command,
       [](dd::TracerConfig &config, std::string_view environment) {
         config.report_traces =
             false;  // don't bother with a collector (optimization)
-        config.defaults.environment = environment;
+        config.environment = environment;
       },
       [](const dd::FinalizedTracerConfig &config) {
         return config.defaults.environment;
@@ -1026,6 +1030,18 @@ char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
   ngx_log_error(NGX_LOG_ERR, cf->log, 0, "hijack_auth_request failed: %s",
                 e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
+}
+
+char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
+                           void *conf) noexcept {
+  datadog_loc_conf_t *loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  auto *value = static_cast<ngx_str_t *>(cf->args->elts);
+  value++; // 1st is the command name
+
+  ngx_thread_pool_t *t = ngx_thread_pool_add(cf, value);
+  loc_conf->waf_pool = t;
+
+  return NGX_CONF_OK;
 }
 
 }  // namespace nginx

@@ -33,6 +33,9 @@ inline ngx_str_t to_ngx_str(std::string_view s) {
   return result;
 }
 
+template <typename C>
+inline ngx_str_t to_ngx_str(C* s) = delete;
+
 inline char to_upper(unsigned char c) {
   return static_cast<char>(std::toupper(c));
 }
