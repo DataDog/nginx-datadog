@@ -226,6 +226,12 @@ def send_ci_request_paged(path, payload=None, method=None):
     return items
 
 
+# TODO: Poll until the number of "build-and-test-all" jobs changes from
+# zero.  Then there's another race, too...
+delay_seconds = 10
+print(f'sleeping for {delay_seconds} seconds...')
+time.sleep(delay_seconds)
+
 # Fetch the pipeline's information.  This will contain its workflows.
 # We're looking for exactly one "build-and-test-all" workflow.
 workflows = send_ci_request_paged(f'/pipeline/{pipeline_id}/workflow')
