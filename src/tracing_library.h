@@ -111,6 +111,13 @@ struct TracingLibrary {
   // (realistically this means that it will refer to a string literal).
   static string_view default_location_operation_name_pattern();
 
+  // Return the pattern of an nginx variable script that will be used for the
+  // resource name of spans that do not have a resource name configured in the
+  // nginx configuration.  Note that the storage to which the returned value
+  // refers must outlive any usage of the return value (realistically this
+  // means that it will refer to a string literal).
+  static string_view default_resource_name_pattern();
+
   // Return a mapping of tag name to nginx variable script pattern.  These
   // tags will be defined automatically during configuration as if they
   // appeared in the nginx configuration file's http section, e.g.

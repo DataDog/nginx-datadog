@@ -176,6 +176,20 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr),
 
+    { ngx_string("datadog_resource_name"),
+      anywhere | NGX_CONF_TAKE1,
+      set_datadog_resource_name,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_location_resource_name"),
+      anywhere | NGX_CONF_TAKE1,
+      set_datadog_location_resource_name,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_trust_incoming_span",
       "opentracing_trust_incoming_span",
@@ -295,10 +309,13 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   if (tags.empty()) return NGX_OK;
   main_conf->tags = ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
   if (!main_conf->tags) return NGX_ERROR;
-  for (const auto &tag : tags)
+  for (const auto &tag : tags) {
     if (add_datadog_tag(cf, main_conf->tags, to_ngx_str(tag.first), to_ngx_str(tag.second)) !=
-        NGX_CONF_OK)
+        NGX_CONF_OK) {
       return NGX_ERROR;
+    }
+  }
+
   return NGX_OK;
 }
 
@@ -398,41 +415,19 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
 
 namespace {
 
-// Merge the specified `previous` operation name script into the specified
-// `current` operation name script in the context of the specified `conf`.  If
-// `current` does not have a value and `previous` does, then `previous` will be
-// used.  If neither has a value, then a hard-coded default will be used.
-// Return `NGX_CONF_OK` on success, or another value otherwise.
-char *merge_operation_name_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
-                                  ot::string_view default_pattern) {
+// Merge the specified `previous` script into the specified `current` script in
+// the context of the specified `conf`.  If `current` does not have a value and
+// `previous` does, then `previous` will be used.  If neither has a value, then
+// the specified `default_pattern` will be used.  Return `NGX_CONF_OK` on
+// success, or another value otherwise.
+char *merge_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
+                   ot::string_view default_pattern) {
   if (current.is_valid()) {
     return NGX_CONF_OK;
   }
 
   if (!previous.is_valid()) {
     const ngx_int_t rc = previous.compile(conf, to_ngx_str(default_pattern));
-    if (rc != NGX_OK) {
-      return (char *)NGX_CONF_ERROR;
-    }
-  }
-
-  current = previous;
-  return NGX_CONF_OK;
-}
-
-char *merge_response_info_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current) {
-  // The response info script is the same for each `datadog_loc_conf_t`.  The only
-  // reason it's a member of `datadog_loc_conf_t` is so that it is available at
-  // the end of each request, when we might like to inspect e.g. response
-  // headers.
-  if (current.is_valid()) {
-    return NGX_CONF_OK;
-  }
-
-  if (!previous.is_valid()) {
-    // Response header inspection is not currently used by this module, but I'm
-    // leaving the boilerplate for future use.
-    const ngx_int_t rc = previous.compile(conf, ngx_string(""));
     if (rc != NGX_OK) {
       return (char *)NGX_CONF_ERROR;
     }
@@ -455,19 +450,26 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
 
-  if (const auto rc =
-          merge_operation_name_script(cf, prev->operation_name_script, conf->operation_name_script,
-                                      TracingLibrary::default_request_operation_name_pattern())) {
+  if (const auto rc = merge_script(cf, prev->operation_name_script, conf->operation_name_script,
+                                   TracingLibrary::default_request_operation_name_pattern())) {
     return rc;
   }
-  if (const auto rc = merge_operation_name_script(
-          cf, prev->loc_operation_name_script, conf->loc_operation_name_script,
-          TracingLibrary::default_location_operation_name_pattern())) {
+  if (const auto rc =
+          merge_script(cf, prev->loc_operation_name_script, conf->loc_operation_name_script,
+                       TracingLibrary::default_location_operation_name_pattern())) {
     return rc;
   }
-
+  if (const auto rc = merge_script(cf, prev->resource_name_script, conf->resource_name_script,
+                                   TracingLibrary::default_resource_name_pattern())) {
+    return rc;
+  }
   if (const auto rc =
-          merge_response_info_script(cf, prev->response_info_script, conf->response_info_script)) {
+          merge_script(cf, prev->loc_resource_name_script, conf->loc_resource_name_script,
+                       TracingLibrary::default_resource_name_pattern())) {
+    return rc;
+  }
+  if (const auto rc =
+          merge_script(cf, prev->response_info_script, conf->response_info_script, "")) {
     return rc;
   }
 
@@ -510,8 +512,8 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
 
         *tag = kv.second;
       } else {
-        datadog_tag_t *tag = (datadog_tag_t *)conf->tags->elts;
-        tag[index] = kv.second;
+        datadog_tag_t *tags = (datadog_tag_t *)conf->tags->elts;
+        tags[index] = kv.second;
       }
 
       index++;

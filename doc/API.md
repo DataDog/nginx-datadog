@@ -125,6 +125,33 @@ those provided by this module).
 The location span is a span created in addition to the request span.  See
 `datadog_trace_locations`.
 
+### `datadog_resource_name`
+
+- **syntax** `datadog_resource_name <variable_pattern>`
+- **default**: `$request_method $uri`, e.g. "GET /api/book/0-345-24223-8/title"
+- **context**: `http`, `server`, `location`, `if`
+
+Set the request span's "resource name" (sometimes called "endpoint") to the
+result of evaluating the specified `<variable_pattern>` in the context of the
+current request. `<variable_pattern>` is a string that may contain
+`$`-[variables][2] (including those provided by this module).
+
+The request span is the span created while processing a request.
+
+### `datadog_location_resource_name`
+
+- **syntax** `datadog_location_resource_name <variable_pattern>`
+- **default**: `$request_method $uri`, e.g. "GET /api/book/0-345-24223-8/title"
+- **context**: `http`, `server`, `location`, `if`
+
+Set the location span's "resource name" (sometimes called "endpoint") to the
+result of evaluating the specified `<variable_pattern>` in the context of the
+current request. `<variable_pattern>` is a string that may contain
+`$`-[variables][2] (including those provided by this module).
+
+The location span is a span created in addition to the request span.  See
+`datadog_trace_locations`.
+
 ### `datadog_trust_incoming_span`
 
 - **syntax** `datadog_trust_incoming_span on|off`

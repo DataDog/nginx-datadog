@@ -78,6 +78,8 @@ struct datadog_loc_conf_t {
   ngx_flag_t enable_locations;
   NgxScript operation_name_script;
   NgxScript loc_operation_name_script;
+  NgxScript resource_name_script;
+  NgxScript loc_resource_name_script;
   ngx_flag_t trust_incoming_span;
   ngx_array_t *tags;
   // `response_info_script` is a script that can contain variables that refer

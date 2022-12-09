@@ -33,6 +33,24 @@ static std::string get_request_operation_name(ngx_http_request_t *request,
     return to_string(core_loc_conf->name);
 }
 
+static std::string get_loc_resource_name(ngx_http_request_t *request,
+                                         const datadog_loc_conf_t *loc_conf) {
+  if (loc_conf->loc_resource_name_script.is_valid()) {
+    return to_string(loc_conf->loc_resource_name_script.run(request));
+  } else {
+    return "[invalid_resource_name_pattern]";
+  }
+}
+
+static std::string get_request_resource_name(ngx_http_request_t *request,
+                                             const datadog_loc_conf_t *loc_conf) {
+  if (loc_conf->resource_name_script.is_valid()) {
+    return to_string(loc_conf->resource_name_script.run(request));
+  } else {
+    return "[invalid_resource_name_pattern]";
+  }
+}
+
 static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request, ot::Span &span) {
   if (!tags) return;
   auto add_tag = [&](const datadog_tag_t &tag) {
@@ -153,6 +171,7 @@ void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_
     //
     // See on_log_request below
     span_->SetOperationName(get_loc_operation_name(request_, core_loc_conf_, loc_conf_));
+    span_->SetTag("resource.name", get_loc_resource_name(request_, loc_conf_));
 
     span_->Finish({ot::FinishTimestamp{finish_timestamp}});
   } else {
@@ -178,6 +197,7 @@ void RequestTracing::on_log_request() {
   auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
       ngx_http_get_module_loc_conf(request_, ngx_http_core_module));
   request_span_->SetOperationName(get_request_operation_name(request_, core_loc_conf, loc_conf_));
+  request_span_->SetTag("resource.name", get_request_resource_name(request_, loc_conf_));
 
   // Note: At this point, we could run an `NginxScript` to interrogate the
   // proxied server's response headers, e.g. to retrieve a deferred sampling
