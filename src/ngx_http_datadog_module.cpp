@@ -415,11 +415,11 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
 
 namespace {
 
-// Merge the specified `previous` script into the specified `current` script
-// in the context of the specified `conf`.  If `current` does not have a value
-// and `previous` does, then `previous` will be used.  If neither has a value,
-// then a hard-coded default will be used.  Return `NGX_CONF_OK` on success,
-// or another value otherwise.
+// Merge the specified `previous` script into the specified `current` script in
+// the context of the specified `conf`.  If `current` does not have a value and
+// `previous` does, then `previous` will be used.  If neither has a value, then
+// the specified `default_pattern` will be used.  Return `NGX_CONF_OK` on
+// success, or another value otherwise.
 char *merge_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
                    ot::string_view default_pattern) {
   if (current.is_valid()) {
