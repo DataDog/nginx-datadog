@@ -18,3 +18,4 @@
 
 # scratch directory for preparing releases
 /.release/
+.git/
