@@ -24,7 +24,7 @@ apk add pcre-dev zlib-dev
 # cmake likes to have openssl and Linux headers available
 apk add openssl-dev linux-headers
 
-cmake_version=3.21.1
+cmake_version=3.25.1
 starting_dir=$(pwd)
 mkdir -p /tmp/build-cmake
 cd /tmp/build-cmake

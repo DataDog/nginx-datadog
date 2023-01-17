@@ -33,7 +33,7 @@ DEBIAN_FRONTENT=noninteractive apt-get upgrade --yes
 # anything (they just produce .o files), but the idea is that link dependencies
 # are inherited by targets that eventually will link the produced object files.
 install libssl-dev # cmake likes to have openssl sources available
-cmake_version=3.21.1
+cmake_version=3.25.1
 starting_dir=$(pwd)
 mkdir -p /tmp/build-cmake
 cd /tmp/build-cmake
