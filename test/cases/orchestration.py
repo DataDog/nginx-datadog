@@ -4,18 +4,28 @@ from . import formats
 from .lazy_singleton import LazySingleton
 
 import contextlib
+import faulthandler
 import json
 import os
 from pathlib import Path
 import queue
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
 import time
 import traceback
 import uuid
+
+# The name of the signal is "quit," but it doesn't mean quit.  Typically it
+# means "dump a core file." Here we use it to mean "print python stacks for all
+# threads."
+def quit_signal_handler(signum, frame):
+    faulthandler.dump_traceback()
+
+signal.signal(signal.SIGQUIT, quit_signal_handler)
 
 # Since we override the environment variables of child processes,
 # `subprocess.Popen` (and its derivatives) need to know exactly where
@@ -544,7 +554,8 @@ exit "$rcode"
             # - nginx_worker_pids ran in ~0.05 seconds
             # - the workers terminated after ~6 seconds
             poll_period_seconds = 0.5
-            timeout_seconds = 10
+            # TODO timeout_seconds = 10
+            timeout_seconds = 9999999999999999999999999
             before = time.monotonic()
             while old_worker_pids & nginx_worker_pids(nginx_container,
                                                       self.verbose):

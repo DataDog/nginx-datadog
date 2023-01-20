@@ -20,13 +20,13 @@ class NgxEventScheduler : public dd::EventScheduler {
     std::chrono::steady_clock::duration interval;
     std::function<void()> callback;
     ngx_event_t event;
-        
+
     Event(std::function<void()> callback, std::chrono::steady_clock::duration interval);
-    
+
     Event(const Event&) = delete;
     Event& operator=(const Event&) = delete;
   };
-  
+
   private:
     std::unordered_set<Event*> events_;
 
@@ -34,6 +34,8 @@ class NgxEventScheduler : public dd::EventScheduler {
   Cancel schedule_recurring_event(
       std::chrono::steady_clock::duration interval,
       std::function<void()> callback) override;
+
+  nlohmann::json config_json() const override;
 
   ~NgxEventScheduler();
 };

@@ -15,6 +15,8 @@ services:
     environment:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
+    cap_add:
+      - SYS_PTRACE
     depends_on:
       - http
       - fastcgi

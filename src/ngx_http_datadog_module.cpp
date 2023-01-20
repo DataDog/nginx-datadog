@@ -402,7 +402,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 
 static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
   // If the `dd::Tracer` singleton has been set (in `datadog_init_worker`),
-  // destroy it. TODO clean shutdown?
+  // destroy it.
   reset_global_tracer();
 }
 

@@ -28,13 +28,13 @@ target_sources(ngx_http_datadog_module
     PRIVATE
         $<TARGET_OBJECTS:nginx_module>
         $<TARGET_OBJECTS:nginx_datadog>
-        $<TARGET_OBJECTS:dd_trace_cpp-object>
+        $<TARGET_OBJECTS:dd_trace_cpp-objects>
 )
 
-add_dependencies(ngx_http_datadog_module 
-    nginx_module 
+add_dependencies(ngx_http_datadog_module
+    nginx_module
     nginx_datadog
-    dd_trace_cpp-object
+    dd_trace_cpp-objects
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-object -static-libstdc++ -static-libgcc)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects -static-libstdc++ -static-libgcc)

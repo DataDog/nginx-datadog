@@ -1,5 +1,7 @@
 #include "ngx_event_scheduler.h"
 
+#include <datadog/json.hpp>
+
 #include <chrono>
 
 namespace datadog {
@@ -14,7 +16,7 @@ extern "C" void handle_event(ngx_event_t *ev) {
     auto *event = static_cast<NgxEventScheduler::Event*>(ev->data);
     // Schedule the next round.
     ngx_add_timer(ev, to_milliseconds(event->interval));
-    
+
     event->callback();
 }
 
@@ -25,6 +27,7 @@ NgxEventScheduler::Event::Event(std::function<void()> callback, std::chrono::ste
     event.data = this;
     event.log = ngx_cycle->log;
     event.handler = &handle_event;
+    event.cancelable = true; // otherwise a pending event will prevent shutdown
 }
 
 dd::EventScheduler::Cancel NgxEventScheduler::schedule_recurring_event(
@@ -33,7 +36,7 @@ dd::EventScheduler::Cancel NgxEventScheduler::schedule_recurring_event(
     auto event = std::make_unique<Event>(std::move(callback), interval);
     events_.insert(event.get());
     ngx_add_timer(&event->event, to_milliseconds(event->interval));
-    
+
     // Return a cancellation function.
     return [this, event = event.release()]() {
         ngx_event_del_timer(&event->event);
@@ -47,6 +50,11 @@ NgxEventScheduler::~NgxEventScheduler() {
         ngx_event_del_timer(&event->event);
         delete event;
     }
+}
+
+nlohmann::json NgxEventScheduler::config_json() const {
+  return nlohmann::json::object(
+      {{"type", "datadog::nginx::NgxEventScheduler"}});
 }
 
 }  // namespace nginx

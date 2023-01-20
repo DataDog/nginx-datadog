@@ -18,7 +18,7 @@ ARG NGINX_MODULES_PATH
 RUN mkdir -p ${NGINX_MODULES_PATH}
 COPY ngx_http_datadog_module.so ${NGINX_MODULES_PATH}
 
-ENTRYPOINT ["nginx"]
+ENTRYPOINT ["nginx-debug"]
 CMD ["-g", "daemon off;"]
 
 # Override the default configuration with a minimal one.
