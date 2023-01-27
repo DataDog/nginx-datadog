@@ -1,9 +1,9 @@
 # An nginx container that includes the module and plugin required for Datadog tracing.
-ARG NGINX_IMAGE
-FROM ${NGINX_IMAGE}
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
 
-# If NGINX_IMAGE is not a core nginx image but instead OpenResty, the file system layout
-# will differ from that expected in the tests' conf files.
+# If BASE_IMAGE is an OpenResty image, then the file system layout will differ
+# from that expected in the tests' conf files.
 # Put nginx's default HTML in a known location to smooth things over.
 RUN mkdir -p /usr/share/nginx/html
 COPY index.html /usr/share/nginx/html
@@ -13,6 +13,9 @@ COPY index.html /usr/share/nginx/html
 # gracefully shutdown.
 COPY ./install_tools.sh /tmp/
 RUN /tmp/install_tools.sh
+
+# TODO: Install nginx if it isn't already. On nginx and OpenResty images it will
+# already be installed, but not on Amazon Linux.
 
 ARG NGINX_MODULES_DIRECTORY
 RUN mkdir -p ${NGINX_MODULES_DIRECTORY}

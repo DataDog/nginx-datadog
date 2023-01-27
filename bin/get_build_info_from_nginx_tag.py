@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """Print build-relevant info to standard output as JSON
-
-TODO
 """
 
 import argparse

@@ -1,8 +1,8 @@
 .DELETE_ON_ERROR:
 
-# The nginx-tag file might end in "-alpine".  We're interested in the
-# nginx source version only.
-NGINX_VERSION = $(shell sed 's/-.*//' nginx-tag)
+# Including this file defines NGINX_VERSION.
+include nginx-version-info
+
 BUILD_DIR ?= .build
 MAKE_JOB_COUNT ?= $(shell nproc)
 
@@ -35,27 +35,29 @@ dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd
 
 nginx/objs/Makefile: nginx/ module/config
 	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat
-	
-nginx/: nginx-tag
+
+nginx/: nginx-version-info
 	rm -rf nginx && \
 	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
 		mkdir nginx && \
 		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
 		rm nginx.tar.gz
 
-# In the "build" target, we use ./nginx-tag just for the nginx version (to download the appropriate sources).
-# In the "build-in-docker" target, we use ./nginx-tag to also identify the appropriate base image.
-nginx-tag:
-	$(error The file "nginx-tag" must be present and contain the tag name of the desired compatible nginx Docker image, e.g. "1.19.1" or "1.21.3-alpine")
+# In the "build" target, we use ./nginx-version-info just for the nginx version
+# (to download the appropriate sources).
+# In the "build-in-docker" target, we use ./nginx-version-info to also identify
+# the appropriate base image.
+nginx-version-info:
+	$(error The file "nginx-version-info" must be present and contain definitions for NGINX_VERSION and BASE_IMAGE")
 
 dd-opentracing-cpp/.clang-format: dd-opentracing-cpp/.git
-	
+
 .clang-format: dd-opentracing-cpp/.clang-format
 	cp $< $@
 
 .PHONY: format
 format: .clang-format
-	find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -not \( -name 'json.h' -o -name 'json.cpp' \) -print0 | xargs -0 clang-format-14 -i --style=file	
+	find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -not \( -name 'json.h' -o -name 'json.cpp' \) -print0 | xargs -0 clang-format-14 -i --style=file
 	find bin/ -type f -name '*.py' -print0 | xargs -0 yapf3 -i
 	test/bin/format
 
@@ -64,7 +66,7 @@ clean:
 	rm -rf \
 		.build \
 		.docker-build
-	
+
 .PHONY: clobber
 clobber: clean
 	rm -rf \

@@ -7,8 +7,9 @@ This directory contains programs (scripts) used by the build mostly.
 - [docker_build.sh](docker_build.sh) creates a Docker image in which the module
   can be built.  It deduces the image's base image and tag by reading the
   `nginx-tag` file at the root of this repository.
-- [fetch_nginx_tags.sh](fetch_nginx_tags.sh) uses the `hub.docker.com` API to
-  retrieve the names of all tags associated with nginx's nginx Docker image.
+- [fetch_docker_tags.sh](fetch_docker_tags.sh) uses the `hub.docker.com` API to
+  retrieve the names of all tags associated with a specified Docker image (nginx
+  by default).
 - [get_build_info_from_nginx_tag.py](get_build_info_from_nginx_tag.py)  takes
   an nginx image tag as a command line argument (e.g.
   `./get_build_info_from_nginx_tag.py 1.19.1-alpine`) and prints to standard

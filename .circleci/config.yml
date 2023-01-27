@@ -78,9 +78,9 @@ jobs:
         openresty_image=<< parameters.openresty-image >>
         if [ "$openresty_image" != '' ]; then
           export NGINX_MODULES_DIRECTORY=/usr/local/openresty/nginx/modules
-          export NGINX_IMAGE=$openresty_image
+          export BASE_IMAGE=$openresty_image
           export NGINX_CONF_PATH=/usr/local/openresty/nginx/conf/nginx.conf
-        fi 
+        fi
         if test/bin/run --verbose --failfast; then
           touch .tests-succeeded
         fi

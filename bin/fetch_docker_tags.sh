@@ -1,10 +1,10 @@
 #!/bin/sh
 
-# Print to standard output the names of all of the tags associated with
-# DockerHub's "nginx" image.  Include only those tags that contain a major,
+# Print to standard output the names of all of the tags associated with a
+# specified DockerHub  image.  Include only those tags that contain a major,
 # minor, and patch version, e.g.
 #
-#     $ bin/fetch_nginx_tags.sh | tail
+#     $ bin/fetch_docker_tags.sh nginx | tail
 #     1.21.4-alpine-perl
 #     1.21.4-perl
 #     1.21.5
@@ -18,6 +18,8 @@
 
 set -e
 
+IMAGE=${1:-nginx}
+
 fetch_pages() {
     # Save each page of results to a temporary file so that we can then extract
     # the result's .next property.
@@ -25,13 +27,13 @@ fetch_pages() {
     out="$scratch/out"
 
     page=1
-    next="https://hub.docker.com/v2/repositories/library/nginx/tags/?page=$page"
+    next="https://hub.docker.com/v2/repositories/library/$IMAGE/tags/?page=$page"
     while [ "$next" != 'null' ]; do
         curl --silent "$next" | tee "$out"
         page=$((page + 1))
         next=$(<"$out" jq --raw-output .next)
     done
-    
+
     rm -r "$scratch"
 }
 

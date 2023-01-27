@@ -55,6 +55,8 @@ Its default target, `build`, builds the Datadog nginx module and its
 dependencies.  The resulting nginx module is
 `.build/libngx_http_datadog_module.so`.
 
+TODO: All mention of `./nginx-tag` is no longer accurate.
+
 Another target, `build-in-docker`, builds the Datadog nginx module and its
 dependencies in a [Docker][2] container compatible with the [DockerHub nginx
 image tag][3] specified in a `./nginx-tag` file, e.g. `1.19.1-alpine`.  The

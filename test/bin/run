@@ -4,7 +4,11 @@ cd "$(dirname "$0")/../"
 
 set -e
 
-export NGINX_IMAGE=${NGINX_IMAGE:-nginx:$(cat ../nginx-tag)}
+if [ "$BASE_IMAGE" = '' ]; then
+    . ../nginx-version-info
+fi
+export BASE_IMAGE
+
 export NGINX_MODULES_DIRECTORY=${NGINX_MODULES_DIRECTORY:-/usr/lib/nginx/modules}
 
 docker-compose build --parallel

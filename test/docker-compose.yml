@@ -1,6 +1,6 @@
 version: "3.2"
 services:
-    
+
   # `nginx` is the service that loads the Datadog module and is sent requests
   # to probe the module's behavior.
   nginx:
@@ -9,7 +9,7 @@ services:
       context: ./services/nginx
       dockerfile: ./Dockerfile
       args:
-        NGINX_IMAGE: ${NGINX_IMAGE}
+        BASE_IMAGE: ${BASE_IMAGE}
         NGINX_MODULES_DIRECTORY: ${NGINX_MODULES_DIRECTORY}
     environment:
       - DD_ENV=prod
