@@ -15,7 +15,7 @@ cd "$REPO"
 version_table=$(mktemp)
 # base-image nginx-version nginx-modules-path nginx-conf-path
 >"$version_table" cat <<END_NGINX_TAGS
-amazonlinux:2.0.20230119.1 1.22.1 /usr/lib64/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20230119.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.2-alpine 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.2 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.1-alpine 1.23.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf

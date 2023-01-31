@@ -140,7 +140,7 @@ workflows:
     - test:
         name: "test on amazonlinux:2.0.20230119.1"
         base-image: "amazonlinux:2.0.20230119.1"
-        nginx-modules-path: "/usr/lib64/nginx/modules"
+        nginx-modules-path: "/usr/share/nginx/modules"
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on amazonlinux:2.0.20230119.1"
