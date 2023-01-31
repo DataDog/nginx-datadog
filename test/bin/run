@@ -9,7 +9,7 @@ if [ "$BASE_IMAGE" = '' ]; then
 fi
 export BASE_IMAGE
 
-export NGINX_MODULES_DIRECTORY=${NGINX_MODULES_DIRECTORY:-/usr/lib/nginx/modules}
+export NGINX_MODULES_PATH=${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}
 
 docker-compose build --parallel
 python3 -m unittest "$@"

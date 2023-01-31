@@ -14,7 +14,7 @@
 /.clang-format
 
 # file used as part of the build configuration
-/nginx-version-info.sh
+/nginx-version-info
 
 # scratch directory for preparing releases
 /.release/

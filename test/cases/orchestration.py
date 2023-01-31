@@ -61,7 +61,7 @@ def child_env(parent_env=None):
         parent_env = os.environ
 
     result = {}
-    for name in ('BASE_IMAGE', 'NGINX_MODULES_DIRECTORY'):
+    for name in ('BASE_IMAGE', 'NGINX_MODULES_PATH'):
         if name in parent_env:
             result[name] = parent_env[name]
 

@@ -8,7 +8,7 @@ if [ "$BASE_IMAGE" = '' ]; then
     . ../nginx-version-info
 fi
 
-export NGINX_MODULES_DIRECTORY=${NGINX_MODULES_DIRECTORY:-/usr/lib/nginx/modules}
+export NGINX_MODULES_PATH=${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}
 docker-compose build --parallel
 
 scratch=$(mktemp -d)

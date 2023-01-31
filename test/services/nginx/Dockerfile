@@ -17,9 +17,9 @@ RUN /tmp/install_tools.sh
 # TODO: Install nginx if it isn't already. On nginx and OpenResty images it will
 # already be installed, but not on Amazon Linux.
 
-ARG NGINX_MODULES_DIRECTORY
-RUN mkdir -p ${NGINX_MODULES_DIRECTORY}
-COPY ngx_http_datadog_module.so ${NGINX_MODULES_DIRECTORY}
+ARG NGINX_MODULES_PATH
+RUN mkdir -p ${NGINX_MODULES_PATH}
+COPY ngx_http_datadog_module.so ${NGINX_MODULES_PATH}
 
 ENTRYPOINT ["nginx"]
 CMD ["-g", "daemon off;"]
