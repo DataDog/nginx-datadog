@@ -28,7 +28,7 @@ jobs:
       MAKE_JOB_COUNT: 8
     steps:
     - checkout
-    - run: printf 'NGINX_VERSION=%s\n' << parameters.nginx-tag >> >>nginx-version-info
+    - run: printf 'NGINX_VERSION=%s\n' << parameters.nginx-version >> >>nginx-version-info
     - run: make build
     - persist_to_workspace:
         root: .
@@ -105,7 +105,6 @@ workflows:
     - test:
         name: "test 1.21.4-alpine OpenResty"
         base-image: "openresty/openresty:1.21.4.1-alpine"
-        nginx-version: "1.21.4"
         nginx-modules-path: "/usr/local/openresty/nginx/modules"
         nginx-conf-path: "/usr/local/openresty/conf/nginx.conf"
         requires:
