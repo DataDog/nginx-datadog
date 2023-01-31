@@ -13,9 +13,22 @@ cd "$REPO"
 
 # Here are the supported nginx tags.
 version_table=$(mktemp)
-# base-image nginx-version nginx-modules-path nginx-conf-path
+# base-image    nginx-version    nginx-modules-path    nginx-conf-path
 >"$version_table" cat <<END_NGINX_TAGS
 amazonlinux:2.0.20230119.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20221210.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20221103.3 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20221004.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220912.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220805.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220719.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220606.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220426.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220419.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220406.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220316.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220218.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20220121.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.2-alpine 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.2 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.1-alpine 1.23.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf

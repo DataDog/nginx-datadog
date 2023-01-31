@@ -3,8 +3,7 @@
 set -e
 
 install_nginx_on_amazon_linux() {
-    amazon-linux-extras enable nginx1
-    yum clean metadata
+    amazon-linux-extras enable -y nginx1
     yum install -y nginx
 }
 
