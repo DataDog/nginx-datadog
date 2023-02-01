@@ -141,7 +141,7 @@ workflows:
         base-image: "amazonlinux:2.0.20230119.1"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230119.1"
         nginx-version: "1.22.1"
-
+    
     - test:
         name: "test on amazonlinux:2.0.20230119.1"
         base-image: "amazonlinux:2.0.20230119.1"
@@ -149,7 +149,7 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on amazonlinux:2.0.20230119.1"
-
+    
     - build:
         name: "build on amazonlinux:2.0.20221210.0"
         base-image: "amazonlinux:2.0.20221210.0"
@@ -441,7 +441,7 @@ workflows:
         base-image: "nginx:1.23.2-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.2-alpine"
         nginx-version: "1.23.2"
-
+    
     - test:
         name: "test on nginx:1.23.2-alpine"
         base-image: "nginx:1.23.2-alpine"
@@ -449,13 +449,13 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.23.2-alpine"
-
+    
     - build:
         name: "build on nginx:1.23.2"
         base-image: "nginx:1.23.2"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.2"
         nginx-version: "1.23.2"
-
+    
     - test:
         name: "test on nginx:1.23.2"
         base-image: "nginx:1.23.2"
@@ -463,7 +463,7 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.23.2"
-
+    
     - build:
         name: "build on nginx:1.23.1-alpine"
         base-image: "nginx:1.23.1-alpine"
@@ -733,11 +733,7 @@ workflows:
         base-image: "nginx:1.21.4-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.4-alpine"
         nginx-version: "1.21.4"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
+    
     - test:
         name: "test on nginx:1.21.4-alpine"
         base-image: "nginx:1.21.4-alpine"
@@ -745,11 +741,7 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.21.4-alpine"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
+    
     - build:
         name: "build on nginx:1.21.4"
         base-image: "nginx:1.21.4"
