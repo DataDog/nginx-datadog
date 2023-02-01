@@ -4,16 +4,10 @@ cd "$(dirname "$0")/../"
 
 set -e
 
-echo 'nginx-version-info:'
-cat ../nginx-version-info
-
 . ../nginx-version-info
 export BASE_IMAGE
 export NGINX_MODULES_PATH=${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}
 export NGINX_CONF_PATH=${NGINX_CONF_PATH:-/etc/nginx/nginx.conf}
 
-echo 'env:'
-env | sort
-
-docker-compose build --parallel --no-cache
+docker-compose build --parallel
 python3 -m unittest "$@"
