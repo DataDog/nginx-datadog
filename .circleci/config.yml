@@ -114,7 +114,7 @@ workflows:
         name: "test 1.21.4-alpine OpenResty"
         base-image: "openresty/openresty:1.21.4.1-alpine"
         nginx-modules-path: "/usr/local/openresty/nginx/modules"
-        nginx-conf-path: "/usr/local/openresty/conf/nginx.conf"
+        nginx-conf-path: "/usr/local/openresty/nginx/conf/nginx.conf"
         requires:
         - "build on nginx:1.21.4-alpine"
         filters:
