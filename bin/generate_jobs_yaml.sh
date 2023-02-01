@@ -13,9 +13,9 @@ cd "$REPO"
 
 # Here are the supported nginx tags.
 version_table=$(mktemp)
-# base-image    nginx-version    nginx-modules-path    nginx-conf-path
+# base-image    nginx-version    nginx-modules-path    nginx-conf-path    always-build?
 >"$version_table" cat <<END_NGINX_TAGS
-amazonlinux:2.0.20230119.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20230119.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf always
 amazonlinux:2.0.20221210.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20221103.3 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20221004.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
@@ -29,8 +29,8 @@ amazonlinux:2.0.20220406.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220316.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220218.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220121.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
-nginx:1.23.2-alpine 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
-nginx:1.23.2 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
+nginx:1.23.2-alpine 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
+nginx:1.23.2 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
 nginx:1.23.1-alpine 1.23.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.1 1.23.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.0-alpine 1.23.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
@@ -110,16 +110,26 @@ nginx:1.16.0 1.16.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.14.1 1.14.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 END_NGINX_TAGS
 
-while read base_image nginx_version nginx_modules_path nginx_conf_path; do
+while read base_image nginx_version nginx_modules_path nginx_conf_path always; do
   base_image_without_colons=$(echo "$base_image" | tr ':' '_')
-    cat <<END_SNIPPET
+  if [ "$always" != 'always' ]; then
+    filters=$(cat <<'END_FILTERS'
+    filters:
+      tags:
+        only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+      branches:
+        ignore: /.*/
+END_FILTERS
+)
+  else
+    filters=''
+  fi
+  cat <<END_SNIPPET
 - build:
     name: "build on $base_image"
     build-image: "datadog/docker-library:nginx-datadog-build-$base_image_without_colons"
     nginx-version: "$nginx_version"
-    filters:
-      tags:
-        only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+$filters
 - test:
     name: "test on $base_image"
     base-image: "$base_image"
@@ -127,9 +137,7 @@ while read base_image nginx_version nginx_modules_path nginx_conf_path; do
     nginx-conf-path: "$nginx_conf_path"
     requires:
     - "build on $base_image"
-    filters:
-      tags:
-        only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+$filters
 END_SNIPPET
 done <"$version_table" | sed "s/^/$indentation/"
 

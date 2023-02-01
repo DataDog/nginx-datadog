@@ -140,9 +140,7 @@ workflows:
         name: "build on amazonlinux:2.0.20230119.1"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230119.1"
         nginx-version: "1.22.1"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    
     - test:
         name: "test on amazonlinux:2.0.20230119.1"
         base-image: "amazonlinux:2.0.20230119.1"
@@ -150,9 +148,7 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on amazonlinux:2.0.20230119.1"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    
     - build:
         name: "build on amazonlinux:2.0.20221210.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20221210.0"
@@ -160,6 +156,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20221210.0"
         base-image: "amazonlinux:2.0.20221210.0"
@@ -170,6 +168,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20221103.3"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20221103.3"
@@ -177,6 +177,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20221103.3"
         base-image: "amazonlinux:2.0.20221103.3"
@@ -187,6 +189,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20221004.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20221004.0"
@@ -194,6 +198,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20221004.0"
         base-image: "amazonlinux:2.0.20221004.0"
@@ -204,6 +210,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220912.1"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220912.1"
@@ -211,6 +219,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220912.1"
         base-image: "amazonlinux:2.0.20220912.1"
@@ -221,6 +231,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220805.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220805.0"
@@ -228,6 +240,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220805.0"
         base-image: "amazonlinux:2.0.20220805.0"
@@ -238,6 +252,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220719.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220719.0"
@@ -245,6 +261,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220719.0"
         base-image: "amazonlinux:2.0.20220719.0"
@@ -255,6 +273,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220606.1"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220606.1"
@@ -262,6 +282,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220606.1"
         base-image: "amazonlinux:2.0.20220606.1"
@@ -272,6 +294,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220426.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220426.0"
@@ -279,6 +303,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220426.0"
         base-image: "amazonlinux:2.0.20220426.0"
@@ -289,6 +315,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220419.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220419.0"
@@ -296,6 +324,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220419.0"
         base-image: "amazonlinux:2.0.20220419.0"
@@ -306,6 +336,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220406.1"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220406.1"
@@ -313,6 +345,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220406.1"
         base-image: "amazonlinux:2.0.20220406.1"
@@ -323,6 +357,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220316.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220316.0"
@@ -330,6 +366,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220316.0"
         base-image: "amazonlinux:2.0.20220316.0"
@@ -340,6 +378,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220218.1"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220218.1"
@@ -347,6 +387,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220218.1"
         base-image: "amazonlinux:2.0.20220218.1"
@@ -357,6 +399,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on amazonlinux:2.0.20220121.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220121.0"
@@ -364,6 +408,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on amazonlinux:2.0.20220121.0"
         base-image: "amazonlinux:2.0.20220121.0"
@@ -374,13 +420,13 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.23.2-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.2-alpine"
         nginx-version: "1.23.2"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    
     - test:
         name: "test on nginx:1.23.2-alpine"
         base-image: "nginx:1.23.2-alpine"
@@ -388,16 +434,12 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.23.2-alpine"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    
     - build:
         name: "build on nginx:1.23.2"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.2"
         nginx-version: "1.23.2"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    
     - test:
         name: "test on nginx:1.23.2"
         base-image: "nginx:1.23.2"
@@ -405,9 +447,7 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.23.2"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    
     - build:
         name: "build on nginx:1.23.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.1-alpine"
@@ -415,6 +455,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.23.1-alpine"
         base-image: "nginx:1.23.1-alpine"
@@ -425,6 +467,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.23.1"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.1"
@@ -432,6 +476,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.23.1"
         base-image: "nginx:1.23.1"
@@ -442,6 +488,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.23.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.0-alpine"
@@ -449,6 +497,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.23.0-alpine"
         base-image: "nginx:1.23.0-alpine"
@@ -459,6 +509,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.23.0"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.0"
@@ -466,6 +518,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.23.0"
         base-image: "nginx:1.23.0"
@@ -476,6 +530,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.22.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.22.1-alpine"
@@ -483,6 +539,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.22.1-alpine"
         base-image: "nginx:1.22.1-alpine"
@@ -493,6 +551,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.22.1"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.22.1"
@@ -500,6 +560,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.22.1"
         base-image: "nginx:1.22.1"
@@ -510,6 +572,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.22.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.22.0-alpine"
@@ -517,6 +581,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.22.0-alpine"
         base-image: "nginx:1.22.0-alpine"
@@ -527,6 +593,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.22.0"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.22.0"
@@ -534,6 +602,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.22.0"
         base-image: "nginx:1.22.0"
@@ -544,6 +614,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.6-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.6-alpine"
@@ -551,6 +623,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.6-alpine"
         base-image: "nginx:1.21.6-alpine"
@@ -561,6 +635,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.6"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.6"
@@ -568,6 +644,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.6"
         base-image: "nginx:1.21.6"
@@ -578,6 +656,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.5-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.5-alpine"
@@ -585,6 +665,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.5-alpine"
         base-image: "nginx:1.21.5-alpine"
@@ -595,6 +677,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.5"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.5"
@@ -602,6 +686,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.5"
         base-image: "nginx:1.21.5"
@@ -612,6 +698,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.4-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.4-alpine"
@@ -619,6 +707,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.4-alpine"
         base-image: "nginx:1.21.4-alpine"
@@ -629,6 +719,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.4"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.4"
@@ -636,6 +728,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.4"
         base-image: "nginx:1.21.4"
@@ -646,6 +740,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.3-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.3-alpine"
@@ -653,6 +749,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.3-alpine"
         base-image: "nginx:1.21.3-alpine"
@@ -663,6 +761,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.3"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.3"
@@ -670,6 +770,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.3"
         base-image: "nginx:1.21.3"
@@ -680,6 +782,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.1-alpine"
@@ -687,6 +791,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.1-alpine"
         base-image: "nginx:1.21.1-alpine"
@@ -697,6 +803,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.1"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.1"
@@ -704,6 +812,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.1"
         base-image: "nginx:1.21.1"
@@ -714,6 +824,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.0-alpine"
@@ -721,6 +833,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.0-alpine"
         base-image: "nginx:1.21.0-alpine"
@@ -731,6 +845,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.0"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.21.0"
@@ -738,6 +854,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.0"
         base-image: "nginx:1.21.0"
@@ -748,6 +866,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.20.2-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.20.2-alpine"
@@ -755,6 +875,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.20.2-alpine"
         base-image: "nginx:1.20.2-alpine"
@@ -765,6 +887,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.20.2"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.20.2"
@@ -772,6 +896,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.20.2"
         base-image: "nginx:1.20.2"
@@ -782,6 +908,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.20.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.20.1-alpine"
@@ -789,6 +917,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.20.1-alpine"
         base-image: "nginx:1.20.1-alpine"
@@ -799,6 +929,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.20.1"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.20.1"
@@ -806,6 +938,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.20.1"
         base-image: "nginx:1.20.1"
@@ -816,6 +950,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.20.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.20.0-alpine"
@@ -823,6 +959,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.20.0-alpine"
         base-image: "nginx:1.20.0-alpine"
@@ -833,6 +971,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.20.0"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.20.0"
@@ -840,6 +980,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.20.0"
         base-image: "nginx:1.20.0"
@@ -850,6 +992,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.10-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.10-alpine"
@@ -857,6 +1001,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.10-alpine"
         base-image: "nginx:1.19.10-alpine"
@@ -867,6 +1013,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.10"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.10"
@@ -874,6 +1022,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.10"
         base-image: "nginx:1.19.10"
@@ -884,6 +1034,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.9-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.9-alpine"
@@ -891,6 +1043,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.9-alpine"
         base-image: "nginx:1.19.9-alpine"
@@ -901,6 +1055,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.9"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.9"
@@ -908,6 +1064,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.9"
         base-image: "nginx:1.19.9"
@@ -918,6 +1076,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.8-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.8-alpine"
@@ -925,6 +1085,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.8-alpine"
         base-image: "nginx:1.19.8-alpine"
@@ -935,6 +1097,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.8"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.8"
@@ -942,6 +1106,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.8"
         base-image: "nginx:1.19.8"
@@ -952,6 +1118,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.7-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.7-alpine"
@@ -959,6 +1127,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.7-alpine"
         base-image: "nginx:1.19.7-alpine"
@@ -969,6 +1139,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.7"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.7"
@@ -976,6 +1148,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.7"
         base-image: "nginx:1.19.7"
@@ -986,6 +1160,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.6-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.6-alpine"
@@ -993,6 +1169,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.6-alpine"
         base-image: "nginx:1.19.6-alpine"
@@ -1003,6 +1181,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.6"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.6"
@@ -1010,6 +1190,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.6"
         base-image: "nginx:1.19.6"
@@ -1020,6 +1202,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.5-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.5-alpine"
@@ -1027,6 +1211,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.5-alpine"
         base-image: "nginx:1.19.5-alpine"
@@ -1037,6 +1223,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.5"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.5"
@@ -1044,6 +1232,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.5"
         base-image: "nginx:1.19.5"
@@ -1054,6 +1244,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.4-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.4-alpine"
@@ -1061,6 +1253,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.4-alpine"
         base-image: "nginx:1.19.4-alpine"
@@ -1071,6 +1265,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.4"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.4"
@@ -1078,6 +1274,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.4"
         base-image: "nginx:1.19.4"
@@ -1088,6 +1286,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.3-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.3-alpine"
@@ -1095,6 +1295,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.3-alpine"
         base-image: "nginx:1.19.3-alpine"
@@ -1105,6 +1307,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.3"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.3"
@@ -1112,6 +1316,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.3"
         base-image: "nginx:1.19.3"
@@ -1122,6 +1328,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.2-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.2-alpine"
@@ -1129,6 +1337,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.2-alpine"
         base-image: "nginx:1.19.2-alpine"
@@ -1139,6 +1349,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.2"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.2"
@@ -1146,6 +1358,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.2"
         base-image: "nginx:1.19.2"
@@ -1156,6 +1370,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.1-alpine"
@@ -1163,6 +1379,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.1-alpine"
         base-image: "nginx:1.19.1-alpine"
@@ -1173,6 +1391,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.1"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.1"
@@ -1180,6 +1400,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.1"
         base-image: "nginx:1.19.1"
@@ -1190,6 +1412,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.0-alpine"
@@ -1197,6 +1421,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.0-alpine"
         base-image: "nginx:1.19.0-alpine"
@@ -1207,6 +1433,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.19.0"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.19.0"
@@ -1214,6 +1442,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.19.0"
         base-image: "nginx:1.19.0"
@@ -1224,6 +1454,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.18.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.18.0-alpine"
@@ -1231,6 +1463,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.18.0-alpine"
         base-image: "nginx:1.18.0-alpine"
@@ -1241,6 +1475,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.18.0"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.18.0"
@@ -1248,6 +1484,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.18.0"
         base-image: "nginx:1.18.0"
@@ -1258,6 +1496,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.10-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.10-alpine"
@@ -1265,6 +1505,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.10-alpine"
         base-image: "nginx:1.17.10-alpine"
@@ -1275,6 +1517,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.10"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.10"
@@ -1282,6 +1526,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.10"
         base-image: "nginx:1.17.10"
@@ -1292,6 +1538,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.9-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.9-alpine"
@@ -1299,6 +1547,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.9-alpine"
         base-image: "nginx:1.17.9-alpine"
@@ -1309,6 +1559,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.9"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.9"
@@ -1316,6 +1568,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.9"
         base-image: "nginx:1.17.9"
@@ -1326,6 +1580,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.8-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.8-alpine"
@@ -1333,6 +1589,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.8-alpine"
         base-image: "nginx:1.17.8-alpine"
@@ -1343,6 +1601,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.8"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.8"
@@ -1350,6 +1610,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.8"
         base-image: "nginx:1.17.8"
@@ -1360,6 +1622,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.7-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.7-alpine"
@@ -1367,6 +1631,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.7-alpine"
         base-image: "nginx:1.17.7-alpine"
@@ -1377,6 +1643,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.7"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.7"
@@ -1384,6 +1652,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.7"
         base-image: "nginx:1.17.7"
@@ -1394,6 +1664,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.6-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.6-alpine"
@@ -1401,6 +1673,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.6-alpine"
         base-image: "nginx:1.17.6-alpine"
@@ -1411,6 +1685,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.6"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.6"
@@ -1418,6 +1694,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.6"
         base-image: "nginx:1.17.6"
@@ -1428,6 +1706,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.5-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.5-alpine"
@@ -1435,6 +1715,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.5-alpine"
         base-image: "nginx:1.17.5-alpine"
@@ -1445,6 +1727,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.5"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.5"
@@ -1452,6 +1736,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.5"
         base-image: "nginx:1.17.5"
@@ -1462,6 +1748,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.4-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.4-alpine"
@@ -1469,6 +1757,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.4-alpine"
         base-image: "nginx:1.17.4-alpine"
@@ -1479,6 +1769,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.4"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.4"
@@ -1486,6 +1778,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.4"
         base-image: "nginx:1.17.4"
@@ -1496,6 +1790,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.3-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.3-alpine"
@@ -1503,6 +1799,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.3-alpine"
         base-image: "nginx:1.17.3-alpine"
@@ -1513,6 +1811,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.3"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.3"
@@ -1520,6 +1820,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.3"
         base-image: "nginx:1.17.3"
@@ -1530,6 +1832,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.2-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.2-alpine"
@@ -1537,6 +1841,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.2-alpine"
         base-image: "nginx:1.17.2-alpine"
@@ -1547,6 +1853,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.2"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.2"
@@ -1554,6 +1862,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.2"
         base-image: "nginx:1.17.2"
@@ -1564,6 +1874,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.1-alpine"
@@ -1571,6 +1883,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.1-alpine"
         base-image: "nginx:1.17.1-alpine"
@@ -1581,6 +1895,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.1"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.1"
@@ -1588,6 +1904,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.1"
         base-image: "nginx:1.17.1"
@@ -1598,6 +1916,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.0-alpine"
@@ -1605,6 +1925,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.0-alpine"
         base-image: "nginx:1.17.0-alpine"
@@ -1615,6 +1937,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.17.0"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.0"
@@ -1622,6 +1946,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.17.0"
         base-image: "nginx:1.17.0"
@@ -1632,6 +1958,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.16.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.16.1-alpine"
@@ -1639,6 +1967,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.16.1-alpine"
         base-image: "nginx:1.16.1-alpine"
@@ -1649,6 +1979,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.16.1"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.16.1"
@@ -1656,6 +1988,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.16.1"
         base-image: "nginx:1.16.1"
@@ -1666,6 +2000,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.16.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.16.0-alpine"
@@ -1673,6 +2009,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.16.0-alpine"
         base-image: "nginx:1.16.0-alpine"
@@ -1683,6 +2021,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.16.0"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.16.0"
@@ -1690,6 +2030,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.16.0"
         base-image: "nginx:1.16.0"
@@ -1700,6 +2042,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.14.1"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.14.1"
@@ -1707,6 +2051,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.14.1"
         base-image: "nginx:1.14.1"
@@ -1717,3 +2063,5 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
