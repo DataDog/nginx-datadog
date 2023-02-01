@@ -8,6 +8,12 @@ jobs:
       # "datadog/docker-library:nginx-datadog-build-$base_image_without_colons".
       build-image:
         type: string
+      # `base-image` is the docker image on which the build-image is based.
+      # This parameter is extracted from nginx-version-info by the release
+      # script, so that it knows how to name the built shared object.
+      base-image:
+        type: string
+        default: ""
       # `nginx-version` is the release version of the nginx source code to
       # include in the built module. It's of the form
       # "$major.$minor.$patch".
@@ -33,6 +39,7 @@ jobs:
     steps:
     - checkout
     - run: printf 'NGINX_VERSION=%s\n' << parameters.nginx-version >> >>nginx-version-info
+    - run: printf 'BASE_IMAGE=%s\n' '<< parameters.base-image >>' >>nginx-version-info
     - run: make build
     - persist_to_workspace:
         root: .
@@ -76,7 +83,6 @@ jobs:
     - attach_workspace:
         at: /tmp/workspace
     - run: mv /tmp/workspace/nginx-version-info .
-    - run: printf 'BASE_IMAGE=%s\n' '<< parameters.base-image >>' >>nginx-version-info
     - run: printf 'NGINX_MODULES_PATH=%s\n' '<< parameters.nginx-modules-path >>' >>nginx-version-info
     - run: printf 'NGINX_CONF_PATH=%s\n' '<< parameters.nginx-conf-path >>' >>nginx-version-info
     - run: mv /tmp/workspace/.build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
@@ -140,7 +146,7 @@ workflows:
         name: "build on amazonlinux:2.0.20230119.1"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230119.1"
         nginx-version: "1.22.1"
-    
+
     - test:
         name: "test on amazonlinux:2.0.20230119.1"
         base-image: "amazonlinux:2.0.20230119.1"
@@ -148,7 +154,7 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on amazonlinux:2.0.20230119.1"
-    
+
     - build:
         name: "build on amazonlinux:2.0.20221210.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20221210.0"
@@ -426,7 +432,7 @@ workflows:
         name: "build on nginx:1.23.2-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.2-alpine"
         nginx-version: "1.23.2"
-    
+
     - test:
         name: "test on nginx:1.23.2-alpine"
         base-image: "nginx:1.23.2-alpine"
@@ -434,12 +440,12 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.23.2-alpine"
-    
+
     - build:
         name: "build on nginx:1.23.2"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.2"
         nginx-version: "1.23.2"
-    
+
     - test:
         name: "test on nginx:1.23.2"
         base-image: "nginx:1.23.2"
@@ -447,7 +453,7 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.23.2"
-    
+
     - build:
         name: "build on nginx:1.23.1-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.1-alpine"

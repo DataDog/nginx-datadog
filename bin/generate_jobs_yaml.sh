@@ -127,6 +127,7 @@ END_FILTERS
   cat <<END_SNIPPET
 - build:
     name: "build on $base_image"
+    base-image: "$base_image"
     build-image: "datadog/docker-library:nginx-datadog-build-$base_image_without_colons"
     nginx-version: "$nginx_version"
 $filters
