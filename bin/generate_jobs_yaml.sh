@@ -107,6 +107,7 @@ nginx:1.16.1-alpine 1.16.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.16.1 1.16.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.16.0-alpine 1.16.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.16.0 1.16.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
+nginx:1.14.1 1.14.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 END_NGINX_TAGS
 
 while read base_image nginx_version nginx_modules_path nginx_conf_path; do
