@@ -61,7 +61,7 @@ def child_env(parent_env=None):
         parent_env = os.environ
 
     result = {}
-    for name in ('BASE_IMAGE', 'NGINX_MODULES_PATH'):
+    for name in ('BASE_IMAGE', 'NGINX_CONF_PATH', 'NGINX_MODULES_PATH'):
         if name in parent_env:
             result[name] = parent_env[name]
 
@@ -321,6 +321,9 @@ class Orchestration:
     This class is meant to be accessed through the `singleton()` function of
     this module, not instantiated directly.
     """
+
+    def __init__(self):
+        print('The test runner is running in the following environment:', os.environ)
 
     # Properties (all private)
     # - `up_thread` is the `threading.Thread` running `docker-compose up`.

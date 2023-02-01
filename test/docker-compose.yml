@@ -10,6 +10,7 @@ services:
       dockerfile: ./Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE}
+        NGINX_CONF_PATH: ${NGINX_CONF_PATH}
         NGINX_MODULES_PATH: ${NGINX_MODULES_PATH}
     environment:
       - DD_ENV=prod
