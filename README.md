@@ -10,7 +10,8 @@ Status: Beta
 This module is not yet considered "generally available" and is being piloted by
 a small group of users.
 
-It will be expanded to wider use when major version `1` is released.
+It will be expanded to wider use when major version `1` is released sometime
+this year.
 
 Usage
 -----
@@ -23,15 +24,21 @@ load_module modules/ngx_http_datadog_module.so;
 Tracing is automatically added to all endpoints by default.  For more
 information, see [the API documentation](doc/API.md).
 
-There is one version of the module for each [DockerHub nginx image tag][3]
-supported by this project.  For example, a release artifact named
-`1.19.1-alpine-ngx_http_datadog_module.so.tgz` contains an nginx module
-`ngx_http_datadog_module.so` that is compatible with the nginx that is
-distributed in the [nginx:1.19.1-alpine][5] DockerHub image.
+There is one version of the module for each docker image we follow, which
+include the following:
 
-Generally, nginx images tagged without a hyphen are built on Debian with
-[glibc][6], while nginx images tagged with a trailing "`-alpine`" are built on
-Alpine with [musl libc][7].
+- Debian variants of [nginx's DockerHub images][3],
+- Alpine variants of [nginx's DockerHub images][3],
+- [Amazon Linux 2][10].
+
+Each release contains one zipped tarball per supported image above. The
+naming convention is
+`<base image with underscores><hyphen>ngx_http_datadog_module.so.tgz`,
+e.g. `nginx_1.23.1-alpine-ngx_http_datadog_module.so.tgz` or
+`amazonlinux_2.0.20230119.1-ngx_http_datadog_module.so.tgz`.
+
+The zipped tarball contains a single file, `ngx_http_datadog_module.so`, which
+is the Datadog tracing nginx module.
 
 Default Behavior
 ----------------
@@ -98,3 +105,4 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [7]: https://www.musl-libc.org/
 [8]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
 [9]: https://github.com/DataDog/dd-opentracing-cpp/blob/master/doc/configuration.md
+[10]: https://hub.docker.com/_/amazonlinux
