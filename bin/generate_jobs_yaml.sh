@@ -43,7 +43,7 @@ nginx:1.21.6-alpine 1.21.6 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.21.6 1.21.6 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.21.5-alpine 1.21.5 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.21.5 1.21.5 /usr/lib/nginx/modules /etc/nginx/nginx.conf
-nginx:1.21.4-alpine 1.21.4 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
+nginx:1.21.4-alpine 1.21.4 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.21.4 1.21.4 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.21.3-alpine 1.21.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.21.3 1.21.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf

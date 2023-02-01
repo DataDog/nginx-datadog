@@ -727,6 +727,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.21.4-alpine"
         base-image: "nginx:1.21.4-alpine"
@@ -737,6 +739,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.21.4"
         base-image: "nginx:1.21.4"
