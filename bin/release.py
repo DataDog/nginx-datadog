@@ -228,7 +228,7 @@ def send_ci_request_paged(path, payload=None, method=None):
 
 # TODO: Poll until the number of "build-and-test-all" jobs changes from
 # zero.  Then there's another race, too...
-delay_seconds = 10
+delay_seconds = 30
 print(f'sleeping for {delay_seconds} seconds...')
 time.sleep(delay_seconds)
 
