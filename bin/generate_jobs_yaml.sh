@@ -112,17 +112,19 @@ END_NGINX_TAGS
 
 while read base_image nginx_version nginx_modules_path nginx_conf_path always; do
   base_image_without_colons=$(echo "$base_image" | tr ':' '_')
-  if [ "$always" != 'always' ]; then
-    filters=$(cat <<'END_FILTERS'
+  filters=$(cat <<'END_FILTERS'
     filters:
       tags:
         only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+END_FILTERS
+)
+  if [ "$always" != 'always' ]; then
+    filters=$(cat <<END_FILTERS
+$filters
       branches:
         ignore: /.*/
 END_FILTERS
 )
-  else
-    filters=''
   fi
   cat <<END_SNIPPET
 - build:
