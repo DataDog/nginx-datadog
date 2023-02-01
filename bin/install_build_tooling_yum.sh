@@ -3,7 +3,7 @@
 # Exit if a non-conditional command returns a nonzero exit status.
 set -e
 
-yum update
+yum update -y
 
 # for downloading releases of build tools, and SSL for CMake build
 # nginx uses perl-compatible regular expressions (PCRE) and zlib (for gzip).
