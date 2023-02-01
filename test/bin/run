@@ -15,5 +15,5 @@ export NGINX_CONF_PATH=${NGINX_CONF_PATH:-/etc/nginx/nginx.conf}
 echo 'env:'
 env | sort
 
-docker-compose build --parallel
+docker-compose build --parallel --no-cache
 python3 -m unittest "$@"
