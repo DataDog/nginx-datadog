@@ -250,32 +250,53 @@ def download_file(url, destination):
         shutil.copyfileobj(response, output)
 
 
+def parse_info_script(script):
+    variables = {}
+    for line in script.split('\n'):
+        line = line.strip()
+        if line == '' or line[0] == '#':
+            continue
+        assignment, *comment = line.split('#')
+        variable, value = assignment.split('=')
+        variables[variable] = value
+    return variables
+
+
 def prepare_release_artifact(build_job_number, work_dir):
     artifacts = send_ci_request_paged(
         f'/project/{PROJECT_SLUG}/{build_job_number}/artifacts')
-    nginx_tag_url = None
+    nginx_version_info_url = None
     module_url = None
     for artifact in artifacts:
         name = artifact['path']
-        if name == 'nginx-tag':
-            nginx_tag_url = artifact['url']
+        if name == 'nginx-version-info':
+            nginx_version_info_url = artifact['url']
         elif name == 'ngx_http_datadog_module.so':
             module_url = artifact['url']
 
-    if nginx_tag_url is None:
+    if nginx_version_info_url is None:
         raise Exception(
-            f"Job number {build_job_number} doesn't have an 'nginx-tag' build artifact."
+            f"Job number {build_job_number} doesn't have an 'nginx-version-info' build artifact."
         )
     if module_url is None:
         raise Exception(
             f"Job number {build_job_number} doesn't have an 'ngx_http_datadog_module.so' build artifact."
         )
 
-    nginx_tag = urllib.request.urlopen(nginx_tag_url).read().decode('utf8')
+    nginx_version_info = urllib.request.urlopen(nginx_version_info_url).read().decode('utf8')
     module_path = work_dir / 'ngx_http_datadog_module.so'
     download_file(module_url, module_path)
 
-    tarball_path = work_dir / f'{nginx_tag}-ngx_http_datadog_module.so.tgz'
+    # `nginx_version_info` will define BASE_IMAGE. That's that value that we
+    # want to prefix the tarball name with, but with colons replaced by
+    # underscores.
+    variables = parse_info_script(nginx_version_info)
+    if 'BASE_IMAGE' not in variables:
+        raise Exception(
+            f"BASE_IMAGE not found in nginx-version-info: {nginx_version_info}"
+        )
+    base_prefix = variables['BASE_IMAGE'].replace(':', '_')
+    tarball_path = work_dir / f'{base_prefix}-ngx_http_datadog_module.so.tgz'
     command = [tar_exe, '-czf', tarball_path, '-C', work_dir, module_path.name]
     run(command, check=True)
 

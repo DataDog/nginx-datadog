@@ -61,7 +61,7 @@ def child_env(parent_env=None):
         parent_env = os.environ
 
     result = {}
-    for name in ('NGINX_IMAGE', 'NGINX_MODULES_DIRECTORY'):
+    for name in ('BASE_IMAGE', 'NGINX_MODULES_PATH'):
         if name in parent_env:
             result[name] = parent_env[name]
 
@@ -310,7 +310,7 @@ def curl(url, headers, stderr=None):
 
 class Orchestration:
     """A handle for a `docker-compose` session.
-    
+
     `up()` runs `docker-compose up` and spawns a thread that consumes its
     output.
 
@@ -367,7 +367,7 @@ class Orchestration:
 
     def down(self):
         """Stop service orchestration.
-        
+
         Run `docker-compose down` to bring down the orchestrated services.
         Join the log-parsing thread.
         """
@@ -422,12 +422,12 @@ class Orchestration:
 
     def sync_service(self, service):
         """Establish synchronization points in the logs of a service.
-        
+
         Send a "sync" request to the specified `service`,
         and wait for the corresponding log messages to appear in the
         docker-compose log.  This way, we know that whatever we have done
         previously has already appeared in the log.
-        
+
             log_lines = orch.sync_service('agent')
 
         where `log_lines` is a chronological list of strings, each a line from

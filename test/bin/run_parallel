@@ -4,8 +4,11 @@ cd "$(dirname "$0")/../"
 
 set -e
 
-export NGINX_IMAGE=${NGINX_IMAGE:-nginx:$(cat ../nginx-tag)}
-export NGINX_MODULES_DIRECTORY=${NGINX_MODULES_DIRECTORY:-/usr/lib/nginx/modules}
+if [ "$BASE_IMAGE" = '' ]; then
+    . ../nginx-version-info
+fi
+
+export NGINX_MODULES_PATH=${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}
 docker-compose build --parallel
 
 scratch=$(mktemp -d)
@@ -18,7 +21,7 @@ if [ -f "$TEST_TIMES_FILE" ]; then
     <"$TEST_TIMES_FILE" bin/balance.py "$NUM_WORKERS" | \
         nl --body-numbering=all >"$scratch/pipe" &
 else
-    >&2 echo 'Running sequentially to gather timing information.' 
+    >&2 echo 'Running sequentially to gather timing information.'
     >&2 echo "Timing information will be written to $TEST_TIMES_FILE."
     TEST_DURATIONS_FILE="$TEST_TIMES_FILE" bin/run "$@"
     exit $?

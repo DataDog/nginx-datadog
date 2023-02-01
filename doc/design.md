@@ -20,7 +20,7 @@ Features
 - The code is originally based on `nginx-opentracing` (copy → paste → modify).
   One of the things I did was effectively `s/opentracing/datadog/g`, so many of
   the files, functions, and types in this module have a similarly-named cousin
-  in `nginx-opentracing`. 
+  in `nginx-opentracing`.
 - Instead of loading an OpenTracing plugin, the module consults an in-source
   collection of functions, `TracingLibrary`.  This keeps the "policy" separate
   from where it is used within nginx, though there is no longer any dynamic
@@ -57,21 +57,21 @@ Features
 Build Dependency Management
 ---------------------------
 ```text
-         msgpack      curl      zlib?       
-            -\         |          -         
-              --\      |        -/          
-                 -\    |      -/            
-                   --  |     /              
-               -- dd-opentracing-cpp        
-            --/             -\              
-         --/                  ---\          
-       -/                         --        
- nginx-datadog ------------ opentracing-cpp 
-      -\                                    
-        -\                                  
-          --\                               
-             -\                             
-               -- nginx                     
+         msgpack      curl      zlib?
+            -\         |          -
+              --\      |        -/
+                 -\    |      -/
+                   --  |     /
+               -- dd-opentracing-cpp
+            --/             -\
+         --/                  ---\
+       -/                         --
+ nginx-datadog ------------ opentracing-cpp
+      -\
+        -\
+          --\
+             -\
+               -- nginx
 ```
 - `nginx-datadog` is this project.
 - `dd-opentracing-cpp` and `opentracing-cpp` are both included in-source-tree
@@ -94,10 +94,10 @@ Build Dependency Management
 
 ### Building Nginx
 Nginx's source tree is not part of this repository, since we want to produce
-different builds for different nginx versions.  Instead, an nginx source
-release tarball is downloaded as part of the build process.  The version to
-clone is determined by the file [nginx-tag](nginx-tag) (which may be modified
-at the beginning of the build process).
+different builds for different nginx versions.  Instead, an nginx source release
+tarball is downloaded as part of the build process.  The version to clone is
+determined by the file [nginx-version-info](nginx-version-info) (which may be
+modified at the beginning of the build process).
 
 Nginx is not meant to be built using cmake.  It has its own custom `configure`
 script that produces a platform-specific makefile, `objs/Makefile`.

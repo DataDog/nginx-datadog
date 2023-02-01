@@ -4,8 +4,10 @@ cd "$(dirname "$0")/../"
 
 set -e
 
-export NGINX_IMAGE=${NGINX_IMAGE:-nginx:$(cat ../nginx-tag)}
-export NGINX_MODULES_DIRECTORY=${NGINX_MODULES_DIRECTORY:-/usr/lib/nginx/modules}
+. ../nginx-version-info
+export BASE_IMAGE
+export NGINX_MODULES_PATH=${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}
+export NGINX_CONF_PATH=${NGINX_CONF_PATH:-/etc/nginx/nginx.conf}
 
 docker-compose build --parallel
 python3 -m unittest "$@"

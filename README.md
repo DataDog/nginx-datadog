@@ -10,7 +10,8 @@ Status: Beta
 This module is not yet considered "generally available" and is being piloted by
 a small group of users.
 
-It will be expanded to wider use when major version `1` is released.
+It will be expanded to wider use when major version `1` is released sometime
+this year.
 
 Usage
 -----
@@ -23,15 +24,21 @@ load_module modules/ngx_http_datadog_module.so;
 Tracing is automatically added to all endpoints by default.  For more
 information, see [the API documentation](doc/API.md).
 
-There is one version of the module for each [DockerHub nginx image tag][3]
-supported by this project.  For example, a release artifact named
-`1.19.1-alpine-ngx_http_datadog_module.so.tgz` contains an nginx module
-`ngx_http_datadog_module.so` that is compatible with the nginx that is
-distributed in the [nginx:1.19.1-alpine][5] DockerHub image.
+There is one version of the module for each docker image we follow, which
+include the following:
 
-Generally, nginx images tagged without a hyphen are built on Debian with
-[glibc][6], while nginx images tagged with a trailing "`-alpine`" are built on
-Alpine with [musl libc][7].
+- Debian variants of [nginx's DockerHub images][3],
+- Alpine variants of [nginx's DockerHub images][3],
+- [Amazon Linux 2][10].
+
+Each release contains one zipped tarball per supported image above. The
+naming convention is
+`<base image with underscores><hyphen>ngx_http_datadog_module.so.tgz`,
+e.g. `nginx_1.23.1-alpine-ngx_http_datadog_module.so.tgz` or
+`amazonlinux_2.0.20230119.1-ngx_http_datadog_module.so.tgz`.
+
+The zipped tarball contains a single file, `ngx_http_datadog_module.so`, which
+is the Datadog tracing nginx module.
 
 Default Behavior
 ----------------
@@ -56,8 +63,10 @@ dependencies.  The resulting nginx module is
 `.build/libngx_http_datadog_module.so`.
 
 Another target, `build-in-docker`, builds the Datadog nginx module and its
-dependencies in a [Docker][2] container compatible with the [DockerHub nginx
-image tag][3] specified in a `./nginx-tag` file, e.g. `1.19.1-alpine`.  The
+dependencies in a [Docker][2] container compatible with the DockerHub image
+specified as `BASE_IMAGE` in the `./nginx-version-info` file, (e.g.
+`nginx:1.19.1-alpine`) and with the nginx source version specified as
+`NGINX_VERSION` in the `./nginx-version-info` file (e.g. `1.19.1`).  The
 appropriate build image must be created first using the
 [bin/docker-build.sh](bin/docker-build.sh) script if it does not exist already.
 Once the image is built, `make build-in-docker` produces the nginx module as
@@ -67,8 +76,8 @@ The C and C++ sources are built using [CMake][4].
 
 The build does the following:
 
-- Download a source release of nginx compatible with the DockerHub nginx image
-  tag specified in `./nginx-tag`.
+- Download a source release of nginx based on the `NGINX_VERSION` value
+  specified in `./nginx-version-info`.
 - Configure nginx's sources for build (e.g. generates platform-specific headers).
 - Initialize the source trees of `opentracing-cpp` and `dd-opentracing-cpp` as
   git submodules.
@@ -96,3 +105,4 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [7]: https://www.musl-libc.org/
 [8]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
 [9]: https://github.com/DataDog/dd-opentracing-cpp/blob/master/doc/configuration.md
+[10]: https://hub.docker.com/_/amazonlinux

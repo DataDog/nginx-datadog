@@ -1,8 +1,9 @@
 #!/bin/sh
 
 repo=$(dirname "$0")/..
-nginx_tag=$(cat "$repo"/nginx-tag)
-built_image="nginx-datadog-build-$nginx_tag"
+. "$repo/nginx-version-info"
+base_image_without_colons=$(echo "$BASE_IMAGE" | tr ':' '_')
+built_image="nginx-datadog-build-$base_image_without_colons"
 BUILD_IMAGE="${BUILD_IMAGE:-$built_image}"
 
 interactive_flags=''
