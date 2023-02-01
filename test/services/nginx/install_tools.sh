@@ -25,7 +25,7 @@ elif command -v apk >/dev/null 2>&1; then
         exit 1
     fi
 elif command -v yum >/dev/null 2>&1; then
-    yum update
+    yum update -y
     yum install -y procps
     if ! command -v nginx >/dev/null 2>&1; then
         install_nginx_on_amazon_linux
