@@ -257,14 +257,14 @@ def prepare_release_artifact(build_job_number, work_dir):
     module_url = None
     for artifact in artifacts:
         name = artifact['path']
-        if name == 'nginx-tag':
+        if name == 'nginx-version-info':
             nginx_tag_url = artifact['url']
         elif name == 'ngx_http_datadog_module.so':
             module_url = artifact['url']
 
     if nginx_tag_url is None:
         raise Exception(
-            f"Job number {build_job_number} doesn't have an 'nginx-tag' build artifact."
+            f"Job number {build_job_number} doesn't have an 'nginx-version-info' build artifact."
         )
     if module_url is None:
         raise Exception(
