@@ -227,8 +227,8 @@ def send_ci_request_paged(path, payload=None, method=None):
 
 
 # TODO: Poll until the number of "build-and-test-all" jobs changes from
-# zero.  Then there's another race, too...
-delay_seconds = 30
+# zero.
+delay_seconds = 10
 print(f'sleeping for {delay_seconds} seconds...')
 time.sleep(delay_seconds)
 
@@ -327,6 +327,8 @@ done_jobs = set()  # job numbers (not IDs)
 while True:
     jobs = send_ci_request_paged(f'/workflow/{workflow_id}/job')
     for job in jobs:
+        if job['status'] == 'blocked':
+            continue
         job_number = job['job_number']
         if job_number not in done_jobs:
             result = handle_job(job, work_dir)
