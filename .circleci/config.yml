@@ -140,14 +140,19 @@ jobs:
       BASE_IMAGE: << parameters.base-image >>
       NGINX_MODULES_PATH: << parameters.nginx-modules-path >>
       NGINX_CONF_PATH: << parameters.nginx-conf-path >>
+      DD_API_KEY: this-is-a-bogus-api-key
     steps:
     - checkout
     - setup_remote_docker:
         # Cache docker layers somewhere so that we don't have to rebuild test
         # service images every time.
         docker_layer_caching: true
-    - run: env
-    - run: pwd
+    - run:
+        working_directory: ~/project/example
+        command: docker-compose up --build --wait
+    - run:
+        working_directory: ~/project/example
+        command: bin/curl http://nginx/http-with-location
 
 workflows:
   build-and-test-all:
