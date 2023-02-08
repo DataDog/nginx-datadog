@@ -110,7 +110,7 @@ nginx:1.16.0 1.16.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.14.1 1.14.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 END_NGINX_TAGS
 
-while read base_image nginx_version nginx_modules_path nginx_conf_path always; do
+while read -r base_image nginx_version nginx_modules_path nginx_conf_path always; do
   base_image_without_colons=$(echo "$base_image" | tr ':' '_')
   filters=$(cat <<'END_FILTERS'
     filters:

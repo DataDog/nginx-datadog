@@ -11,6 +11,7 @@ if tty --silent; then
   interactive_flags='--interactive --tty'
 fi
 
+# shellcheck disable=SC2086
 docker run \
     $interactive_flags \
     --rm \

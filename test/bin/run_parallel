@@ -8,7 +8,7 @@ if [ "$BASE_IMAGE" = '' ]; then
     . ../nginx-version-info
 fi
 
-export NGINX_MODULES_PATH=${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}
+export NGINX_MODULES_PATH="${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}"
 docker-compose build --parallel
 
 scratch=$(mktemp -d)
@@ -29,6 +29,7 @@ fi
 
 while read -r i tests; do
     echo "docker-compose project \"test$i\" will run the following: $tests"
+    # shellcheck disable=SC2086
     COMPOSE_PROJECT_NAME="test$i" python3 -m unittest "$@" $tests &
 done <"$scratch/pipe"
 

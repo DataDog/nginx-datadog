@@ -2,10 +2,10 @@
 
 set -e
 
-cd $(dirname "$0")/..
+cd "$(dirname "$0")"/..
 
-export NGINX_IMAGE_TAG=${NGINX_IMAGE_TAG:-1.23.1}
-export NGINX_IMAGE=nginx:$NGINX_IMAGE_TAG
+BASE_IMAGE="${BASE_IMAGE:-nginx:1.23.1-alpine}"
+export BASE_IMAGE
 
 if [ "$DD_API_KEY" = '' ]; then
     >&2 echo 'The environment variable DD_API_KEY must be set to a Datadog API key.'
