@@ -149,7 +149,8 @@ jobs:
         docker_layer_caching: true
     - run:
         working_directory: ~/project/example
-        command: docker-compose up --build --wait
+        command: docker-compose up --build --detach
+    - run: 'echo "sleeping for a bit..."; sleep 10'
     - run:
         working_directory: ~/project/example
         command: bin/curl http://nginx/http-with-location
