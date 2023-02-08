@@ -74,7 +74,7 @@ jobs:
     # "cimg" means "convenience image."  Helpful images provided by CircleCI.
     # This one contains Python, docker-compose, and a bunch of other things.
     # See https://circleci.com/docs/circleci-images
-    - image: cimg/base:current
+    - image: cimg/python:3.10.5
     environment:
       # See https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 0
@@ -131,9 +131,9 @@ jobs:
         default: ""
     docker:
     # "cimg" means "convenience image."  Helpful images provided by CircleCI.
-    # This one contains Python, docker-compose, and a bunch of other things.
+    # This one docker-compose and a bunch of other things.
     # See https://circleci.com/docs/circleci-images
-    - image: cimg/python:3.10.5
+    - image: cimg/base:current
     environment:
       # See https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 0
