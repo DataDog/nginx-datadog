@@ -150,10 +150,10 @@ jobs:
     - run:
         working_directory: ~/project/example
         command: docker-compose up --build --detach
-    - run: 'echo "sleeping for a bit..."; sleep 10'
+    - run: 'echo "sleeping for a bit to let the services come up..."; sleep 30'
     - run:
         working_directory: ~/project/example
-        command: bin/curl http://nginx/http-with-location
+        command: bin/check
 
 workflows:
   build-and-test-all:
