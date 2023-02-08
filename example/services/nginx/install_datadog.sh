@@ -4,7 +4,7 @@ set -x
 set -e
 
 if [ "$BASE_IMAGE" = '' ]; then
-  >&2 echo 'This script expects $BASE_IMAGE to be in the environment, e.g. "nginx:1.23.1-alpine" or "amazonlinux:2.0.20220121.0".'
+  >&2 echo 'This script expects BASE_IMAGE to be in the environment, e.g. "nginx:1.23.1-alpine" or "amazonlinux:2.0.20220121.0".'
   exit 1
 fi
 

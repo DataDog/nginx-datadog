@@ -52,7 +52,8 @@ done
 
 if [ -z "$base_image" ]; then
     . "$repo/nginx-version-info"
-    base_image=$BASE_IMAGE
+    # shellcheck disable=SC2153
+    base_image="$BASE_IMAGE"
 fi
 
 ask() {

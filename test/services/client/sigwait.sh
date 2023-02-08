@@ -9,7 +9,7 @@ usage:
         Block until one of the specified SIGNALs is received.
         Each SIGNAL is named as would appear in a call to
         "trap", e.g. QUIT, TERM, STOP.
-    
+
     sigwait.sh --help
     sigwait.sh -h
         Print this message.
@@ -34,17 +34,19 @@ tmpdir=$(mktemp -d)
 pipe="$tmpdir"/pipe
 mkfifo "$pipe"
 
-signals="$@"
+signals="$*"
 
 close() {
+    # shellcheck disable=SC2086
     trap - $signals
     echo 'cya!' >"$pipe"
 }
 
 block() {
-    <"$pipe" read dummy
+    <"$pipe" read -r
 }
 
+# shellcheck disable=SC2086
 trap close $signals
 
 block &

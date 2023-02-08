@@ -155,9 +155,22 @@ jobs:
         working_directory: ~/project/example
         command: bin/check
 
+  shellcheck:
+    docker:
+    - image: koalaman/shellcheck:stable
+      entrypoint: /bin/sh
+    steps:
+    - checkout
+    - run: find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
+
 workflows:
   build-and-test-all:
     jobs:
+    - shellcheck:
+        name: "run shellcheck on shell scripts"
+        filters:
+          tags:
+            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
     # Running the example doesn't tell us anything about the proposed pull
     # request or candidate release, but it's here as a check to break should any
     # changes break the example.
