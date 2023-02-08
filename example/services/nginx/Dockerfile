@@ -8,5 +8,7 @@ ARG BASE_IMAGE
 ENV BASE_IMAGE=${BASE_IMAGE}
 RUN /tmp/install_datadog.sh
 
+COPY ./nginx.conf /etc/nginx/nginx.conf
+
 ENTRYPOINT ["nginx"]
 CMD ["-g", "daemon off;"]
