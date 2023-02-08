@@ -157,7 +157,7 @@ jobs:
 
   shellcheck:
     docker:
-    - image: koalaman/shellcheck:stable
+    - image: koalaman/shellcheck-alpine:stable
       entrypoint: /bin/sh
     steps:
     - checkout
