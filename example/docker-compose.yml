@@ -1,14 +1,13 @@
 version: "3.2"
 services:
-    
-  # `nginx` TODO
+
+  # `nginx` is an instance of nginx that has the Datadog tracing module loaded.
   nginx:
     build:
       context: ./services/nginx
       dockerfile: ./Dockerfile
       args:
-        NGINX_IMAGE: ${NGINX_IMAGE}
-        NGINX_IMAGE_TAG: ${NGINX_IMAGE_TAG}
+        BASE_IMAGE: ${BASE_IMAGE}
     environment:
       - DD_AGENT_HOST=agent
     volumes:

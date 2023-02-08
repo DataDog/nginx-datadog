@@ -2,7 +2,7 @@ Example System
 ==============
 This is an example of how the Datadog module adds tracing to Nginx.
 
-This directory is a [docker-compose][3] setup containing the following
+This directory is a [docker-compose][4] setup containing the following
 services:
 - `nginx` runs an instance of Nginx that:
     - accepts HTTP on port 80,
@@ -54,12 +54,14 @@ Traces will appear in the Datadog UI with the configured service name, which in 
 
 Nginx Version
 -------------
-The Nginx version and target system can be specified by setting the
-`NGINX_IMAGE_TAG` environment variable.  The value of the environment variable
-is the tag of the corresponding [nginx Docker image][1], without the "nginx:"
-prefix.
+The Nginx version and target system can be specified by setting the `BASE_IMAGE`
+environment variable.  The value of the environment variable is the name of a
+Docker image where nginx is installed or can be installed using the native
+package manager.
 
-For example, the default value for `NGINX_IMAGE_TAG` in this example is `1.23.1`, which indicates compatibility with Nginx 1.23.1 running on Debian, as per [nginx:1.23.1][2].
+For example, the default value for `BASE_IMAGE` in this example is
+`nginx:1.23.1-alpine`, which indicates compatibility with Nginx 1.23.1 running
+on Alpine, as per [nginx:1.23.1-alpine][2].
 
 Setting `NGINX_IMAGE_TAG` to `1.23.1-alpine` would indicate compatibility with Nginx 1.23.1 running on Alpine, as per [nginx:1.23.1-alpine][3].
 
@@ -77,6 +79,5 @@ Command Line Tools
   metadata from the `nginx` service listening on port 1337.
 
 [1]: https://hub.docker.com/_/nginx/
-[2]: https://hub.docker.com/layers/nginx/library/nginx/1.23.1/images/sha256-f26fbadb0acab4a21ecb4e337a326907e61fbec36c9a9b52e725669d99ed1261?context=explore
 [3]: https://hub.docker.com/layers/nginx/library/nginx/1.23.1-alpine/images/sha256-2959a35e1b1e61e2419c01e0e457f75497e02d039360a658b66ff2d4caab19c4?context=explore
 [4]: https://docs.docker.com/compose/
