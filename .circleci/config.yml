@@ -175,19 +175,19 @@ workflows:
     # request or candidate release, but it's here as a check to break should any
     # changes break the example.
     - example:
-        name: "run the example/ on a recent Amazon Linux"
+        name: "run the example on Amazon Linux"
         base-image: "amazonlinux:2.0.20230119.1"
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - example:
-        name: "run the example/ on a recent Debian"
+        name: "run the example on Debian"
         base-image: "nginx:1.23.2"
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - example:
-        name: "run the example/ on a recent Alpine"
+        name: "run the example on Alpine"
         base-image: "nginx:1.23.2-alpine"
         filters:
           tags:
