@@ -61,7 +61,7 @@ package manager.
 
 For example, the default value for `BASE_IMAGE` in this example is
 `nginx:1.23.1-alpine`, which indicates compatibility with Nginx 1.23.1 running
-on Alpine, as per [nginx:1.23.1-alpine][2].
+on Alpine, as per [nginx:1.23.1-alpine][3].
 
 Setting `NGINX_IMAGE_TAG` to `1.23.1-alpine` would indicate compatibility with Nginx 1.23.1 running on Alpine, as per [nginx:1.23.1-alpine][3].
 
