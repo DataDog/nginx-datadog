@@ -29,8 +29,10 @@ amazonlinux:2.0.20220406.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220316.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220218.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220121.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
-nginx:1.23.2-alpine 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
-nginx:1.23.2 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
+nginx:1.23.3-alpine 1.23.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
+nginx:1.23.3 1.23.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
+nginx:1.23.2-alpine 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
+nginx:1.23.2 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.1-alpine 1.23.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.1 1.23.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.0-alpine 1.23.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
