@@ -70,8 +70,9 @@ clean:
 .PHONY: clobber
 clobber: clean
 	rm -rf \
-	    nginx \
-		dd-opentracing-cpp/deps
+		nginx \
+		dd-opentracing-cpp/deps \
+		dd-opentracing-cpp/CMakeFiles
 
 .PHONY: build-in-docker
 build-in-docker: sources
