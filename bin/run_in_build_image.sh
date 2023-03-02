@@ -7,7 +7,7 @@ built_image="nginx-datadog-build-$base_image_without_colons"
 BUILD_IMAGE="${BUILD_IMAGE:-$built_image}"
 
 interactive_flags=''
-if tty --silent; then
+if tty -s; then
   interactive_flags='--interactive --tty'
 fi
 

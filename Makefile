@@ -75,7 +75,7 @@ clobber: clean
 
 .PHONY: build-in-docker
 build-in-docker: sources
-	bin/run_in_build_image.sh $(MAKE) BUILD_DIR=.docker-build build
+	bin/run_in_build_image.sh make BUILD_DIR=.docker-build build
 
 .PHONY: test
 test: build-in-docker
