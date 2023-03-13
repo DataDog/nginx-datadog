@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Print lines:
 #
@@ -14,7 +14,7 @@
 
 downloads=https://nginx.org/download
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if [ "$(uname)" = 'Darwin' ]; then
   SED='gsed'
 else
   SED='sed'
