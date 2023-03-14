@@ -207,7 +207,7 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr),
-    
+
     { ngx_string("datadog_load_tracer"),
        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
        plugin_loading_deprecated,
@@ -228,7 +228,7 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
-  
+
     ngx_null_command
 };
 
@@ -269,6 +269,12 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
   // `proxy_pass`.
   const auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
+
+  if (main_conf == nullptr) {
+    // no config, no behavior
+    return NGX_OK;
+  }
+
   if (!main_conf->is_tracer_configured) {
     main_conf->is_tracer_configured = true;
     main_conf->tracer_conf = ngx_string("");  // default config
@@ -292,6 +298,11 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
       ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module));
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
+
+  if (main_conf == nullptr) {
+    // no config, no behavior
+    return NGX_OK;
+  }
 
   // Add handlers to create tracing data.
   auto handler = static_cast<ngx_http_handler_pt *>(

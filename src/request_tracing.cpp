@@ -1,5 +1,6 @@
 #include "request_tracing.h"
 
+#include <cassert>
 #include <chrono>
 #include <ctime>
 #include <sstream>
@@ -101,6 +102,11 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
           ngx_http_get_module_main_conf(request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
+  // `main_conf_` would be null when no `http` block appears in the nginx
+  // config.  If that happens, then no handlers are installed by this module,
+  // and so no `RequestTracing` objects are ever instantiated.
+  assert(main_conf_);
+
   auto tracer = ot::Tracer::Global();
   if (!tracer) throw std::runtime_error{"no global tracer set"};
 
