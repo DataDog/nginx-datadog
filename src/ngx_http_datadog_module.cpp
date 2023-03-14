@@ -207,7 +207,7 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr),
-    
+
     { ngx_string("datadog_load_tracer"),
        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
        plugin_loading_deprecated,
@@ -228,7 +228,7 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
-  
+
     ngx_null_command
 };
 
@@ -269,6 +269,10 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
   // `proxy_pass`.
   const auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
+  if (main_conf == nullptr) {
+    ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracing config: no http config found");
+    return NGX_ERR;
+  }
   if (!main_conf->is_tracer_configured) {
     main_conf->is_tracer_configured = true;
     main_conf->tracer_conf = ngx_string("");  // default config
