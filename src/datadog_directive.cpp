@@ -73,10 +73,11 @@ char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, string_view tra
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(conf, ngx_http_datadog_module));
 
-  if (main_conf == nullptr) {
-    // no config, no behavior
-    return static_cast<char *>(NGX_CONF_OK);
-  }
+  // The only way that `main_conf` could be `nullptr` is if there's no `http`
+  // block in the nginx configuration.  In that case, this function
+  // (`set_tracer`) would never get called, because it's called only from
+  // configuration directives that live inside the `http` block.
+  assert(main_conf != nullptr);
 
   main_conf->is_tracer_configured = true;
   main_conf->tracer_conf = to_ngx_str(conf->pool, tracer_conf);
@@ -180,10 +181,11 @@ char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t *command, void *co
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
-  if (main_conf == nullptr) {
-    // no config, no behavior
-    return static_cast<char *>(NGX_CONF_OK);
-  }
+  // The only way that `main_conf` could be `nullptr` is if there's no `http`
+  // block in the nginx configuration.  In that case, this function would never
+  // get called, because it's called only from configuration directives that
+  // live inside the `http` block.
+  assert(main_conf != nullptr);
 
   if (!main_conf->is_tracer_configured) {
     if (auto rcode = set_tracer(command, cf, TRACER_CONF_DEFAULT)) {
@@ -266,10 +268,11 @@ char *propagate_fastcgi_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
-  if (main_conf == nullptr) {
-    // no config, no behavior
-    return static_cast<char *>(NGX_CONF_OK);
-  }
+  // The only way that `main_conf` could be `nullptr` is if there's no `http`
+  // block in the nginx configuration.  In that case, this function would never
+  // get called, because it's called only from configuration directives that
+  // live inside the `http` block.
+  assert(main_conf != nullptr);
 
   if (!main_conf->is_tracer_configured) {
     if (auto rcode = set_tracer(command, cf, TRACER_CONF_DEFAULT)) {
@@ -317,10 +320,11 @@ char *propagate_grpc_datadog_context(ngx_conf_t *cf, ngx_command_t *command, voi
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
-  if (main_conf == nullptr) {
-    // no config, no behavior
-    return static_cast<char *>(NGX_CONF_OK);
-  }
+  // The only way that `main_conf` could be `nullptr` is if there's no `http`
+  // block in the nginx configuration.  In that case, this function would never
+  // get called, because it's called only from configuration directives that
+  // live inside the `http` block.
+  assert(main_conf != nullptr);
 
   if (!main_conf->is_tracer_configured) {
     if (auto rcode = set_tracer(command, cf, TRACER_CONF_DEFAULT)) {
@@ -430,7 +434,7 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexce
   return add_datadog_tag(cf, loc_conf->tags, values[1], values[2]);
 }
 
-char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command, void * /*conf*/) noexcept {
   const ngx_uint_t starting_line = cf->conf_file->line;
   NgxFileBuf buffer(*cf->conf_file->buffer, cf->conf_file->file, "", &cf->conf_file->line);
   std::istream input(&buffer);
@@ -476,10 +480,11 @@ char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexc
   const auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
-  if (main_conf == nullptr) {
-    // no config, no behavior
-    return static_cast<char *>(NGX_CONF_OK);
-  }
+  // The only way that `main_conf` could be `nullptr` is if there's no `http`
+  // block in the nginx configuration.  In that case, this function would never
+  // get called, because it's called only from configuration directives that
+  // live inside the `http` block.
+  assert(main_conf != nullptr);
 
   // If the tracer has already been configured, then either there are two
   // "datadog { ... }" blocks, or, more likely, another directive like
