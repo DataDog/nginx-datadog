@@ -19,6 +19,8 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(conf, ngx_http_datadog_module));
 
+  assert(main_conf != nullptr);
+
   // If the log formats are already defined, don't bother.
   if (main_conf->are_log_formats_defined) {
     return NGX_OK;

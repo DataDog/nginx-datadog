@@ -323,7 +323,8 @@ class Orchestration:
     """
 
     def __init__(self):
-        print('The test runner is running in the following environment:', os.environ)
+        print('The test runner is running in the following environment:',
+              os.environ)
 
     # Properties (all private)
     # - `up_thread` is the `threading.Thread` running `docker-compose up`.

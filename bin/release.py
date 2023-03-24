@@ -283,7 +283,8 @@ def prepare_release_artifact(build_job_number, work_dir):
             f"Job number {build_job_number} doesn't have an 'ngx_http_datadog_module.so' build artifact."
         )
 
-    nginx_version_info = urllib.request.urlopen(nginx_version_info_url).read().decode('utf8')
+    nginx_version_info = urllib.request.urlopen(
+        nginx_version_info_url).read().decode('utf8')
     module_path = work_dir / 'ngx_http_datadog_module.so'
     download_file(module_url, module_path)
 
