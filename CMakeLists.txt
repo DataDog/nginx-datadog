@@ -12,6 +12,10 @@ project(ngx_http_datadog_module)
 # dd-trace-cpp works with C++17 or newer.
 set(CMAKE_CXX_STANDARD 17)
 
+# This warning has a false positive. See
+# <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108088>.
+add_compile_options(-Wno-error=free-nonheap-object)
+
 # Nginx module boilerplate (code within the nginx repository)
 include(./nginx-module.cmake)
 
