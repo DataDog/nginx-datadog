@@ -157,7 +157,7 @@ TracingLibrary::default_tags() {
       {"nginx.location", "$datadog_location"}};
 }
 
-string_view TracingLibrary::default_resource_name_pattern() { return "$request_method $uri"; }
+std::string_view TracingLibrary::default_resource_name_pattern() { return "$request_method $uri"; }
 
 bool TracingLibrary::tracing_on_by_default() { return true; }
 

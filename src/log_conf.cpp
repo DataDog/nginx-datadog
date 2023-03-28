@@ -1,5 +1,6 @@
 #include "log_conf.h"
 
+#include <cassert>
 #include <string_view>
 
 #include "datadog_conf.h"

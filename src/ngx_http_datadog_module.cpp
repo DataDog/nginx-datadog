@@ -468,43 +468,19 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
 
 namespace {
 
-// Merge the specified `previous` operation name script into the specified
-// `current` operation name script in the context of the specified `conf`.  If
-// `current` does not have a value and `previous` does, then `previous` will be
-// used.  If neither has a value, then a hard-coded default will be used.
-// Return `NGX_CONF_OK` on success, or another value otherwise.
-char *merge_operation_name_script(ngx_conf_t *conf, NgxScript &previous,
-                                  NgxScript &current,
-                                  std::string_view default_pattern) {
+// Merge the specified `previous` script into the specified `current` script in
+// the context of the specified `conf`.  If `current` does not have a value and
+// `previous` does, then `previous` will be used.  If neither has a value, then
+// the specified `default_pattern` will be used.  Return `NGX_CONF_OK` on
+// success, or another value otherwise.
+char *merge_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
+                   std::string_view default_pattern) {
   if (current.is_valid()) {
     return NGX_CONF_OK;
   }
 
   if (!previous.is_valid()) {
     const ngx_int_t rc = previous.compile(conf, to_ngx_str(default_pattern));
-    if (rc != NGX_OK) {
-      return (char *)NGX_CONF_ERROR;
-    }
-  }
-
-  current = previous;
-  return NGX_CONF_OK;
-}
-
-char *merge_response_info_script(ngx_conf_t *conf, NgxScript &previous,
-                                 NgxScript &current) {
-  // The response info script is the same for each `datadog_loc_conf_t`.  The
-  // only reason it's a member of `datadog_loc_conf_t` is so that it is
-  // available at the end of each request, when we might like to inspect e.g.
-  // response headers.
-  if (current.is_valid()) {
-    return NGX_CONF_OK;
-  }
-
-  if (!previous.is_valid()) {
-    // Response header inspection is not currently used by this module, but I'm
-    // leaving the boilerplate for future use.
-    const ngx_int_t rc = previous.compile(conf, ngx_string(""));
     if (rc != NGX_OK) {
       return (char *)NGX_CONF_ERROR;
     }

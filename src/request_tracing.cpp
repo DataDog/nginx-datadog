@@ -58,7 +58,7 @@ static std::string get_request_resource_name(ngx_http_request_t *request,
   }
 }
 
-static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request, ot::Span &span) {
+static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request, dd::Span &span) {
   if (!tags) return;
   auto add_tag = [&](const datadog_tag_t &tag) {
     auto key = tag.key_script.run(request);
