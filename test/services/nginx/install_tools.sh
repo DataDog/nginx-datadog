@@ -18,7 +18,7 @@ if command -v apt-get >/dev/null 2>&1; then
         echo 'deb http://archive.debian.org/debian stretch main contrib non-free' >/etc/apt/sources.list
     fi
     apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y procps pstack
+    DEBIAN_FRONTEND=noninteractive apt-get install -y procps gdb
     if ! command -v nginx >/dev/null 2>&1; then
         >&2 echo 'nginx must already be installed on Debian-flavored base images'
         exit 1
@@ -32,7 +32,7 @@ elif command -v apk >/dev/null 2>&1; then
     fi
 elif command -v yum >/dev/null 2>&1; then
     yum update -y
-    yum install -y procps pstack
+    yum install -y procps gdb
     if ! command -v nginx >/dev/null 2>&1; then
         install_nginx_on_amazon_linux
     fi
