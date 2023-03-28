@@ -45,8 +45,8 @@ struct TracingLibrary {
   // each returned `std::string_view` refers must outlive any usage of the
   // return value (realistically this means that they will refer to string
   // literals).
-  static std::vector<std::string_view> propagation_header_names(
-      std::string_view configuration, std::string &error);
+  static std::vector<std::string_view> propagation_header_names(std::string_view configuration,
+                                                                std::string &error);
 
   // Return the common prefix of all variable names that map to trace context
   // propagation headers.  The portion of the variable name after the common

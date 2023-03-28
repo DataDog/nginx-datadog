@@ -6,11 +6,11 @@
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
 
-#include "ngx_event_scheduler.h"
-#include "ngx_logger.h"
-
 #include <algorithm>
 #include <iterator>
+
+#include "ngx_event_scheduler.h"
+#include "ngx_logger.h"
 
 namespace datadog {
 namespace nginx {
@@ -27,8 +27,7 @@ std::string_view or_default(std::string_view config_json) {
 
 }  // namespace
 
-dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
-    std::string_view json_config) {
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(std::string_view json_config) {
   // TODO: create a `dd::TracerConfig` from the JSON.
   (void)json_config;
 
@@ -65,17 +64,13 @@ std::string_view TracingLibrary::propagation_header_variable_name_prefix() {
   return "datadog_propagation_header_";
 }
 
-std::string_view TracingLibrary::environment_variable_name_prefix() {
-  return "datadog_env_";
-}
+std::string_view TracingLibrary::environment_variable_name_prefix() { return "datadog_env_"; }
 
 std::string_view TracingLibrary::configuration_json_variable_name() {
   return "datadog_config_json";
 }
 
-std::string_view TracingLibrary::location_variable_name() {
-  return "datadog_location";
-}
+std::string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
 
 std::string_view TracingLibrary::proxy_directive_variable_name() {
   return "datadog_proxy_directive";
@@ -139,8 +134,7 @@ std::string_view TracingLibrary::default_location_operation_name_pattern() {
   return "nginx.$datadog_proxy_directive";
 }
 
-std::unordered_map<std::string_view, std::string_view>
-TracingLibrary::default_tags() {
+std::unordered_map<std::string_view, std::string_view> TracingLibrary::default_tags() {
   return {
       // originally defined by nginx-opentracing
       {"component", "nginx"},

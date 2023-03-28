@@ -32,8 +32,7 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
   // execute them.
 
   // log_format <name> <escaping style> <format>
-  ngx_str_t args[] = {ngx_string("log_format"), ngx_str_t(), ngx_str_t(),
-                      ngx_str_t()};
+  ngx_str_t args[] = {ngx_string("log_format"), ngx_str_t(), ngx_str_t(), ngx_str_t()};
   ngx_array_t args_array;
   args_array.elts = args;
   args_array.nelts = sizeof args / sizeof args[0];
@@ -56,8 +55,7 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
     args[1] = to_ngx_str(std::string_view(format.name));
     args[2] = to_ngx_str(std::string_view(format.escaping_style));
     args[3] = to_ngx_str(std::string_view(format.format));
-    if (auto rcode =
-            datadog_conf_handler({.conf = conf, .skip_this_module = true})) {
+    if (auto rcode = datadog_conf_handler({.conf = conf, .skip_this_module = true})) {
       return rcode;
     }
   }

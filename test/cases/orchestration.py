@@ -19,11 +19,13 @@ import time
 import traceback
 import uuid
 
+
 # The name of the signal is "quit," but it doesn't mean quit.  Typically it
 # means "dump a core file." Here we use it to mean "print python stacks for all
 # threads."
 def quit_signal_handler(signum, frame):
     faulthandler.dump_traceback()
+
 
 signal.signal(signal.SIGQUIT, quit_signal_handler)
 

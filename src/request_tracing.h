@@ -22,12 +22,10 @@ namespace nginx {
 
 class RequestTracing {
  public:
-  RequestTracing(ngx_http_request_t *request,
-                 ngx_http_core_loc_conf_t *core_loc_conf,
+  RequestTracing(ngx_http_request_t *request, ngx_http_core_loc_conf_t *core_loc_conf,
                  datadog_loc_conf_t *loc_conf, dd::Span *parent = nullptr);
 
-  void on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
-                       datadog_loc_conf_t *loc_conf);
+  void on_change_block(ngx_http_core_loc_conf_t *core_loc_conf, datadog_loc_conf_t *loc_conf);
 
   void on_log_request();
 

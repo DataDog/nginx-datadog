@@ -1,10 +1,11 @@
 #pragma once
 
-#include "dd.h"
 #include <datadog/event_scheduler.h>
 
 #include <memory>
 #include <unordered_set>
+
+#include "dd.h"
 
 extern "C" {
 #include <ngx_core.h>
@@ -27,13 +28,12 @@ class NgxEventScheduler : public dd::EventScheduler {
     Event& operator=(const Event&) = delete;
   };
 
-  private:
-    std::unordered_set<Event*> events_;
+ private:
+  std::unordered_set<Event*> events_;
 
  public:
-  Cancel schedule_recurring_event(
-      std::chrono::steady_clock::duration interval,
-      std::function<void()> callback) override;
+  Cancel schedule_recurring_event(std::chrono::steady_clock::duration interval,
+                                  std::function<void()> callback) override;
 
   nlohmann::json config_json() const override;
 

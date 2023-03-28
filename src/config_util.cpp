@@ -13,8 +13,7 @@ namespace {
 // `error` if an error occurs.  Return `input`.  The initial single-quote
 // character is expected to be missing from `input` (having already been
 // consumed by the function that dispatched to this one).
-std::istream& scan_single_quoted_string(std::istream& input,
-                                        std::string& output,
+std::istream& scan_single_quoted_string(std::istream& input, std::string& output,
                                         std::string& error) {
   output.push_back('\'');
 
@@ -35,8 +34,7 @@ std::istream& scan_single_quoted_string(std::istream& input,
 // specified `error` if an error occurs.  Return `input`.  The initial
 // double-quote character is expected to be missing from `input` (having
 // already been consumed by the function that dispatched to this one).
-std::istream& scan_double_quoted_string(std::istream& input,
-                                        std::string& output,
+std::istream& scan_double_quoted_string(std::istream& input, std::string& output,
                                         std::string& error) {
   output.push_back('\"');
 
@@ -70,8 +68,8 @@ std::istream& scan_double_quoted_string(std::istream& input,
 // error occurs. Return `input`.  The initial "#" character is expected to be
 // missing from `input` (having already been consumed by the function that
 // dispatched to this one).
-std::istream& scan_comment(std::istream& input, std::string& output,
-                           std::string& error, CommentPolicy comment_policy) {
+std::istream& scan_comment(std::istream& input, std::string& output, std::string& error,
+                           CommentPolicy comment_policy) {
   switch (comment_policy) {
     case CommentPolicy::INCLUDE: {
       output.push_back('#');
@@ -96,8 +94,7 @@ std::istream& scan_comment(std::istream& input, std::string& output,
 
 }  // namespace
 
-std::istream& scan_config_block(std::istream& input, std::string& output,
-                                std::string& error,
+std::istream& scan_config_block(std::istream& input, std::string& output, std::string& error,
                                 CommentPolicy comment_policy) {
   // Don't skip whitespace -- I want to echo the whitespace to `output`.
   // I could use the stream buffer (`input.rdbuf()`) directly to avoid all

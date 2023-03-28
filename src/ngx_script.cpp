@@ -7,8 +7,7 @@ namespace nginx {
 //------------------------------------------------------------------------------
 // compile
 //------------------------------------------------------------------------------
-ngx_int_t NgxScript::compile(ngx_conf_t *cf,
-                             const ngx_str_t &pattern) noexcept {
+ngx_int_t NgxScript::compile(ngx_conf_t *cf, const ngx_str_t &pattern) noexcept {
   pattern_ = pattern;
   lengths_ = nullptr;
   values_ = nullptr;
@@ -35,23 +34,19 @@ ngx_int_t NgxScript::compile(ngx_conf_t *cf,
 //------------------------------------------------------------------------------
 ngx_str_t NgxScript::run(ngx_http_request_t *request) const noexcept {
   if (!is_valid()) {
-    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                  "Executing invalid Datadog script");
+    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0, "Executing invalid Datadog script");
     return {0, nullptr};
   }
 
   ngx_log_debug2(NGX_LOG_DEBUG_HTTP, request->connection->log, 0,
-                 "executing Datadog script \"%V\" for request %p", &pattern_,
-                 request);
+                 "executing Datadog script \"%V\" for request %p", &pattern_, request);
 
   // If the script has no variables, we can just return the pattern.
   if (!lengths_) return pattern_;
 
   ngx_str_t result = {0, nullptr};
-  if (!ngx_http_script_run(request, &result, lengths_->elts, 0,
-                           values_->elts)) {
-    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                  "failed to run script");
+  if (!ngx_http_script_run(request, &result, lengths_->elts, 0, values_->elts)) {
+    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0, "failed to run script");
     return {0, nullptr};
   }
   return result;
