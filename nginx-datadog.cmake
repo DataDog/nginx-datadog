@@ -20,7 +20,6 @@ target_sources(nginx_datadog
         src/defer.cpp
         src/discover_span_context_keys.cpp
         src/global_tracer.cpp
-        src/json.cpp
         src/log_conf.cpp
         src/ngx_event_scheduler.cpp
         src/ngx_filebuf.cpp

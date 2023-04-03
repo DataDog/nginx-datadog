@@ -1,7 +1,9 @@
 #include "tracing_library.h"
 
+#include <datadog/dict_writer.h>
 #include <datadog/error.h>
 #include <datadog/expected.h>
+#include <datadog/json.hpp>
 #include <datadog/span.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
@@ -9,8 +11,10 @@
 #include <algorithm>
 #include <iterator>
 
+#include "dd.h"
 #include "ngx_event_scheduler.h"
 #include "ngx_logger.h"
+#include "string_util.h"
 
 namespace datadog {
 namespace nginx {
@@ -27,12 +31,35 @@ std::string_view or_default(std::string_view config_json) {
 
 }  // namespace
 
+/* TODO
+JSON properties from the old configuration:
+
+"agent_host" string_
+"agent_port" integer
+"agent_url" string
+"service" string
+"type" string
+"environment" string
+"sample_rate" number
+"sampling_rules" array of objects
+"operation_name_override" string
+"propagation_style_extract" array of string
+"propagation_style_inject" array of string
+"dd.trace.report-hostname" boolean
+"tags" object
+"version" string
+"sampling_limit_per_second" number
+"span_sampling_rules" array of objects
+"tags_header_size" number
+
+*/
+
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(std::string_view json_config) {
   // TODO: create a `dd::TracerConfig` from the JSON.
   (void)json_config;
 
   dd::TracerConfig config;
-  config.defaults.service = "dd-trace-cpp-nginx";
+  config.defaults.service = "nginx";
   config.logger = std::make_shared<NgxLogger>();
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
 
@@ -78,6 +105,24 @@ std::string_view TracingLibrary::proxy_directive_variable_name() {
 
 namespace {
 
+class SpanContextJSONWriter : public dd::DictWriter {
+  nlohmann::json output_object_;
+
+ public:
+  SpanContextJSONWriter()
+  : output_object_(nlohmann::json::object()) {}
+
+  void set(std::string_view key, std::string_view value) override {
+    std::string normalized_key;
+    std::transform(key.begin(), key.end(), std::back_inserter(normalized_key), header_transform_char);
+    output_object_[std::move(normalized_key)] = value;
+  }
+
+  nlohmann::json& json() {
+    return output_object_;
+  }
+};
+
 std::string span_property(std::string_view key, const dd::Span& span) {
   const auto not_found = "-";
 
@@ -86,8 +131,9 @@ std::string span_property(std::string_view key, const dd::Span& span) {
   } else if (key == "span_id") {
     return std::to_string(span.id());
   } else if (key == "json") {
-    // TODO
-    return not_found;
+    SpanContextJSONWriter writer;
+    span.inject(writer);
+    return writer.json().dump();
   }
 
   return not_found;

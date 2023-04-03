@@ -6,6 +6,8 @@
 #include <string>
 #include <string_view>
 
+#include <datadog/json.hpp>
+
 #include "config_util.h"
 #include "datadog_conf.h"
 #include "datadog_conf_handler.h"
@@ -13,7 +15,6 @@
 #include "dd.h"
 #include "defer.h"
 #include "discover_span_context_keys.h"
-#include "json.h"
 #include "log_conf.h"
 #include "ngx_filebuf.h"
 #include "ngx_http_datadog_module.h"

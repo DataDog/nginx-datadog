@@ -48,7 +48,7 @@ dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 
 .PHONY: format
 format: .clang-format
-	find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -not \( -name 'json.h' -o -name 'json.cpp' \) -print0 | xargs -0 clang-format-14 -i --style=file
+	find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -print0 | xargs -0 clang-format-14 -i --style=file
 	find bin/ -type f -name '*.py' -print0 | xargs -0 yapf3 -i
 	test/bin/format
 
