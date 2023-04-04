@@ -3,12 +3,12 @@
 #include <datadog/dict_writer.h>
 #include <datadog/error.h>
 #include <datadog/expected.h>
-#include <datadog/json.hpp>
 #include <datadog/span.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
 
 #include <algorithm>
+#include <datadog/json.hpp>
 #include <iterator>
 
 #include "dd.h"
@@ -109,18 +109,16 @@ class SpanContextJSONWriter : public dd::DictWriter {
   nlohmann::json output_object_;
 
  public:
-  SpanContextJSONWriter()
-  : output_object_(nlohmann::json::object()) {}
+  SpanContextJSONWriter() : output_object_(nlohmann::json::object()) {}
 
   void set(std::string_view key, std::string_view value) override {
     std::string normalized_key;
-    std::transform(key.begin(), key.end(), std::back_inserter(normalized_key), header_transform_char);
+    std::transform(key.begin(), key.end(), std::back_inserter(normalized_key),
+                   header_transform_char);
     output_object_[std::move(normalized_key)] = value;
   }
 
-  nlohmann::json& json() {
-    return output_object_;
-  }
+  nlohmann::json& json() { return output_object_; }
 };
 
 std::string span_property(std::string_view key, const dd::Span& span) {

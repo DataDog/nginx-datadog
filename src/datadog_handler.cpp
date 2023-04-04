@@ -19,12 +19,13 @@ static bool is_datadog_enabled(const ngx_http_request_t *request,
                                const ngx_http_core_loc_conf_t *core_loc_conf,
                                const datadog_loc_conf_t *loc_conf) noexcept {
   // Check if this is a main request instead of a subrequest.
-  if (request == request->main)
+  if (request == request->main) {
     return loc_conf->enable;
-  else
+  } else {
     // Only trace subrequests if `log_subrequest` is enabled; otherwise the
     // spans won't be finished.
     return loc_conf->enable && core_loc_conf->log_subrequest;
+  }
 }
 
 ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
@@ -45,7 +46,6 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
       // The DatadogContext may be broken, destroy it so that we don't
       // attempt to continue tracing.
       destroy_datadog_context(request);
-
       throw;
     }
   }

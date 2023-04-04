@@ -2,11 +2,10 @@
 
 #include <algorithm>
 #include <cctype>
+#include <datadog/json.hpp>
 #include <istream>
 #include <string>
 #include <string_view>
-
-#include <datadog/json.hpp>
 
 #include "config_util.h"
 #include "datadog_conf.h"

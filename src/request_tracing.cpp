@@ -101,11 +101,14 @@ static std::chrono::system_clock::time_point to_system_timestamp(time_t epoch_se
 // TODO: document
 static dd::TimePoint estimate_past_time_point(std::chrono::system_clock::time_point before) {
   dd::TimePoint now = dd::default_clock();
-  auto elapsed = now.wall - before;
+  const auto elapsed = now.wall - before;
 
   dd::TimePoint result;
   result.wall = before;
-  result.tick = now.tick - elapsed;
+  result.tick = now.tick;
+  if (elapsed > 0) {
+    result.tick -= elapsed;
+  }
   return result;
 }
 
@@ -175,7 +178,7 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                    &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
-    assert(request_span_);  // TODO: Can we assume this?
+    assert(request_span_);  // postcondition of our constructor
     span_ = request_span_->create_child(config);
   }
 }
