@@ -106,7 +106,7 @@ static dd::TimePoint estimate_past_time_point(std::chrono::system_clock::time_po
   dd::TimePoint result;
   result.wall = before;
   result.tick = now.tick;
-  if (elapsed > 0) {
+  if (elapsed > decltype(elapsed)::zero()) {
     result.tick -= elapsed;
   }
   return result;
