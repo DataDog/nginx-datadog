@@ -76,3 +76,8 @@ test: build-in-docker
 test-parallel: build-in-docker
 	cp .docker-build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
 	test/bin/run_parallel $(TEST_ARGS)
+
+.PHONY: lab
+lab: build-in-docker
+	cp .docker-build/libngx_http_datadog_module.so lab/services/nginx/ngx_http_datadog_module.so
+	lab/bin/run $(TEST_ARGS)

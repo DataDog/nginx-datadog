@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package upstream;
+
+service Upstream {
+  rpc GetMetadata (GetMetadataRequest) returns (GetMetadataResponse) {}
+}
+
+message GetMetadataRequest {
+}
+
+message GetMetadataResponse {
+  string service = 1;
+  map<string, string> metadata = 2;
+}

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+cd "$(dirname "$0")/../"
+
+set -e
+
+. ../nginx-version-info
+export BASE_IMAGE
+export NGINX_MODULES_PATH="${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}"
+export NGINX_CONF_PATH="${NGINX_CONF_PATH:-/etc/nginx/nginx.conf}"
+
+docker-compose build --parallel
+docker-compose up
