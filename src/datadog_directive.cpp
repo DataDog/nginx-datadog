@@ -581,5 +581,19 @@ char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *co
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
+char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  (void)conf;
+
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "%V at file %V line %d", &command->name,
+                &cf->conf_file->file.name, cf->conf_file->line);
+  return nullptr;
+  /* TODO
+  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  if (!loc_conf->tags) loc_conf->tags = ngx_array_create(cf->pool, 1, sizeof(datadog_tag_t));
+  auto values = static_cast<ngx_str_t *>(cf->args->elts);
+  return add_datadog_tag(cf, loc_conf->tags, values[1], values[2]);
+  */
+}
+
 }  // namespace nginx
 }  // namespace datadog

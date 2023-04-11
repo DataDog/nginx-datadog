@@ -12,7 +12,7 @@ function handleTraceSegments(segments) {
 const requestListener = function (request, response) {
   let body = [];
   request.on('data', chunk => {
-    console.log('Received a chunk of data from ', request.socket.remoteAddress, ': ', chunk);
+    console.log('Received a chunk of data from ', request.socket.remoteAddress, 'for', request.url, ': ', chunk);
     console.log('Here it is as text:', chunk.toString('ascii'));
     body.push(chunk);
   }).on('end', () => {

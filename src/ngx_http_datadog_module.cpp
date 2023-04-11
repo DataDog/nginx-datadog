@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <exception>
 #include <iterator>
+#include <new>
 #include <string_view>
 #include <utility>
 
@@ -226,6 +227,14 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
+    { ngx_string("datadog_sample_rate"),
+      // NGX_CONF_TAKE12 means "take 1 or 2 args," not "take 12 args."
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
+      set_datadog_sample_rate,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
     ngx_null_command
 };
 
@@ -399,15 +408,44 @@ static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
   reset_global_tracer();
 }
 
+// `register_destructor` allows us to have C++-allocated objects in the
+// configuration. To avoid a leak, the C++ destructor must eventually be
+// invoked. We do this in a memory pool cleanup handler.
+// Return zero on success, or return a nonzero value if an error occurs.
+template <typename Config>
+static int register_destructor(ngx_pool_t *pool, Config *config) {
+  ngx_pool_cleanup_t *cleanup;
+
+  cleanup = ngx_pool_cleanup_add(pool, 0);
+  if (cleanup == nullptr) {
+    return 1;
+  }
+
+  cleanup->data = config;
+  cleanup->handler = static_cast<void (*)(void *)>([](void *data) {
+    auto config = static_cast<Config *>(data);
+    // `pool` is responsible for freeing the memory at `config`, but we want
+    // to clean up any `std::string`, etc., not managed by `pool`. So, we call
+    // the destructor here without `delete`, because the memory will later be
+    // freed by `pool`.
+    config->~Config();
+  });
+
+  return 0;
+}
+
 //------------------------------------------------------------------------------
 // create_datadog_main_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
-  auto main_conf =
-      static_cast<datadog_main_conf_t *>(ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
-  // Default initialize members.
-  if (main_conf) {
-    *main_conf = datadog_main_conf_t();
+  void *memory = ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t));
+  if (memory == nullptr) {
+    return nullptr;  // error
+  }
+
+  auto main_conf = new (memory) datadog_main_conf_t{};
+  if (register_destructor(conf->pool, main_conf)) {
+    return nullptr;  // error
   }
   return main_conf;
 }
@@ -431,9 +469,15 @@ static bool is_server_block_begin(const ngx_conf_t *conf) {
 // create_datadog_loc_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
-  auto loc_conf =
-      static_cast<datadog_loc_conf_t *>(ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
-  if (!loc_conf) return nullptr;
+  void *memory = ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t));
+  if (memory == nullptr) {
+    return nullptr;  // error
+  }
+
+  auto loc_conf = new (memory) datadog_loc_conf_t{};
+  if (register_destructor(conf->pool, loc_conf)) {
+    return nullptr;  // error
+  }
 
   // Trace ID and span ID are automatically added to the access log by altering
   // the default log format to be one defined by this module.  We need to

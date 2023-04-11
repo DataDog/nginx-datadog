@@ -51,5 +51,7 @@ char *datadog_disable(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexce
 
 char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
+char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
 }  // namespace nginx
 }  // namespace datadog
