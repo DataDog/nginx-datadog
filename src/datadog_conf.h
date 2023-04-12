@@ -27,6 +27,8 @@ struct conf_directive_source_location_t {
   ngx_str_t directive_name;  // e.g. "proxy_pass"
 };
 
+bool operator==(const conf_directive_source_location_t&, const conf_directive_source_location_t&);
+
 struct environment_variable_t {
   std::string name;
   std::string value;
@@ -71,14 +73,36 @@ struct datadog_main_conf_t {
   std::vector<environment_variable_t> environment_variables;
 };
 
+struct datadog_sample_rate_condition_t {
+  // If `condition` evaluates to "on" for a request, then it is active for that
+  // request. If it evaluates to "off", then it's inactive for that request. If
+  // it evaluates to some other value, then an error is printed and it defaults
+  // to "off".
+  NgxScript condition;
+  // `directive` is the location of the associated "sample_rate" directive in
+  // the configuration file.
+  conf_directive_source_location_t directive;
+  // If two `directive` are the same, because two `datadog_sample_rate`
+  // directives are on the same line in the same file, e.g.
+  //
+  //     datadog_sample_rate 0.5 "$maybe"; datadog_sample_rate 1.0;
+  //
+  // then `same_line_index` is the zero-based index of the directive among those
+  // on the same line. In the example above, the "0.5" sample rate would have
+  // `same_line_index == 0`, while the "1.0" sample rate would have
+  // `same_line_index == 1`.
+  // If `directive` is unique, then `same_line_index == 0`.
+  int same_line_index;
+};
+
 struct datadog_loc_conf_t {
-  ngx_flag_t enable;
-  ngx_flag_t enable_locations;
+  ngx_flag_t enable = NGX_CONF_UNSET;
+  ngx_flag_t enable_locations = NGX_CONF_UNSET;
   NgxScript operation_name_script;
   NgxScript loc_operation_name_script;
   NgxScript resource_name_script;
   NgxScript loc_resource_name_script;
-  ngx_flag_t trust_incoming_span;
+  ngx_flag_t trust_incoming_span = NGX_CONF_UNSET;
   ngx_array_t *tags;
   // `response_info_script` is a script that can contain variables that refer
   // to HTTP response headers.  The headers might be relevant in the future.
@@ -90,6 +114,12 @@ struct datadog_loc_conf_t {
   // within it (as opposed to in a location nested within it), then
   // `proxy_directive` is empty.
   ngx_str_t proxy_directive;
+  // `parent` is the parent context (e.g. the `server` to this `location`), or
+  // `nullptr` if this context has not parent.
+  datadog_loc_conf_t *parent;
+  // `sample_rates` contains one entry per `sample_rate` directive in this
+  // location. Entries for enclosing contexts can be accessed through `parent`.
+  std::vector<datadog_sample_rate_condition_t> sample_rates;
 };
 
 }  // namespace nginx

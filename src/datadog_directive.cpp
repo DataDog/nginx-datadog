@@ -25,6 +25,14 @@ namespace datadog {
 namespace nginx {
 namespace {
 
+auto command_source_location(const ngx_command_t *command, const ngx_conf_t *conf) {
+    return conf_directive_source_location_t{
+      .file_name = conf->conf_file->file.name,
+      .line = conf->conf_file->line,
+      .directive_name = command->name
+    };
+}
+
 // Dispatch to the "real" handler for the specified `command`, and then invoke
 // the specified `inject_propagation_commands` with the specified `cf`,
 // `command`, and `conf`.  `inject_propagation_commands` is intended to do the
@@ -79,10 +87,7 @@ char *set_tracer(const ngx_command_t *command, ngx_conf_t *conf, std::string_vie
 
   main_conf->is_tracer_configured = true;
   main_conf->tracer_conf = to_ngx_str(conf->pool, tracer_conf);
-  main_conf->tracer_conf_source_location =
-      conf_directive_source_location_t{.file_name = conf->conf_file->file.name,
-                                       .line = conf->conf_file->line,
-                                       .directive_name = command->name};
+  main_conf->tracer_conf_source_location = command_source_location(command, conf);
 
   // In order for span context propagation to work, the names of the HTTP
   // headers added to requests need to be known ahead of time.
@@ -448,7 +453,8 @@ char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command, void * /*conf*/) 
 
   // Make sure that the contents of the "datadog { ... }" block are valid JSON.
   try {
-    (void)nlohmann::json::parse(output);
+    auto ignored = nlohmann::json::parse(output);
+    (void)ignored;
   } catch (const nlohmann::detail::parse_error &json_error) {
     // `parse_error` knows the line number, but it's not accessible.
     // It can appear as part of the `.what()` message in a predictable way,
@@ -582,17 +588,28 @@ char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *co
 }
 
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
-  (void)conf;
+  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
 
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "%V at file %V line %d", &command->name,
-                &cf->conf_file->file.name, cf->conf_file->line);
-  return nullptr;
-  /* TODO
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  if (!loc_conf->tags) loc_conf->tags = ngx_array_create(cf->pool, 1, sizeof(datadog_tag_t));
-  auto values = static_cast<ngx_str_t *>(cf->args->elts);
-  return add_datadog_tag(cf, loc_conf->tags, values[1], values[2]);
-  */
+  // TODO: remove
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "%V at file %V line %d",
+                &command->name,
+                &cf->conf_file->file.name,
+                cf->conf_file->line);
+
+  auto& rates = loc_conf->sample_rates;
+  datadog_sample_rate_condition_t rate = {
+    .directive = command_source_location(command, cf),
+    // TODO: .condition = ...
+  };
+  if (!rates.empty() && rates.back().directive == rate.directive) {
+    // Two "sample_rate" directives on the same line. Scandal.
+    rate.same_line_index = rates.back().same_line_index + 1;
+  }
+  rates.push_back(std::move(rate));
+
+  // TODO: Add a rule to the tracer config within the main config.
+
+  return static_cast<char *>(NGX_CONF_OK);
 }
 
 }  // namespace nginx

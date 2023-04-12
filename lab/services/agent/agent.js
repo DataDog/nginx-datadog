@@ -10,16 +10,22 @@ function handleTraceSegments(segments) {
 }
 
 const requestListener = function (request, response) {
+  if (!request.url.endsWith('/traces')) {
+    // console.log('ignoring request for non-trace endpoint', request.url);
+    response.end();
+    return;
+  }
+
   let body = [];
   request.on('data', chunk => {
-    console.log('Received a chunk of data from ', request.socket.remoteAddress, 'for', request.url, ': ', chunk);
-    console.log('Here it is as text:', chunk.toString('ascii'));
+    // console.log('Received a chunk of data from ', request.socket.remoteAddress, 'for', request.url, ': ', chunk);
+    // console.log('Here it is as text:', chunk.toString('ascii'));
     body.push(chunk);
   }).on('end', () => {
-    console.log('Received end of request.');
+    // console.log('Received end of request.');
     body = Buffer.concat(body);
     const trace_segments = msgpack.decode(body);
-    console.log('decoded body is: ', trace_segments);
+    // console.dir(trace_segments, {depth: null});
     handleTraceSegments(trace_segments);
     response.writeHead(200);
     response.end(JSON.stringify({}));

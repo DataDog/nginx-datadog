@@ -414,9 +414,7 @@ static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
 // Return zero on success, or return a nonzero value if an error occurs.
 template <typename Config>
 static int register_destructor(ngx_pool_t *pool, Config *config) {
-  ngx_pool_cleanup_t *cleanup;
-
-  cleanup = ngx_pool_cleanup_add(pool, 0);
+  ngx_pool_cleanup_t *cleanup = ngx_pool_cleanup_add(pool, 0);
   if (cleanup == nullptr) {
     return 1;
   }
@@ -487,18 +485,14 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   // is actually a `server` block.  That allows us to insert `log_format`
   // directives _before_ the `server` block (and thus directly within the
   // `http` block).  It's _before_ because this function is not a configuration
-  // block handler, is a configuration context constructor that is called
-  // before the handler, so we're still currently "outside" the `server` block,
+  // block handler, but is a configuration context constructor that is called
+  // before the handler. So, we're still currently "outside" the `server` block,
   // within the `http` block, which is the only place `log_format` is allowed.
   if (is_server_block_begin(conf)) {
     if (inject_datadog_log_formats(conf)) {
       return nullptr;  // error
     }
   }
-
-  loc_conf->enable = NGX_CONF_UNSET;
-  loc_conf->enable_locations = NGX_CONF_UNSET;
-  loc_conf->trust_incoming_span = NGX_CONF_UNSET;
 
   return loc_conf;
 }
@@ -536,9 +530,20 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
   auto prev = static_cast<datadog_loc_conf_t *>(parent);
   auto conf = static_cast<datadog_loc_conf_t *>(child);
 
+  conf->parent = prev;
+
+  // TODO: no
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "parent enable_locations: %d", prev->enable_locations);
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "my enable_locations: %d", conf->enable_locations);
+  // end TODO
+
   ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
+
+  // TODO: no
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "resulting enable_locations: %d", conf->enable_locations);
+  // end TODO
 
   if (const auto rc = merge_script(cf, prev->operation_name_script, conf->operation_name_script,
                                    TracingLibrary::default_request_operation_name_pattern())) {

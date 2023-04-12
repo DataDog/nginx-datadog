@@ -98,7 +98,13 @@ static std::chrono::system_clock::time_point to_system_timestamp(time_t epoch_se
   return std::chrono::system_clock::from_time_t(std::time_t{0}) + epoch_duration;
 }
 
-// TODO: document
+// dd-trace-cpp uses steady time to calculate span duration, but nginx provides
+// only system time.
+// `estimate_past_time_point` guesses the steady time corresponding to the
+// specified system time (`before`) by comparing `before` with the current
+// system time.
+// Return a `dd::TimePoint` containing the specified system (wall) time
+// (`before`) and the calculated steady (tick) time.
 static dd::TimePoint estimate_past_time_point(std::chrono::system_clock::time_point before) {
   dd::TimePoint now = dd::default_clock();
   const auto elapsed = now.wall - before;
@@ -124,6 +130,12 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // config.  If that happens, then no handlers are installed by this module,
   // and so no `RequestTracing` objects are ever instantiated.
   assert(main_conf_);
+
+  // TODO: no
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "entering into block having %d sample_rate directives", loc_conf->sample_rates.size());
+  for (auto parent = loc_conf->parent; parent != nullptr; parent = parent->parent) {
+    ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "its parent has %d sample_rate directives", parent->sample_rates.size());
+  }
 
   auto *tracer = global_tracer();
   if (!tracer) throw std::runtime_error{"no global tracer set"};
@@ -171,6 +183,12 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   on_exit_block(std::chrono::steady_clock::now());
   core_loc_conf_ = core_loc_conf;
   loc_conf_ = loc_conf;
+
+  // TODO: no
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "changing into block having %d sample_rate directives", loc_conf->sample_rates.size());
+  for (auto parent = loc_conf->parent; parent != nullptr; parent = parent->parent) {
+    ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "its parent has %d sample_rate directives", parent->sample_rates.size());
+  }
 
   if (loc_conf->enable_locations) {
     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,

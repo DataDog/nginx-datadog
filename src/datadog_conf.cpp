@@ -1,4 +1,14 @@
 #include "datadog_conf.h"
+#include "string_util.h"
 
-// This component is all `struct` definitions in the header file, so there's
-// nothing here.
+namespace datadog {
+namespace nginx {
+
+bool operator==(const conf_directive_source_location_t& left, const conf_directive_source_location_t& right) {
+    return str(left.file_name) == str(right.file_name) && \
+                left.line == right.line && \
+                str(left.directive_name) == str(right.directive_name);
+}
+
+} // namespace datadog
+} // namespace nginx
