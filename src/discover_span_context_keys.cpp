@@ -11,6 +11,7 @@ namespace nginx {
 ngx_array_t* discover_span_context_keys(ngx_pool_t* pool, ngx_log_t* log,
                                         std::string_view tracer_config) {
   std::string error;
+  // TODO: Shouldn't I call this "header_names"?
   const auto tag_names = TracingLibrary::propagation_header_names(tracer_config, error);
   if (!error.empty()) {
     ngx_log_error(NGX_LOG_ERR, log, 0, "failed to discover span context tags: %s", error.c_str());

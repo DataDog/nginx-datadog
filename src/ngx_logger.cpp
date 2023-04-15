@@ -21,6 +21,7 @@ void NgxLogger::log_error(const dd::Logger::LogFunc& write) {
 void NgxLogger::log_startup(const dd::Logger::LogFunc& write) {
   std::ostringstream stream;
   write(stream);
+  stream << '\n';
   std::string message = stream.str();
 
   std::lock_guard<std::mutex> lock(mutex_);

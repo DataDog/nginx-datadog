@@ -23,6 +23,8 @@
 namespace datadog {
 namespace nginx {
 
+struct datadog_main_conf_t;
+
 // `NginxVariableFamily` describes a set of nginx configuration variables that
 // share a common prefix, and associates with each variable a function that
 // fetches a string value for that variable for a specified span.
@@ -35,7 +37,7 @@ struct TracingLibrary {
   // Return a `Tracer` created with the specified `configuration`. If
   // `configuration` is empty, use a default configuration.  If an error
   // occurs, return a `dd::Error`.
-  static dd::Expected<dd::Tracer> make_tracer(std::string_view configuration);
+  static dd::Expected<dd::Tracer> make_tracer(const datadog_main_conf_t& conf);
 
   // Parse the specified `configuration` and return the names of HTTP headers
   // used to inject trace context (which tags those are might depend on the

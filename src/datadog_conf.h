@@ -10,6 +10,9 @@ extern "C" {
 #include <ngx_http.h>
 }
 
+#include <datadog/propagation_style.h>
+#include <datadog/trace_sampler_config.h>
+
 #include <string>
 #include <vector>
 
@@ -34,16 +37,32 @@ struct environment_variable_t {
   std::string value;
 };
 
+struct sampling_rule_t {
+  // If the corresponding `datadog_sample_rate` directive was in the `http`
+  // block, then `*depth == 0`. If `server` block, then `*depth == 1`. If
+  // `location` block, then `*depth == 2`.
+  // `depth` is used to sort rules from "most specific to least specific," i.e.
+  // sort by `depth` descending.
+  // `depth` is a pointer to a data member in `datadog_loc_conf_t`. The value
+  // of `*depth` is not known until location configurations are merged into
+  // each other, which happens after the `datadog_sample_rate` directive
+  // handler that produced this `sampling_rule_t`.
+  int *depth = nullptr;
+  // `rule` targets the sample rate and source location of a particular
+  // `datadog_sample_rate` directive.
+  dd::TraceSamplerConfig::Rule rule;
+};
+
 struct datadog_main_conf_t {
   ngx_array_t *tags;
   // `is_tracer_configured` is whether the tracer has been configured, either
   // by an explicit `datadog_configure` directive, or implicitly to a default
   // configuration by another directive.
-  bool is_tracer_configured;
+  bool is_tracer_configured; // TODO: This is going away soon.
   // `tracer_conf` is the text of the tracer's configuration, either from the
   // nginx configuration file or from a separately loaded file.  If
   // `tracer_conf` is empty, then a default configuration is used.
-  ngx_str_t tracer_conf;
+  ngx_str_t tracer_conf; // TODO: This is going away soon.
   // `tracer_conf_source_location` is the source location of the configuration
   // directive that caused the tracer configuration to be loaded.  The
   // `datadog_configure` and `datadog` blocks cause the tracer configuration to
@@ -71,6 +90,15 @@ struct datadog_main_conf_t {
   // of the master process and apply them later in the worker processes after
   // `fork()`.
   std::vector<environment_variable_t> environment_variables;
+  // If `propagation_styles` is empty, then use the defaults instead.
+  // `propagation_styles` is populated by the "datadog_propagation_styles"
+  // configuration directive.
+  std::vector<dd::PropagationStyle> propagation_styles; // TODO
+  // `sampling_rules` contains one sampling rule per `datadog_sample_rate` in
+  // the nginx configuration. Each rule is associated with its "depth" in the
+  // configuration, so that the rules can be sorted before use by the tracer
+  // config.
+  std::vector<sampling_rule_t> sampling_rules;
 };
 
 struct datadog_sample_rate_condition_t {
@@ -93,6 +121,14 @@ struct datadog_sample_rate_condition_t {
   // `same_line_index == 1`.
   // If `directive` is unique, then `same_line_index == 0`.
   int same_line_index;
+
+  // Return the name of the span tag that will be used by sampling rules to
+  // match this `datadog_sample_rate` directive. It's a constant.
+  std::string tag_name() const;
+  // Return the value of the span tag that will be used by sampling rules to
+  // match this `datadog_sample_rate` directive. It depends on `directive` and
+  // `same_line_index`.
+  std::string tag_value() const;
 };
 
 struct datadog_loc_conf_t {
@@ -120,6 +156,10 @@ struct datadog_loc_conf_t {
   // `sample_rates` contains one entry per `sample_rate` directive in this
   // location. Entries for enclosing contexts can be accessed through `parent`.
   std::vector<datadog_sample_rate_condition_t> sample_rates;
+  // `depth` is how far nested this configuration is from its oldest ancestor.
+  // The oldest ancestor (the `http` block) has `depth` zero. Each subsequent
+  // generation has the `depth` of its parent plus one.
+  int depth;
 };
 
 }  // namespace nginx

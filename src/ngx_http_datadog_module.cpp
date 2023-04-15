@@ -388,7 +388,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  auto maybe_tracer = TracingLibrary::make_tracer(str(main_conf->tracer_conf));
+  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf);
   if (auto *error = maybe_tracer.if_error()) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "Failed to construct tracer: [error code %d] %s",
                   int(error->code), error->message.c_str());
@@ -531,19 +531,14 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
   auto conf = static_cast<datadog_loc_conf_t *>(child);
 
   conf->parent = prev;
-
-  // TODO: no
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "parent enable_locations: %d", prev->enable_locations);
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "my enable_locations: %d", conf->enable_locations);
+  conf->depth = prev->depth + 1;
+  // TODO no
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "prev->depth=%d and so conf->depth=%d", prev->depth, conf->depth);
   // end TODO
 
   ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
-
-  // TODO: no
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "resulting enable_locations: %d", conf->enable_locations);
-  // end TODO
 
   if (const auto rc = merge_script(cf, prev->operation_name_script, conf->operation_name_script,
                                    TracingLibrary::default_request_operation_name_pattern())) {

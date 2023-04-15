@@ -8,6 +8,12 @@ cmake_minimum_required(VERSION 3.7)
 
 project(ngx_http_datadog_module)
 
+# Prefer the build mode "release with debug info" if another mode wasn't
+# specified.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo")
+endif()
+
 # The C code doesn't care about the C++ version.
 # dd-trace-cpp works with C++17 or newer.
 set(CMAKE_CXX_STANDARD 17)

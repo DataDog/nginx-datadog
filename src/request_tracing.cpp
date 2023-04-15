@@ -118,6 +118,35 @@ static dd::TimePoint estimate_past_time_point(std::chrono::system_clock::time_po
   return result;
 }
 
+// TODO: document
+void set_sample_rate_tag(ngx_http_request_t *request, datadog_loc_conf_t *conf, dd::Span& span) {
+  do {
+    for (const datadog_sample_rate_condition_t& rate : conf->sample_rates) {
+      const ngx_str_t expression = rate.condition.run(request);
+      if (str(expression) == "on") {
+        // TODO: no
+        ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                      "setting span %uz tag %s to %s",
+                      span.id(),
+                      rate.tag_name().c_str(),
+                      rate.tag_value().c_str());
+        // end TODO
+        span.set_tag(rate.tag_name(), rate.tag_value());
+        return;
+      }
+      if (str(expression) != "off") {
+        ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                      "Condition expression for %V directive at %s evaluated to unexpected value \"%V\". Expected \"on\" or \"off\". Proceeding as if it were \"off\".",
+                      &rate.directive.directive_name,
+                      rate.tag_value().c_str(),
+                      &expression);
+      }
+    }
+
+    conf = conf->parent;
+  } while (conf);
+}
+
 RequestTracing::RequestTracing(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
                                datadog_loc_conf_t *loc_conf, dd::Span *parent)
@@ -126,16 +155,11 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
           ngx_http_get_module_main_conf(request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() RequestTracing"); // TODO: no
   // `main_conf_` would be null when no `http` block appears in the nginx
   // config.  If that happens, then no handlers are installed by this module,
   // and so no `RequestTracing` objects are ever instantiated.
   assert(main_conf_);
-
-  // TODO: no
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "entering into block having %d sample_rate directives", loc_conf->sample_rates.size());
-  for (auto parent = loc_conf->parent; parent != nullptr; parent = parent->parent) {
-    ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "its parent has %d sample_rate directives", parent->sample_rates.size());
-  }
 
   auto *tracer = global_tracer();
   if (!tracer) throw std::runtime_error{"no global tracer set"};
@@ -156,15 +180,15 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
                     "failed to extract a Datadog span request %p: [error code %d]: %s", request,
                     error->code, error->message.c_str());
     } else {
-      request_span_ = std::move(*maybe_span);
+      request_span_.emplace(std::move(*maybe_span));
     }
   }
 
   if (!request_span_) {
     if (parent) {
-      request_span_ = parent->create_child(config);
+      request_span_.emplace(parent->create_child(config));
     } else {
-      request_span_ = tracer->create_span(config);
+      request_span_.emplace(tracer->create_span(config));
     }
   }
 
@@ -174,21 +198,20 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
                    &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
     config.name = get_loc_operation_name(request_, core_loc_conf_, loc_conf_);
-    span_ = request_span_->create_child(config);
+    span_.emplace(request_span_->create_child(config));
   }
+
+  // We care about sampling rules for the request span only, because it's the
+  // only span that could be the root span.
+  set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                                      datadog_loc_conf_t *loc_conf) {
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() on_change_block"); // TODO: no
   on_exit_block(std::chrono::steady_clock::now());
   core_loc_conf_ = core_loc_conf;
   loc_conf_ = loc_conf;
-
-  // TODO: no
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "changing into block having %d sample_rate directives", loc_conf->sample_rates.size());
-  for (auto parent = loc_conf->parent; parent != nullptr; parent = parent->parent) {
-    ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "its parent has %d sample_rate directives", parent->sample_rates.size());
-  }
 
   if (loc_conf->enable_locations) {
     ngx_log_debug3(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
@@ -197,8 +220,13 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
     dd::SpanConfig config;
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
     assert(request_span_);  // postcondition of our constructor
-    span_ = request_span_->create_child(config);
+    ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() replacing span_.  Has value already? %d", bool(span_)); // TODO: no
+    span_.emplace(request_span_->create_child(config));
   }
+
+  // We care about sampling rules for the request span only, because it's the
+  // only span that could be the root span.
+  set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
 dd::Span &RequestTracing::active_span() {
@@ -210,6 +238,7 @@ dd::Span &RequestTracing::active_span() {
 }
 
 void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_timestamp) {
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() on_exit_block"); // TODO: no
   // Set default and custom tags for the block. Many nginx variables won't be
   // available when a block is first entered, so set tags when the block is
   // exited instead.
@@ -232,9 +261,14 @@ void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_
   } else {
     add_script_tags(loc_conf_->tags, request_, *request_span_);
   }
+
+  // We care about sampling rules for the request span only, because it's the
+  // only span that could be the root span.
+  set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
 void RequestTracing::on_log_request() {
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() on_log_request"); // TODO: no
   auto finish_timestamp = std::chrono::steady_clock::now();
   on_exit_block(finish_timestamp);
 
@@ -259,6 +293,10 @@ void RequestTracing::on_log_request() {
   // decision.
 
   request_span_->set_end_time(finish_timestamp);
+
+  // We care about sampling rules for the request span only, because it's the
+  // only span that could be the root span.
+  set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
 // Expands the active span context into a list of key-value pairs and returns

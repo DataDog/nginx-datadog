@@ -4,6 +4,7 @@
 #include <cctype>
 #include <datadog/json.hpp>
 #include <istream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -590,24 +591,96 @@ char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *co
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
   const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
 
-  // TODO: remove
+  // TODO: remove this log line
   ngx_log_error(NGX_LOG_ERR, cf->log, 0, "%V at file %V line %d",
                 &command->name,
                 &cf->conf_file->file.name,
                 cf->conf_file->line);
 
+  conf_directive_source_location_t directive = command_source_location(command, cf);
+
+  auto values = static_cast<ngx_str_t*>(cf->args->elts);
+  // values[0] is the command name, "datadog_sample_rate".
+  // The other elements are the arguments: either one or two of them.
+  //
+  //     datadog_sample_rate <rate> [on | off];
+  std::string rate_str;
+  rate_str += str(values[1]);
+  ngx_str_t condition_pattern;
+  if (cf->args->nelts == 3) {
+    condition_pattern = values[2];
+  } else {
+    condition_pattern = ngx_string("on");
+  }
+
+  // Parse a float between 0.0 and 1.0 from the first argument (`rate_str`).
+  double rate_float;
+  try {
+    std::size_t end_index;
+    rate_float = std::stod(rate_str, &end_index);
+    if (end_index != rate_str.size()) {
+      ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                    "Invalid argument \"%V\" to %V directive at %V:%d.  Expected a real number between 0.0 and 1.0, but the provided argument has unparsed trailing characters.", &values[1],
+                    &directive.directive_name, &directive.file_name, directive.line);
+      return static_cast<char *>(NGX_CONF_ERROR);
+    }
+    if (!(rate_float >= 0.0 && rate_float <= 1.0)) {
+      throw std::out_of_range("");  // error message is in the `catch` handler
+    }
+  } catch (const std::invalid_argument &) {
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                  "Invalid argument \"%V\" to %V directive at %V:%d.  Expected a real number between 0.0 and 1.0, but the provided argument is not a number.", &values[1],
+                  &directive.directive_name, &directive.file_name, directive.line);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  } catch (const std::out_of_range &) {
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                  "Invalid argument \"%V\" to %V directive at %V:%d.  Expected a real number between 0.0 and 1.0, but the provided argument is out of range.", &values[1],
+                  &directive.directive_name, &directive.file_name, directive.line);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  // Compile the pattern that evaluates to either "on" or "off" depending on
+  // whether the specified sample rate should apply to the current request.
+  NgxScript condition_script;
+  if (condition_script.compile(cf, condition_pattern) != NGX_OK) {
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                  "Invalid argument \"%V\" to %V directive at %V:%d.  Expected an expression that will evaluate to \"on\" or \"off\".", &condition_pattern,
+                  &directive.directive_name, &directive.file_name, directive.line);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  // Add to the location configuration a `datadog_sample_rate_condition_t`
+  // object corresponding to this `sample_rate` directive. This will allow us
+  // to evaluate the condition (script) when a request comes through this
+  // location.
   auto& rates = loc_conf->sample_rates;
   datadog_sample_rate_condition_t rate = {
-    .directive = command_source_location(command, cf),
-    // TODO: .condition = ...
+    .condition = condition_script,
+    .directive = directive,
+    .same_line_index = 0, // see below
   };
   if (!rates.empty() && rates.back().directive == rate.directive) {
     // Two "sample_rate" directives on the same line. Scandal.
     rate.same_line_index = rates.back().same_line_index + 1;
   }
-  rates.push_back(std::move(rate));
+  rates.push_back(rate); // we use `rate` again below
 
-  // TODO: Add a rule to the tracer config within the main config.
+  auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
+
+  // The only way that `main_conf` could be `nullptr` is if there's no `http`
+  // block in the nginx configuration.  In that case, this function would never
+  // get called, because it's called only from configuration directives that
+  // live inside the `http` block.
+  assert(main_conf != nullptr);
+
+  // Add a corresponding sampling rule to the main configuration.
+  // This will end up in the tracer when it's instantiated in worker processes.
+  sampling_rule_t rule;
+  rule.depth = &loc_conf->depth;
+  rule.rule.sample_rate = rate_float;
+  rule.rule.tags.emplace(rate.tag_name(), rate.tag_value());
+  main_conf->sampling_rules.push_back(std::move(rule));
 
   return static_cast<char *>(NGX_CONF_OK);
 }

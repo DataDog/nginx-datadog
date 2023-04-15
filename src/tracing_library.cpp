@@ -11,6 +11,7 @@
 #include <datadog/json.hpp>
 #include <iterator>
 
+#include "datadog_conf.h"
 #include "dd.h"
 #include "ngx_event_scheduler.h"
 #include "ngx_logger.h"
@@ -54,14 +55,34 @@ JSON properties from the old configuration:
 
 */
 
-dd::Expected<dd::Tracer> TracingLibrary::make_tracer(std::string_view json_config) {
-  // TODO: create a `dd::TracerConfig` from the JSON.
-  (void)json_config;
-
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t& nginx_conf) {
   dd::TracerConfig config;
   config.defaults.service = "nginx";
   config.logger = std::make_shared<NgxLogger>();
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
+
+  // TODO: service name, propagation styles, etc.
+
+  // Set sampling rules based on any `datadog_sample_rate` directives.
+  std::vector<sampling_rule_t> rules = nginx_conf.sampling_rules;
+  // Sort by descending depth, so that rules in a `location` block come before
+  // those in a `server` block, before those in a `http` block.
+  //
+  // The sort is stable so that the relative order of rules within the same
+  // depth is preserved.
+  //
+  // Strictly speaking, we don't need this sorting, because all of the rules
+  // specify a distinct value for the "nginx.sample_rate_source" tag, and so the
+  // order in which we try the rules doesn't change the outcome.
+  // Deeper directives are more likely to match a given request, though, and
+  // so this can be thought of as an optimization.
+  const auto by_depth_descending = [](const auto& left, const auto& right) {
+    return *left.depth > *right.depth;
+  };
+  std::stable_sort(rules.begin(), rules.end(), by_depth_descending);
+  for (sampling_rule_t& rule : rules) {
+    config.trace_sampler.rules.push_back(std::move(rule.rule));
+  }
 
   auto final_config = dd::finalize_config(config);
   if (!final_config) {
