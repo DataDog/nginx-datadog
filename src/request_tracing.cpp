@@ -119,27 +119,23 @@ static dd::TimePoint estimate_past_time_point(std::chrono::system_clock::time_po
 }
 
 // TODO: document
-void set_sample_rate_tag(ngx_http_request_t *request, datadog_loc_conf_t *conf, dd::Span& span) {
+void set_sample_rate_tag(ngx_http_request_t *request, datadog_loc_conf_t *conf, dd::Span &span) {
   do {
-    for (const datadog_sample_rate_condition_t& rate : conf->sample_rates) {
+    for (const datadog_sample_rate_condition_t &rate : conf->sample_rates) {
       const ngx_str_t expression = rate.condition.run(request);
       if (str(expression) == "on") {
         // TODO: no
-        ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                      "setting span %uz tag %s to %s",
-                      span.id(),
-                      rate.tag_name().c_str(),
-                      rate.tag_value().c_str());
+        ngx_log_error(NGX_LOG_ERR, request->connection->log, 0, "setting span %uz tag %s to %s",
+                      span.id(), rate.tag_name().c_str(), rate.tag_value().c_str());
         // end TODO
         span.set_tag(rate.tag_name(), rate.tag_value());
         return;
       }
       if (str(expression) != "off") {
         ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                      "Condition expression for %V directive at %s evaluated to unexpected value \"%V\". Expected \"on\" or \"off\". Proceeding as if it were \"off\".",
-                      &rate.directive.directive_name,
-                      rate.tag_value().c_str(),
-                      &expression);
+                      "Condition expression for %V directive at %s evaluated to unexpected value "
+                      "\"%V\". Expected \"on\" or \"off\". Proceeding as if it were \"off\".",
+                      &rate.directive.directive_name, rate.tag_value().c_str(), &expression);
       }
     }
 
@@ -155,7 +151,8 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
           ngx_http_get_module_main_conf(request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() RequestTracing"); // TODO: no
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0,
+                "()()()()() RequestTracing");  // TODO: no
   // `main_conf_` would be null when no `http` block appears in the nginx
   // config.  If that happens, then no handlers are installed by this module,
   // and so no `RequestTracing` objects are ever instantiated.
@@ -208,7 +205,8 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
 
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                                      datadog_loc_conf_t *loc_conf) {
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() on_change_block"); // TODO: no
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0,
+                "()()()()() on_change_block");  // TODO: no
   on_exit_block(std::chrono::steady_clock::now());
   core_loc_conf_ = core_loc_conf;
   loc_conf_ = loc_conf;
@@ -220,7 +218,8 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
     dd::SpanConfig config;
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
     assert(request_span_);  // postcondition of our constructor
-    ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() replacing span_.  Has value already? %d", bool(span_)); // TODO: no
+    ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0,
+                  "()()()()() replacing span_.  Has value already? %d", bool(span_));  // TODO: no
     span_.emplace(request_span_->create_child(config));
   }
 
@@ -238,7 +237,8 @@ dd::Span &RequestTracing::active_span() {
 }
 
 void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_timestamp) {
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() on_exit_block"); // TODO: no
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0,
+                "()()()()() on_exit_block");  // TODO: no
   // Set default and custom tags for the block. Many nginx variables won't be
   // available when a block is first entered, so set tags when the block is
   // exited instead.
@@ -268,7 +268,8 @@ void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_
 }
 
 void RequestTracing::on_log_request() {
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "()()()()() on_log_request"); // TODO: no
+  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0,
+                "()()()()() on_log_request");  // TODO: no
   auto finish_timestamp = std::chrono::steady_clock::now();
   on_exit_block(finish_timestamp);
 

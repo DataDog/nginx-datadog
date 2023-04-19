@@ -30,7 +30,8 @@ struct conf_directive_source_location_t {
   ngx_str_t directive_name;  // e.g. "proxy_pass"
 };
 
-bool operator==(const conf_directive_source_location_t&, const conf_directive_source_location_t&);
+bool operator==(const conf_directive_source_location_t &,
+                const conf_directive_source_location_t &);
 
 struct environment_variable_t {
   std::string name;
@@ -55,25 +56,23 @@ struct sampling_rule_t {
 
 struct datadog_main_conf_t {
   ngx_array_t *tags;
-  // `is_tracer_configured` is whether the tracer has been configured, either
-  // by an explicit `datadog_configure` directive, or implicitly to a default
-  // configuration by another directive.
-  bool is_tracer_configured; // TODO: This is going away soon.
-  // `tracer_conf` is the text of the tracer's configuration, either from the
-  // nginx configuration file or from a separately loaded file.  If
-  // `tracer_conf` is empty, then a default configuration is used.
-  ngx_str_t tracer_conf; // TODO: This is going away soon.
-  // `tracer_conf_source_location` is the source location of the configuration
-  // directive that caused the tracer configuration to be loaded.  The
-  // `datadog_configure` and `datadog` blocks cause the tracer configuration to
-  // be loaded, but there are other directives that cause a default
-  // configuration to be loaded if no other configuration has yet been loaded.
-  // The purpose of `tracer_conf_source_location` is to enable the error
+  // `are_propagation_styles_locked` is whether the tracer's propagation styles
+  // have been set, either by an explicit `datadog_propagation_styles`
+  // directive, or implicitly to a default configuration by another directive.
+  // The propagation styles must be known whenever we encounter a `proxy_pass`
+  // or similar directive.
+  bool are_propagation_styles_locked;
+  // `propagation_styles_source_location` is the source location of the
+  // configuration directive that caused the propagation styles to be locked.
+  // The `datadog_propagation_styles` directive causes the styles to be locked,
+  // but there are other directives that cause a default configuration to be
+  // used if no other configuration has yet been loaded.
+  // The purpose of `propagation_styles_source_location` is to enable the error
   // diagnostic:
-  // > Configuration already loaded to default configuration by
-  // > [[source location]].  Explicit configuration must appear before
-  // > the first [[directive name]].
-  conf_directive_source_location_t tracer_conf_source_location;
+  // > Propagation styles already set to default values by
+  // > [[source location]].  The datadog_propagation_styles directive must
+  // > appear before the first [[directive name]].
+  conf_directive_source_location_t propagation_styles_source_location;
   // `are_log_formats_defined` is whether we have already injected `log_format`
   // directives into the configuration.  The directives define Datadog-specific
   // access log formats; one of which will override nginx's default.
@@ -82,7 +81,7 @@ struct datadog_main_conf_t {
   // (e.g. before the first `server` block, before the first `access_log`
   // directive).
   bool are_log_formats_defined;
-  ngx_array_t *span_context_keys;
+  std::vector<std::string_view> span_context_keys;
   // This module automates the forwarding of the environment variables in
   // `TracingLibrary::environment_variable_names()`. Rather than injecting
   // `env` directives into the configuration, or mucking around with the core
@@ -93,7 +92,7 @@ struct datadog_main_conf_t {
   // If `propagation_styles` is empty, then use the defaults instead.
   // `propagation_styles` is populated by the "datadog_propagation_styles"
   // configuration directive.
-  std::vector<dd::PropagationStyle> propagation_styles; // TODO
+  std::vector<dd::PropagationStyle> propagation_styles;
   // `sampling_rules` contains one sampling rule per `datadog_sample_rate` in
   // the nginx configuration. Each rule is associated with its "depth" in the
   // configuration, so that the rules can be sorted before use by the tracer

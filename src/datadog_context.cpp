@@ -26,7 +26,7 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
     return trace->on_change_block(core_loc_conf, loc_conf);
   }
 
-  // This is a new subrequest so add a RequestTracing for it.
+  // This is a new subrequest, so add a RequestTracing for it.
   // TODO: Should `active_span` be `request_span` instead?
   traces_.emplace_back(request, core_loc_conf, loc_conf, &traces_[0].active_span());
 }
@@ -73,7 +73,8 @@ const RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) co
 }
 
 static void cleanup_datadog_context(void *data) noexcept {
-  ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "()()()()() cleanup_datadog_context(%p)", data); // TODO: no
+  ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "()()()()() cleanup_datadog_context(%p)",
+                data);  // TODO: no
   delete static_cast<DatadogContext *>(data);
 }
 
@@ -135,7 +136,8 @@ void set_datadog_context(ngx_http_request_t *request, DatadogContext *context) {
 // Supports early destruction of the DatadogContext (in case of an
 // unrecoverable error).
 void destroy_datadog_context(ngx_http_request_t *request) noexcept {
-  ngx_log_error(NGX_LOG_ERR, request->connection->log, 0, "()()()()() destroy_datadog_context"); // TODO: no
+  ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                "()()()()() destroy_datadog_context");  // TODO: no
   auto cleanup = find_datadog_cleanup(request);
   if (cleanup == nullptr) {
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,

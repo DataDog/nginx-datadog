@@ -9,7 +9,6 @@ set_property(TARGET nginx_datadog PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_sources(nginx_datadog
     PRIVATE
         src/array_util.cpp
-        src/config_util.cpp
         src/datadog_conf.cpp
         src/datadog_conf_handler.cpp
         src/datadog_context.cpp
@@ -18,11 +17,9 @@ target_sources(nginx_datadog
         src/datadog_variable.cpp
         src/dd.cpp
         src/defer.cpp
-        src/discover_span_context_keys.cpp
         src/global_tracer.cpp
         src/log_conf.cpp
         src/ngx_event_scheduler.cpp
-        src/ngx_filebuf.cpp
         src/ngx_header_reader.cpp
         src/ngx_http_datadog_module.cpp
         src/ngx_logger.cpp

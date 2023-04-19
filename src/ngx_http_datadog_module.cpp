@@ -222,7 +222,7 @@ static ngx_command_t datadog_commands[] = {
 
     { ngx_string("datadog"),
       NGX_MAIN_CONF | NGX_HTTP_MAIN_CONF | NGX_CONF_NOARGS | NGX_CONF_BLOCK,
-      configure_tracer,
+      json_config_deprecated,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
@@ -232,6 +232,13 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
       set_datadog_sample_rate,
       NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_propagation_styles"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_1MORE,
+      set_datadog_propagation_styles,
+      NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       nullptr},
 
@@ -326,11 +333,6 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
     return NGX_OK;
   }
 
-  if (!main_conf->is_tracer_configured) {
-    main_conf->is_tracer_configured = true;
-    main_conf->tracer_conf = ngx_string("");  // default config
-  }
-
   // Forward tracer-specific environment variables to worker processes.
   std::string name;
   for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
@@ -384,7 +386,7 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
 static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
-  if (!main_conf || !main_conf->is_tracer_configured) {
+  if (!main_conf) {
     return NGX_OK;
   }
 
@@ -533,7 +535,8 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
   conf->parent = prev;
   conf->depth = prev->depth + 1;
   // TODO no
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "prev->depth=%d and so conf->depth=%d", prev->depth, conf->depth);
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "prev->depth=%d and so conf->depth=%d", prev->depth,
+                conf->depth);
   // end TODO
 
   ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());

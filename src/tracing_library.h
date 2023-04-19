@@ -10,6 +10,8 @@
 // could be answered by the tracing library, the answer is in `TracingLibrary`.
 
 #include <datadog/expected.h>
+#include <datadog/logger.h>
+#include <datadog/propagation_style.h>
 #include <datadog/tracer.h>
 
 #include <memory>
@@ -30,7 +32,7 @@ struct datadog_main_conf_t;
 // fetches a string value for that variable for a specified span.
 struct NginxVariableFamily {
   std::string_view prefix;
-  std::string (*resolve)(std::string_view suffix, const dd::Span &);
+  std::string (*resolve)(std::string_view suffix, const dd::Span&);
 };
 
 struct TracingLibrary {
@@ -39,16 +41,15 @@ struct TracingLibrary {
   // occurs, return a `dd::Error`.
   static dd::Expected<dd::Tracer> make_tracer(const datadog_main_conf_t& conf);
 
-  // Parse the specified `configuration` and return the names of HTTP headers
-  // used to inject trace context (which tags those are might depend on the
-  // configuration, e.g. optional B3 propagation).  If `configuration` is
-  // empty, use a default configuration.  If an error occurs, assign a
-  // diagnostic to the specified `error`.  Note that the storage to which
-  // each returned `std::string_view` refers must outlive any usage of the
-  // return value (realistically this means that they will refer to string
-  // literals).
-  static std::vector<std::string_view> propagation_header_names(std::string_view configuration,
-                                                                std::string &error);
+  // Return the names of HTTP headers used to inject trace context in the
+  // specified `styles`. If `styles` is empty, then use the default styles
+  // instead. If an error occurs, return the error. Use the specified `logger`
+  // to issue warning diagnostics.
+  // Note that the storage to which each returned `std::string_view` refers must
+  // outlive any usage of the return value (realistically this means that they
+  // will refer to string literals).
+  static dd::Expected<std::vector<std::string_view>> propagation_header_names(
+      const std::vector<dd::PropagationStyle>& styles, dd::Logger& logger);
 
   // Return the common prefix of all variable names that map to trace context
   // propagation headers.  The portion of the variable name after the common
@@ -145,7 +146,7 @@ struct TracingLibrary {
   // Return a JSON representation of the configuration of the specified
   // `tracer`.  The `tracer` was returned by a previous call to
   // `make_tracer`.
-  static std::string configuration_json(const dd::Tracer &tracer);
+  static std::string configuration_json(const dd::Tracer& tracer);
 };
 
 }  // namespace nginx

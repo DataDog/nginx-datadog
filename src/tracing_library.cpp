@@ -8,8 +8,10 @@
 #include <datadog/tracer_config.h>
 
 #include <algorithm>
+#include <cassert>
 #include <datadog/json.hpp>
 #include <iterator>
+#include <ostream>
 
 #include "datadog_conf.h"
 #include "dd.h"
@@ -92,20 +94,62 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t& 
   return dd::Tracer(*final_config);
 }
 
-std::vector<std::string_view> TracingLibrary::propagation_header_names(
-    std::string_view configuration, std::string& error) {
-  // TODO: Parse `configuration` to figure out the propagation styles, and then
-  // get the corresponding upstream request header names.
-  // For now, I hard-code for the Datadog style.
-  (void)configuration;
-  (void)error;
+dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_names(
+    const std::vector<dd::PropagationStyle>& configured_styles, dd::Logger& logger) {
+  std::vector<std::string_view> result;
 
-  return {
-      "x-datadog-trace-id",
-      "x-datadog-parent-id",
-      "x-datadog-sampling-priority",
-      "x-datadog-origin",
-  };
+  // Create a tracer config that contains `configured_styles` (or the default
+  // styles). Then finalize the config to obtain the final styles, which might
+  // differ from `configured_styles` due to environment variables.
+  dd::TracerConfig minimal_config;
+  // A non-empty service name is required.
+  minimal_config.defaults.service = "dummy";
+  // Empty `configured_styles` would mean "use the default."
+  if (!configured_styles.empty()) {
+    minimal_config.injection_styles = configured_styles;
+    minimal_config.extraction_styles = configured_styles;
+  }
+  auto finalized_config = dd::finalize_config(minimal_config);
+  if (auto* error = finalized_config.if_error()) {
+    return std::move(*error);
+  }
+
+  if (!configured_styles.empty() && configured_styles != finalized_config->injection_styles) {
+    logger.log_error([&](std::ostream& log) {
+      log << "Actual injection propagation styles differ from that specified in the nginx "
+             "configuration.  The datadog_propagation_styles directive indicated the values "
+          << dd::to_json(configured_styles)
+          << ", but after applying environment variables, the final values are instead "
+          << dd::to_json(finalized_config->injection_styles);
+    });
+  }
+
+  // See `void TraceSegment::inject(DictWriter& writer, const SpanData& span)`
+  // in dd-trace-cpp.
+  for (const auto style : finalized_config->injection_styles) {
+    switch (style) {
+      case dd::PropagationStyle::DATADOG:
+        result.push_back("x-datadog-trace-id");
+        result.push_back("x-datadog-parent-id");
+        result.push_back("x-datadog-sampling-priority");
+        result.push_back("x-datadog-origin");
+        result.push_back("x-datadog-tags");
+        break;
+      case dd::PropagationStyle::B3:
+        result.push_back("x-b3-traceid");
+        result.push_back("x-b3-spanid");
+        result.push_back("x-b3-sampled");
+        break;
+      case dd::PropagationStyle::W3C:
+        result.push_back("traceparent");
+        result.push_back("tracestate");
+        break;
+      case dd::PropagationStyle::NONE:
+        break;
+    }
+  }
+
+  return result;
 }
 
 std::string_view TracingLibrary::propagation_header_variable_name_prefix() {
