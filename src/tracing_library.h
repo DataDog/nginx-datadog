@@ -142,11 +142,6 @@ struct TracingLibrary {
   // An HTTP location is an endpoint as configured using a "location" block
   // in the nginx configuration.
   static bool trace_locations_by_default();
-
-  // Return a JSON representation of the configuration of the specified
-  // `tracer`.  The `tracer` was returned by a previous call to
-  // `make_tracer`.
-  static std::string configuration_json(const dd::Tracer& tracer);
 };
 
 }  // namespace nginx

@@ -34,36 +34,28 @@ std::string_view or_default(std::string_view config_json) {
 
 }  // namespace
 
-/* TODO
-JSON properties from the old configuration:
-
-"agent_host" string_
-"agent_port" integer
-"agent_url" string
-"service" string
-"type" string
-"environment" string
-"sample_rate" number
-"sampling_rules" array of objects
-"operation_name_override" string
-"propagation_style_extract" array of string
-"propagation_style_inject" array of string
-"dd.trace.report-hostname" boolean
-"tags" object
-"version" string
-"sampling_limit_per_second" number
-"span_sampling_rules" array of objects
-"tags_header_size" number
-
-*/
-
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t& nginx_conf) {
   dd::TracerConfig config;
-  config.defaults.service = "nginx";
   config.logger = std::make_shared<NgxLogger>();
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
 
-  // TODO: service name, propagation styles, etc.
+  if (!nginx_conf.propagation_styles.empty()) {
+    config.injection_styles = config.extraction_styles = nginx_conf.propagation_styles;
+  }
+
+  if (nginx_conf.service_name) {
+    config.defaults.service = nginx_conf.service_name->value;
+  } else {
+    config.defaults.service = "nginx";
+  }
+
+  if (nginx_conf.service_type) {
+    config.defaults.service_type = nginx_conf.service_type->value;
+  }
+
+  if (nginx_conf.environment) {
+    config.defaults.environment = nginx_conf.environment->value;
+  }
 
   // Set sampling rules based on any `datadog_sample_rate` directives.
   std::vector<sampling_rule_t> rules = nginx_conf.sampling_rules;
@@ -265,12 +257,6 @@ std::string_view TracingLibrary::default_resource_name_pattern() { return "$requ
 bool TracingLibrary::tracing_on_by_default() { return true; }
 
 bool TracingLibrary::trace_locations_by_default() { return false; }
-
-std::string TracingLibrary::configuration_json(const dd::Tracer& tracer) {
-  // TODO
-  (void)tracer;
-  return "{\"implemented\": \"not\"}";
-}
 
 }  // namespace nginx
 }  // namespace datadog

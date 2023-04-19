@@ -56,12 +56,12 @@ using namespace datadog::nginx;
 // There are two sets of places Datadog commands can appear: either "anywhere,"
 // or "anywhere but in the main section."  `anywhere` and `anywhere_but_main`
 // are respective shorthands.
+// Also, this definition of "anywhere" excludes "if" blocks. "if" blocks are an
+// abomination that nginx is now unable to kill.
 // clang-format off
 static ngx_uint_t anywhere_but_main =
-    NGX_HTTP_SRV_CONF  // an `http` block
-  | NGX_HTTP_SIF_CONF    // an `if` block within an `http` block
-  | NGX_HTTP_LOC_CONF  // a `location` block (within an `http` block)
-  | NGX_HTTP_LIF_CONF;    // an `if` block within a `location` block (within an `http` block)
+    NGX_HTTP_SRV_CONF   // an `http` block
+  | NGX_HTTP_LOC_CONF;  // a `location` block (within an `http` block)
 
 static ngx_uint_t anywhere =
     anywhere_but_main
@@ -238,6 +238,27 @@ static ngx_command_t datadog_commands[] = {
     { ngx_string("datadog_propagation_styles"),
       NGX_HTTP_MAIN_CONF | NGX_CONF_1MORE,
       set_datadog_propagation_styles,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_service_name"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      set_configured_value<&datadog_main_conf_t::service_name>,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_service_type"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      set_configured_value<&datadog_main_conf_t::service_type>,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_environment"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      set_configured_value<&datadog_main_conf_t::environment>,
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       nullptr},

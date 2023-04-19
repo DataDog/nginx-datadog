@@ -38,6 +38,11 @@ struct environment_variable_t {
   std::string value;
 };
 
+struct configured_value_t {
+  conf_directive_source_location_t location;
+  std::string value;
+};
+
 struct sampling_rule_t {
   // If the corresponding `datadog_sample_rate` directive was in the `http`
   // block, then `*depth == 0`. If `server` block, then `*depth == 1`. If
@@ -98,6 +103,12 @@ struct datadog_main_conf_t {
   // configuration, so that the rules can be sorted before use by the tracer
   // config.
   std::vector<sampling_rule_t> sampling_rules;
+  // `service_name` is set by the `datadog_service_name` directive.
+  std::optional<configured_value_t> service_name;
+  // `service_type` is set by the `datadog_service_type` directive.
+  std::optional<configured_value_t> service_type;
+  // `environment` is set by the `datadog_environment` directive.
+  std::optional<configured_value_t> environment;
 };
 
 struct datadog_sample_rate_condition_t {

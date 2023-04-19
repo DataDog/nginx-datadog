@@ -429,11 +429,13 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexce
   return add_datadog_tag(cf, loc_conf->tags, values[1], values[2]);
 }
 
-char *json_config_deprecated(ngx_conf_t *cf, ngx_command_t * /*command*/,
-                             void * /*conf*/) noexcept {
+char *json_config_deprecated(ngx_conf_t *cf, ngx_command_t *command, void * /*conf*/) noexcept {
+  const auto location = command_source_location(command, cf);
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                 "The datadog { ... } block directive is deprecated. Use the specific datadog_* "
-                "directives instead, or use DD_TRACE_* environment variables.");
+                "directives instead, or use DD_TRACE_* environment variables.  "
+                "Error occurred at \"%V\" in %V:%d",
+                &location.directive_name, &location.file_name, location.line);
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
@@ -623,12 +625,13 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command, voi
     if (str(location.directive_name) != "datadog_propagation_styles") {
       qualifier = "default-";
     }
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "Datadog propagation styles are already configured.  They were %sconfigured by "
-                  "the call to \"%V\" at "
-                  "%V:%d.  Place the datadog_propagation_styles directive before any "
-                  "proxy-related directives.",
-                  qualifier, &location.directive_name, &location.file_name, location.line);
+    ngx_log_error(
+        NGX_LOG_ERR, cf->log, 0,
+        "Datadog propagation styles are already configured.  They were %sconfigured by "
+        "the call to \"%V\" at "
+        "%V:%d.  Place the datadog_propagation_styles directive in the http block, before any "
+        "proxy-related directives.",
+        qualifier, &location.directive_name, &location.file_name, location.line);
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
@@ -643,20 +646,49 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command, voi
   for (const ngx_str_t *arg = args; arg != args + nargs; ++arg) {
     auto maybe_style = dd::parse_propagation_style(str(*arg));
     if (!maybe_style) {
+      const auto location = command_source_location(command, cf);
       ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                     "Invalid propagation style \"%V\". Acceptable values are \"Datadog\", \"B3\", "
-                    "and \"tracecontext\".",
-                    arg);
+                    "and \"tracecontext\". Error occurred at \"%V\" in %V:%d",
+                    arg, &location.directive_name, &location.file_name, location.line);
       return static_cast<char *>(NGX_CONF_ERROR);
     }
     if (std::find(styles.begin(), styles.end(), *maybe_style) != styles.end()) {
-      ngx_log_error(NGX_LOG_ERR, cf->log, 0, "Duplicate propagation style \"%V\".", arg);
+      const auto location = command_source_location(command, cf);
+      ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                    "Duplicate propagation style \"%V\". Error occurred at \"%V\" in %V:%d", arg,
+                    &location.directive_name, &location.file_name, location.line);
       return static_cast<char *>(NGX_CONF_ERROR);
     }
     styles.push_back(*maybe_style);
   }
 
   return lock_propagation_styles(command, cf);
+}
+
+char *set_configured_value(ngx_conf_t *cf, ngx_command_t *command, void *conf,
+                           std::optional<configured_value_t> datadog_main_conf_t::*conf_member) {
+  auto location = command_source_location(command, cf);
+
+  auto *main_conf = static_cast<datadog_main_conf_t *>(conf);
+  auto &field = main_conf->*conf_member;
+  if (field) {
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                  "Duplicate call to \"%V\". First call was at %V:%d. Duplicate call is at %V:%d.",
+                  &field->location.directive_name, &field->location.file_name,
+                  field->location.line, &location.file_name, location.line);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
+  // values[0] is the command name, while values[1] is the single argument.
+  const auto arg = str(values[1]);
+
+  field.emplace();
+  field->value.assign(arg.data(), arg.size());
+  field->location = std::move(location);
+
+  return NGX_CONF_OK;
 }
 
 }  // namespace nginx

@@ -7,6 +7,10 @@ extern "C" {
 #include <ngx_http.h>
 }
 
+#include <optional>
+
+#include "datadog_conf.h"
+
 namespace datadog {
 namespace nginx {
 char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
@@ -54,6 +58,14 @@ char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *co
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
 char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *set_configured_value(ngx_conf_t *, ngx_command_t *, void *conf,
+                           std::optional<configured_value_t> datadog_main_conf_t::*conf_member);
+
+template <std::optional<configured_value_t> datadog_main_conf_t::*conf_member>
+char *set_configured_value(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return set_configured_value(cf, command, conf, conf_member);
+}
 
 }  // namespace nginx
 }  // namespace datadog

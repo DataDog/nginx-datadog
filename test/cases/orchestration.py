@@ -556,8 +556,7 @@ exit "$rcode"
             # - nginx_worker_pids ran in ~0.05 seconds
             # - the workers terminated after ~6 seconds
             poll_period_seconds = 0.5
-            # TODO timeout_seconds = 10
-            timeout_seconds = 9999999999999999999999999
+            timeout_seconds = 10
             before = time.monotonic()
             while old_worker_pids & nginx_worker_pids(nginx_container,
                                                       self.verbose):

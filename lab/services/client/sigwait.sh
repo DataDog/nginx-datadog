@@ -52,4 +52,5 @@ trap close $signals
 block &
 wait
 rm -r "$tmpdir"
+wait
 exit 0

@@ -118,7 +118,13 @@ static dd::TimePoint estimate_past_time_point(std::chrono::system_clock::time_po
   return result;
 }
 
-// TODO: document
+// Search through `conf` and its ancestors for the first `datadog_sample_rate`
+// directive whose condition is satisfied for the specified `request`. If there
+// is such a `datadog_sample_rate`, then on the specified `span` set the
+// "nginx.sample_rate_source" tag to a value that identifies the particular
+// `datadog_sample_rate` directive. A sampling rule previously configured in the
+// tracer will then match on the tag value and apply the sample rate from the
+// `datadog_sample_rate` directive.
 void set_sample_rate_tag(ngx_http_request_t *request, datadog_loc_conf_t *conf, dd::Span &span) {
   do {
     for (const datadog_sample_rate_condition_t &rate : conf->sample_rates) {
