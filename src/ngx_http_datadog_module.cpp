@@ -263,6 +263,13 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
+    { ngx_string("datadog_agent_url"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      set_datadog_agent_url,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      0,
+      nullptr},
+
     ngx_null_command
 };
 

@@ -693,8 +693,6 @@ static char *set_configured_value(
   dd::TracerConfig minimal_config;
   // A non-empty service name is required.
   minimal_config.defaults.service = "dummy";
-  // Don't bother with a real collector.
-  minimal_config.report_traces = false;
   // Set the configuration property of interest.
   set_in_dd_config(minimal_config, arg);
   auto finalized_config = dd::finalize_config(minimal_config);
@@ -745,6 +743,16 @@ char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command, void *conf
         config.defaults.environment = environment;
       },
       [](const dd::FinalizedTracerConfig &config) { return config.defaults.environment; });
+}
+
+char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return set_configured_value(
+      cf, command, conf, &datadog_main_conf_t::agent_url,
+      [](dd::TracerConfig &config, std::string_view agent_url) { config.agent.url = agent_url; },
+      [](const dd::FinalizedTracerConfig &config) {
+        const auto &url = std::get<dd::FinalizedDatadogAgentConfig>(config.collector).url;
+        return url.scheme + "://" + url.authority + url.path;
+      });
 }
 
 }  // namespace nginx

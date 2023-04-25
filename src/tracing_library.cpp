@@ -57,6 +57,10 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t& 
     config.defaults.environment = nginx_conf.environment->value;
   }
 
+  if (nginx_conf.agent_url) {
+    config.agent.url = nginx_conf.agent_url->value;
+  }
+
   // Set sampling rules based on any `datadog_sample_rate` directives.
   std::vector<sampling_rule_t> rules = nginx_conf.sampling_rules;
   // Sort by descending depth, so that rules in a `location` block come before

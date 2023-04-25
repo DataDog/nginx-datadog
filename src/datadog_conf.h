@@ -109,6 +109,8 @@ struct datadog_main_conf_t {
   std::optional<configured_value_t> service_type;
   // `environment` is set by the `datadog_environment` directive.
   std::optional<configured_value_t> environment;
+  // `agent_url` is set by the `datadog_agent_url` directive.
+  std::optional<configured_value_t> agent_url;
 };
 
 struct datadog_sample_rate_condition_t {

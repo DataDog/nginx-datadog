@@ -14,7 +14,7 @@ services:
         NGINX_MODULES_PATH: ${NGINX_MODULES_PATH}
     environment:
       - DD_ENV=prod
-      - DD_AGENT_HOST=agent
+      # - DD_AGENT_HOST=agent
     cap_add:
       - SYS_PTRACE
     depends_on:
