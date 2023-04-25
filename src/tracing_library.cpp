@@ -96,6 +96,8 @@ dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_n
   dd::TracerConfig minimal_config;
   // A non-empty service name is required.
   minimal_config.defaults.service = "dummy";
+  // Don't bother with a real collector.
+  minimal_config.report_traces = false;
   // Empty `configured_styles` would mean "use the default."
   if (!configured_styles.empty()) {
     minimal_config.injection_styles = configured_styles;

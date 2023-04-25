@@ -666,8 +666,11 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command, voi
   return lock_propagation_styles(command, cf);
 }
 
-char *set_configured_value(ngx_conf_t *cf, ngx_command_t *command, void *conf,
-                           std::optional<configured_value_t> datadog_main_conf_t::*conf_member) {
+template <typename SetInDDConfig, typename GetFromFinalDDConfig>
+static char *set_configured_value(
+    ngx_conf_t *cf, ngx_command_t *command, void *conf,
+    std::optional<configured_value_t> datadog_main_conf_t::*conf_member,
+    SetInDDConfig &&set_in_dd_config, GetFromFinalDDConfig &&get_from_final_dd_config) {
   auto location = command_source_location(command, cf);
 
   auto *main_conf = static_cast<datadog_main_conf_t *>(conf);
@@ -684,11 +687,64 @@ char *set_configured_value(ngx_conf_t *cf, ngx_command_t *command, void *conf,
   // values[0] is the command name, while values[1] is the single argument.
   const auto arg = str(values[1]);
 
+  // Create a tracer config that contains the environment value. Then finalize
+  // the config to obtain the final environment value, which might differ from
+  // the original due to environment variables.
+  dd::TracerConfig minimal_config;
+  // A non-empty service name is required.
+  minimal_config.defaults.service = "dummy";
+  // Don't bother with a real collector.
+  minimal_config.report_traces = false;
+  // Set the configuration property of interest.
+  set_in_dd_config(minimal_config, arg);
+  auto finalized_config = dd::finalize_config(minimal_config);
+  if (auto *error = finalized_config.if_error()) {
+    ngx_log_error(NGX_LOG_ERR, cf->log, 0, "Unable to check %V %V; [error code %d]: %s",
+                  &values[0], &values[1], int(error->code), error->message.c_str());
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  // Get the resulting configuration property of interest.
+  const std::string &final_value = get_from_final_dd_config(*finalized_config);
+  if (final_value != arg) {
+    ngx_log_error(
+        NGX_LOG_ERR, cf->log, 0,
+        "\"%V %V;\" directive at  %V:%d is overriden to \"%s\" by an environment variable",
+        &values[0], &values[1], &location.file_name, location.line, final_value.c_str());
+  }
+
   field.emplace();
   field->value.assign(arg.data(), arg.size());
   field->location = std::move(location);
 
   return NGX_CONF_OK;
+}
+
+char *set_datadog_service_name(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return set_configured_value(
+      cf, command, conf, &datadog_main_conf_t::service_name,
+      [](dd::TracerConfig &config, std::string_view service_name) {
+        config.defaults.service = service_name;
+      },
+      [](const dd::FinalizedTracerConfig &config) { return config.defaults.service; });
+}
+
+char *set_datadog_service_type(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return set_configured_value(
+      cf, command, conf, &datadog_main_conf_t::service_type,
+      [](dd::TracerConfig &config, std::string_view service_type) {
+        config.defaults.service_type = service_type;
+      },
+      [](const dd::FinalizedTracerConfig &config) { return config.defaults.service_type; });
+}
+
+char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return set_configured_value(
+      cf, command, conf, &datadog_main_conf_t::environment,
+      [](dd::TracerConfig &config, std::string_view environment) {
+        config.defaults.environment = environment;
+      },
+      [](const dd::FinalizedTracerConfig &config) { return config.defaults.environment; });
 }
 
 }  // namespace nginx

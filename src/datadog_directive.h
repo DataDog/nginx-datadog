@@ -7,12 +7,9 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-#include <optional>
-
-#include "datadog_conf.h"
-
 namespace datadog {
 namespace nginx {
+
 char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
 char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
@@ -59,13 +56,11 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf
 
 char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
-char *set_configured_value(ngx_conf_t *, ngx_command_t *, void *conf,
-                           std::optional<configured_value_t> datadog_main_conf_t::*conf_member);
+char *set_datadog_service_name(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 
-template <std::optional<configured_value_t> datadog_main_conf_t::*conf_member>
-char *set_configured_value(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
-  return set_configured_value(cf, command, conf, conf_member);
-}
+char *set_datadog_service_type(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
+
+char *set_datadog_environment(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 
 }  // namespace nginx
 }  // namespace datadog

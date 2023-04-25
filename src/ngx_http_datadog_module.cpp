@@ -244,21 +244,21 @@ static ngx_command_t datadog_commands[] = {
 
     { ngx_string("datadog_service_name"),
       NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
-      set_configured_value<&datadog_main_conf_t::service_name>,
+      set_datadog_service_name,
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("datadog_service_type"),
       NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
-      set_configured_value<&datadog_main_conf_t::service_type>,
+      set_datadog_service_type,
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("datadog_environment"),
       NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
-      set_configured_value<&datadog_main_conf_t::environment>,
+      set_datadog_environment,
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       nullptr},
@@ -555,10 +555,6 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
 
   conf->parent = prev;
   conf->depth = prev->depth + 1;
-  // TODO no
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "prev->depth=%d and so conf->depth=%d", prev->depth,
-                conf->depth);
-  // end TODO
 
   ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
