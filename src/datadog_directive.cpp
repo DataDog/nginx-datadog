@@ -431,11 +431,12 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexce
 
 char *json_config_deprecated(ngx_conf_t *cf, ngx_command_t *command, void * /*conf*/) noexcept {
   const auto location = command_source_location(command, cf);
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                "The datadog { ... } block directive is deprecated. Use the specific datadog_* "
-                "directives instead, or use DD_TRACE_* environment variables.  "
-                "Error occurred at \"%V\" in %V:%d",
-                &location.directive_name, &location.file_name, location.line);
+  ngx_log_error(
+      NGX_LOG_ERR, cf->log, 0,
+      "The datadog { ... } block directive is no longer supported. Use the specific datadog_* "
+      "directives instead, or use DD_TRACE_* environment variables.  "
+      "Error occurred at \"%V\" in %V:%d",
+      &location.directive_name, &location.file_name, location.line);
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
@@ -731,7 +732,7 @@ char *set_datadog_service_type(ngx_conf_t *cf, ngx_command_t *command, void *con
   return set_configured_value(
       cf, command, conf, &datadog_main_conf_t::service_type,
       [](dd::TracerConfig &config, std::string_view service_type) {
-        config.report_traces = false; // don't bother with a collector (optimization)
+        config.report_traces = false;  // don't bother with a collector (optimization)
         config.defaults.service_type = service_type;
       },
       [](const dd::FinalizedTracerConfig &config) { return config.defaults.service_type; });
@@ -741,7 +742,7 @@ char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command, void *conf
   return set_configured_value(
       cf, command, conf, &datadog_main_conf_t::environment,
       [](dd::TracerConfig &config, std::string_view environment) {
-        config.report_traces = false; // don't bother with a collector (optimization)
+        config.report_traces = false;  // don't bother with a collector (optimization)
         config.defaults.environment = environment;
       },
       [](const dd::FinalizedTracerConfig &config) { return config.defaults.environment; });
