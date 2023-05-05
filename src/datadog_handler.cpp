@@ -57,8 +57,6 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
 }
 
 ngx_int_t on_log_request(ngx_http_request_t *request) noexcept {
-  ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                "()()()()() logging request");  // TODO: no
   auto context = get_datadog_context(request);
   if (context == nullptr) return NGX_DECLINED;
   try {

@@ -515,10 +515,6 @@ char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *co
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
   const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
 
-  // TODO: remove this log line
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "%V at file %V line %d", &command->name,
-                &cf->conf_file->file.name, cf->conf_file->line);
-
   conf_directive_source_location_t directive = command_source_location(command, cf);
 
   auto values = static_cast<ngx_str_t *>(cf->args->elts);
