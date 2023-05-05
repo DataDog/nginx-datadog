@@ -63,8 +63,6 @@ def docker_command(*args):
 docker_bin = str(Path(docker_command_path).parent)
 
 # `sync_port` is the port that services will listen on for "sync" requests.
-# `sync_port` is the port _inside_ the container -- it will be mapped to an
-# ephemeral port on the host.
 sync_port = 8888
 
 
@@ -203,7 +201,7 @@ def exit_on_exception(func):
             return func(*args, **kwargs)
         except:
             traceback.print_exc()
-            os._exit(status_code)  # TODO: doesn't flush IO
+            os._exit(status_code)  # note: doesn't flush IO
 
     return wrapper
 
@@ -335,8 +333,13 @@ class Orchestration:
     """
 
     def __init__(self):
+        project_name = child_env()['COMPOSE_PROJECT_NAME']
+        self.verbose = (Path(__file__).parent.resolve().parent /
+                        f'logs/{project_name}.log').open('w')
+
         print('The test runner is running in the following environment:',
-              os.environ)
+              os.environ,
+              file=self.verbose)
 
     # Properties (all private)
     # - `up_thread` is the `threading.Thread` running `docker-compose up`.
@@ -354,10 +357,6 @@ class Orchestration:
         Run `docker-compose up` to bring up the orchestrated services.  Begin
         parsing their logs on a separate thread.
         """
-        project_name = child_env()['COMPOSE_PROJECT_NAME']
-        self.verbose = (Path(__file__).parent.resolve().parent /
-                        f'logs/{project_name}.log').open('w')
-
         # Before we bring things up, first clean up any detritus left over from
         # previous runs.  Failing to do so can create problems later when we
         # ask docker-compose which container a service is running in.
@@ -465,7 +464,7 @@ class Orchestration:
             log_lines.append(line)
 
     def sync_nginx_access_log(self):
-        """Send a sync request to ngnix and wait until the corresponding access
+        """Send a sync request to nginx and wait until the corresponding access
         log line appears in the output of nginx.  Return the interim log lines
         from nginx.  Raise an `Exception` if an error occurs.
         Note that this assumes that nginx has a particular configuration.
