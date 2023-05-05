@@ -61,7 +61,7 @@ The JSON object may include `#`-comments, which are ignored.
 
 ### `datadog_enable`
 - **syntax** `datadog_enable`
-- **context** `http`, `server`, `location`, `if`
+- **context** `http`, `server`, `location`
 
 Enable Datadog tracing in the current configuration context.  This overrides
 any `datadog_disable` directives at higher levels, and may be overridden by
@@ -74,7 +74,7 @@ Datadog tracing is enabled by default.
 
 ### `datadog_disable`
 - **syntax** `datadog_enable`
-- **context** `http`, `server`, `location`, `if`
+- **context** `http`, `server`, `location`
 
 Disable Datadog tracing in the current configuration context.  This overrides
 any `datadog_enable` directives at higher levels, and may be overridden by
@@ -90,7 +90,7 @@ it.
 
 - **syntax** `datadog_trace_locations on|off`
 - **default**: `off`
-- **context**: `http`, `server`, `location`, `if`
+- **context**: `http`, `server`, `location`
 
 If `on`, then in addition to creating one span per request handled, create an
 additional span representing the `location` block selected in handling the
@@ -102,7 +102,7 @@ This option is `off` by default, so that only one span is produced per request.
 
 - **syntax** `datadog_operation_name <variable_pattern>`
 - **default**: The name of the first location block entered.
-- **context**: `http`, `server`, `location`, `if`
+- **context**: `http`, `server`, `location`
 
 Set the request span's "operation name" to the result of evaluating the
 specified `<variable_pattern>` in the context of the current request.
@@ -115,7 +115,7 @@ The request span is the span created while processing a request.
 
 - **syntax** `datadog_location_operation_name <variable_pattern>`
 - **default**: The name of the location block.
-- **context**: `http`, `server`, `location`, `if`
+- **context**: `http`, `server`, `location`
 
 Set the location span's "operation name" to the result of evaluating the
 specified `<variable_pattern>` in the context of the current request.
@@ -129,7 +129,7 @@ The location span is a span created in addition to the request span.  See
 
 - **syntax** `datadog_resource_name <variable_pattern>`
 - **default**: `$request_method $uri`, e.g. "GET /api/book/0-345-24223-8/title"
-- **context**: `http`, `server`, `location`, `if`
+- **context**: `http`, `server`, `location`
 
 Set the request span's "resource name" (sometimes called "endpoint") to the
 result of evaluating the specified `<variable_pattern>` in the context of the
@@ -142,7 +142,7 @@ The request span is the span created while processing a request.
 
 - **syntax** `datadog_location_resource_name <variable_pattern>`
 - **default**: `$request_method $uri`, e.g. "GET /api/book/0-345-24223-8/title"
-- **context**: `http`, `server`, `location`, `if`
+- **context**: `http`, `server`, `location`
 
 Set the location span's "resource name" (sometimes called "endpoint") to the
 result of evaluating the specified `<variable_pattern>` in the context of the
@@ -156,7 +156,7 @@ The location span is a span created in addition to the request span.  See
 
 - **syntax** `datadog_trust_incoming_span on|off`
 - **default**: `on`
-- **context**: `http`, `server`, `location`, `if`
+- **context**: `http`, `server`, `location`
 
 If `on`, attempt to extract trace context from incoming requests.  This way,
 nginx need not be the beginning of the trace — it can inherit a parent span
@@ -169,7 +169,7 @@ from untrusted clients is deemed a security concern.
 ### `datadog_tag`
 
 - **syntax** `datadog_tag <key> <variable_pattern>`
-- **context**: `http`, `server`, `location`, `if`
+- **context**: `http`, `server`, `location`
 
 On the currently active span, set a tag whose name is the specified `<key>` and
 whose value is the result of evaluating the specified `<variable_pattern>` in
