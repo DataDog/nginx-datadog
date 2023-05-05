@@ -188,7 +188,7 @@ std::string span_property(std::string_view key, const dd::Span& span) {
   const auto not_found = "-";
 
   if (key == "trace_id") {
-    return std::to_string(span.trace_id());
+    return std::to_string(span.trace_id().low);
   } else if (key == "span_id") {
     return std::to_string(span.id());
   } else if (key == "json") {
