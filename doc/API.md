@@ -48,16 +48,157 @@ Configuration Directives
 ========================
 The Datadog tracing module defines the following configuration directives.
 
-### `datadog`
-- **syntax** `datadog { ... }`
-- **default**: `{}`
-- **context**: `http`, `server`
+### `datadog_agent_url`
+- **syntax** `datadog_agent_url <url>`
+- **default**: `http://localhost:8126`
+- **context**: `http`
 
-Configure the Datadog tracer using the specified JSON object.  The object
-supports the same properties as those marked "JSON property" in the [Datadog
-C++ Tracer documentation][1].
+Specify a URL at which the Datadog Agent can be contacted.
+The following formats are supported:
 
-The JSON object may include `#`-comments, which are ignored.
+- `http://<domain or IP>:<port>`
+- `http://<domain or IP>`
+- `http+unix://<path to socket>`
+- `unix://<path to socket>`
+
+The port defaults to 8126 if it is not specified.
+
+### `datadog_service_name`
+- **syntax** `datadog_service_name <name>`
+- **default**: `nginx`
+- **context**: `http`
+
+Set the service name to associate with each span produced by this module.
+
+### `datadog_service_type`
+- **syntax** `datadog_service_type <type>`
+- **default**: `web`
+- **context**: `http`
+
+Set the service type to associate with each span produced by this module.
+
+See [Datadog's documentation][3] for a description of service type.
+
+### `datadog_environment`
+- **syntax** `datadog_service_type <environment>`
+- **default**: `prod`
+- **context**: `http`
+
+Set the name of the environment within which nginx is running. Common values
+include `prod`, `dev`, and `staging`.
+
+### `datadog_propagation_styles`
+- **syntax** `datadog_service_type <style> [<style> ...]`
+- **default**: `tracecontext datadog`
+- **context**: `http`
+
+Set one or more trace propagation styles that nginx will use to extract trace
+context from incoming requests and to inject trace context into outgoing
+requests.
+
+When extracting trace context from an incoming request, the specified styles
+will be tried in order, stopping at the first style that yields trace context.
+
+When injecting trace context into an outgoing request, all of the specified
+styles will be used.
+
+The following styles are supported:
+
+- `datadog` is the Datadog style.  It uses the following headers:
+    - X-Datadog-Trace-Id
+    - X-Datadog-Parent-Id
+    - X-Datadog-Sampling-Priority
+    - X-Datadog-Origin
+    - X-Datadog-Tags
+- `tracecontext` is the W3C (OpenTelemetry) style.  It uses the following headers:
+    - traceparent
+    - tracestate
+- `b3` is the Zipkin multi-header style.  It uses the following headers:
+    - X-B3-TraceId
+    - X-B3-SpanId
+    - X-B3-Sampled
+
+### `datadog_sample_rate`
+- **syntax** `datadog_sample_rate <rate> [on|off]`
+- **default**: `tracecontext datadog`
+- **context**: `http`, `server`, `location`
+
+Set the probability that the traces beginning with requests in this
+configuration context will be kept (sent to Datadog), as opposed to dropped.
+
+The `<rate>` is a number between 0.0 and 1.0, inclusive. Zero indicates "never,"
+while one indicates "always." `0.5` would indicate "half the time," i.e. 50%.
+
+Optionally specify a third argument that is a variable expression that must
+evaluate to either `on` or `off`.  If it evaluates to `on`, then the associated
+sample rate is chosen.  If it evaluates to `off`, then the associated sample
+rate is ignored. Any other value behaves as `off` and logs an error. If the
+third argument is omitted, then it defaults to `on`.
+
+`datadog_sample_rate` directives in lower level configuration contexts take
+precedence over those in higher level configuration contexts. If multiple
+directives appear at the same configuration level, then their `on`/`off`
+expressions are tried in order.  The first directive whose expression evaluates
+to `on` is the rate applied at that configuration level.
+
+For example, consider the following excerpt from an nginx configuration file:
+```nginx
+ 1  http {
+ 2      map $http_x_request_category $healthcheck_toggle {
+ 3          healthcheck    on;
+ 4          default    off;
+ 5      }
+ 6
+ 7      datadog_sample_rate 0 $healthcheck_toggle;
+ 8      datadog_sample_rate 0.1;
+ 9
+10      server {
+11          listen 80;
+12
+13          location / {
+14              proxy_pass http://upstream;
+15          }
+16
+17          location /admin {
+18              datadog_sample_rate 1.0;
+19              proxy_pass http://admin-portal;
+20          }
+21      }
+22  }
+```
+
+The `location /` at line 13 does not have its own `datadog_sample_rate`, so it
+inherits any from enclosing configuration contexts.  There are no
+`datadog_sample_rate` directives directly in the enclosing `server` block, but
+there are in the enclosing `http` block. The first is on line 7, and is
+conditional based on the value of the `$healthceck_toggle` variable, which is
+defined by the `map` on line 2.
+
+A request that routes to `location /` will be sampled at 0% if the
+`X-Request-Category` header has the value `healthcheck`, per the
+`datadog_sample_rate` on line 7. If the `X-Request-Category` header is no
+present or has a value different from `healthcheck`, then the request will be
+sampled at 10%, per the `datadog_sample_rate` on line 8.
+
+A request that routes to `location /admin` will be sampled at 100%, per the
+`datadog_sample_rate` on line 19.
+
+The `datadog_sample_rate` directive that applies, if any, is annotated in the
+request span as the `nginx.sample_rate_source` tag. The tag has the following
+format:
+```
+<nginx file path>:<line>#<dupe>
+```
+For example,
+```
+/etc/nginx/nginx.conf:23#1
+```
+- `<nginx file path>` is the path to the nginx configuration file that contains
+  the `datadog_sample_rate` directive.
+- `<line>` is the line number where the directive appears.
+- `<dupe>` is the one-based index of the directive among all
+  `datadog_sample_rate` directives that appear on that same line. Typically each
+  directive is on its own line, so `<dupe>` is likely always `1`.
 
 ### `datadog_enable`
 - **syntax** `datadog_enable`
@@ -246,9 +387,8 @@ character (`-`) instead.
 
 ### `datadog_config_json`
 `$datadog_config_json` expands to a JSON object whose properties describe the
-configuration of the Datadog tracer.  It is not the same as the JSON object
-that is used to configure the tracer.  It is the same as the JSON object logged
-at "info" level when the tracer is initialized.
+configuration of the Datadog tracer.  It is the same as the JSON object logged
+to standard error when the tracer is initialized.
 
 If tracing is disabled, then the variable expands to a hyphen character (`-`)
 instead.
@@ -278,3 +418,4 @@ module.
 
 [1]: https://github.com/DataDog/dd-opentracing-cpp/blob/master/doc/configuration.md
 [2]: http://nginx.org/en/docs/varindex.html
+[3]: https://docs.datadoghq.com/tracing/services/services_list/#services-types
