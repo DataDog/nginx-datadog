@@ -11,12 +11,6 @@ install_nginx_on_amazon_linux() {
 # nginx.
 # Also, if we're on Amazon Linux, nginx won't be installed yet, so install it.
 if command -v apt-get >/dev/null 2>&1; then
-    # If this is Debian "stretch," then we need to change the package
-    # repository links as of April 2023.
-    . /etc/os-release
-    if [ "$PRETTY_NAME" = 'Debian GNU/Linux 9 (stretch)' ]; then
-        echo 'deb http://archive.debian.org/debian stretch main contrib non-free' >/etc/apt/sources.list
-    fi
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y procps gdb
     if ! command -v nginx >/dev/null 2>&1; then

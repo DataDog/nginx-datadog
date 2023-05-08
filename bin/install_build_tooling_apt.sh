@@ -3,12 +3,6 @@
 # Exit if a non-conditional command returns a nonzero exit status.
 set -e
 
-# If this is Debian "stretch," then we need to change the package
-# repository links as of April 2023.
-. /etc/os-release
-if [ "$PRETTY_NAME" = 'Debian GNU/Linux 9 (stretch)' ]; then
-    echo 'deb http://archive.debian.org/debian stretch main contrib non-free' >/etc/apt/sources.list
-fi
 apt-get update
 
 install() {
