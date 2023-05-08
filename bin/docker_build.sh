@@ -51,6 +51,7 @@ while [ $# -ne 0 ]; do
 done
 
 if [ -z "$base_image" ]; then
+    # shellcheck disable=SC1091
     . "$repo/nginx-version-info"
     # shellcheck disable=SC2153
     base_image="$BASE_IMAGE"
