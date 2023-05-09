@@ -80,7 +80,7 @@ Set the service type to associate with each span produced by this module.
 See [Datadog's documentation][3] for a description of service type.
 
 ### `datadog_environment`
-- **syntax** `datadog_service_type <environment>`
+- **syntax** `datadog_environment <environment>`
 - **default**: `prod`
 - **context**: `http`
 
@@ -88,7 +88,7 @@ Set the name of the environment within which nginx is running. Common values
 include `prod`, `dev`, and `staging`.
 
 ### `datadog_propagation_styles`
-- **syntax** `datadog_service_type <style> [<style> ...]`
+- **syntax** `datadog_propagation_styles <style> [<style> ...]`
 - **default**: `tracecontext datadog`
 - **context**: `http`
 
