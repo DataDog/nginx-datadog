@@ -20,8 +20,7 @@ body_file="$tmpdir"/json
 touch "$body_file"
 
 # Print information about the response as a JSON object on one line.
-# shellcheck disable=SC1083
-curl --write-out %{json} --output "$body_file" --no-progress-meter "$@"
+curl --write-out '%{json}' --output "$body_file" --no-progress-meter "$@"
 status=$?
 
 printf '\n'
