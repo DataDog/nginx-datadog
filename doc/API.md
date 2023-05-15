@@ -242,7 +242,7 @@ This option is `off` by default, so that only one span is produced per request.
 ### `datadog_operation_name`
 
 - **syntax** `datadog_operation_name <variable_pattern>`
-- **default**: The name of the first location block entered.
+- **default**: `nginx.request`
 - **context**: `http`, `server`, `location`
 
 Set the request span's "operation name" to the result of evaluating the
@@ -255,7 +255,7 @@ The request span is the span created while processing a request.
 ### `datadog_location_operation_name`
 
 - **syntax** `datadog_location_operation_name <variable_pattern>`
-- **default**: The name of the location block.
+- **default**: `nginx.$datadog_proxy_directive`, e.g. `nginx.proxy_pass`
 - **context**: `http`, `server`, `location`
 
 Set the location span's "operation name" to the result of evaluating the
