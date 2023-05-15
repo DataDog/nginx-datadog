@@ -120,7 +120,7 @@ The following styles are supported:
 
 ### `datadog_sample_rate`
 - **syntax** `datadog_sample_rate <rate> [on|off]`
-- **default**: `tracecontext datadog`
+- **default**: N/A
 - **context**: `http`, `server`, `location`
 
 Set the probability that the traces beginning with requests in this
@@ -171,7 +171,7 @@ The `location /` at line 13 does not have its own `datadog_sample_rate`, so it
 inherits any from enclosing configuration contexts.  There are no
 `datadog_sample_rate` directives directly in the enclosing `server` block, but
 there are in the enclosing `http` block. The first is on line 7, and is
-conditional based on the value of the `$healthceck_toggle` variable, which is
+conditional based on the value of the `$healthcheck_toggle` variable, which is
 defined by the `map` on line 2.
 
 A request that routes to `location /` will be sampled at 0% if the
