@@ -81,7 +81,7 @@ See [Datadog's documentation][3] for a description of service type.
 
 ### `datadog_environment`
 - **syntax** `datadog_environment <environment>`
-- **default**: `prod`
+- **default**: (no value)
 - **context**: `http`
 
 Set the name of the environment within which nginx is running. Common values
