@@ -57,7 +57,12 @@ using namespace datadog::nginx;
 // or "anywhere but in the main section."  `anywhere` and `anywhere_but_main`
 // are respective shorthands.
 // Also, this definition of "anywhere" excludes "if" blocks. "if" blocks are an
-// abomination that nginx is now unable to kill.
+// do not behave as many users expect, and it might be a technical liability to
+// support them. See
+// <https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/>
+// and <http://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if>
+// and <http://agentzh.blogspot.com/2011/03/how-nginx-location-if-works.html>.
+//
 // clang-format off
 static ngx_uint_t anywhere_but_main =
     NGX_HTTP_SRV_CONF   // an `http` block
