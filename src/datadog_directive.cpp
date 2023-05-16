@@ -536,6 +536,8 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf
   try {
     std::size_t end_index;
     rate_float = std::stod(rate_str, &end_index);
+    // `end_index` might not be the end of the input, e.g. if the argument were
+    // "12monkeys".  That's an error.
     if (end_index != rate_str.size()) {
       ngx_log_error(
           NGX_LOG_ERR, cf->log, 0,
