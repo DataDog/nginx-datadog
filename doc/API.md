@@ -162,13 +162,13 @@ The port defaults to 8126 if it is not specified.
 
 ### `datadog_tag`
 
-- **syntax** `datadog_tag <key> <variable_pattern>`
+- **syntax** `datadog_tag <key> <value>`
 - **context**: `http`, `server`, `location`
 
 On the currently active span, set a tag whose name is the specified `<key>` and
-whose value is the result of evaluating the specified `<variable_pattern>` in
-the context of the current request.  `<variable_pattern>` is a string that may
-contain `$`-[variables][2] (including those provided by this module).
+whose value is the result of evaluating the specified `<value>` in the context
+of the current request.  `<value>` is a string that may contain
+`$`-[variables][2] (including those provided by this module).
 
 ### `datadog_enable`
 - **syntax** `datadog_enable`
@@ -199,27 +199,27 @@ it.
 
 ### `datadog_resource_name`
 
-- **syntax** `datadog_resource_name <variable_pattern>`
+- **syntax** `datadog_resource_name <name>`
 - **default**: `$request_method $uri`, e.g. "GET /api/book/0-345-24223-8/title"
 - **context**: `http`, `server`, `location`
 
 Set the request span's "resource name" (sometimes called "endpoint") to the
-result of evaluating the specified `<variable_pattern>` in the context of the
-current request. `<variable_pattern>` is a string that may contain
-`$`-[variables][2] (including those provided by this module).
+result of evaluating the specified `<name>` in the context of the current
+request. `<name>` is a string that may contain `$`-[variables][2] (including
+those provided by this module).
 
 The request span is the span created while processing a request.
 
 ### `datadog_location_resource_name`
 
-- **syntax** `datadog_location_resource_name <variable_pattern>`
+- **syntax** `datadog_location_resource_name <name>`
 - **default**: `$request_method $uri`, e.g. "GET /api/book/0-345-24223-8/title"
 - **context**: `http`, `server`, `location`
 
 Set the location span's "resource name" (sometimes called "endpoint") to the
-result of evaluating the specified `<variable_pattern>` in the context of the
-current request. `<variable_pattern>` is a string that may contain
-`$`-[variables][2] (including those provided by this module).
+result of evaluating the specified `<name>` in the context of the current
+request. `<name>` is a string that may contain `$`-[variables][2] (including
+those provided by this module).
 
 The location span is a span created in addition to the request span.  See
 `datadog_trace_locations`.
@@ -271,27 +271,25 @@ The following styles are supported:
 
 ### `datadog_operation_name`
 
-- **syntax** `datadog_operation_name <variable_pattern>`
+- **syntax** `datadog_operation_name <name>`
 - **default**: `nginx.request`
 - **context**: `http`, `server`, `location`
 
 Set the request span's "operation name" to the result of evaluating the
-specified `<variable_pattern>` in the context of the current request.
-`<variable_pattern>` is a string that may contain `$`-[variables][2] (including
-those provided by this module).
+specified `<name>` in the context of the current request. `<name>` is a string
+that may contain `$`-[variables][2] (including those provided by this module).
 
 The request span is the span created while processing a request.
 
 ### `datadog_location_operation_name`
 
-- **syntax** `datadog_location_operation_name <variable_pattern>`
+- **syntax** `datadog_location_operation_name <name>`
 - **default**: `nginx.$datadog_proxy_directive`, e.g. `nginx.proxy_pass`
 - **context**: `http`, `server`, `location`
 
 Set the location span's "operation name" to the result of evaluating the
-specified `<variable_pattern>` in the context of the current request.
-`<variable_pattern>` is a string that may contain `$`-[variables][2] (including
-those provided by this module).
+specified `<name>` in the context of the current request. `<name>` is a string
+that may contain `$`-[variables][2] (including those provided by this module).
 
 The location span is a span created in addition to the request span.  See
 `datadog_trace_locations`.
