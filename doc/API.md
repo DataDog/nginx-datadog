@@ -48,21 +48,6 @@ Configuration Directives
 ========================
 The Datadog tracing module defines the following configuration directives.
 
-### `datadog_agent_url`
-- **syntax** `datadog_agent_url <url>`
-- **default**: `http://localhost:8126`
-- **context**: `http`
-
-Specify a URL at which the Datadog Agent can be contacted.
-The following formats are supported:
-
-- `http://<domain or IP>:<port>`
-- `http://<domain or IP>`
-- `http+unix://<path to socket>`
-- `unix://<path to socket>`
-
-The port defaults to 8126 if it is not specified.
-
 ### `datadog_service_name`
 - **syntax** `datadog_service_name <name>`
 - **default**: `nginx`
@@ -77,37 +62,6 @@ Set the service name to associate with each span produced by this module.
 
 Set the name of the environment within which nginx is running. Common values
 include `prod`, `dev`, and `staging`.
-
-### `datadog_propagation_styles`
-- **syntax** `datadog_propagation_styles <style> [<style> ...]`
-- **default**: `tracecontext datadog`
-- **context**: `http`
-
-Set one or more trace propagation styles that nginx will use to extract trace
-context from incoming requests and to inject trace context into outgoing
-requests.
-
-When extracting trace context from an incoming request, the specified styles
-will be tried in order, stopping at the first style that yields trace context.
-
-When injecting trace context into an outgoing request, all of the specified
-styles will be used.
-
-The following styles are supported:
-
-- `datadog` is the Datadog style.  It uses the following headers:
-    - X-Datadog-Trace-Id
-    - X-Datadog-Parent-Id
-    - X-Datadog-Sampling-Priority
-    - X-Datadog-Origin
-    - X-Datadog-Tags
-- `tracecontext` is the W3C (OpenTelemetry) style.  It uses the following headers:
-    - traceparent
-    - tracestate
-- `b3` is the Zipkin multi-header style.  It uses the following headers:
-    - X-B3-TraceId
-    - X-B3-SpanId
-    - X-B3-Sampled
 
 ### `datadog_sample_rate`
 - **syntax** `datadog_sample_rate <rate> [on|off]`
@@ -191,6 +145,31 @@ For example,
   `datadog_sample_rate` directives that appear on that same line. Typically each
   directive is on its own line, so `<dupe>` is likely always `1`.
 
+### `datadog_agent_url`
+- **syntax** `datadog_agent_url <url>`
+- **default**: `http://localhost:8126`
+- **context**: `http`
+
+Specify a URL at which the Datadog Agent can be contacted.
+The following formats are supported:
+
+- `http://<domain or IP>:<port>`
+- `http://<domain or IP>`
+- `http+unix://<path to socket>`
+- `unix://<path to socket>`
+
+The port defaults to 8126 if it is not specified.
+
+### `datadog_tag`
+
+- **syntax** `datadog_tag <key> <variable_pattern>`
+- **context**: `http`, `server`, `location`
+
+On the currently active span, set a tag whose name is the specified `<key>` and
+whose value is the result of evaluating the specified `<variable_pattern>` in
+the context of the current request.  `<variable_pattern>` is a string that may
+contain `$`-[variables][2] (including those provided by this module).
+
 ### `datadog_enable`
 - **syntax** `datadog_enable`
 - **context** `http`, `server`, `location`
@@ -217,45 +196,6 @@ trace context is propagated to proxied services.
 
 Datadog tracing is enabled by default.  This directive is the way to disable
 it.
-
-### `datadog_trace_locations`
-
-- **syntax** `datadog_trace_locations on|off`
-- **default**: `off`
-- **context**: `http`, `server`, `location`
-
-If `on`, then in addition to creating one span per request handled, create an
-additional span representing the `location` block selected in handling the
-request.
-
-This option is `off` by default, so that only one span is produced per request.
-
-### `datadog_operation_name`
-
-- **syntax** `datadog_operation_name <variable_pattern>`
-- **default**: `nginx.request`
-- **context**: `http`, `server`, `location`
-
-Set the request span's "operation name" to the result of evaluating the
-specified `<variable_pattern>` in the context of the current request.
-`<variable_pattern>` is a string that may contain `$`-[variables][2] (including
-those provided by this module).
-
-The request span is the span created while processing a request.
-
-### `datadog_location_operation_name`
-
-- **syntax** `datadog_location_operation_name <variable_pattern>`
-- **default**: `nginx.$datadog_proxy_directive`, e.g. `nginx.proxy_pass`
-- **context**: `http`, `server`, `location`
-
-Set the location span's "operation name" to the result of evaluating the
-specified `<variable_pattern>` in the context of the current request.
-`<variable_pattern>` is a string that may contain `$`-[variables][2] (including
-those provided by this module).
-
-The location span is a span created in addition to the request span.  See
-`datadog_trace_locations`.
 
 ### `datadog_resource_name`
 
@@ -298,15 +238,75 @@ If `off`, trace context will not be extracted from incoming requests.  Nginx
 will start a new trace.  This might be desired if extracting trace information
 from untrusted clients is deemed a security concern.
 
-### `datadog_tag`
+### `datadog_propagation_styles`
+- **syntax** `datadog_propagation_styles <style> [<style> ...]`
+- **default**: `tracecontext datadog`
+- **context**: `http`
 
-- **syntax** `datadog_tag <key> <variable_pattern>`
+Set one or more trace propagation styles that nginx will use to extract trace
+context from incoming requests and to inject trace context into outgoing
+requests.
+
+When extracting trace context from an incoming request, the specified styles
+will be tried in order, stopping at the first style that yields trace context.
+
+When injecting trace context into an outgoing request, all of the specified
+styles will be used.
+
+The following styles are supported:
+
+- `datadog` is the Datadog style.  It uses the following headers:
+    - X-Datadog-Trace-Id
+    - X-Datadog-Parent-Id
+    - X-Datadog-Sampling-Priority
+    - X-Datadog-Origin
+    - X-Datadog-Tags
+- `tracecontext` is the W3C (OpenTelemetry) style.  It uses the following headers:
+    - traceparent
+    - tracestate
+- `b3` is the Zipkin multi-header style.  It uses the following headers:
+    - X-B3-TraceId
+    - X-B3-SpanId
+    - X-B3-Sampled
+
+### `datadog_operation_name`
+
+- **syntax** `datadog_operation_name <variable_pattern>`
+- **default**: `nginx.request`
 - **context**: `http`, `server`, `location`
 
-On the currently active span, set a tag whose name is the specified `<key>` and
-whose value is the result of evaluating the specified `<variable_pattern>` in
-the context of the current request.  `<variable_pattern>` is a string that may
-contain `$`-[variables][2] (including those provided by this module).
+Set the request span's "operation name" to the result of evaluating the
+specified `<variable_pattern>` in the context of the current request.
+`<variable_pattern>` is a string that may contain `$`-[variables][2] (including
+those provided by this module).
+
+The request span is the span created while processing a request.
+
+### `datadog_location_operation_name`
+
+- **syntax** `datadog_location_operation_name <variable_pattern>`
+- **default**: `nginx.$datadog_proxy_directive`, e.g. `nginx.proxy_pass`
+- **context**: `http`, `server`, `location`
+
+Set the location span's "operation name" to the result of evaluating the
+specified `<variable_pattern>` in the context of the current request.
+`<variable_pattern>` is a string that may contain `$`-[variables][2] (including
+those provided by this module).
+
+The location span is a span created in addition to the request span.  See
+`datadog_trace_locations`.
+
+### `datadog_trace_locations`
+
+- **syntax** `datadog_trace_locations on|off`
+- **default**: `off`
+- **context**: `http`, `server`, `location`
+
+If `on`, then in addition to creating one span per request handled, create an
+additional span representing the `location` block selected in handling the
+request.
+
+This option is `off` by default, so that only one span is produced per request.
 
 Variables
 ---------
