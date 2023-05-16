@@ -49,10 +49,6 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t& 
     config.defaults.service = "nginx";
   }
 
-  if (nginx_conf.service_type) {
-    config.defaults.service_type = nginx_conf.service_type->value;
-  }
-
   if (nginx_conf.environment) {
     config.defaults.environment = nginx_conf.environment->value;
   }

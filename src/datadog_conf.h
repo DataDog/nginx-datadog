@@ -105,8 +105,6 @@ struct datadog_main_conf_t {
   std::vector<sampling_rule_t> sampling_rules;
   // `service_name` is set by the `datadog_service_name` directive.
   std::optional<configured_value_t> service_name;
-  // `service_type` is set by the `datadog_service_type` directive.
-  std::optional<configured_value_t> service_type;
   // `environment` is set by the `datadog_environment` directive.
   std::optional<configured_value_t> environment;
   // `agent_url` is set by the `datadog_agent_url` directive.

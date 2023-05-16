@@ -724,16 +724,6 @@ char *set_datadog_service_name(ngx_conf_t *cf, ngx_command_t *command, void *con
       [](const dd::FinalizedTracerConfig &config) { return config.defaults.service; });
 }
 
-char *set_datadog_service_type(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
-  return set_configured_value(
-      cf, command, conf, &datadog_main_conf_t::service_type,
-      [](dd::TracerConfig &config, std::string_view service_type) {
-        config.report_traces = false;  // don't bother with a collector (optimization)
-        config.defaults.service_type = service_type;
-      },
-      [](const dd::FinalizedTracerConfig &config) { return config.defaults.service_type; });
-}
-
 char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
   return set_configured_value(
       cf, command, conf, &datadog_main_conf_t::environment,

@@ -48,12 +48,10 @@ class TestConfiguration(case.TestCase):
         # See conf/in_http.conf, which contains the following:
         #
         #     datadog_service_name foosvc;
-        #     datadog_service_type footype;
         #     datadog_environment fooment;
         #     datadog_agent_url http://bogus:1234;
         #     datadog_propagation_styles B3 Datadog;
         expected['defaults']['service'] = 'foosvc'
-        expected['defaults']['service_type'] = 'footype'
         expected['defaults']['environment'] = 'fooment'
         expected['collector']['config'][
             'url'] = 'http://bogus:1234/v0.4/traces'
@@ -77,11 +75,6 @@ class TestConfiguration(case.TestCase):
         self.run_error_test(
             conf_relative_path='./conf/duplicate/service_name.conf',
             diagnostic_excerpt='Duplicate call to "datadog_service_name"')
-
-    def test_duplicate_service_type(self):
-        self.run_error_test(
-            conf_relative_path='./conf/duplicate/service_type.conf',
-            diagnostic_excerpt='Duplicate call to "datadog_service_type"')
 
     def test_duplicate_environment(self):
         self.run_error_test(
@@ -119,10 +112,6 @@ class TestConfiguration(case.TestCase):
         return self.run_wrong_block_test(
             './conf/error_in_main/service_name.conf')
 
-    def test_error_in_main_service_type(self):
-        return self.run_wrong_block_test(
-            './conf/error_in_main/service_type.conf')
-
     def test_error_in_main_environment(self):
         return self.run_wrong_block_test(
             './conf/error_in_main/environment.conf')
@@ -137,10 +126,6 @@ class TestConfiguration(case.TestCase):
     def test_error_in_server_service_name(self):
         return self.run_wrong_block_test(
             './conf/error_in_server/service_name.conf')
-
-    def test_error_in_server_service_type(self):
-        return self.run_wrong_block_test(
-            './conf/error_in_server/service_type.conf')
 
     def test_error_in_server_environment(self):
         return self.run_wrong_block_test(

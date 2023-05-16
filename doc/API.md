@@ -70,15 +70,6 @@ The port defaults to 8126 if it is not specified.
 
 Set the service name to associate with each span produced by this module.
 
-### `datadog_service_type`
-- **syntax** `datadog_service_type <type>`
-- **default**: `web`
-- **context**: `http`
-
-Set the service type to associate with each span produced by this module.
-
-See [Datadog's documentation][3] for a description of service type.
-
 ### `datadog_environment`
 - **syntax** `datadog_environment <environment>`
 - **default**: (no value)
