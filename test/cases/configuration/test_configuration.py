@@ -14,7 +14,7 @@ class TestConfiguration(case.TestCase):
         if self.default_config is not None:
             return self.default_config
 
-        conf_path = Path(__file__).parent / './conf/vanilla.conf'
+        conf_path = Path(__file__).parent / 'conf' / 'vanilla.conf'
         conf_text = conf_path.read_text()
 
         status, log_lines = self.orch.nginx_replace_config(
