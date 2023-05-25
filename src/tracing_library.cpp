@@ -1,6 +1,7 @@
 #include "tracing_library.h"
 
 #include <datadog/dict_writer.h>
+#include <datadog/environment.h>
 #include <datadog/error.h>
 #include <datadog/expected.h>
 #include <datadog/span.h>
@@ -203,30 +204,8 @@ NginxVariableFamily TracingLibrary::span_variables() {
 }
 
 std::vector<std::string_view> TracingLibrary::environment_variable_names() {
-  return {// These environment variable names are taken from
-          // `tracer_options.cpp` and `tracer.cpp` in the `dd-opentracing-cpp`
-          // repository. I did `git grep '"DD_\w\+"' -- src/` in the
-          // `dd-opentracing-cpp` repository.
-          "DD_AGENT_HOST",
-          "DD_ENV",
-          "DD_PROPAGATION_STYLE_EXTRACT",
-          "DD_PROPAGATION_STYLE_INJECT",
-          "DD_SERVICE",
-          "DD_TAGS",
-          "DD_TRACE_AGENT_PORT",
-          "DD_TRACE_AGENT_URL",
-          "DD_TRACE_ANALYTICS_ENABLED",
-          "DD_TRACE_ANALYTICS_SAMPLE_RATE",
-          "DD_TRACE_CPP_LEGACY_OBFUSCATION",
-          "DD_TRACE_DEBUG",
-          "DD_TRACE_ENABLED",
-          "DD_TRACE_RATE_LIMIT",
-          "DD_TRACE_REPORT_HOSTNAME",
-          "DD_TRACE_SAMPLE_RATE",
-          "DD_TRACE_SAMPLING_RULES",
-          "DD_TRACE_STARTUP_LOGS",
-          "DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH",
-          "DD_VERSION"};
+  return std::vector<std::string_view>{std::begin(dd::environment::variable_names),
+                                       std::end(dd::environment::variable_names)};
 }
 
 std::string_view TracingLibrary::default_request_operation_name_pattern() {
