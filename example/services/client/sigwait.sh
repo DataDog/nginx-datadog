@@ -43,7 +43,7 @@ block() {
     <"$pipe" read -r
 }
 
-trap close "$@"
+trap 'close "$@"' "$@"
 
 block &
 wait
