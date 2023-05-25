@@ -169,6 +169,21 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   config.start = estimate_past_time_point(start_timestamp);
   config.name = get_request_operation_name(request_, core_loc_conf_, loc_conf_);
 
+  // By the end of this function, we will have a `request_span_`.
+  //
+  // It could be that we were given a `parent`, in which case `request_span_`
+  // will be a child of that parent.
+  //
+  // Alternatively, it could be that we don't have a parent, and also we don't
+  // trust the request headers enough to extract trace context from them.
+  // In that case, we will create a new trace for `request_span_`.
+  //
+  // If we don't have a parent and we _do_ trust request headers, then we will
+  // try to extract trace context from the headers. It could be that there is no
+  // context to extract, or it could be that the extracted data is invalid. In
+  // both cases, we fall back to creating a new trace for `request_span_`. If,
+  // on the other hand, extracting trace context from the request headers
+  // succeeds, then `request_span_` is part of the extracted trace.
   if (!parent && loc_conf_->trust_incoming_span) {
     NgxHeaderReader reader{request};
     auto maybe_span = tracer->extract_or_create_span(reader, config);
