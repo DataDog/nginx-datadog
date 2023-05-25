@@ -76,7 +76,7 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
   if (status_line.data()) span.set_tag("http.status_line", status_line);
   // Treat any 5xx code as an error.
   if (status >= 500) {
-    span.set_tag("error", "1");
+    span.set_error(true);
   }
 }
 
