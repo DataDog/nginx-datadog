@@ -56,7 +56,7 @@ using namespace datadog::nginx;
 // There are two sets of places Datadog commands can appear: either "anywhere,"
 // or "anywhere but in the main section."  `anywhere` and `anywhere_but_main`
 // are respective shorthands.
-// Also, this definition of "anywhere" excludes "if" blocks. "if" blocks are an
+// Also, this definition of "anywhere" excludes "if" blocks. "if" blocks
 // do not behave as many users expect, and it might be a technical liability to
 // support them. See
 // <https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/>
