@@ -54,11 +54,14 @@ Its default target, `build`, builds the Datadog nginx module and its
 dependencies.  The resulting nginx module is
 `.build/libngx_http_datadog_module.so`.
 
+The file `nginx-version-info` is required by the build.  See
+[nginx-version-info.example](nginx-version-info.example).
+
 Another target, `build-in-docker`, builds the Datadog nginx module and its
 dependencies in a [Docker][2] container compatible with the DockerHub image
-specified as `BASE_IMAGE` in the `./nginx-version-info` file, (e.g.
+specified as `BASE_IMAGE` in the `nginx-version-info` file, (e.g.
 `nginx:1.19.1-alpine`) and with the nginx source version specified as
-`NGINX_VERSION` in the `./nginx-version-info` file (e.g. `1.19.1`).  The
+`NGINX_VERSION` in the `nginx-version-info` file (e.g. `1.19.1`).  The
 appropriate build image must be created first using the
 [bin/docker-build.sh](bin/docker-build.sh) script if it does not exist already.
 Once the image is built, `make build-in-docker` produces the nginx module as
@@ -69,7 +72,7 @@ The C and C++ sources are built using [CMake][4].
 The build does the following:
 
 - Download a source release of nginx based on the `NGINX_VERSION` value
-  specified in `./nginx-version-info`.
+  specified in `nginx-version-info`.
 - Configure nginx's sources for build (e.g. generates platform-specific headers).
 - Initialize the source trees of `opentracing-cpp` and `dd-opentracing-cpp` as
   git submodules.
