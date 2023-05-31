@@ -34,11 +34,8 @@ tmpdir=$(mktemp -d)
 pipe="$tmpdir"/pipe
 mkfifo "$pipe"
 
-signals="$*"
-
 close() {
-    # shellcheck disable=SC2086
-    trap - $signals
+    trap - "$@"
     echo 'cya!' >"$pipe"
 }
 
@@ -46,8 +43,7 @@ block() {
     <"$pipe" read -r
 }
 
-# shellcheck disable=SC2086
-trap close $signals
+trap 'close "$@"' "$@"
 
 block &
 wait

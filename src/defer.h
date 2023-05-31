@@ -14,7 +14,8 @@
 // the enclosing function returns or throws an exception ("!"), but only if
 // `guard` has been initialized ("←").
 //
-//     int inject_config(Config* conf, const char* old_name, const char* new_name) try {
+//     int inject_config(Config* conf, const char* old_name, const char*
+//     new_name) try {
 //         if (std::strcmp(old_name, new_name) == 0) {
 //             return 0;
 //         }

@@ -10,6 +10,14 @@ function handleTraceSegments(segments) {
 }
 
 const requestListener = function (request, response) {
+  if (!request.url.endsWith('/traces')) {
+    // The agent also supports telemetry endpoints.
+    // We serve the [...]/traces endpoints only.
+    response.writeHead(404);
+    response.end();
+    return;
+  }
+
   let body = [];
   request.on('data', chunk => {
     // console.log('Received a chunk of data.');
@@ -39,7 +47,7 @@ const ignoreRequestBody = request => {
 
 const adminListener = function (request, response) {
   ignoreRequestBody(request);
-  
+
   // Token used to correlate this request with the log message that it will
   // produce.
   const token = request.headers['x-datadog-test-sync-token'];
@@ -63,7 +71,7 @@ process.on('SIGTERM', function () {
       process.exit(0);
     }
   }
-  
+
   admin.close(callback);
   server.close(callback);
 });

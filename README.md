@@ -5,14 +5,6 @@ Datadog Nginx Tracing Module
 This is the source for an nginx module that adds Datadog distributed tracing to
 nginx.  The module is called `ngx_http_datadog_module`.
 
-Status: Beta
-------------
-This module is not yet considered "generally available" and is being piloted by
-a small group of users.
-
-It will be expanded to wider use when major version `1` is released sometime
-this year.
-
 Usage
 -----
 Download a gzipped tarball from a recent release, extract it to wherever nginx

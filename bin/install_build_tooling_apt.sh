@@ -26,22 +26,19 @@ install libpcre3-dev zlib1g-dev
 apt-get update
 DEBIAN_FRONTENT=noninteractive apt-get upgrade --yes
 
-# Build a recent cmake from source.  We need at least 3.12, but ubuntu 18
-# packages 3.10.
-# Version 3.12 or newer is needed because version 3.12 added the ability to
-# associated link libraries with OBJECT targets.  OBJECT targets don't link
-# anything (they just produce .o files), but the idea is that link dependencies
-# are inherited by targets that eventually will link the produced object files.
-install libssl-dev # cmake likes to have openssl sources available
-cmake_version=3.21.1
-starting_dir=$(pwd)
-mkdir -p /tmp/build-cmake
-cd /tmp/build-cmake
-wget https://github.com/Kitware/CMake/releases/download/v$cmake_version/cmake-$cmake_version.tar.gz
-tar -xzvf cmake-$cmake_version.tar.gz
-cd cmake-$cmake_version
-./bootstrap
-make --jobs="${MAKE_JOB_COUNT:-$(nproc)}"
-make install
-cd "$starting_dir"
-rm -rf /tmp/build-cmake
+# Install a recent cmake.  We need at least 3.24 (for dd-trace-cpp),
+# but package managers tend to have an earlier version.
+# Kitware releases an installer for glibc-based Linuxen.
+CMAKE_VERSION=3.26.1
+ARCHITECTURE=$(uname -m)
+CMAKE_INSTALLER=cmake-${CMAKE_VERSION}-linux-${ARCHITECTURE}.sh
+URL=https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/${CMAKE_INSTALLER}
+
+cd /tmp
+if ! wget "${URL}"; then
+    >&2 echo "wget failed to download \"${URL}\"."
+    exit 1
+fi
+chmod +x "${CMAKE_INSTALLER}"
+./"${CMAKE_INSTALLER}" --skip-license --prefix=/usr/local --exclude-subdir
+rm "${CMAKE_INSTALLER}"

@@ -9,6 +9,7 @@ extern "C" {
 
 namespace datadog {
 namespace nginx {
+
 char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
 char *hijack_proxy_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
@@ -31,7 +32,7 @@ char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key, ngx_str_
 
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
-char *configure_tracer(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+char *json_config_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
 char *set_datadog_operation_name(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
@@ -50,6 +51,16 @@ char *datadog_enable(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcep
 char *datadog_disable(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
 char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
+char *set_datadog_service_name(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
+
+char *set_datadog_environment(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
+
+char *set_datadog_agent_url(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 
 }  // namespace nginx
 }  // namespace datadog

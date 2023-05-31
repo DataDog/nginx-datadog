@@ -1,145 +1,197 @@
 #include "tracing_library.h"
 
-#include <datadog/opentracing.h>
-#include <opentracing/tracer_factory.h>
-
-#include <opentracing/expected/expected.hpp>
-
-#include "string_util.h"
-
-extern "C" {
-#include <ngx_core.h>
-#include <ngx_log.h>
-}
+#include <datadog/dict_writer.h>
+#include <datadog/environment.h>
+#include <datadog/error.h>
+#include <datadog/expected.h>
+#include <datadog/span.h>
+#include <datadog/tracer.h>
+#include <datadog/tracer_config.h>
 
 #include <algorithm>
+#include <cassert>
+#include <datadog/json.hpp>
 #include <iterator>
-#include <memory>
-#include <mutex>
-#include <sstream>
+#include <ostream>
+
+#include "datadog_conf.h"
+#include "dd.h"
+#include "ngx_event_scheduler.h"
+#include "ngx_logger.h"
+#include "string_util.h"
 
 namespace datadog {
-namespace opentracing {
-
-// This function is defined in the `dd-opentracing-cpp` repository.
-ot::expected<TracerOptions> optionsFromConfig(const char *configuration,
-                                              std::string &error_message);
-
-// This function is defined in the `dd-opentracing-cpp` repository.
-std::vector<ot::string_view> getPropagationHeaderNames(const std::set<PropagationStyle> &styles,
-                                                       bool prioritySamplingEnabled);
-
-// This function is defined in the `dd-opentracing-cpp` repository.
-std::string getConfigurationJSON(const ot::Tracer &tracer);
-
-}  // namespace opentracing
-
 namespace nginx {
 namespace {
 
-const string_view DEFAULT_CONFIG = R"json({"service": "nginx"})json";
+const std::string_view DEFAULT_CONFIG = R"json({"service": "nginx"})json";
 
-string_view or_default(string_view config_json) {
+std::string_view or_default(std::string_view config_json) {
   if (config_json.empty()) {
     return DEFAULT_CONFIG;
   }
   return config_json;
 }
 
-// This function-like object logs to nginx's error log when invoked.  It also
-// manages a mutex to serialize access to the log.
-class NginxLogFunc {
-  // The mutex is referred to by a `shared_ptr` because the `TracerOptions`
-  // object that will contain this function can be copied.
-  std::shared_ptr<std::mutex> mutex_;
-
- public:
-  NginxLogFunc() : mutex_(std::make_shared<std::mutex>()) {}
-
-  void operator()(::datadog::opentracing::LogLevel level, string_view message) {
-    int ngx_level = NGX_LOG_STDERR;
-
-    switch (level) {
-      case ::datadog::opentracing::LogLevel::debug:
-        ngx_level = NGX_LOG_DEBUG;
-        break;
-      case ::datadog::opentracing::LogLevel::info:
-        ngx_level = NGX_LOG_INFO;
-        break;
-      case ::datadog::opentracing::LogLevel::error:
-        ngx_level = NGX_LOG_ERR;
-        break;
-    }
-
-    const ngx_str_t ngx_message = to_ngx_str(message);
-    std::lock_guard<std::mutex> guard(*mutex_);
-    ngx_log_error(ngx_level, ngx_cycle->log, 0, "datadog: %V", &ngx_message);
-  }
-};
-
 }  // namespace
 
-std::shared_ptr<ot::Tracer> TracingLibrary::make_tracer(string_view configuration,
-                                                        std::string &error) {
-  const std::string config_str = or_default(configuration);
-  auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
-  if (!maybe_options) {
-    if (error.empty()) {
-      error = "unable to parse options from config";
-    }
-    return nullptr;
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t& nginx_conf) {
+  dd::TracerConfig config;
+  config.logger = std::make_shared<NgxLogger>();
+  config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
+
+  if (!nginx_conf.propagation_styles.empty()) {
+    config.injection_styles = config.extraction_styles = nginx_conf.propagation_styles;
   }
 
-  // Use nginx's logger, instead of the default standard error.
-  maybe_options->log_func = NginxLogFunc();
-
-  return ::datadog::opentracing::makeTracer(*maybe_options);
-}
-
-std::vector<string_view> TracingLibrary::propagation_header_names(string_view configuration,
-                                                                  std::string &error) {
-  const std::string config_str = or_default(configuration);
-  auto maybe_options = ::datadog::opentracing::optionsFromConfig(config_str.c_str(), error);
-  if (!maybe_options) {
-    if (error.empty()) {
-      error = "unable to parse options from config";
-    }
-    return {};
+  if (nginx_conf.service_name) {
+    config.defaults.service = nginx_conf.service_name->value;
+  } else {
+    config.defaults.service = "nginx";
   }
 
-  const bool priority_sampling_enabled = true;
-  return ::datadog::opentracing::getPropagationHeaderNames(maybe_options->inject,
-                                                           priority_sampling_enabled);
+  if (nginx_conf.environment) {
+    config.defaults.environment = nginx_conf.environment->value;
+  }
+
+  if (nginx_conf.agent_url) {
+    config.agent.url = nginx_conf.agent_url->value;
+  }
+
+  // Set sampling rules based on any `datadog_sample_rate` directives.
+  std::vector<sampling_rule_t> rules = nginx_conf.sampling_rules;
+  // Sort by descending depth, so that rules in a `location` block come before
+  // those in a `server` block, before those in a `http` block.
+  //
+  // The sort is stable so that the relative order of rules within the same
+  // depth is preserved.
+  //
+  // Strictly speaking, we don't need this sorting, because all of the rules
+  // specify a distinct value for the "nginx.sample_rate_source" tag, and so the
+  // order in which we try the rules doesn't change the outcome.
+  // Deeper directives are more likely to match a given request, though, and
+  // so this can be thought of as an optimization.
+  const auto by_depth_descending = [](const auto& left, const auto& right) {
+    return *left.depth > *right.depth;
+  };
+  std::stable_sort(rules.begin(), rules.end(), by_depth_descending);
+  for (sampling_rule_t& rule : rules) {
+    config.trace_sampler.rules.push_back(std::move(rule.rule));
+  }
+
+  auto final_config = dd::finalize_config(config);
+  if (!final_config) {
+    return final_config.error();
+  }
+
+  return dd::Tracer(*final_config);
 }
 
-string_view TracingLibrary::propagation_header_variable_name_prefix() {
+dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_names(
+    const std::vector<dd::PropagationStyle>& configured_styles, dd::Logger& logger) {
+  std::vector<std::string_view> result;
+
+  // Create a tracer config that contains `configured_styles` (or the default
+  // styles). Then finalize the config to obtain the final styles, which might
+  // differ from `configured_styles` due to environment variables.
+  dd::TracerConfig minimal_config;
+  // A non-empty service name is required.
+  minimal_config.defaults.service = "dummy";
+  // Don't bother with a real collector.
+  minimal_config.report_traces = false;
+  // Empty `configured_styles` would mean "use the default."
+  if (!configured_styles.empty()) {
+    minimal_config.injection_styles = configured_styles;
+    minimal_config.extraction_styles = configured_styles;
+  }
+  auto finalized_config = dd::finalize_config(minimal_config);
+  if (auto* error = finalized_config.if_error()) {
+    return std::move(*error);
+  }
+
+  if (!configured_styles.empty() && configured_styles != finalized_config->injection_styles) {
+    logger.log_error([&](std::ostream& log) {
+      log << "Actual injection propagation styles differ from that specified in the nginx "
+             "configuration.  The datadog_propagation_styles directive indicated the values "
+          << dd::to_json(configured_styles)
+          << ", but after applying environment variables, the final values are instead "
+          << dd::to_json(finalized_config->injection_styles);
+    });
+  }
+
+  // See `void TraceSegment::inject(DictWriter& writer, const SpanData& span)`
+  // in dd-trace-cpp.
+  for (const auto style : finalized_config->injection_styles) {
+    switch (style) {
+      case dd::PropagationStyle::DATADOG:
+        result.push_back("x-datadog-trace-id");
+        result.push_back("x-datadog-parent-id");
+        result.push_back("x-datadog-sampling-priority");
+        result.push_back("x-datadog-origin");
+        result.push_back("x-datadog-tags");
+        break;
+      case dd::PropagationStyle::B3:
+        result.push_back("x-b3-traceid");
+        result.push_back("x-b3-spanid");
+        result.push_back("x-b3-sampled");
+        break;
+      case dd::PropagationStyle::W3C:
+        result.push_back("traceparent");
+        result.push_back("tracestate");
+        break;
+      case dd::PropagationStyle::NONE:
+        break;
+    }
+  }
+
+  return result;
+}
+
+std::string_view TracingLibrary::propagation_header_variable_name_prefix() {
   return "datadog_propagation_header_";
 }
 
-string_view TracingLibrary::environment_variable_name_prefix() { return "datadog_env_"; }
+std::string_view TracingLibrary::environment_variable_name_prefix() { return "datadog_env_"; }
 
-string_view TracingLibrary::configuration_json_variable_name() { return "datadog_config_json"; }
+std::string_view TracingLibrary::configuration_json_variable_name() {
+  return "datadog_config_json";
+}
 
-string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
+std::string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
 
-string_view TracingLibrary::proxy_directive_variable_name() { return "datadog_proxy_directive"; }
+std::string_view TracingLibrary::proxy_directive_variable_name() {
+  return "datadog_proxy_directive";
+}
 
 namespace {
 
-std::string span_property(string_view key, const ot::Span &span) {
+class SpanContextJSONWriter : public dd::DictWriter {
+  nlohmann::json output_object_;
+
+ public:
+  SpanContextJSONWriter() : output_object_(nlohmann::json::object()) {}
+
+  void set(std::string_view key, std::string_view value) override {
+    std::string normalized_key;
+    std::transform(key.begin(), key.end(), std::back_inserter(normalized_key),
+                   header_transform_char);
+    output_object_[std::move(normalized_key)] = value;
+  }
+
+  nlohmann::json& json() { return output_object_; }
+};
+
+std::string span_property(std::string_view key, const dd::Span& span) {
   const auto not_found = "-";
 
   if (key == "trace_id") {
-    return span.context().ToTraceID();
+    return std::to_string(span.trace_id().low);
   } else if (key == "span_id") {
-    return span.context().ToSpanID();
+    return std::to_string(span.id());
   } else if (key == "json") {
-    std::ostringstream carrier;
-    const auto result = span.tracer().Inject(span.context(), carrier);
-    if (!result) {
-      return not_found;
-    }
-    return carrier.str();
+    SpanContextJSONWriter writer;
+    span.inject(writer);
+    return writer.json().dump();
   }
 
   return not_found;
@@ -151,40 +203,20 @@ NginxVariableFamily TracingLibrary::span_variables() {
   return {.prefix = "datadog_", .resolve = span_property};
 }
 
-std::vector<string_view> TracingLibrary::environment_variable_names() {
-  return {// These environment variable names are taken from `tracer_options.cpp`
-          // and `tracer.cpp` in the `dd-opentracing-cpp` repository.
-          // I did `git grep '"DD_\w\+"' -- src/` in the `dd-opentracing-cpp`
-          // repository.
-          "DD_AGENT_HOST",
-          "DD_ENV",
-          "DD_PROPAGATION_STYLE_EXTRACT",
-          "DD_PROPAGATION_STYLE_INJECT",
-          "DD_SERVICE",
-          "DD_TAGS",
-          "DD_TRACE_AGENT_PORT",
-          "DD_TRACE_AGENT_URL",
-          "DD_TRACE_ANALYTICS_ENABLED",
-          "DD_TRACE_ANALYTICS_SAMPLE_RATE",
-          "DD_TRACE_CPP_LEGACY_OBFUSCATION",
-          "DD_TRACE_DEBUG",
-          "DD_TRACE_ENABLED",
-          "DD_TRACE_RATE_LIMIT",
-          "DD_TRACE_REPORT_HOSTNAME",
-          "DD_TRACE_SAMPLE_RATE",
-          "DD_TRACE_SAMPLING_RULES",
-          "DD_TRACE_STARTUP_LOGS",
-          "DD_TRACE_TAGS_PROPAGATION_MAX_LENGTH",
-          "DD_VERSION"};
+std::vector<std::string_view> TracingLibrary::environment_variable_names() {
+  return std::vector<std::string_view>{std::begin(dd::environment::variable_names),
+                                       std::end(dd::environment::variable_names)};
 }
 
-string_view TracingLibrary::default_request_operation_name_pattern() { return "nginx.request"; }
+std::string_view TracingLibrary::default_request_operation_name_pattern() {
+  return "nginx.request";
+}
 
-string_view TracingLibrary::default_location_operation_name_pattern() {
+std::string_view TracingLibrary::default_location_operation_name_pattern() {
   return "nginx.$datadog_proxy_directive";
 }
 
-std::unordered_map<string_view, string_view> TracingLibrary::default_tags() {
+std::unordered_map<std::string_view, std::string_view> TracingLibrary::default_tags() {
   return {
       // originally defined by nginx-opentracing
       {"component", "nginx"},
@@ -201,16 +233,11 @@ std::unordered_map<string_view, string_view> TracingLibrary::default_tags() {
       {"nginx.location", "$datadog_location"}};
 }
 
-string_view TracingLibrary::default_resource_name_pattern() { return "$request_method $uri"; }
+std::string_view TracingLibrary::default_resource_name_pattern() { return "$request_method $uri"; }
 
 bool TracingLibrary::tracing_on_by_default() { return true; }
 
 bool TracingLibrary::trace_locations_by_default() { return false; }
-
-std::string TracingLibrary::configuration_json(const ot::Tracer &tracer) {
-  const bool with_timestamp = false;
-  return datadog::opentracing::toJSON(datadog::opentracing::getOptions(tracer), with_timestamp);
-}
 
 }  // namespace nginx
 }  // namespace datadog

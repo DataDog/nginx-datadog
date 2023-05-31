@@ -19,6 +19,15 @@ const requestListener = function (request, response) {
     "headers": request.headers
   }, null, 2);
   console.log(responseBody);
+
+  // "[...]/status/<code>" makes us respond with status <code>.
+  let status = 200;
+  const match = request.url.match(/.*\/status\/([0-9]+)$/);
+  if (match  !== null) {
+    const [full, statusString] = match;
+    status = Number.parseInt(statusString, 10);
+  }
+  response.writeHead(status);
   response.end(responseBody);
 }
 

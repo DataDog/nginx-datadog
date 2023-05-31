@@ -47,6 +47,8 @@ class TestAccessLog(case.TestCase):
                 continue
             lexemes = shlex.split(line)
             self.assertEqual(13, len(lexemes), lexemes)
+            if not lexemes[5].startswith('GET /http'):
+                continue  # not the /http request
             self.assertEqual(trace_id, lexemes[11], lexemes)
             self.assertEqual(span_id, lexemes[12], lexemes)
             found_it = True

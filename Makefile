@@ -13,25 +13,16 @@ build: build-deps nginx/objs/Makefile sources
 	@echo 'build successful 👍'
 
 .PHONY: sources
-sources: dd-opentracing-cpp/.git opentracing-cpp/.git nginx/
+sources: dd-trace-cpp/.git nginx/
 
 .PHONY: build-deps
-build-deps: sources dd-opentracing-cpp-deps
+build-deps: sources dd-trace-cpp-deps
 
-dd-opentracing-cpp/.git opentracing-cpp/.git:
+dd-trace-cpp/.git:
 	git submodule update --init --recursive
 
-dd-opentracing-cpp/scripts/install_dependencies.sh: dd-opentracing-cpp/.git
-
-.PHONY: dd-opentracing-cpp-deps
-dd-opentracing-cpp-deps: dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack dd-opentracing-cpp/.git
-
-dd-opentracing-cpp/deps/include/curl dd-opentracing-cpp/deps/include/msgpack: dd-opentracing-cpp/scripts/install_dependencies.sh
-	ls -lrt
-	ls -lrt dd-opentracing-cpp
-	ls -lrt dd-opentracing-cpp/scripts
-	cd dd-opentracing-cpp && ls ./scripts && ./scripts/install_dependencies.sh not-opentracing
-	touch $@
+.PHONY: dd-trace-cpp-deps
+dd-trace-cpp-deps: dd-trace-cpp/.git
 
 nginx/objs/Makefile: nginx/ module/config
 	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat
@@ -50,14 +41,14 @@ nginx/: nginx-version-info
 nginx-version-info:
 	$(error The file "nginx-version-info" must be present and contain definitions for NGINX_VERSION and BASE_IMAGE")
 
-dd-opentracing-cpp/.clang-format: dd-opentracing-cpp/.git
+dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 
-.clang-format: dd-opentracing-cpp/.clang-format
+.clang-format: dd-trace-cpp/.clang-format
 	cp $< $@
 
 .PHONY: format
 format: .clang-format
-	find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -not \( -name 'json.h' -o -name 'json.cpp' \) -print0 | xargs -0 clang-format-14 -i --style=file
+	find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -print0 | xargs -0 clang-format-14 -i --style=file
 	find bin/ -type f -name '*.py' -print0 | xargs -0 yapf3 -i
 	test/bin/format
 
@@ -70,8 +61,7 @@ clean:
 .PHONY: clobber
 clobber: clean
 	rm -rf \
-	    nginx \
-		dd-opentracing-cpp/deps
+	    nginx
 
 .PHONY: build-in-docker
 build-in-docker: sources
@@ -86,3 +76,8 @@ test: build-in-docker
 test-parallel: build-in-docker
 	cp .docker-build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
 	test/bin/run_parallel $(TEST_ARGS)
+
+.PHONY: lab
+lab: build-in-docker
+	cp .docker-build/libngx_http_datadog_module.so lab/services/nginx/ngx_http_datadog_module.so
+	lab/bin/run $(TEST_ARGS)

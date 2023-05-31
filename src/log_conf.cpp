@@ -1,11 +1,13 @@
 #include "log_conf.h"
 
+#include <cassert>
+#include <string_view>
+
 #include "datadog_conf.h"
 #include "datadog_conf_handler.h"
 #include "defer.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
-#include "string_view.h"
 
 namespace datadog {
 namespace nginx {
@@ -50,9 +52,9 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
        R"json({"remote_addr": "$remote_addr", "forwarded_user": "$http_x_forwarded_user", "time_local": "$time_local", "request": "$request", "status": $status, "body_bytes_sent": $body_bytes_sent, "referer": "$http_referer", "user_agent": "$http_user_agent", "forwarded_for": "$http_x_forwarded_for", "trace_id": "$datadog_trace_id", "span_id": "$datadog_span_id"})json"}};
 
   for (const auto &format : formats) {
-    args[1] = to_ngx_str(string_view(format.name));
-    args[2] = to_ngx_str(string_view(format.escaping_style));
-    args[3] = to_ngx_str(string_view(format.format));
+    args[1] = to_ngx_str(std::string_view(format.name));
+    args[2] = to_ngx_str(std::string_view(format.escaping_style));
+    args[3] = to_ngx_str(std::string_view(format.format));
     if (auto rcode = datadog_conf_handler({.conf = conf, .skip_this_module = true})) {
       return rcode;
     }

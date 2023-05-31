@@ -2294,28 +2294,6 @@ workflows:
           branches:
             ignore: /.*/
     - build:
-        name: "build on nginx:1.17.1"
-        base-image: "nginx:1.17.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.1"
-        nginx-version: "1.17.1"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
-    - test:
-        name: "test on nginx:1.17.1"
-        base-image: "nginx:1.17.1"
-        nginx-modules-path: "/usr/lib/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on nginx:1.17.1"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
-    - build:
         name: "build on nginx:1.17.0-alpine"
         base-image: "nginx:1.17.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.0-alpine"
@@ -2332,28 +2310,6 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.17.0-alpine"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
-    - build:
-        name: "build on nginx:1.17.0"
-        base-image: "nginx:1.17.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.17.0"
-        nginx-version: "1.17.0"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
-    - test:
-        name: "test on nginx:1.17.0"
-        base-image: "nginx:1.17.0"
-        nginx-modules-path: "/usr/lib/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on nginx:1.17.0"
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
@@ -2420,50 +2376,6 @@ workflows:
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
         - "build on nginx:1.16.0-alpine"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
-    - build:
-        name: "build on nginx:1.16.0"
-        base-image: "nginx:1.16.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.16.0"
-        nginx-version: "1.16.0"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
-    - test:
-        name: "test on nginx:1.16.0"
-        base-image: "nginx:1.16.0"
-        nginx-modules-path: "/usr/lib/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on nginx:1.16.0"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
-    - build:
-        name: "build on nginx:1.14.1"
-        base-image: "nginx:1.14.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.14.1"
-        nginx-version: "1.14.1"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-          branches:
-            ignore: /.*/
-    - test:
-        name: "test on nginx:1.14.1"
-        base-image: "nginx:1.14.1"
-        nginx-modules-path: "/usr/lib/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on nginx:1.14.1"
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/

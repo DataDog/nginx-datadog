@@ -1,11 +1,10 @@
 #include "ngx_http_datadog_module.h"
 
-#include <opentracing/dynamic_load.h>
-
 #include <cstdlib>
 #include <exception>
 #include <iterator>
-#include <string>
+#include <new>
+#include <string_view>
 #include <utility>
 
 #include "datadog_conf.h"
@@ -13,12 +12,11 @@
 #include "datadog_directive.h"
 #include "datadog_handler.h"
 #include "datadog_variable.h"
+#include "dd.h"
 #include "defer.h"
-#include "load_tracer.h"
+#include "global_tracer.h"
 #include "log_conf.h"
-#include "ot.h"
 #include "string_util.h"
-#include "string_view.h"
 #include "tracing_library.h"
 
 extern "C" {
@@ -58,12 +56,17 @@ using namespace datadog::nginx;
 // There are two sets of places Datadog commands can appear: either "anywhere,"
 // or "anywhere but in the main section."  `anywhere` and `anywhere_but_main`
 // are respective shorthands.
+// Also, this definition of "anywhere" excludes "if" blocks. "if" blocks
+// do not behave as many users expect, and it might be a technical liability to
+// support them. See
+// <https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/>
+// and <http://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if>
+// and <http://agentzh.blogspot.com/2011/03/how-nginx-location-if-works.html>.
+//
 // clang-format off
 static ngx_uint_t anywhere_but_main =
-    NGX_HTTP_SRV_CONF  // an `http` block
-  | NGX_HTTP_SIF_CONF    // an `if` block within an `http` block
-  | NGX_HTTP_LOC_CONF  // a `location` block (within an `http` block)
-  | NGX_HTTP_LIF_CONF;    // an `if` block within a `location` block (within an `http` block)
+    NGX_HTTP_SRV_CONF   // an `http` block
+  | NGX_HTTP_LOC_CONF;  // a `location` block (within an `http` block)
 
 static ngx_uint_t anywhere =
     anywhere_but_main
@@ -224,8 +227,44 @@ static ngx_command_t datadog_commands[] = {
 
     { ngx_string("datadog"),
       NGX_MAIN_CONF | NGX_HTTP_MAIN_CONF | NGX_CONF_NOARGS | NGX_CONF_BLOCK,
-      configure_tracer,
+      json_config_deprecated,
       NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_sample_rate"),
+      // NGX_CONF_TAKE12 means "take 1 or 2 args," not "take 12 args."
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
+      set_datadog_sample_rate,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_propagation_styles"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_1MORE,
+      set_datadog_propagation_styles,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_service_name"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      set_datadog_service_name,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_environment"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      set_datadog_environment,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_agent_url"),
+      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      set_datadog_agent_url,
+      NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       nullptr},
 
@@ -262,7 +301,52 @@ ngx_module_t ngx_http_datadog_module = {
 };
 // clang-format on
 
+// Configure nginx to set the environment variable as indicated by the
+// specified `entry` in the context of the specified `cycle`.  `entry` is a
+// string in one of the following forms:
+//
+// 1. "FOO"
+// 2. "FOO=value"
+//
+// The environment variable name in this example is "FOO".  In the case of the
+// first form, the value of the environment variable will be inherited from the
+// parent process.  In the case of the second form, the value of the
+// environment variable will be as specified after the equal sign.
+//
+// Note that `ngx_set_env` is adapted from the function of the same name in
+// `nginx.c` within the nginx source code.
+static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
+  ngx_core_conf_t *ccf = (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+
+  ngx_str_t *value, *var;
+  ngx_uint_t i;
+
+  var = (ngx_str_t *)ngx_array_push(&ccf->env);
+  if (var == NULL) {
+    return NGX_CONF_ERROR;
+  }
+
+  const ngx_str_t entry_str = to_ngx_str(entry);
+  *var = entry_str;
+
+  for (i = 0; i < var->len; i++) {
+    if (var->data[i] == '=') {
+      var->len = i;
+      return NGX_CONF_OK;
+    }
+  }
+
+  return NGX_CONF_OK;
+}
+
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
+  // Forward tracer-specific environment variables to worker processes.
+  for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
+    if (const void *const error = ngx_set_env(env_var_name, cycle)) {
+      return ngx_int_t(error);
+    }
+  }
+
   // If tracing has not so far been configured, then give it a default
   // configuration.  This means that the nginx configuration did not use the
   // `datadog` directive, and did not use any overridden directives, such as
@@ -273,11 +357,6 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
   if (main_conf == nullptr) {
     // no config, no behavior
     return NGX_OK;
-  }
-
-  if (!main_conf->is_tracer_configured) {
-    main_conf->is_tracer_configured = true;
-    main_conf->tracer_conf = ngx_string("");  // default config
   }
 
   // Forward tracer-specific environment variables to worker processes.
@@ -333,21 +412,18 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
 static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
-  if (!main_conf || !main_conf->is_tracer_configured) {
+  if (!main_conf) {
     return NGX_OK;
   }
 
-  for (const auto &entry : main_conf->environment_variables) {
-    const bool overwrite = false;
-    ::setenv(entry.name.c_str(), entry.value.c_str(), overwrite);
-  }
-
-  std::shared_ptr<ot::Tracer> tracer = load_tracer(cycle->log, str(main_conf->tracer_conf));
-  if (!tracer) {
+  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf);
+  if (auto *error = maybe_tracer.if_error()) {
+    ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "Failed to construct tracer: [error code %d] %s",
+                  int(error->code), error->message.c_str());
     return NGX_ERROR;
   }
 
-  ot::Tracer::InitGlobal(std::move(tracer));
+  reset_global_tracer(std::move(*maybe_tracer));
   return NGX_OK;
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s", e.what());
@@ -355,24 +431,47 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 }
 
 static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
-  // If the `ot::Tracer` singleton has been set (in `datadog_init_worker`),
-  // `Close` it and destroy it (technically, reduce its reference count).
-  auto tracer = ot::Tracer::InitGlobal(nullptr);
-  if (tracer != nullptr) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, cycle->log, 0, "closing Datadog tracer");
-    tracer->Close();
+  // If the `dd::Tracer` singleton has been set (in `datadog_init_worker`),
+  // destroy it.
+  reset_global_tracer();
+}
+
+// `register_destructor` allows us to have C++-allocated objects in the
+// configuration. To avoid a leak, the C++ destructor must eventually be
+// invoked. We do this in a memory pool cleanup handler.
+// Return zero on success, or return a nonzero value if an error occurs.
+template <typename Config>
+static int register_destructor(ngx_pool_t *pool, Config *config) {
+  ngx_pool_cleanup_t *cleanup = ngx_pool_cleanup_add(pool, 0);
+  if (cleanup == nullptr) {
+    return 1;
   }
+
+  cleanup->data = config;
+  cleanup->handler = static_cast<void (*)(void *)>([](void *data) {
+    auto config = static_cast<Config *>(data);
+    // `pool` is responsible for freeing the memory at `config`, but we want
+    // to clean up any `std::string`, etc., not managed by `pool`. So, we call
+    // the destructor here without `delete`, because the memory will later be
+    // freed by `pool`.
+    config->~Config();
+  });
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------
 // create_datadog_main_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
-  auto main_conf =
-      static_cast<datadog_main_conf_t *>(ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t)));
-  // Default initialize members.
-  if (main_conf) {
-    *main_conf = datadog_main_conf_t();
+  void *memory = ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t));
+  if (memory == nullptr) {
+    return nullptr;  // error
+  }
+
+  auto main_conf = new (memory) datadog_main_conf_t{};
+  if (register_destructor(conf->pool, main_conf)) {
+    return nullptr;  // error
   }
   return main_conf;
 }
@@ -396,9 +495,15 @@ static bool is_server_block_begin(const ngx_conf_t *conf) {
 // create_datadog_loc_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
-  auto loc_conf =
-      static_cast<datadog_loc_conf_t *>(ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t)));
-  if (!loc_conf) return nullptr;
+  void *memory = ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t));
+  if (memory == nullptr) {
+    return nullptr;  // error
+  }
+
+  auto loc_conf = new (memory) datadog_loc_conf_t{};
+  if (register_destructor(conf->pool, loc_conf)) {
+    return nullptr;  // error
+  }
 
   // Trace ID and span ID are automatically added to the access log by altering
   // the default log format to be one defined by this module.  We need to
@@ -408,18 +513,14 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   // is actually a `server` block.  That allows us to insert `log_format`
   // directives _before_ the `server` block (and thus directly within the
   // `http` block).  It's _before_ because this function is not a configuration
-  // block handler, is a configuration context constructor that is called
-  // before the handler, so we're still currently "outside" the `server` block,
+  // block handler, but is a configuration context constructor that is called
+  // before the handler. So, we're still currently "outside" the `server` block,
   // within the `http` block, which is the only place `log_format` is allowed.
   if (is_server_block_begin(conf)) {
     if (inject_datadog_log_formats(conf)) {
       return nullptr;  // error
     }
   }
-
-  loc_conf->enable = NGX_CONF_UNSET;
-  loc_conf->enable_locations = NGX_CONF_UNSET;
-  loc_conf->trust_incoming_span = NGX_CONF_UNSET;
 
   return loc_conf;
 }
@@ -432,7 +533,7 @@ namespace {
 // the specified `default_pattern` will be used.  Return `NGX_CONF_OK` on
 // success, or another value otherwise.
 char *merge_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
-                   ot::string_view default_pattern) {
+                   std::string_view default_pattern) {
   if (current.is_valid()) {
     return NGX_CONF_OK;
   }
@@ -456,6 +557,9 @@ char *merge_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
 static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) noexcept {
   auto prev = static_cast<datadog_loc_conf_t *>(parent);
   auto conf = static_cast<datadog_loc_conf_t *>(child);
+
+  conf->parent = prev;
+  conf->depth = prev->depth + 1;
 
   ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,

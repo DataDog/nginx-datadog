@@ -3,16 +3,14 @@
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
 
+#include "dd.h"
 #include "ngx_http_datadog_module.h"
-#include "ot.h"
 #include "string_util.h"
-#include "string_view.h"
 
 namespace datadog {
 namespace nginx {
-std::unique_ptr<ot::SpanContext> extract_span_context(const ot::Tracer &tracer,
-                                                      const ngx_http_request_t *request);
 
 DatadogContext::DatadogContext(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
@@ -28,8 +26,9 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
     return trace->on_change_block(core_loc_conf, loc_conf);
   }
 
-  // This is a new subrequest so add a RequestTracing for it.
-  traces_.emplace_back(request, core_loc_conf, loc_conf, &traces_[0].context());
+  // This is a new subrequest, so add a RequestTracing for it.
+  // TODO: Should `active_span` be `request_span` instead?
+  traces_.emplace_back(request, core_loc_conf, loc_conf, &traces_[0].active_span());
 }
 
 void DatadogContext::on_log_request(ngx_http_request_t *request) {
@@ -41,17 +40,18 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
 }
 
 ngx_str_t DatadogContext::lookup_propagation_header_variable_value(ngx_http_request_t *request,
-                                                                   string_view key) {
+                                                                   std::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
-        "lookup_propagation_header_variable_value failed: could not find request trace"};
+        "lookup_propagation_header_variable_value failed: could not find "
+        "request trace"};
   }
   return trace->lookup_propagation_header_variable_value(key);
 }
 
 ngx_str_t DatadogContext::lookup_span_variable_value(ngx_http_request_t *request,
-                                                     string_view key) {
+                                                     std::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{"lookup_span_variable_value failed: could not find request trace"};

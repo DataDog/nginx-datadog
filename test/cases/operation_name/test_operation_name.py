@@ -32,8 +32,10 @@ class TestOperationName(case.TestCase):
         def on_chunk(chunk):
             first, *rest = chunk
             self.assertEqual(1, len(rest), chunk)
-            self.assertEqual('nginx.proxy_pass', first['name'], chunk)
-            self.assertEqual('nginx.request', rest[0]['name'], chunk)
+            # We assume that the request span comes first, because it starts
+            # first.
+            self.assertEqual('nginx.request', first['name'], chunk)
+            self.assertEqual('nginx.proxy_pass', rest[0]['name'], chunk)
 
         return self.run_operation_name_test('./conf/default_in_location.conf',
                                             on_chunk)
@@ -88,11 +90,10 @@ class TestOperationName(case.TestCase):
         """
 
         def on_chunk(chunk):
-            first, *rest = chunk
-            self.assertEqual(1, len(rest), chunk)
-            # We assume that the location span comes first, because it finishes
-            # first.
-            self.assertEqual('go GET em /foo', first['name'], chunk)
+            self.assertEqual(2, len(chunk), chunk)
+            # We assume that the location span comes second, because it starts
+            # second.
+            self.assertEqual('go GET em /foo', chunk[1]['name'], chunk)
 
         return self.run_operation_name_test(
             './conf/manual_in_location_at_location.conf', on_chunk)
@@ -105,11 +106,10 @@ class TestOperationName(case.TestCase):
         """
 
         def on_chunk(chunk):
-            first, *rest = chunk
-            self.assertEqual(1, len(rest), chunk)
-            # We assume that the location span comes first, because it finishes
-            # first.
-            self.assertEqual('go GET em /foo', first['name'], chunk)
+            self.assertEqual(2, len(chunk), chunk)
+            # We assume that the location span comes second, because it starts
+            # second.
+            self.assertEqual('go GET em /foo', chunk[1]['name'], chunk)
 
         return self.run_operation_name_test(
             './conf/manual_in_location_at_server.conf', on_chunk)
@@ -122,11 +122,10 @@ class TestOperationName(case.TestCase):
         """
 
         def on_chunk(chunk):
-            first, *rest = chunk
-            self.assertEqual(1, len(rest), chunk)
-            # We assume that the location span comes first, because it finishes
-            # first.
-            self.assertEqual('go GET em /foo', first['name'], chunk)
+            self.assertEqual(2, len(chunk), chunk)
+            # We assume that the location span comes second, because it starts
+            # second.
+            self.assertEqual('go GET em /foo', chunk[1]['name'], chunk)
 
         return self.run_operation_name_test(
             './conf/manual_in_location_at_http.conf', on_chunk)
