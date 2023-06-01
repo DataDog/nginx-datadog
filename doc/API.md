@@ -405,6 +405,4 @@ context to be propagated to a service via `proxy_pass`.
 This family of variables is used in the implementation of the Datadog nginx
 module.
 
-[1]: https://github.com/DataDog/dd-opentracing-cpp/blob/master/doc/configuration.md
 [2]: https://nginx.org/en/docs/varindex.html
-[3]: https://docs.datadoghq.com/tracing/services/services_list/#services-types
