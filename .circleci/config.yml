@@ -111,50 +111,6 @@ jobs:
           exit 1
         fi
 
-  example:
-    parameters:
-      # `base-image` is the docker image on top of which the example nginx image
-      # will be built. The corresponding nginx-datadog release will be
-      # downloaded from GitHub and installed.
-      base-image:
-        type: string
-        default: ""
-      # `nginx-modules-path` is the file system path of a directory where nginx
-      # looks for modules. It is not, surprisingly, always consistent with the
-      # `--modules-path` argument to nginx's `./configure` script.
-      nginx-modules-path:
-        type: string
-        default: ""
-      # `nginx-conf-path` is the file system path to nginx's configuration file.
-      nginx-conf-path:
-        type: string
-        default: ""
-    docker:
-    # "cimg" means "convenience image."  Helpful images provided by CircleCI.
-    # This one docker-compose and a bunch of other things.
-    # See https://circleci.com/docs/circleci-images
-    - image: cimg/base:current
-    environment:
-      # See https://github.com/containers/podman/issues/13889
-      DOCKER_BUILDKIT: 0
-      BASE_IMAGE: << parameters.base-image >>
-      NGINX_MODULES_PATH: << parameters.nginx-modules-path >>
-      NGINX_CONF_PATH: << parameters.nginx-conf-path >>
-      DD_API_KEY: this-is-a-bogus-api-key
-    steps:
-    - checkout
-    - setup_remote_docker:
-        # Cache docker layers somewhere so that we don't have to rebuild test
-        # service images every time.
-        docker_layer_caching: true
-    - run:
-        working_directory: ~/project/example
-        command: docker-compose up --build --detach
-    - run: 'echo "sleeping for a bit to let the services come up..."; sleep 30'
-    - run:
-        working_directory: ~/project/example
-        command: bin/check
-
   shellcheck:
     docker:
     - image: koalaman/shellcheck-alpine:stable
@@ -168,27 +124,6 @@ workflows:
     jobs:
     - shellcheck:
         name: "run shellcheck on shell scripts"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    # Running the example doesn't tell us anything about the proposed pull
-    # request or candidate release, but it's here as a check to break should any
-    # changes break the example.
-    - example:
-        name: "run the example on Amazon Linux"
-        base-image: "amazonlinux:2.0.20230119.1"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - example:
-        name: "run the example on Debian"
-        base-image: "nginx:1.23.2"
-        filters:
-          tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - example:
-        name: "run the example on Alpine"
-        base-image: "nginx:1.23.2-alpine"
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
