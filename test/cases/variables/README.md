@@ -5,5 +5,5 @@ configuration.
 - `$datadog_trace_id` is the trace ID of the current request.
 - `$datadog_span_id` is the span ID of the current request.
 - `$datadog_json` is a JSON object containing trace context propagation
-  information.  See `Tracer::Inject(const ot::SpanContext&, std::ostream&)` in
-  `dd-opentracing-cpp/src/tracer.cpp`.
+  information.  See `void TraceSegment::inject(DictWriter& writer, const SpanData& span)`
+  in `dd-trace-cpp/src/datadog/trace_segment.cpp`.

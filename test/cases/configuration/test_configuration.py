@@ -14,7 +14,7 @@ class TestConfiguration(case.TestCase):
         if self.default_config is not None:
             return self.default_config
 
-        conf_path = Path(__file__).parent / './conf/vanilla.conf'
+        conf_path = Path(__file__).parent / 'conf' / 'vanilla.conf'
         conf_text = conf_path.read_text()
 
         status, log_lines = self.orch.nginx_replace_config(
@@ -32,8 +32,8 @@ class TestConfiguration(case.TestCase):
         # implied.
         self.get_default_config()
 
-    def run_explicit_config_test(self, conf_relative_path):
-        conf_path = Path(__file__).parent / conf_relative_path
+    def test_in_http(self):
+        conf_path = Path(__file__).parent / 'conf' / 'in_http.conf'
         conf_text = conf_path.read_text()
 
         status, log_lines = self.orch.nginx_replace_config(
@@ -44,37 +44,97 @@ class TestConfiguration(case.TestCase):
         self.assertEqual(200, status)
 
         config = json.loads(body)
-        expected = {**self.get_default_config(), "tags": {"foo": "bar"}}
+        expected = self.get_default_config()
+        # See conf/in_http.conf, which contains the following:
+        #
+        #     datadog_service_name foosvc;
+        #     datadog_environment fooment;
+        #     datadog_agent_url http://bogus:1234;
+        #     datadog_propagation_styles B3 Datadog;
+        expected['defaults']['service'] = 'foosvc'
+        expected['defaults']['environment'] = 'fooment'
+        expected['collector']['config'][
+            'url'] = 'http://bogus:1234/v0.4/traces'
+        styles = ['B3', 'Datadog']
+        expected['injection_styles'] = styles
+        expected['extraction_styles'] = styles
+
         self.assertEqual(config, expected)
 
-    def test_explicit_in_http(self):
-        return self.run_explicit_config_test('./conf/explicit_in_http.conf')
-
-    def run_wrong_block_error_test(self, conf_relative_path):
+    def run_error_test(self, conf_relative_path, diagnostic_excerpt):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
 
         status, log_lines = self.orch.nginx_test_config(
             conf_text, conf_path.name)
         self.assertNotEqual(0, status)
-        excerpt = '"datadog" directive is not allowed here'
-        self.assertTrue(any(excerpt in line for line in log_lines), log_lines)
+        self.assertTrue(any(diagnostic_excerpt in line for line in log_lines),
+                        log_lines)
 
-    def test_error_in_server(self):
-        return self.run_wrong_block_error_test('./conf/error_in_server.conf')
+    def test_duplicate_service_name(self):
+        self.run_error_test(
+            conf_relative_path='./conf/duplicate/service_name.conf',
+            diagnostic_excerpt='Duplicate call to "datadog_service_name"')
 
-    def test_error_in_main(self):
-        return self.run_wrong_block_error_test('./conf/error_in_main.conf')
+    def test_duplicate_environment(self):
+        self.run_error_test(
+            conf_relative_path='./conf/duplicate/environment.conf',
+            diagnostic_excerpt='Duplicate call to "datadog_environment"')
 
-    def test_duplicate_ok(self):
-        return self.run_explicit_config_test('./conf/duplicate_ok.conf')
+    def test_duplicate_agent_url(self):
+        self.run_error_test(
+            conf_relative_path='./conf/duplicate/agent_url.conf',
+            diagnostic_excerpt='Duplicate call to "datadog_agent_url"')
 
-    def test_duplicate_error(self):
-        conf_path = Path(__file__).parent / './conf/duplicate_error.conf'
+    def test_duplicate_propagation_styles(self):
+        self.run_error_test(
+            conf_relative_path='./conf/duplicate/propagation_styles.conf',
+            diagnostic_excerpt=
+            'Datadog propagation styles are already configured.')
+
+    def test_propagation_styles_error(self):
+        return self.run_error_test(
+            conf_relative_path='./conf/propagation_styles_error.conf',
+            diagnostic_excerpt=
+            'Datadog propagation styles are already configured.')
+
+    def run_wrong_block_test(self, conf_relative_path):
+        conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
 
         status, log_lines = self.orch.nginx_test_config(
             conf_text, conf_path.name)
         self.assertNotEqual(0, status)
-        excerpt = 'Datadog tracing is already configured.  It was default-configured by the call to "proxy_pass"'
+        excerpt = 'directive is not allowed here'
         self.assertTrue(any(excerpt in line for line in log_lines), log_lines)
+
+    def test_error_in_main_service_name(self):
+        return self.run_wrong_block_test(
+            './conf/error_in_main/service_name.conf')
+
+    def test_error_in_main_environment(self):
+        return self.run_wrong_block_test(
+            './conf/error_in_main/environment.conf')
+
+    def test_error_in_main_agent_url(self):
+        return self.run_wrong_block_test('./conf/error_in_main/agent_url.conf')
+
+    def test_error_in_main_propagation_styles(self):
+        return self.run_wrong_block_test(
+            './conf/error_in_main/propagation_styles.conf')
+
+    def test_error_in_server_service_name(self):
+        return self.run_wrong_block_test(
+            './conf/error_in_server/service_name.conf')
+
+    def test_error_in_server_environment(self):
+        return self.run_wrong_block_test(
+            './conf/error_in_server/environment.conf')
+
+    def test_error_in_server_agent_url(self):
+        return self.run_wrong_block_test(
+            './conf/error_in_server/agent_url.conf')
+
+    def test_error_in_server_propagation_styles(self):
+        return self.run_wrong_block_test(
+            './conf/error_in_server/propagation_styles.conf')

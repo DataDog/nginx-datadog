@@ -87,11 +87,10 @@ class TestResourceName(case.TestCase):
         """
 
         def on_chunk(chunk):
-            first, *rest = chunk
-            self.assertEqual(1, len(rest), chunk)
-            # We assume that the location span comes first, because it finishes
-            # first.
-            self.assertEqual('fuzzy.pumpkin', first['resource'], chunk)
+            self.assertEqual(2, len(chunk), chunk)
+            # We assume that the location span comes second, because it starts
+            # second.
+            self.assertEqual('fuzzy.pumpkin', chunk[1]['resource'], chunk)
 
         return self.run_resource_name_test(
             './conf/manual_in_location_at_location.conf', on_chunk)
@@ -104,11 +103,10 @@ class TestResourceName(case.TestCase):
         """
 
         def on_chunk(chunk):
-            first, *rest = chunk
-            self.assertEqual(1, len(rest), chunk)
-            # We assume that the location span comes first, because it finishes
-            # first.
-            self.assertEqual('fuzzy.pumpkin', first['resource'], chunk)
+            self.assertEqual(2, len(chunk), chunk)
+            # We assume that the location span comes second, because it starts
+            # second.
+            self.assertEqual('fuzzy.pumpkin', chunk[1]['resource'], chunk)
 
         return self.run_resource_name_test(
             './conf/manual_in_location_at_server.conf', on_chunk)
@@ -121,11 +119,10 @@ class TestResourceName(case.TestCase):
         """
 
         def on_chunk(chunk):
-            first, *rest = chunk
-            self.assertEqual(1, len(rest), chunk)
-            # We assume that the location span comes first, because it finishes
-            # first.
-            self.assertEqual('fuzzy.pumpkin', first['resource'], chunk)
+            self.assertEqual(2, len(chunk), chunk)
+            # We assume that the location span comes second, because it starts
+            # second.
+            self.assertEqual('fuzzy.pumpkin', chunk[1]['resource'], chunk)
 
         return self.run_resource_name_test(
             './conf/manual_in_location_at_http.conf', on_chunk)

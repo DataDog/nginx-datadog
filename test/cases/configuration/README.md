@@ -1,16 +1,14 @@
 These tests verify that the user can configure the Datadog module using the
-`datadog` configuration directive, and that if they don't, a suitable default
-configuration is chosen.
+`datadog_*` configuration directives, and that if they don't, a suitable default
+options are chosen.
 
-There are three classes of configuration scenarios:
+The following behaviors are tested:
 
-1. The user explicitly configured tracing using the `datadog` directive.
-2. The user implicitly configured tracing by using a directive that is
-   overridden by the Datadog module, such as `proxy_pass`.
-3. The user implicitly configured tracing _without_ using any overridden
-   directives.  This is probably rare, but it is what would happen if nginx's
-   default configuration had the Datadog module added to it (i.e. a static
-   content server). 
+- Certain `datadog_*` directives are allowed as direct children in the `http`
+  block only.
+- Said directives must appear at most once.
+- Omitting said directives results in default values.
+- `datadog_propagation_styles`, if present, must precede any `*_pass` directives.
 
 These tests make use of the `$datadog_config_json` nginx variable to inspect
 the tracer configuration that results from the nginx configuration.

@@ -5,14 +5,6 @@ Datadog Nginx Tracing Module
 This is the source for an nginx module that adds Datadog distributed tracing to
 nginx.  The module is called `ngx_http_datadog_module`.
 
-Status: Beta
-------------
-This module is not yet considered "generally available" and is being piloted by
-a small group of users.
-
-It will be expanded to wider use when major version `1` is released sometime
-this year.
-
 Usage
 -----
 Download a gzipped tarball from a recent release, extract it to wherever nginx
@@ -62,11 +54,14 @@ Its default target, `build`, builds the Datadog nginx module and its
 dependencies.  The resulting nginx module is
 `.build/libngx_http_datadog_module.so`.
 
+The file `nginx-version-info` is required by the build.  See
+[nginx-version-info.example](nginx-version-info.example).
+
 Another target, `build-in-docker`, builds the Datadog nginx module and its
 dependencies in a [Docker][2] container compatible with the DockerHub image
-specified as `BASE_IMAGE` in the `./nginx-version-info` file, (e.g.
+specified as `BASE_IMAGE` in the `nginx-version-info` file, (e.g.
 `nginx:1.19.1-alpine`) and with the nginx source version specified as
-`NGINX_VERSION` in the `./nginx-version-info` file (e.g. `1.19.1`).  The
+`NGINX_VERSION` in the `nginx-version-info` file (e.g. `1.19.1`).  The
 appropriate build image must be created first using the
 [bin/docker_build.sh](bin/docker_build.sh) script if it does not exist already.
 Once the image is built, `make build-in-docker` produces the nginx module as
@@ -77,13 +72,11 @@ The C and C++ sources are built using [CMake][4].
 The build does the following:
 
 - Download a source release of nginx based on the `NGINX_VERSION` value
-  specified in `./nginx-version-info`.
+  specified in `nginx-version-info`.
 - Configure nginx's sources for build (e.g. generates platform-specific headers).
-- Initialize the source trees of `opentracing-cpp` and `dd-opentracing-cpp` as
-  git submodules.
-- Install `dd-opentracing-cpp`'s dependencies (e.g. `libcurl`).
-- Build `opentracing-cpp`, `dd-opentracing-cpp`, and the Datadog nginx module
-  together using CMake.
+- Initialize the source tree of `dd-trace-cpp` as a git submodule.
+- Build `libcurl`, `dd-trace-cpp`, and the Datadog nginx module together using
+  CMake.
 
 `make clean` deletes CMake's build directory.  `make clobber` deletes
 everything done by the build.
@@ -104,5 +97,5 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [6]: https://www.gnu.org/software/libc/
 [7]: https://www.musl-libc.org/
 [8]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
-[9]: https://github.com/DataDog/dd-opentracing-cpp/blob/master/doc/configuration.md
+[9]: https://github.com/DataDog/dd-trace-cpp/blob/main/src/datadog/environment.h
 [10]: https://hub.docker.com/_/amazonlinux

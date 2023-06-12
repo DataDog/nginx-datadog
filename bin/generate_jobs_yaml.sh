@@ -15,7 +15,12 @@ cd "$REPO"
 version_table=$(mktemp)
 # base-image    nginx-version    nginx-modules-path    nginx-conf-path    always-build?
 >"$version_table" cat <<END_NGINX_TAGS
-amazonlinux:2.0.20230119.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf always
+amazonlinux:2.0.20230418.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf always
+amazonlinux:2.0.20230320.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20230307.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20230221.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20230207.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
+amazonlinux:2.0.20230119.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20221210.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20221103.3 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20221004.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
@@ -29,8 +34,12 @@ amazonlinux:2.0.20220406.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220316.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220218.1 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
 amazonlinux:2.0.20220121.0 1.22.1 /usr/share/nginx/modules /etc/nginx/nginx.conf
-nginx:1.23.3-alpine 1.23.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
-nginx:1.23.3 1.23.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
+nginx:1.24.0-alpine 1.24.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
+nginx:1.24.0 1.24.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf always
+nginx:1.23.4-alpine 1.23.4 /usr/lib/nginx/modules /etc/nginx/nginx.conf
+nginx:1.23.4 1.23.4 /usr/lib/nginx/modules /etc/nginx/nginx.conf
+nginx:1.23.3-alpine 1.23.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf
+nginx:1.23.3 1.23.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.2-alpine 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.2 1.23.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.23.1-alpine 1.23.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
@@ -102,14 +111,10 @@ nginx:1.17.3 1.17.3 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.17.2-alpine 1.17.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.17.2 1.17.2 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.17.1-alpine 1.17.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
-nginx:1.17.1 1.17.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.17.0-alpine 1.17.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
-nginx:1.17.0 1.17.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.16.1-alpine 1.16.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.16.1 1.16.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 nginx:1.16.0-alpine 1.16.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
-nginx:1.16.0 1.16.0 /usr/lib/nginx/modules /etc/nginx/nginx.conf
-nginx:1.14.1 1.14.1 /usr/lib/nginx/modules /etc/nginx/nginx.conf
 END_NGINX_TAGS
 
 while read -r base_image nginx_version nginx_modules_path nginx_conf_path always; do

@@ -228,7 +228,7 @@ def send_ci_request_paged(path, payload=None, method=None):
 
 # TODO: Poll until the number of "build-and-test-all" jobs changes from
 # zero.
-delay_seconds = 10
+delay_seconds = 20
 print(f'sleeping for {delay_seconds} seconds...')
 time.sleep(delay_seconds)
 
@@ -283,7 +283,8 @@ def prepare_release_artifact(build_job_number, work_dir):
             f"Job number {build_job_number} doesn't have an 'ngx_http_datadog_module.so' build artifact."
         )
 
-    nginx_version_info = urllib.request.urlopen(nginx_version_info_url).read().decode('utf8')
+    nginx_version_info = urllib.request.urlopen(
+        nginx_version_info_url).read().decode('utf8')
     module_path = work_dir / 'ngx_http_datadog_module.so'
     download_file(module_url, module_path)
 
@@ -327,7 +328,7 @@ done_jobs = set()  # job numbers (not IDs)
 while True:
     jobs = send_ci_request_paged(f'/workflow/{workflow_id}/job')
     for job in jobs:
-        if job['status'] == 'blocked':
+        if job['status'] in ('blocked', 'not_running'):
             continue
         job_number = job['job_number']
         if job_number not in done_jobs:

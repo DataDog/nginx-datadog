@@ -2,52 +2,54 @@
 
 // This component provides a `struct`, `TracingLibrary`, that acts as a
 // namespace for behavior specific to the particular tracing implementation.
-// This project is based off of `nginx-opentracing`, which dynamically loaded
-// an OpenTracing-compatible plugin.  The plugin would provide an `ot::Tracer`
-// factory function.  This project no longer loads a plugin, but this component
-// maintains some semblance of that interface.  A non-Datadog tracing library
-// could in principle be made compatible with this project by changing the
-// implementations of `TracingLibrary`'s static member functions.
+// This project is originally based off of `nginx-opentracing`, which
+// dynamically loaded an OpenTracing-compatible plugin.  The plugin would
+// provide an `opentracing::Tracer` factory function.  This project no longer
+// loads a plugin, but this component maintains some semblance of that
+// interface.  When the nginx module has a "question" about its behavior that
+// could be answered by the tracing library, the answer is in `TracingLibrary`.
 
-#include <opentracing/tracer.h>
+#include <datadog/expected.h>
+#include <datadog/logger.h>
+#include <datadog/propagation_style.h>
+#include <datadog/tracer.h>
 
 #include <memory>
-#include <opentracing/variant/variant.hpp>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
-#include "ot.h"
-#include "string_view.h"
+#include "dd.h"
 
 namespace datadog {
 namespace nginx {
+
+struct datadog_main_conf_t;
 
 // `NginxVariableFamily` describes a set of nginx configuration variables that
 // share a common prefix, and associates with each variable a function that
 // fetches a string value for that variable for a specified span.
 struct NginxVariableFamily {
-  string_view prefix;
-  std::string (*resolve)(string_view suffix, const ot::Span &);
+  std::string_view prefix;
+  std::string (*resolve)(std::string_view suffix, const dd::Span&);
 };
 
 struct TracingLibrary {
   // Return a `Tracer` created with the specified `configuration`. If
   // `configuration` is empty, use a default configuration.  If an error
-  // occurs, return `nullptr` and assign a diagnostic to the specified
-  // `error`.
-  static std::shared_ptr<ot::Tracer> make_tracer(string_view configuration, std::string &error);
+  // occurs, return a `dd::Error`.
+  static dd::Expected<dd::Tracer> make_tracer(const datadog_main_conf_t& conf);
 
-  // Parse the specified `configuration` and return the names of HTTP headers
-  // used to inject trace context (which tags those are might depend on the
-  // configuration, e.g. optional B3 propagation).  If `configuration` is
-  // empty, use a default configuration.  If an error occurs, assign a
-  // diagnostic to the specified `error`.  Note that the storage to which
-  // each returned `string_view` refers must outlive any usage of the return
-  // value (realistically this means that they will refer to string
-  // literals).
-  static std::vector<string_view> propagation_header_names(string_view configuration,
-                                                           std::string &error);
+  // Return the names of HTTP headers used to inject trace context in the
+  // specified `styles`. If `styles` is empty, then use the default styles
+  // instead. If an error occurs, return the error. Use the specified `logger`
+  // to issue warning diagnostics.
+  // Note that the storage to which each returned `std::string_view` refers must
+  // outlive any usage of the return value (realistically this means that they
+  // will refer to string literals).
+  static dd::Expected<std::vector<std::string_view>> propagation_header_names(
+      const std::vector<dd::PropagationStyle>& styles, dd::Logger& logger);
 
   // Return the common prefix of all variable names that map to trace context
   // propagation headers.  The portion of the variable name after the common
@@ -56,7 +58,7 @@ struct TracingLibrary {
   // "datadog_propagation_header_", then the nginx configuration variable
   // $datadog_propagation_header_x_datadog_origin refers to the
   // X-Datadog-Origin propagation header value for the current span context.
-  static string_view propagation_header_variable_name_prefix();
+  static std::string_view propagation_header_variable_name_prefix();
 
   // Return the common prefix of all variable names that map to nginx worker
   // process environment variables.  The portion of the variable name after
@@ -67,7 +69,7 @@ struct TracingLibrary {
   // variable value for the nginx worker process in which the variable is
   // being evaluated.  Note that this feature was added for use by
   // integration tests.
-  static string_view environment_variable_name_prefix();
+  static std::string_view environment_variable_name_prefix();
 
   // Return a family of nginx variables that will be used to fetch string
   // values from the active span.  For example, to allow the nginx
@@ -79,44 +81,44 @@ struct TracingLibrary {
 
   // Return the names of environment variables for worker processes to
   // inherit from the main nginx executable.  Note that the storage to which
-  // each returned `string_view` refers must outlive any usage of the
+  // each returned `std::string_view` refers must outlive any usage of the
   // return value (realistically this means that they will refer to string
   // literals).
-  static std::vector<string_view> environment_variable_names();
+  static std::vector<std::string_view> environment_variable_names();
 
   // Return the name of the nginx variable that expands to a JSON
   // representation of the current tracer configuration (as produced by
   // `configuration_json`).
-  static string_view configuration_json_variable_name();
+  static std::string_view configuration_json_variable_name();
 
   // Return the name of the nginx variable that expands to the name of the
   // location chosen for the current request.
-  static string_view location_variable_name();
+  static std::string_view location_variable_name();
 
   // Return the name of the nginx variable that expands to the name of the
   // configuration directive used to proxy requests through a location.
-  static string_view proxy_directive_variable_name();
+  static std::string_view proxy_directive_variable_name();
 
   // Return the pattern of an nginx variable script that will be used for the
   // operation name of request spans that do not have an operation name defined
   // in the nginx configuration.  Note that the storage to which the returned
   // value refers must outlive any usage of the return value (realistically
   // this means that it will refer to a string literal).
-  static string_view default_request_operation_name_pattern();
+  static std::string_view default_request_operation_name_pattern();
 
   // Return the pattern of an nginx variable script that will be used for the
   // operation name of location spans that do not have an operation name
   // defined in the nginx configuration.  Note that the storage to which the
   // returned value refers must outlive any usage of the return value
   // (realistically this means that it will refer to a string literal).
-  static string_view default_location_operation_name_pattern();
+  static std::string_view default_location_operation_name_pattern();
 
   // Return the pattern of an nginx variable script that will be used for the
   // resource name of spans that do not have a resource name configured in the
   // nginx configuration.  Note that the storage to which the returned value
   // refers must outlive any usage of the return value (realistically this
   // means that it will refer to a string literal).
-  static string_view default_resource_name_pattern();
+  static std::string_view default_resource_name_pattern();
 
   // Return a mapping of tag name to nginx variable script pattern.  These
   // tags will be defined automatically during configuration as if they
@@ -128,10 +130,10 @@ struct TracingLibrary {
   //       ...
   //     }
   //
-  // Note that the storage to which each returned `string_view` refers
+  // Note that the storage to which each returned `std::string_view` refers
   // must outlive any usage of the return value (realistically this means
   // that they will refer to string literals).
-  static std::unordered_map<string_view, string_view> default_tags();
+  static std::unordered_map<std::string_view, std::string_view> default_tags();
 
   // Return the default setting for whether tracing is enabled in nginx.
   static bool tracing_on_by_default();
@@ -140,11 +142,6 @@ struct TracingLibrary {
   // An HTTP location is an endpoint as configured using a "location" block
   // in the nginx configuration.
   static bool trace_locations_by_default();
-
-  // Return a JSON representation of the configuration of the specified
-  // `tracer`.  The `tracer` was returned by a previous call to
-  // `make_tracer`.
-  static std::string configuration_json(const ot::Tracer &tracer);
 };
 
 }  // namespace nginx

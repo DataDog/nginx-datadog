@@ -14,17 +14,15 @@ apk add coreutils
 # nginx uses perl-compatible regular expressions (PCRE) and zlib (for gzip).
 apk add pcre-dev zlib-dev
 
-# Build a recent cmake from source.  We need at least 3.12, but ubuntu 18
-# packages 3.10.
-# Version 3.12 or newer is needed because version 3.12 added the ability to
-# associated link libraries with OBJECT targets.  OBJECT targets don't link
-# anything (they just produce .o files), but the idea is that link dependencies
-# are inherited by targets that eventually will link the produced object files.
+# Build a recent cmake from source.  dd-trace-cpp requires a version more recent than
+# what is commonly packaged.
+# We have to build it from source, because Kitware doesn't produce binary
+# releases on musl libc.
 
 # cmake likes to have openssl and Linux headers available
 apk add openssl-dev linux-headers
 
-cmake_version=3.21.1
+cmake_version=3.26.1
 starting_dir=$(pwd)
 mkdir -p /tmp/build-cmake
 cd /tmp/build-cmake
