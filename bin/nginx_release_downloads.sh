@@ -14,6 +14,12 @@
 
 downloads=https://nginx.org/download
 
+if [ "$(uname)" = 'Darwin' ]; then
+  SED='gsed'
+else
+  SED='sed'
+fi
+
 if [ $# -gt 1 ]; then
     >&2 printf 'At most one argument supported, but %d were specified.\n' $#
     exit 1
@@ -21,15 +27,15 @@ fi
 
 filter() {
     if [ $# -eq 1 ]; then
-        grep "^$(echo "$1" | sed 's/\./\\./g')[. ]" | tail -1 | awk '{print $2}'
+        grep "^$(echo "$1" | $SED 's/\./\\./g')[. ]" | tail -1 | awk '{print $2}'
     else
         cat
     fi
 }
 
 curl -s -S -L "$downloads" | \
-    sed -n 's/^.*href="\([^"]\+\)".*$/\1/p' | \
+    $SED -n 's/^.*href="\([^"]\+\)".*$/\1/p' | \
     grep '^nginx-.*\.tar\.gz$' | \
-    sed "s,^nginx-\(.*\)\.tar\.gz,\1 $downloads/\0," | \
+    $SED "s,^nginx-\(.*\)\.tar\.gz,\1 $downloads/\0," | \
     sort --version-sort | \
     filter "$@"

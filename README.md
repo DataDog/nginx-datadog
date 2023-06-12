@@ -63,7 +63,7 @@ specified as `BASE_IMAGE` in the `nginx-version-info` file, (e.g.
 `nginx:1.19.1-alpine`) and with the nginx source version specified as
 `NGINX_VERSION` in the `nginx-version-info` file (e.g. `1.19.1`).  The
 appropriate build image must be created first using the
-[bin/docker-build.sh](bin/docker-build.sh) script if it does not exist already.
+[bin/docker_build.sh](bin/docker_build.sh) script if it does not exist already.
 Once the image is built, `make build-in-docker` produces the nginx module as
 `.docker-build/libngx_http_datadog_module.so`.
 
