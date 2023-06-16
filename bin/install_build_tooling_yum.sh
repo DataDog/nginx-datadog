@@ -21,8 +21,8 @@ yum groupinstall -y 'Development Tools'
 #
 # gcc 10 does better.
 yum install -y gcc10 gcc10-c++
-ln -s /usr/bin/gcc10-gcc /usr/local/bin/cc
-ln -s /usr/bin/gcc10-g++ /usr/local/bin/c++
+ln -sf /usr/bin/gcc10-gcc /usr/local/bin/cc
+ln -sf /usr/bin/gcc10-g++ /usr/local/bin/c++
 
 # Install a recent cmake.  We need at least 3.24 (for dd-trace-cpp),
 # but package managers tend to have an earlier version.
