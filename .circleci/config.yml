@@ -38,6 +38,7 @@ jobs:
       MAKE_JOB_COUNT: 8
     steps:
     - checkout
+    - run: bin/install_build_tooling.sh
     - run: printf 'NGINX_VERSION=%s\n' << parameters.nginx-version >> >>nginx-version-info
     - run: printf 'BASE_IMAGE=%s\n' '<< parameters.base-image >>' >>nginx-version-info
     - run: make build
