@@ -8,7 +8,7 @@ MAKE_JOB_COUNT ?= $(shell nproc)
 
 .PHONY: build
 build: build-deps nginx/objs/Makefile sources
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && CXXFLAGS=-I../nginx/src/http/v2 cmake -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
 	chmod 755 $(BUILD_DIR)/libngx_http_datadog_module.so
 	@echo 'build successful 👍'
 
@@ -24,8 +24,10 @@ dd-trace-cpp/.git:
 .PHONY: dd-trace-cpp-deps
 dd-trace-cpp-deps: dd-trace-cpp/.git
 
+config_params := $(shell if which nginx > /dev/null 2>&1 ; then nginx -V 2>&1 | egrep  "^configure" | cut -d: -f2 | sed 's/--add-dynamic-module=[^ ]*//g'; else echo --with-compat; fi)
+
 nginx/objs/Makefile: nginx/ module/config
-	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat
+	cd nginx && ./configure --add-dynamic-module=../module/ $(config_params)
 
 nginx/: nginx-version-info
 	rm -rf nginx && \

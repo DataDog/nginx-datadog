@@ -21,6 +21,9 @@ install coreutils
 # nginx uses perl-compatible regular expressions (PCRE) and zlib (for gzip).
 install libpcre3-dev zlib1g-dev
 
+# buster nginx
+install libssl-dev libxslt1-dev libxml2-dev libgd-dev libgeoip-dev
+
 # Older debians will have out of date certificate authorities, which will cause
 # wget to fail.  This heavy-handed update prevents that.
 apt-get update
