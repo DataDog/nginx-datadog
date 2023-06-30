@@ -126,7 +126,7 @@ present or has a value different from `healthcheck`, then the request will be
 sampled at 10%, per the `datadog_sample_rate` on line 8.
 
 A request that routes to `location /admin` will be sampled at 100%, per the
-`datadog_sample_rate` on line 19.
+`datadog_sample_rate` on line 18.
 
 The `datadog_sample_rate` directive that applies, if any, is annotated in the
 request span as the `nginx.sample_rate_source` tag. The tag has the following
