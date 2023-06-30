@@ -43,8 +43,8 @@ default tracing behavior to nginx:
     - Resource name is `"$request_method $uri"`, e.g. "GET /api/book/0-345-24223-8/title".
     - Includes multiple `http.*` [tags][8].
 
-Custom configuration can be specified via the [datadog](doc/API.md#datadog)
-directive in nginx's configuration file, or via [environment variables][9].
+Custom configuration can be specified via the [datadog_*](doc/API.md)
+family of directives in nginx's configuration file, or via [environment variables][9].
 
 Build
 -----
