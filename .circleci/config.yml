@@ -543,6 +543,42 @@ workflows:
           branches:
             ignore: /.*/
     - build:
+        name: "build on nginx:1.25.1-alpine"
+        base-image: "nginx:1.25.1-alpine"
+        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.1-alpine"
+        nginx-version: "1.25.1"
+        filters:
+          tags:
+            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - test:
+        name: "test on nginx:1.25.1-alpine"
+        base-image: "nginx:1.25.1-alpine"
+        nginx-modules-path: "/usr/lib/nginx/modules"
+        nginx-conf-path: "/etc/nginx/nginx.conf"
+        requires:
+        - "build on nginx:1.25.1-alpine"
+        filters:
+          tags:
+            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - build:
+        name: "build on nginx:1.25.1"
+        base-image: "nginx:1.25.1"
+        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.1"
+        nginx-version: "1.25.1"
+        filters:
+          tags:
+            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - test:
+        name: "test on nginx:1.25.1"
+        base-image: "nginx:1.25.1"
+        nginx-modules-path: "/usr/lib/nginx/modules"
+        nginx-conf-path: "/etc/nginx/nginx.conf"
+        requires:
+        - "build on nginx:1.25.1"
+        filters:
+          tags:
+            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - build:
         name: "build on nginx:1.24.0-alpine"
         base-image: "nginx:1.24.0-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.24.0-alpine"
@@ -550,6 +586,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.24.0-alpine"
         base-image: "nginx:1.24.0-alpine"
@@ -560,6 +598,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.24.0"
         base-image: "nginx:1.24.0"
@@ -568,6 +608,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - test:
         name: "test on nginx:1.24.0"
         base-image: "nginx:1.24.0"
@@ -578,6 +620,8 @@ workflows:
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+          branches:
+            ignore: /.*/
     - build:
         name: "build on nginx:1.23.4-alpine"
         base-image: "nginx:1.23.4-alpine"
