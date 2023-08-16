@@ -165,12 +165,15 @@ def nginx_worker_pids(nginx_container, verbose_output):
                if re.match(r'\s*nginx: worker process', cmd))
 
 
-def with_retries(max_attempts, thunk):
+def docker_compose_ps_with_retries(max_attempts, service):
     assert max_attempts > 0
     while True:
         try:
-            return thunk()
-        except BaseException:
+            result = docker_compose_ps(service)
+            if result == '':
+                raise Exception(f'docker_compose_ps({json.dumps(service)}) returned an empty string')
+            return result
+        except Exception:
             max_attempts -= 1
             if max_attempts == 0:
                 raise
@@ -240,7 +243,8 @@ def docker_compose_up(on_ready, logs, verbose_file):
                         print('Not all services are ready.  Going to wait',
                               poll_seconds,
                               'seconds',
-                              file=verbose_file)
+                              file=verbose_file,
+                              flush=True)
                         time.sleep(poll_seconds)
                 on_ready({'containers': containers})
             elif kind == 'finish_create_container':
@@ -250,12 +254,17 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # Consult `docker-compose ps` for the service's container ID.
                 # Since we're handling a finish_create_container event, you'd
                 # think that the container would be available now.  However,
-                # with CircleCI's remote docker setup, there's a race here
-                # where docker-compose does not yet know which container
-                # corresponds to `service` (even though it just told us that
-                # the container was created).  So, we retry a few times.
-                containers[service] = with_retries(
-                    5, lambda: docker_compose_ps(service))
+                # there's a race here where docker-compose does not yet know
+                # which container corresponds to `service` (even though it just
+                # told us that the container was created).
+                #
+                # Additionally, some `docker-compose ps` implementations exit
+                # with a nonzero (error) status when there is no container ID
+                # to report, while others exit with status zero (success) and
+                # don't print any output.  So, we retry (up to a limit) until
+                # `docker-compose ps` exits with status zero and produces
+                # output.
+                containers[service] = docker_compose_ps_with_retries(max_attempts=100, service=service)
             elif kind == 'service_log':
                 # Got a line of logging from some service.  Push it onto the
                 # appropriate queue for consumption by tests.
