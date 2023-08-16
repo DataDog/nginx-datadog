@@ -9,7 +9,7 @@ RUN mkdir -p /usr/share/nginx/html
 COPY index.html /usr/share/nginx/html
 
 # Install the `kill` command (`procps` package on Debian), so that one-off
-# nginx instances that are started via `docker-compose exec` can be signaled to
+# nginx instances that are started via `docker compose exec` can be signaled to
 # gracefully shutdown.
 COPY ./install_tools.sh /tmp/
 RUN /tmp/install_tools.sh

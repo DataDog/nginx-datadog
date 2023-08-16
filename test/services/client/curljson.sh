@@ -12,7 +12,7 @@
 #   a JSON string, i.e. double quoted and with escape sequences.
 #
 # The intention is that the test driver invoke this script using
-# `docker-compose exec`.  The output format is chosen to be easy to parse in
+# `docker compose exec`.  The output format is chosen to be easy to parse in
 # Python.
 
 tmpdir=$(mktemp -d)

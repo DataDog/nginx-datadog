@@ -1,4 +1,4 @@
-"""Service orchestration (docker-compose) facilities for testing"""
+"""Service orchestration (docker compose) facilities for testing"""
 
 from . import formats
 from .lazy_singleton import LazySingleton
@@ -30,13 +30,11 @@ def quit_signal_handler(signum, frame):
 signal.signal(signal.SIGQUIT, quit_signal_handler)
 
 # Since we override the environment variables of child processes,
-# `subprocess.Popen` (and its derivatives) need to know exactly where
-# the "docker-compose" executable is, since it won't find it in the passed-in
-# env's PATH.
-docker_compose_command_path = shutil.which('docker-compose')
+# `subprocess.Popen` (and its derivatives) need to know exactly where the
+# "docker" executable is, since it won't find it in the passed-in env's PATH.
 docker_command_path = shutil.which('docker')
 
-# If we want to always pass some flags to `docker-compose` or to `docker`, put
+# If we want to always pass some flags to `docker compose` or to `docker`, put
 # them here.  For example, "--tls".  However, TLS behavior can be specified in
 # environment variables.
 docker_compose_flags = []
@@ -49,15 +47,15 @@ nginx_conf_path = os.environ.get('NGINX_CONF_PATH', '/etc/nginx/nginx.conf')
 
 
 def docker_compose_command(*args):
-    return [docker_compose_command_path, *docker_compose_flags, *args]
+    return [docker_command_path, 'compose', *docker_compose_flags, *args]
 
 
 def docker_command(*args):
     return [docker_command_path, *docker_flags, *args]
 
 
-# docker-compose (at least the version running on my laptop) invokes `docker`
-# unqualified, and so when we run `docker-compose` commands, we have to do it
+# docker compose (at least the version running on my laptop) invokes `docker`
+# unqualified, and so when we run `docker compose` commands, we have to do it
 # in an environment where `docker_command_path` is in the PATH.
 # See `child_env`.
 docker_bin = str(Path(docker_command_path).parent)
@@ -95,7 +93,7 @@ def child_env(parent_env=None):
 def to_service_name(container_name):
     # test_foo_bar_1 -> foo_bar
     #
-    # Note that the "test_" prefix is the docker-compose project name, which
+    # Note that the "test_" prefix is the docker compose project name, which
     # you can override using the COMPOSE_PROJECT_NAME environment
     # variable.  We use that environment variable to hard-code the name to
     # "test".  Otherwise, it defaults to the basename of the directory.  Right
@@ -103,9 +101,9 @@ def to_service_name(container_name):
     # to be able to break this.  See mention of COMPOSE_PROJECT_NAME in
     # `child_env()`.
     #
-    # When I run docker-compose locally on my machine, the parts of the
+    # When I run docker compose locally on my machine, the parts of the
     # container name are separated by underscore ("_"), while when I run
-    # docker-compose in CircleCI, hyphen ("-") is used.  Go with whichever is
+    # docker compose in CircleCI, hyphen ("-") is used.  Go with whichever is
     # being used.
     if '_' in container_name and '-' in container_name:
         raise Exception(
@@ -141,7 +139,7 @@ def docker_top(container, verbose_output):
     fields = ('pid', 'cmd')
 
     command = docker_command('top', container, '-o', ','.join(fields))
-    with print_duration('Consuming docker-compose top PIDs', verbose_output):
+    with print_duration('Consuming docker compose top PIDs', verbose_output):
         with subprocess.Popen(command,
                               stdout=subprocess.PIPE,
                               env=child_env(),
@@ -251,18 +249,18 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # Started a container.  Add its container ID to `containers`.
                 container_name = fields['container']
                 service = to_service_name(container_name)
-                # Consult `docker-compose ps` for the service's container ID.
+                # Consult `docker compose ps` for the service's container ID.
                 # Since we're handling a finish_create_container event, you'd
                 # think that the container would be available now.  However,
-                # there's a race here where docker-compose does not yet know
+                # there's a race here where docker compose does not yet know
                 # which container corresponds to `service` (even though it just
                 # told us that the container was created).
                 #
-                # Additionally, some `docker-compose ps` implementations exit
+                # Additionally, some `docker compose ps` implementations exit
                 # with a nonzero (error) status when there is no container ID
                 # to report, while others exit with status zero (success) and
                 # don't print any output.  So, we retry (up to a limit) until
-                # `docker-compose ps` exits with status zero and produces
+                # `docker compose ps` exits with status zero and produces
                 # output.
                 containers[service] = docker_compose_ps_with_retries(max_attempts=100, service=service)
             elif kind == 'service_log':
@@ -300,7 +298,7 @@ def curl(url, headers, stderr=None):
             yield '--header'
             yield f'{name}: {value}'
 
-    # "curljson.sh" is a script that lives in the "client" docker-compose
+    # "curljson.sh" is a script that lives in the "client" docker compose
     # service.  It's a wrapper around "curl" that outputs a JSON object of
     # information on the first line, and outputs a JSON string of the response
     # body on the second line.  See the documentation of the "json" format for
@@ -328,12 +326,12 @@ def curl(url, headers, stderr=None):
 
 
 class Orchestration:
-    """A handle for a `docker-compose` session.
+    """A handle for a `docker compose` session.
 
-    `up()` runs `docker-compose up` and spawns a thread that consumes its
+    `up()` runs `docker compose up` and spawns a thread that consumes its
     output.
 
-    `down()` runs `docker-compose down`.
+    `down()` runs `docker compose down`.
 
     Other methods perform integration test specific actions.
 
@@ -351,24 +349,24 @@ class Orchestration:
               file=self.verbose)
 
     # Properties (all private)
-    # - `up_thread` is the `threading.Thread` running `docker-compose up`.
+    # - `up_thread` is the `threading.Thread` running `docker compose up`.
     # - `logs` is a `dict` that maps service name to a `queue.SimpleQueue` of log
     #   lines.
     # - `containers` is a `dict` {service: container ID} that, per service,
     #   maps to the Docker container ID in which the service is running.
     # - `services` is a `list` of service names as defined in the
-    #   `docker-compose` config.
+    #   `docker compose` config.
     # - `verbose` is a file-like object to which verbose logging is written.
 
     def up(self):
         """Start service orchestration.
 
-        Run `docker-compose up` to bring up the orchestrated services.  Begin
+        Run `docker compose up` to bring up the orchestrated services.  Begin
         parsing their logs on a separate thread.
         """
         # Before we bring things up, first clean up any detritus left over from
         # previous runs.  Failing to do so can create problems later when we
-        # ask docker-compose which container a service is running in.
+        # ask docker compose which container a service is running in.
         command = docker_compose_command('down', '--remove-orphans')
         subprocess.run(command,
                        stdin=subprocess.DEVNULL,
@@ -392,7 +390,7 @@ class Orchestration:
     def down(self):
         """Stop service orchestration.
 
-        Run `docker-compose down` to bring down the orchestrated services.
+        Run `docker compose down` to bring down the orchestrated services.
         Join the log-parsing thread.
         """
         command = docker_compose_command('down', '--remove-orphans')
@@ -449,7 +447,7 @@ class Orchestration:
 
         Send a "sync" request to the specified `service`,
         and wait for the corresponding log messages to appear in the
-        docker-compose log.  This way, we know that whatever we have done
+        docker compose log.  This way, we know that whatever we have done
         previously has already appeared in the log.
 
             log_lines = orch.sync_service('agent')
@@ -534,7 +532,7 @@ exit "$rcode"
         """Send a "reload" signal to nginx.
 
         If `wait_for_workers_to_terminate` is true, then poll
-        `docker-compose ps` until the workers associated with nginx's previous
+        `docker compose ps` until the workers associated with nginx's previous
         cycle have terminated.
         """
         with print_duration('Reloading nginx', self.verbose):

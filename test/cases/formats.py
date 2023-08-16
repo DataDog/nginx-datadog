@@ -1,4 +1,4 @@
-"""interpret the output of `docker-compose` commands"""
+"""interpret the output of `docker compose` commands"""
 
 import json
 import re
@@ -13,7 +13,7 @@ def parse_docker_compose_up_line(line):
     match = try_match(
         r'(?P<service>\S+)(?P<delimiter>[_-])\d+\s*\| (?P<payload>.*)\n', line)
     if match is not None:
-        # Some docker-compose setups (versions?) prefix the service name by the
+        # Some docker compose setups (versions?) prefix the service name by the
         # project name, while others don't.  The parts of the name are
         # delimited by either underscores or hyphens, and we don't use service
         # names with either delimiter in them, so we can pull apart the name
@@ -48,7 +48,7 @@ def parse_docker_compose_up_line(line):
             'container': match.groupdict()['container']
         })
 
-    # Different docker-compose setups (versions?) produce different output
+    # Different docker compose setups (versions?) produce different output
     # when a container is creating/created.  Here are the other flavors of
     # begin_create_container and finish_create_container.
 

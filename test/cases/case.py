@@ -31,8 +31,8 @@ class TestCase(unittest.TestCase):
 
 # `startTestRun` and `stopTestRun` are injected into the `unittest` module so
 # that test suites that span multiple modules share a scoped instance of
-# `Orchestration`, i.e. `docker-compose up` happens before any tests run,
-# and `docker-compose down` happens after all tests are finished.
+# `Orchestration`, i.e. `docker compose up` happens before any tests run,
+# and `docker compose down` happens after all tests are finished.
 #
 # See <https://stackoverflow.com/a/64892396>.
 global_orch_context = None
