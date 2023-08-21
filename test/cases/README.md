@@ -1,9 +1,9 @@
 These are the actual integration tests.
 
 The tests run as python `unittest` test cases.  They share an instance of
-`class Orchestration`, which encapsulates the `docker-compose` services
-session by running `docker-compose up` before any tests begin and by running
-`docker-compose down` after all tests have completed.
+`class Orchestration`, which encapsulates the `docker compose` services
+session by running `docker compose up` before any tests begin and by running
+`docker compose down` after all tests have completed.
 
 Usage
 -----
@@ -46,9 +46,9 @@ relevant.  For example, to run only the test
 $ test/bin/run cases.configuration.test_configuration
 ```
 
-To see very detailed output, tail the `logs/docker-compose-verbose.log` file.
+To see very detailed output, tail the `logs/test.log` file.
 ```console
-$ touch logs/docker-compose-verbose.log && tail -f logs/docker-compose-verbose.log &
+$ touch logs/test.log && tail -f logs/test.log &
 $ test/bin/run
 ```
 
@@ -77,16 +77,16 @@ The `*.py` directly in this directory are common code shared by the tests.
 
 - [case.py](case.py) is a wrapper around `unittest.TestCase` that provides an
   attribute `.orch` of type `Orchestration`.  Test cases can use this to share
-  a single scoped session of `docker-compose` services.
+  a single scoped session of `docker compose` services.
 - [formats.py](formats.py) contains parsing functions for the output of
-  `docker-compose up`, `docker-compose down`, and the JSON-formatted
+  `docker compose up`, `docker compose down`, and the JSON-formatted
   traces logged by the agent service.
 - [lazy_singleton.py](lazy_singleton.py) defines a generic singleton class,
   which is then used to define a single instance of `Orchestration`, the
-  `docker-compose` wrapper.
+  `docker compose` wrapper.
 - [orchestration.py](orchestration.py) defines a `class Orchestration` that
-   manages a thread that runs and consumes the output of `docker-compose up`,
-   and has methods for performing operations on the `docker-compose` setup,
+   manages a thread that runs and consumes the output of `docker compose up`,
+   and has methods for performing operations on the `docker compose` setup,
    e.g.
    - sending a request to nginx,
    - retrieving the logs of a service,

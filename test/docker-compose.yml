@@ -23,7 +23,7 @@ services:
   # `agent` is a mock trace agent.  It listens on port 8126, accepts msgpack,
   # decodes the resulting traces, and prints them to standard output as JSON.
   # The tests can inspect traces sent to the agent (e.g. from the nginx module)
-  # by looking at `agent` log lines in the output of `docker-compose up`.
+  # by looking at `agent` log lines in the output of `docker compose up`.
   agent:
     image: nginx-datadog-test-services-agent
     build:
@@ -82,12 +82,12 @@ services:
       - agent
 
   # `client` is a container that exists solely so that the test runner can
-  # `docker-compose exec` into it to run command line tools such as `curl` and
+  # `docker compose exec` into it to run command line tools such as `curl` and
   # `grpcurl`.  This way, the test runner's network doesn't need access to the
-  # network created by docker-compose.  The test runner interacts with the
-  # docker-compose services via `docker-compose` and `docker` commands only.
+  # network created by docker compose.  The test runner interacts with the
+  # docker compose services via `docker compose` and `docker` commands only.
   # This became necessary when these tests were integrated into CircleCI --
-  # CircleCI's container-based remote-docker docker-compose setup does not
+  # CircleCI's container-based remote-docker docker compose setup does not
   # allow a host port binding.
   client:
     image: nginx-datadog-test-services-client

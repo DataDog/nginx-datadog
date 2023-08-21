@@ -1,4 +1,4 @@
-"""interpret the output of `docker-compose` commands"""
+"""interpret the output of `docker compose` commands"""
 
 import json
 import re
@@ -13,7 +13,7 @@ def parse_docker_compose_up_line(line):
     match = try_match(
         r'(?P<service>\S+)(?P<delimiter>[_-])\d+\s*\| (?P<payload>.*)\n', line)
     if match is not None:
-        # Some docker-compose setups (versions?) prefix the service name by the
+        # Some docker compose setups (versions?) prefix the service name by the
         # project name, while others don't.  The parts of the name are
         # delimited by either underscores or hyphens, and we don't use service
         # names with either delimiter in them, so we can pull apart the name
@@ -34,7 +34,7 @@ def parse_docker_compose_up_line(line):
         })
 
     # begin_create_container: {container}
-    begin_create_container = r'(Rec|C)reating (?P<container>\S+)\s*\.\.\.\s*'
+    begin_create_container = r'\s*(Rec|C)reating (?P<container>\S+)\s*\.\.\.\s*'
     match = try_match(begin_create_container, line)
     if match is not None:
         return ('begin_create_container', {
@@ -48,26 +48,26 @@ def parse_docker_compose_up_line(line):
             'container': match.groupdict()['container']
         })
 
-    # Different docker-compose setups (versions?) produce different output
+    # Different docker compose setups (versions?) produce different output
     # when a container is creating/created.  Here are the other flavors of
     # begin_create_container and finish_create_container.
 
     # begin_create_container: {container}
-    match = try_match(r'Container (?P<container>\S+)\s+Creating\s*', line)
+    match = try_match(r'\s*Container (?P<container>\S+)\s+Creating\s*', line)
     if match is not None:
         return ('begin_create_container', {
             'container': match.groupdict()['container']
         })
 
     # finish_create_container: {container}
-    match = try_match(r'Container (?P<container>\S+)\s+Created\s*', line)
+    match = try_match(r'\s*Container (?P<container>\S+)\s+Created\s*', line)
     if match is not None:
         return ('finish_create_container', {
             'container': match.groupdict()['container']
         })
 
     # attach_to_logs:  {'containers': [container, ...]}
-    match = try_match(r'Attaching to (?P<containers>\S+(, \S+)*\s*)', line)
+    match = try_match(r'\s*Attaching to (?P<containers>\S+(, \S+)*\s*)', line)
     if match is not None:
         return ('attach_to_logs', {
             'containers': [
@@ -77,7 +77,7 @@ def parse_docker_compose_up_line(line):
         })
 
     # image_build_success: {image}
-    match = try_match(r'Successfully built (?P<image>\S+)\s*', line)
+    match = try_match(r'\s*Successfully built (?P<image>\S+)\s*', line)
     if match is not None:
         return ('image_build_success', {'image': match.groupdict()['image']})
 
@@ -85,11 +85,11 @@ def parse_docker_compose_up_line(line):
 
 
 def parse_docker_compose_down_line(line):
-    match = try_match(r'Removing network (?P<network>\S+)\n', line)
+    match = try_match(r'\s*Removing network (?P<network>\S+)\n', line)
     if match is not None:
         return ('remove_network', {'network': match.groupdict()['network']})
 
-    begin_stop_container = r'Stopping (?P<container>\S+)\s*\.\.\.\s*'
+    begin_stop_container = r'\s*Stopping (?P<container>\S+)\s*\.\.\.\s*'
     match = try_match(begin_stop_container, line)
     if match is not None:
         return ('begin_stop_container', {
@@ -102,7 +102,7 @@ def parse_docker_compose_down_line(line):
             'container': match.groupdict()['container']
         })
 
-    begin_remove_container = r'Removing (?P<container>\S+)\s*\.\.\.\s*'
+    begin_remove_container = r'\s*Removing (?P<container>\S+)\s*\.\.\.\s*'
     match = try_match(begin_remove_container, line)
     if match is not None:
         return ('begin_remove_container', {
