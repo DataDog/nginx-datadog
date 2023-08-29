@@ -31,12 +31,12 @@ variables:
   # By marking the benchmarks as allow_failure, the Github checks are not displayed.
   allow_failure: true
 
-baseline-benchmarks:
+baseline:
   extends: .benchmarks
   variables:
     DD_BENCHMARKS_CONFIGURATION: baseline
 
-only-tracing-benchmarks:
+only-tracing:
   extends: .benchmarks
   variables:
     DD_BENCHMARKS_CONFIGURATION: only-tracing
