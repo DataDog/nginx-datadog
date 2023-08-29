@@ -26,7 +26,19 @@ variables:
     FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: nginx-datadog
     DD_BENCHMARKS_NGINX_IMAGE_TAG: nginx_1.18.0
-    K6_RUN_ID_PREFIX: ci
+
+    K6_OPTIONS_NORMAL_OPERATION_RATE: 30
+    K6_OPTIONS_NORMAL_OPERATION_DURATION: 30m
+    K6_OPTIONS_NORMAL_OPERATION_GRACEFUL_STOP: 1m
+    K6_OPTIONS_NORMAL_OPERATION_PRE_ALLOCATED_VUS: 4
+    K6_OPTIONS_NORMAL_OPERATION_MAX_VUS: 4
+
+    K6_OPTIONS_HIGH_LOAD_RATE: 200
+    K6_OPTIONS_HIGH_LOAD_DURATION: 15m
+    K6_OPTIONS_HIGH_LOAD_GRACEFUL_STOP: 30s
+    K6_OPTIONS_HIGH_LOAD_PRE_ALLOCATED_VUS: 4
+    K6_OPTIONS_HIGH_LOAD_MAX_VUS: 4
+
   # Workaround: Currently we're not running the benchmarks on every PR, but GitHub still shows them as pending.
   # By marking the benchmarks as allow_failure, the Github checks are not displayed.
   allow_failure: true
