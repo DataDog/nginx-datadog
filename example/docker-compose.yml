@@ -14,6 +14,7 @@ services:
       - http
       - fastcgi
       - grpc
+      - uwsgi
       - agent
 
   # `agent` is the Datadog Agent to which traces are sent.
@@ -66,6 +67,18 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=grpc
+    depends_on:
+      - agent
+
+  # `uwsgi` is a uWSGI server that is reverse proxied by `nginx`.
+  uwsgi:
+    build:
+      context: ./services/uwsgi
+      dockerfile: ./Dockerfile
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+      - DD_SERVICE=uwsgi
     depends_on:
       - agent
 

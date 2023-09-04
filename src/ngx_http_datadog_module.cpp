@@ -133,6 +133,13 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
+    { ngx_string("uwsgi_pass"),
+      anywhere_but_main | NGX_CONF_TAKE1,
+      hijack_uwsgi_pass,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
     // The configuration of this directive was copied from
     // ../nginx/src/http/modules/ngx_http_log_module.c.
     { ngx_string("access_log"),

@@ -363,6 +363,57 @@ char *hijack_grpc_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexc
   return hijack_pass_directive(&propagate_grpc_datadog_context, cf, command, conf);
 }
 
+char *propagate_uwsgi_datadog_context(ngx_conf_t *cf, ngx_command_t *command, void * /*conf*/) noexcept try {
+  auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
+
+  // The only way that `main_conf` could be `nullptr` is if there's no `http`
+  // block in the nginx configuration.  In that case, this function would never
+  // get called, because it's called only from configuration directives that
+  // live inside the `http` block.
+  assert(main_conf != nullptr);
+
+  if (!main_conf->are_propagation_styles_locked) {
+    if (auto rcode = lock_propagation_styles(command, cf)) {
+      return rcode;
+    }
+  }
+  // For each propagation header (from `span_context_keys`), add a
+  // "uwsgi_param ...;" directive to the configuration, and then process the
+  // injected directive by calling `datadog_conf_handler`.
+  const auto &keys = main_conf->span_context_keys;
+
+  auto old_args = cf->args;
+
+  ngx_str_t args[] = {ngx_string("uwsgi_param"), ngx_str_t(), ngx_str_t(),
+                      ngx_string("if_not_empty")};
+  ngx_array_t args_array;
+  args_array.elts = static_cast<void *>(&args);
+  args_array.nelts = 4;
+
+  cf->args = &args_array;
+  const auto guard = defer([&]() { cf->args = old_args; });
+
+  for (const std::string_view key : keys) {
+    // NOTE(@dmehala): uWSGI uses the same key header convention as fastcgi
+    args[1] = make_fastcgi_span_context_key(cf->pool, key);
+    args[2] = make_propagation_header_variable(cf->pool, key);
+    auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+    if (rcode != NGX_OK) {
+      return static_cast<char *>(NGX_CONF_ERROR);
+    }
+  }
+
+  return static_cast<char *>(NGX_CONF_OK);
+} catch (const std::exception &e) {
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "propagate_uwsgi_datadog_context failed: %s", e.what());
+  return static_cast<char *>(NGX_CONF_ERROR);
+}
+
+char *hijack_uwsgi_pass(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
+  return hijack_pass_directive(&propagate_uwsgi_datadog_context, cf, command, conf);
+}
+
 char *hijack_access_log(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept try {
   // In case we need to change the `access_log` command's format to a
   // Datadog-specific default, first make sure that those formats are defined.
