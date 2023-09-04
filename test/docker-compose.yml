@@ -19,6 +19,7 @@ services:
       - fastcgi
       - grpc
       - agent
+      - uwsgi
 
   # `agent` is a mock trace agent.  It listens on port 8126, accepts msgpack,
   # decodes the resulting traces, and prints them to standard output as JSON.
@@ -60,6 +61,22 @@ services:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
       - DD_SERVICE=fastcgi
+    depends_on:
+      - agent
+
+  # `uwsgi` is a uWSGI server that is reverse proxied by `nginx`.  It
+  # listens on port 8080 and responds with a JSON object containing the name of
+  # the service ("uwsgi") and the request's headers.  This way, tests can see
+  # which trace context, if any, was propagated to the reverse proxied server.
+  uwsgi:
+    image: nginx-datadog-test-services-uwsgi
+    build:
+      context: ./services/uwsgi
+      dockerfile: ./Dockerfile
+    environment:
+      - DD_ENV=prod
+      - DD_AGENT_HOST=agent
+      - DD_SERVICE=uwsgi
     depends_on:
       - agent
 

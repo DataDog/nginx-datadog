@@ -12,6 +12,7 @@ services:
 - `http` runs a NodeJS HTTP server that listens on port 8080.
 - `fastcgi` runs a NodeJS FastCGI server that listens on port 8080.
 - `grpc` runs a NodeJS gRPC server that listens on port 1337.
+- `uwsgi` runs a uWSGI server using the `uwsgi` protocol and listens on port 8080.
 - `client` contains the command line tools `curl` and `grpcurl`.
 
 Because client command line tools are available within the `client` service,
