@@ -6,38 +6,43 @@ variables:
   tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
   rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: always
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: always
     - when: manual
   image: $BASE_CI_IMAGE
   script:
-    - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
-    - export DD_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.nginx-datadog.dd_api_key --with-decryption --query "Parameter.Value" --out text)
-    - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
-    - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh
-    - "./steps/upload-results-to-s3.sh || :"
+    - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - bp-runner bp-runner.yml --debug
   artifacts:
-    name: "reports"
+    name: "artifacts"
+    when: always
     paths:
-      - reports/
+      - platform/artifacts/
     expire_in: 3 months
   variables:
-    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
-    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: nginx-datadog
+    # Benchmark's env variables. Modify to tweak benchmark parameters.
+    DD_TRACE_DEBUG: "false"
+    DD_RUNTIME_METRICS_ENABLED: "true"
+
     DD_BENCHMARKS_NGINX_IMAGE_TAG: nginx_1.18.0
 
-    K6_OPTIONS_NORMAL_OPERATION_RATE: 30
-    K6_OPTIONS_NORMAL_OPERATION_DURATION: 30m
+    K6_OPTIONS_NORMAL_OPERATION_RATE: 1000
+    K6_OPTIONS_NORMAL_OPERATION_DURATION: 20m
     K6_OPTIONS_NORMAL_OPERATION_GRACEFUL_STOP: 1m
     K6_OPTIONS_NORMAL_OPERATION_PRE_ALLOCATED_VUS: 4
     K6_OPTIONS_NORMAL_OPERATION_MAX_VUS: 4
 
-    K6_OPTIONS_HIGH_LOAD_RATE: 200
-    K6_OPTIONS_HIGH_LOAD_DURATION: 15m
+    K6_OPTIONS_HIGH_LOAD_RATE: 5000
+    K6_OPTIONS_HIGH_LOAD_DURATION: 10m
     K6_OPTIONS_HIGH_LOAD_GRACEFUL_STOP: 30s
     K6_OPTIONS_HIGH_LOAD_PRE_ALLOCATED_VUS: 4
     K6_OPTIONS_HIGH_LOAD_MAX_VUS: 4
+
+    # Gitlab and BP specific env vars. Do not modify.
+    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: nginx-datadog
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
 
   # Workaround: Currently we're not running the benchmarks on every PR, but GitHub still shows them as pending.
   # By marking the benchmarks as allow_failure, the Github checks are not displayed.
