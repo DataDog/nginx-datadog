@@ -8,7 +8,7 @@ Behavior tested includes:
   applies.
 - The sample rate (first argument) must be a literal floating point number
   between 0.0 and 1.0 inclusive.
-- Directives can appear on the same line (separated by a colon).
+- Directives can appear on the same line (separated by a semicolon).
 - If all directives at the lowest level are "off", then a directive at the next
   higher level applies.
 - The matching directive is annotated in the span tag
