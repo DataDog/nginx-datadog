@@ -395,7 +395,7 @@ char *propagate_uwsgi_datadog_context(ngx_conf_t *cf, ngx_command_t *command, vo
   const auto guard = defer([&]() { cf->args = old_args; });
 
   for (const std::string_view key : keys) {
-    // NOTE(@dmehala): uWSGI uses the same key header convention thant fastcgi
+    // NOTE(@dmehala): uWSGI uses the same key header convention as fastcgi
     args[1] = make_fastcgi_span_context_key(cf->pool, key);
     args[2] = make_propagation_header_variable(cf->pool, key);
     auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
@@ -406,7 +406,7 @@ char *propagate_uwsgi_datadog_context(ngx_conf_t *cf, ngx_command_t *command, vo
 
   return static_cast<char *>(NGX_CONF_OK);
 } catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "datadog_grpc_propagate_context failed: %s", e.what());
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "propagate_uwsgi_datadog_context failed: %s", e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
