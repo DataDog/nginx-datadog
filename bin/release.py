@@ -87,7 +87,7 @@ def validate_version_tag(tag):
     return tag
 
 
-def parse_options(args):
+def parse_options():
     parser = argparse.ArgumentParser(
         description='Build and publish a release of nginx-datadog.',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -108,52 +108,10 @@ def parse_options(args):
     return parser.parse_args()
 
 
-try:
-    options = parse_options(sys.argv[1:])
-    options.version_tag = validate_version_tag(options.version_tag)
-    ci_api_token = get_token()
-    gh_exe = get_gh()
-    gpg_exe = get_gpg()
-    git_exe = get_git()
-    tar_exe = get_tar()
-except (MissingDependency, ValueError) as error:
-    print(str(error), file=sys.stderr)
-    sys.exit(1)
-
-print({
-    'token': ci_api_token,
-    'gh': gh_exe,
-    'gpg': gpg_exe,
-    'git': git_exe,
-    'tag': options.version_tag,
-    'remote': options.remote,
-    'no-tag': options.no_tag
-})
-
-
 def run(command, *args, **kwargs):
     command = [str(arg) for arg in command]
     print('+', shlex.join(command), file=sys.stderr)
     return subprocess.run(command, *args, **kwargs)
-
-
-if not options.no_tag:
-    command = [
-        git_exe, 'ls-remote', '--tags', options.remote, options.version_tag
-    ]
-    result = run(command, stdout=subprocess.PIPE, check=True)
-    if result.stdout:
-        raise Exception(
-            f'Tag {options.version_tag} already exists on {options.remote}.')
-
-    command = [
-        git_exe, 'tag', '-a', options.version_tag, '-m',
-        f'release ${options.version_tag}'
-    ]
-    run(command, check=True)
-
-    command = [git_exe, 'push', options.remote, options.version_tag]
-    run(command, check=True)
 
 
 def send_ci_request(path, payload=None, method=None):
@@ -190,25 +148,6 @@ def send_ci_request(path, payload=None, method=None):
 
     return status, response_body
 
-
-PROJECT_SLUG = 'gh/DataDog/nginx-datadog'
-
-# Kick off a CircleCI pipeline.
-if options.pipeline_id is not None:
-    pipeline_id = options.pipeline_id
-else:
-    body = {"tag": options.version_tag}
-    _, response = send_ci_request(f'/project/{PROJECT_SLUG}/pipeline',
-                                  payload=body,
-                                  method='POST')
-    print(response)
-    pipeline_id = response.get('id')
-    if pipeline_id is None:
-        raise Exception(
-            f'POST [...]/pipeline response did not contain pipeline "id": {response}'
-        )
-
-
 def send_ci_request_paged(path, payload=None, method=None):
     items = []
     query = ''
@@ -224,24 +163,6 @@ def send_ci_request_paged(path, payload=None, method=None):
         query = f'?page-token={next_page}'
 
     return items
-
-
-# TODO: Poll until the number of "build-and-test-all" jobs changes from
-# zero.
-delay_seconds = 20
-print(f'sleeping for {delay_seconds} seconds...')
-time.sleep(delay_seconds)
-
-# Fetch the pipeline's information.  This will contain its workflows.
-# We're looking for exactly one "build-and-test-all" workflow.
-workflows = send_ci_request_paged(f'/pipeline/{pipeline_id}/workflow')
-workflow = [wf for wf in workflows if wf['name'] == 'build-and-test-all']
-if len(workflow) != 1:
-    raise Exception(
-        f'Workflows contains the wrong number of "build-and-test-all".  Expected 1 but got {len(workflow)}: {workflows}'
-    )
-workflow = workflow[0]
-workflow_id = workflow['id']
 
 
 def download_file(url, destination):
@@ -296,8 +217,13 @@ def prepare_release_artifact(build_job_number, work_dir):
         raise Exception(
             f"BASE_IMAGE not found in nginx-version-info: {nginx_version_info}"
         )
+    if 'ARCH' not in variables:
+        raise Exception(
+            f"ARCH not found in nginx-version-info: {nginx_version_info}"
+        )
+    arch = variables['arch']
     base_prefix = variables['BASE_IMAGE'].replace(':', '_')
-    tarball_path = work_dir / f'{base_prefix}-ngx_http_datadog_module.so.tgz'
+    tarball_path = work_dir / f'{base_prefix}-{arch}-ngx_http_datadog_module.so.tgz'
     command = [tar_exe, '-czf', tarball_path, '-C', work_dir, module_path.name]
     run(command, check=True)
 
@@ -319,41 +245,115 @@ def handle_job(job, work_dir):
             prepare_release_artifact(job['job_number'], work_dir)
         return 'done'
 
+if __name__ == "__main__":
+    try:
+        options = parse_options()
+        options.version_tag = validate_version_tag(options.version_tag)
+        ci_api_token = get_token()
+        gh_exe = get_gh()
+        gpg_exe = get_gpg()
+        git_exe = get_git()
+        tar_exe = get_tar()
+    except (MissingDependency, ValueError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)
 
-work_dir = Path(tempfile.mkdtemp())
-print('Working directory is', work_dir)
+    print({
+        'token': ci_api_token,
+        'gh': gh_exe,
+        'gpg': gpg_exe,
+        'git': git_exe,
+        'tag': options.version_tag,
+        'remote': options.remote,
+        'no-tag': options.no_tag
+    })
 
-# Poll jobs until all are done.
-done_jobs = set()  # job numbers (not IDs)
-while True:
-    jobs = send_ci_request_paged(f'/workflow/{workflow_id}/job')
-    for job in jobs:
-        if job['status'] in ('blocked', 'not_running'):
-            continue
-        job_number = job['job_number']
-        if job_number not in done_jobs:
-            result = handle_job(job, work_dir)
-            if result == 'done':
-                done_jobs.add(job_number)
+    if not options.no_tag:
+        command = [
+            git_exe, 'ls-remote', '--tags', options.remote, options.version_tag
+        ]
+        result = run(command, stdout=subprocess.PIPE, check=True)
+        if result.stdout:
+            raise Exception(
+                f'Tag {options.version_tag} already exists on {options.remote}.')
 
-    if len(done_jobs) == len(jobs):
-        break
+        command = [
+            git_exe, 'tag', '-a', options.version_tag, '-m',
+            f'release ${options.version_tag}'
+        ]
+        run(command, check=True)
 
-    sleep_seconds = 20
-    print(
-        f'Going to sleep for {sleep_seconds} seconds before checking jobs again.'
-    )
-    time.sleep(sleep_seconds)
+        command = [git_exe, 'push', options.remote, options.version_tag]
+        run(command, check=True)
 
-# We've tgz'd and signed all of our release modules.
-# Now let's send them to GitHub in a release via `gh release create`.
-release_files = itertools.chain(work_dir.glob('*.tgz'),
-                                work_dir.glob('*.tgz.asc'))
-command = [
-    gh_exe, 'release', 'create', '--prerelease', '--draft', '--title',
-    options.version_tag, '--notes', 'TODO', options.version_tag, *release_files
-]
-run(command, check=True)
+    PROJECT_SLUG = 'gh/DataDog/nginx-datadog'
 
-print('removing', work_dir)
-shutil.rmtree(work_dir)
+    # Kick off a CircleCI pipeline.
+    if options.pipeline_id is not None:
+        pipeline_id = options.pipeline_id
+    else:
+        body = {"tag": options.version_tag}
+        _, response = send_ci_request(f'/project/{PROJECT_SLUG}/pipeline',
+                                      payload=body,
+                                      method='POST')
+        print(response)
+        pipeline_id = response.get('id')
+        if pipeline_id is None:
+            raise Exception(
+                f'POST [...]/pipeline response did not contain pipeline "id": {response}'
+            )
+
+    # TODO: Poll until the number of "build-and-test-all" jobs changes from
+    # zero.
+    delay_seconds = 20
+    print(f'sleeping for {delay_seconds} seconds...')
+    time.sleep(delay_seconds)
+
+    # Fetch the pipeline's information.  This will contain its workflows.
+    # We're looking for exactly one "build-and-test-all" workflow.
+    workflows = send_ci_request_paged(f'/pipeline/{pipeline_id}/workflow')
+    workflow = [wf for wf in workflows if wf['name'] == 'build-and-test-all']
+    if len(workflow) != 1:
+        raise Exception(
+            f'Workflows contains the wrong number of "build-and-test-all".  Expected 1 but got {len(workflow)}: {workflows}'
+        )
+    workflow = workflow[0]
+    workflow_id = workflow['id']
+
+    work_dir = Path(tempfile.mkdtemp())
+    print('Working directory is', work_dir)
+
+    # Poll jobs until all are done.
+    done_jobs = set()  # job numbers (not IDs)
+    while True:
+        jobs = send_ci_request_paged(f'/workflow/{workflow_id}/job')
+        for job in jobs:
+            if job['status'] in ('blocked', 'not_running'):
+                continue
+            job_number = job['job_number']
+            if job_number not in done_jobs:
+                result = handle_job(job, work_dir)
+                if result == 'done':
+                    done_jobs.add(job_number)
+
+        if len(done_jobs) == len(jobs):
+            break
+
+        sleep_seconds = 20
+        print(
+            f'Going to sleep for {sleep_seconds} seconds before checking jobs again.'
+        )
+        time.sleep(sleep_seconds)
+
+    # We've tgz'd and signed all of our release modules.
+    # Now let's send them to GitHub in a release via `gh release create`.
+    release_files = itertools.chain(work_dir.glob('*.tgz'),
+                                    work_dir.glob('*.tgz.asc'))
+    command = [
+        gh_exe, 'release', 'create', '--prerelease', '--draft', '--title',
+        options.version_tag, '--notes', 'TODO', options.version_tag, *release_files
+    ]
+    run(command, check=True)
+
+    print('removing', work_dir)
+    shutil.rmtree(work_dir)

@@ -19,6 +19,9 @@ jobs:
       # "$major.$minor.$patch".
       nginx-version:
         type: string
+      arch:
+        type: string
+        default: "amd64"
     docker:
     - image:  << parameters.build-image >>
     resource_class: xlarge
@@ -40,6 +43,7 @@ jobs:
     - checkout
     - run: printf 'NGINX_VERSION=%s\n' << parameters.nginx-version >> >>nginx-version-info
     - run: printf 'BASE_IMAGE=%s\n' '<< parameters.base-image >>' >>nginx-version-info
+    - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
     - run: make build
     - persist_to_workspace:
         root: .
