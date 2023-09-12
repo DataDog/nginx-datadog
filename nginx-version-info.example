@@ -35,6 +35,7 @@
 #     NGINX_MODULES_PATH is not required for the "build" or "build-in-docker"
 #     make targets, but is required for the "test" and "lab" targets.
 
+ARCH=linux/amd64
 NGINX_VERSION=1.24.0
 BASE_IMAGE=nginx:1.24.0-alpine
 NGINX_MODULES_PATH=/usr/lib/nginx/modules
