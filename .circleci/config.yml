@@ -90,6 +90,9 @@ jobs:
       nginx-conf-path:
         type: string
         default: ""
+      arch:
+        type: string
+        default: "amd64"
     docker:
     # "cimg" means "convenience image."  Helpful images provided by CircleCI.
     # This one contains Python, docker-compose, and a bunch of other things.
