@@ -8,6 +8,13 @@ executors:
     docker:
       - image: << parameters.image >>
     resource_class: xlarge
+  docker-arm64:
+    parameters:
+      image:
+        type: string
+    docker:
+      - image: << parameters.image >>
+    resource_class: arm.xlarge
 
 jobs:
   build:
@@ -28,11 +35,12 @@ jobs:
       # "$major.$minor.$patch".
       nginx-version:
         type: string
-      # arch:
-      #   type: string
-      #   default: "amd64"
+      arch:
+        type: string
+        default: "amd64"
     executor:
-    - docker-amd64: << parameters.build-image >>
+      name: docker-<< parameters.arch >>
+      image: << parameters.build-image >>
     environment:
       # The `resource_class` implies a memory limit and supposedly a CPU count
       # limit.  However, either there is no actual CPU count limit, or the
