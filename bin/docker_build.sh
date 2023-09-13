@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -euo pipefail
+set -euo
 
 usage() {
     cat <<'END_USAGE'
@@ -111,7 +111,7 @@ if [ "$push" -eq 0 ]; then
     buildx_output_args="--output=type=image,name=${remote_destination},push=true"
     push=1
   else
-    printf "Exporting to ${local_destination}\n"
+    printf "Exporting to %s.\n" "${local_destination}"
   fi
 fi
 
