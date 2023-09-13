@@ -585,6 +585,7 @@ workflows:
         base-image: "nginx:1.25.2"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2"
         nginx-version: "1.25.2"
+        arch: "arm64"
         filters:
           tags:
             only: /^v[0-9]+\.[0-9]+\.[0-9]+/
