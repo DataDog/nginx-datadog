@@ -358,8 +358,8 @@ If there is no location associated with the current request, then
 
 ### `datadog_proxy_directive`
 `$datadog_proxy_directive` expands to the name of the configuration directive
-used to proxy the current request, i.e. one of `proxy_pass`, `grpc_pass`, or
-`fastcgi_pass`.
+used to proxy the current request, i.e. one of `proxy_pass`, `grpc_pass`,
+`fastcgi_pass`, or `uwsgi_pass`.
 
 If the request was not configured by one of those directives, then
 `$datadog_proxy_directive` expands to "`location`".

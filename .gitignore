@@ -18,3 +18,6 @@
 
 # scratch directory for preparing releases
 /.release/
+
+# Python
+__pycache__/
