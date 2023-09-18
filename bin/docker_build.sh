@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -euo
+set -eu
 
 usage() {
     cat <<'END_USAGE'
@@ -55,18 +55,18 @@ base_image=''
 
 while [ $# -ne 0 ]; do
     case "$1" in
-    -h|--help) 
+    -h|--help)
       usage
-      exit 
+      exit
       ;;
-    -y|--yes) 
-      yes=1 
+    -y|--yes)
+      yes=1
       ;;
-    -p|--push) 
-      push=1 
+    -p|--push)
+      push=1
       ;;
-    # -d|--rm) 
-    #   delete=1 
+    # -d|--rm)
+    #   delete=1
     #   ;;
     --platform)
       platform="$2"
@@ -110,15 +110,15 @@ if [ "$push" -eq 0 ]; then
   if ask "Push built image to \"${remote_destination}\"?"; then
     buildx_output_args="--output=type=image,name=${remote_destination},push=true"
     push=1
+    printf "Exporting to %s\n" "${remote_destination}"
   else
-    printf "Exporting to %s.\n" "${local_destination}"
+    printf "Exporting to %s\n" "${local_destination}"
   fi
 fi
 
 docker buildx build \
   --platform "${platform}" \
   --build-arg "BASE_IMAGE=${base_image}" \
-  --tag "${built_tag}" \
   "${buildx_output_args}" \
   "${repo}"
 

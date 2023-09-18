@@ -150,50 +150,47 @@ workflows:
         filters:
           tags:
             ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    # - build:
+    #     name: "build on amazonlinux:2.0.20230418.0"
+    #     base-image: "amazonlinux:2.0.20230418.0"
+    #     build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230418.0"
+    #     nginx-version: "1.22.1"
+    #     filters:
+    #       tags:
+    #         ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    # - test:
+    #     name: "test on amazonlinux:2.0.20230418.0"
+    #     base-image: "amazonlinux:2.0.20230418.0"
+    #     nginx-modules-path: "/usr/share/nginx/modules"
+    #     nginx-conf-path: "/etc/nginx/nginx.conf"
+    #     requires:
+    #     - "build on amazonlinux:2.0.20230418.0"
+    #     filters:
+    #       tags:
+    #         ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    # - build:
+    #     name: "build on nginx:1.25.2-alpine"
+    #     base-image: "nginx:1.25.2-alpine"
+    #     build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2-alpine"
+    #     nginx-version: "1.25.2"
+    #     filters:
+    #       tags:
+    #         ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    # - test:
+    #     name: "test on nginx:1.25.2-alpine"
+    #     base-image: "nginx:1.25.2-alpine"
+    #     nginx-modules-path: "/usr/lib/nginx/modules"
+    #     nginx-conf-path: "/etc/nginx/nginx.conf"
+    #     requires:
+    #     - "build on nginx:1.25.2-alpine"
+    #     filters:
+    #       tags:
+    #         ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         matrix:
           parameters:
             arch: ["amd64", "arm64"]
-        name: "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230418.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230418.0"
-        nginx-version: "1.22.1"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - test:
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "test on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230418.0"
-        nginx-modules-path: "/usr/share/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
-        name: "build on nginx:1.25.2-alpine"
-        base-image: "nginx:1.25.2-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2-alpine"
-        nginx-version: "1.25.2"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - test:
-        name: "test on nginx:1.25.2-alpine"
-        base-image: "nginx:1.25.2-alpine"
-        nginx-modules-path: "/usr/lib/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on nginx:1.25.2-alpine"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
-        name: "build on nginx:1.25.2"
+        name: "build on nginx:1.25.2-<< matrix.arch >>"
         base-image: "nginx:1.25.2"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2"
         nginx-version: "1.25.2"
@@ -201,12 +198,15 @@ workflows:
           tags:
             ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
-        name: "test on nginx:1.25.2"
+        matrix:
+          parameters:
+            arch: ["amd64", "arm64"]
+        name: "test on nginx:1.25.2-<< matrix.arch >>"
         base-image: "nginx:1.25.2"
         nginx-modules-path: "/usr/lib/nginx/modules"
         nginx-conf-path: "/etc/nginx/nginx.conf"
         requires:
-        - "build on nginx:1.25.2"
+        - "build on nginx:1.25.2-<< matrix.arch >>"
         filters:
           tags:
             ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
