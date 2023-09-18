@@ -98,6 +98,7 @@ jobs:
     # This one contains Python, docker-compose, and a bunch of other things.
     # See https://circleci.com/docs/circleci-images
     - image: cimg/python:3.10.5
+    resource_class: arm.medium
     environment:
       # See https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
