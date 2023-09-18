@@ -17,7 +17,8 @@ printf  " - NGINX_CONF_PATH=%s\n" "${NGINX_CONF_PATH}"
 printf  " - NGINX_MODULES_PATH=%s\n" "${NGINX_MODULES_PATH}"
 printf  "===============================\n"
 
-DOCKER_DEFAULT_PLATFORM="linux/${ARCH}" docker compose build --parallel
+# DOCKER_DEFAULT_PLATFORM="linux/${ARCH}" docker compose build --parallel
+docker buildx bake
 
 # shellcheck disable=SC2046
 docker image inspect --format "{{.ID}} {{.RepoTags}} {{.Architecture}}" $(docker image ls -q)
