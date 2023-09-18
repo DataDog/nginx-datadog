@@ -1,7 +1,14 @@
 #!/bin/sh
 set -e
 
-ARCH="$(uname -m)"
+case "$(uname -m)" in
+  aarch64)
+    ARCH="arm64"
+    ;;
+  *)
+    ARCH="$(uname -m)"
+    ;;
+esac
 
 apk update
 apk add wget tar curl jq
