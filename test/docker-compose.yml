@@ -5,7 +5,6 @@ services:
   # to probe the module's behavior.
   nginx:
     image: nginx-datadog-test-services-nginx
-    platform: ${ARCH}
     build:
       context: ./services/nginx
       dockerfile: ./Dockerfile
@@ -27,7 +26,6 @@ services:
   # by looking at `agent` log lines in the output of `docker compose up`.
   agent:
     image: nginx-datadog-test-services-agent
-    platform: ${ARCH}
     build:
       context: ./services/agent
       dockerfile: ./Dockerfile
@@ -39,7 +37,6 @@ services:
   # server.
   http:
     image: nginx-datadog-test-services-http
-    platform: ${ARCH}
     build:
       context: ./services/http
       dockerfile: ./Dockerfile
@@ -56,7 +53,6 @@ services:
   # which trace context, if any, was propagated to the reverse proxied server.
   fastcgi:
     image: nginx-datadog-test-services-fastcgi
-    platform: ${ARCH}
     build:
       context: ./services/fastcgi
       dockerfile: ./Dockerfile
@@ -75,7 +71,6 @@ services:
   # `nginx` container image.
   grpc:
     image: nginx-datadog-test-services-grpc
-    platform: ${ARCH}
     build:
       context: ./services/grpc
       dockerfile: ./Dockerfile
@@ -96,7 +91,6 @@ services:
   # allow a host port binding.
   client:
     image: nginx-datadog-test-services-client
-    platform: ${ARCH}
     build:
       context: ./services/client
       dockerfile: ./Dockerfile
