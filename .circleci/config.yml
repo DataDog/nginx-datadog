@@ -108,6 +108,7 @@ jobs:
     - run: mv /tmp/workspace/nginx-version-info .
     - run: printf 'NGINX_MODULES_PATH=%s\n' '<< parameters.nginx-modules-path >>' >>nginx-version-info
     - run: printf 'NGINX_CONF_PATH=%s\n' '<< parameters.nginx-conf-path >>' >>nginx-version-info
+    - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
     - run: mv /tmp/workspace/.build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
     - setup_remote_docker:
         # Cache docker layers somewhere so that we don't have to rebuild test
