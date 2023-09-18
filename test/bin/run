@@ -22,4 +22,4 @@ DOCKER_DEFAULT_PLATFORM="linux/${ARCH}" docker compose build --parallel
 # shellcheck disable=SC2046
 docker image inspect --format "{{.ID}} {{.RepoTags}} {{.Architecture}}" $(docker image ls -q)
 
-# python3 -m unittest "$@"
+python3 -m unittest "$@"

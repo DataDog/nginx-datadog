@@ -98,9 +98,8 @@ jobs:
       # "cimg" means "convenience image."  Helpful images provided by CircleCI.
       # This one contains Python, docker-compose, and a bunch of other things.
       # See https://circleci.com/docs/circleci-images
-      # NOTE: cimg/python only support amd64. Until then, we will use cimg/base
-      # and install python3.10
-      image: cimg/base:2023.09
+      # NOTE: cimg/python only support amd64
+      image: cimg/python:3.10.13
     environment:
       # See https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
