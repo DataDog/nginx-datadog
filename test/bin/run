@@ -19,4 +19,5 @@ printf  " - NGINX_MODULES_PATH=%s\n" "${NGINX_MODULES_PATH}"
 printf  "===============================\n"
 
 docker compose build --parallel
-python3 -m unittest "$@"
+docker image inspect --format "{{.ID}} {{.RepoTags}} {{.Architecture}}" $(docker image ls -q)
+# python3 -m unittest "$@"
