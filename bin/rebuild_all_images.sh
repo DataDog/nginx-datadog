@@ -18,5 +18,5 @@ bin=$(dirname "$0")
 
 base_images | while read -r base_image; do
     echo "Building build image for base image $base_image"
-    "$bin"/docker_build.sh --yes --push --rm "$base_image"
+    "$bin"/docker_build.sh --platform linux/amd64,linux/arm64 --yes --push "$base_image"
 done

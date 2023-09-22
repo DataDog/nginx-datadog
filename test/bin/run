@@ -1,8 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env sh
+set -e
 
 cd "$(dirname "$0")/../"
-
-set -e
 
 . ../nginx-version-info
 export BASE_IMAGE
@@ -17,9 +16,5 @@ printf  " - NGINX_CONF_PATH=%s\n" "${NGINX_CONF_PATH}"
 printf  " - NGINX_MODULES_PATH=%s\n" "${NGINX_MODULES_PATH}"
 printf  "===============================\n"
 
-DOCKER_DEFAULT_PLATFORM="linux/${ARCH}" docker compose build --parallel
-
-# shellcheck disable=SC2046
-docker image inspect --format "{{.ID}} {{.RepoTags}} {{.Architecture}}" $(docker image ls -q)
-
+docker compose build --parallel
 python3 -m unittest "$@"
