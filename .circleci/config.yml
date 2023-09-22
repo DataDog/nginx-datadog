@@ -145,91 +145,91 @@ jobs:
     - run: find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
 workflows:
-  build-and-test:
-    jobs:
-    - shellcheck:
-        name: "run shellcheck on shell scripts"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
-        requires:
-          - "shellcheck"
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230418.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230418.0"
-        nginx-version: "1.22.1"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - test:
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "test on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230418.0"
-        nginx-modules-path: "/usr/share/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
-        requires:
-          - "shellcheck"
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "build on nginx:1.25.2-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.2-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2-alpine"
-        nginx-version: "1.25.2"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - test:
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "test on nginx:1.25.2-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.2-alpine"
-        nginx-modules-path: "/usr/lib/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on nginx:1.25.2-alpine-<< matrix.arch >>"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
-        requires:
-          - "shellcheck"
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "build on nginx:1.25.2-<< matrix.arch >>"
-        base-image: "nginx:1.25.2"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2"
-        nginx-version: "1.25.2"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - test:
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "test on nginx:1.25.2-<< matrix.arch >>"
-        base-image: "nginx:1.25.2"
-        nginx-modules-path: "/usr/lib/nginx/modules"
-        nginx-conf-path: "/etc/nginx/nginx.conf"
-        requires:
-        - "build on nginx:1.25.2-<< matrix.arch >>"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+  # build-and-test:
+  #   jobs:
+  #   - shellcheck:
+  #       name: "run shellcheck on shell scripts"
+  #       filters:
+  #         tags:
+  #           ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+  #   - build:
+  #       requires:
+  #         - "shellcheck"
+  #       matrix:
+  #         parameters:
+  #           arch: ["amd64", "arm64"]
+  #       name: "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
+  #       base-image: "amazonlinux:2.0.20230418.0"
+  #       build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230418.0"
+  #       nginx-version: "1.22.1"
+  #       filters:
+  #         tags:
+  #           ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+  #   - test:
+  #       matrix:
+  #         parameters:
+  #           arch: ["amd64", "arm64"]
+  #       name: "test on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
+  #       base-image: "amazonlinux:2.0.20230418.0"
+  #       nginx-modules-path: "/usr/share/nginx/modules"
+  #       nginx-conf-path: "/etc/nginx/nginx.conf"
+  #       requires:
+  #       - "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
+  #       filters:
+  #         tags:
+  #           ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+  #   - build:
+  #       requires:
+  #         - "shellcheck"
+  #       matrix:
+  #         parameters:
+  #           arch: ["amd64", "arm64"]
+  #       name: "build on nginx:1.25.2-alpine-<< matrix.arch >>"
+  #       base-image: "nginx:1.25.2-alpine"
+  #       build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2-alpine"
+  #       nginx-version: "1.25.2"
+  #       filters:
+  #         tags:
+  #           ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+  #   - test:
+  #       matrix:
+  #         parameters:
+  #           arch: ["amd64", "arm64"]
+  #       name: "test on nginx:1.25.2-alpine-<< matrix.arch >>"
+  #       base-image: "nginx:1.25.2-alpine"
+  #       nginx-modules-path: "/usr/lib/nginx/modules"
+  #       nginx-conf-path: "/etc/nginx/nginx.conf"
+  #       requires:
+  #       - "build on nginx:1.25.2-alpine-<< matrix.arch >>"
+  #       filters:
+  #         tags:
+  #           ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+  #   - build:
+  #       requires:
+  #         - "shellcheck"
+  #       matrix:
+  #         parameters:
+  #           arch: ["amd64", "arm64"]
+  #       name: "build on nginx:1.25.2-<< matrix.arch >>"
+  #       base-image: "nginx:1.25.2"
+  #       build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2"
+  #       nginx-version: "1.25.2"
+  #       filters:
+  #         tags:
+  #           ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+  #   - test:
+  #       matrix:
+  #         parameters:
+  #           arch: ["amd64", "arm64"]
+  #       name: "test on nginx:1.25.2-<< matrix.arch >>"
+  #       base-image: "nginx:1.25.2"
+  #       nginx-modules-path: "/usr/lib/nginx/modules"
+  #       nginx-conf-path: "/etc/nginx/nginx.conf"
+  #       requires:
+  #       - "build on nginx:1.25.2-<< matrix.arch >>"
+  #       filters:
+  #         tags:
+  #           ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
 
   build-and-test-all:
     jobs:
@@ -241,7 +241,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230418.0-amd64"
         arch: "amd64"
@@ -252,7 +252,7 @@ workflows:
         - "build on amazonlinux:2.0.20230418.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230418.0-arm64"
         arch: "arm64"
@@ -261,7 +261,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230418.0-arm64"
         arch: "arm64"
@@ -272,7 +272,7 @@ workflows:
         - "build on amazonlinux:2.0.20230418.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230320.0-amd64"
         arch: "amd64"
@@ -281,7 +281,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230320.0-amd64"
         arch: "amd64"
@@ -292,7 +292,7 @@ workflows:
         - "build on amazonlinux:2.0.20230320.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230320.0-arm64"
         arch: "arm64"
@@ -301,7 +301,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230320.0-arm64"
         arch: "arm64"
@@ -312,7 +312,7 @@ workflows:
         - "build on amazonlinux:2.0.20230320.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230307.0-amd64"
         arch: "amd64"
@@ -321,7 +321,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230307.0-amd64"
         arch: "amd64"
@@ -332,7 +332,7 @@ workflows:
         - "build on amazonlinux:2.0.20230307.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230307.0-arm64"
         arch: "arm64"
@@ -341,7 +341,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230307.0-arm64"
         arch: "arm64"
@@ -352,7 +352,7 @@ workflows:
         - "build on amazonlinux:2.0.20230307.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230221.0-amd64"
         arch: "amd64"
@@ -361,7 +361,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230221.0-amd64"
         arch: "amd64"
@@ -372,7 +372,7 @@ workflows:
         - "build on amazonlinux:2.0.20230221.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230221.0-arm64"
         arch: "arm64"
@@ -381,7 +381,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230221.0-arm64"
         arch: "arm64"
@@ -392,7 +392,7 @@ workflows:
         - "build on amazonlinux:2.0.20230221.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230207.0-amd64"
         arch: "amd64"
@@ -401,7 +401,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230207.0-amd64"
         arch: "amd64"
@@ -412,7 +412,7 @@ workflows:
         - "build on amazonlinux:2.0.20230207.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230207.0-arm64"
         arch: "arm64"
@@ -421,7 +421,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230207.0-arm64"
         arch: "arm64"
@@ -432,7 +432,7 @@ workflows:
         - "build on amazonlinux:2.0.20230207.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230119.1-amd64"
         arch: "amd64"
@@ -441,7 +441,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230119.1-amd64"
         arch: "amd64"
@@ -452,7 +452,7 @@ workflows:
         - "build on amazonlinux:2.0.20230119.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20230119.1-arm64"
         arch: "arm64"
@@ -461,7 +461,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20230119.1-arm64"
         arch: "arm64"
@@ -472,7 +472,7 @@ workflows:
         - "build on amazonlinux:2.0.20230119.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20221210.0-amd64"
         arch: "amd64"
@@ -481,7 +481,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20221210.0-amd64"
         arch: "amd64"
@@ -492,7 +492,7 @@ workflows:
         - "build on amazonlinux:2.0.20221210.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20221210.0-arm64"
         arch: "arm64"
@@ -501,7 +501,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20221210.0-arm64"
         arch: "arm64"
@@ -512,7 +512,7 @@ workflows:
         - "build on amazonlinux:2.0.20221210.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20221103.3-amd64"
         arch: "amd64"
@@ -521,7 +521,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20221103.3-amd64"
         arch: "amd64"
@@ -532,7 +532,7 @@ workflows:
         - "build on amazonlinux:2.0.20221103.3-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20221103.3-arm64"
         arch: "arm64"
@@ -541,7 +541,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20221103.3-arm64"
         arch: "arm64"
@@ -552,7 +552,7 @@ workflows:
         - "build on amazonlinux:2.0.20221103.3-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20221004.0-amd64"
         arch: "amd64"
@@ -561,7 +561,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20221004.0-amd64"
         arch: "amd64"
@@ -572,7 +572,7 @@ workflows:
         - "build on amazonlinux:2.0.20221004.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20221004.0-arm64"
         arch: "arm64"
@@ -581,7 +581,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20221004.0-arm64"
         arch: "arm64"
@@ -592,7 +592,7 @@ workflows:
         - "build on amazonlinux:2.0.20221004.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220912.1-amd64"
         arch: "amd64"
@@ -601,7 +601,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220912.1-amd64"
         arch: "amd64"
@@ -612,7 +612,7 @@ workflows:
         - "build on amazonlinux:2.0.20220912.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220912.1-arm64"
         arch: "arm64"
@@ -621,7 +621,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220912.1-arm64"
         arch: "arm64"
@@ -632,7 +632,7 @@ workflows:
         - "build on amazonlinux:2.0.20220912.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220805.0-amd64"
         arch: "amd64"
@@ -641,7 +641,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220805.0-amd64"
         arch: "amd64"
@@ -652,7 +652,7 @@ workflows:
         - "build on amazonlinux:2.0.20220805.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220805.0-arm64"
         arch: "arm64"
@@ -661,7 +661,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220805.0-arm64"
         arch: "arm64"
@@ -672,7 +672,7 @@ workflows:
         - "build on amazonlinux:2.0.20220805.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220719.0-amd64"
         arch: "amd64"
@@ -681,7 +681,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220719.0-amd64"
         arch: "amd64"
@@ -692,7 +692,7 @@ workflows:
         - "build on amazonlinux:2.0.20220719.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220719.0-arm64"
         arch: "arm64"
@@ -701,7 +701,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220719.0-arm64"
         arch: "arm64"
@@ -712,7 +712,7 @@ workflows:
         - "build on amazonlinux:2.0.20220719.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220606.1-amd64"
         arch: "amd64"
@@ -721,7 +721,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220606.1-amd64"
         arch: "amd64"
@@ -732,7 +732,7 @@ workflows:
         - "build on amazonlinux:2.0.20220606.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220606.1-arm64"
         arch: "arm64"
@@ -741,7 +741,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220606.1-arm64"
         arch: "arm64"
@@ -752,7 +752,7 @@ workflows:
         - "build on amazonlinux:2.0.20220606.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220426.0-amd64"
         arch: "amd64"
@@ -761,7 +761,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220426.0-amd64"
         arch: "amd64"
@@ -772,7 +772,7 @@ workflows:
         - "build on amazonlinux:2.0.20220426.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220426.0-arm64"
         arch: "arm64"
@@ -781,7 +781,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220426.0-arm64"
         arch: "arm64"
@@ -792,7 +792,7 @@ workflows:
         - "build on amazonlinux:2.0.20220426.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220419.0-amd64"
         arch: "amd64"
@@ -801,7 +801,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220419.0-amd64"
         arch: "amd64"
@@ -812,7 +812,7 @@ workflows:
         - "build on amazonlinux:2.0.20220419.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220419.0-arm64"
         arch: "arm64"
@@ -821,7 +821,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220419.0-arm64"
         arch: "arm64"
@@ -832,7 +832,7 @@ workflows:
         - "build on amazonlinux:2.0.20220419.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220406.1-amd64"
         arch: "amd64"
@@ -841,7 +841,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220406.1-amd64"
         arch: "amd64"
@@ -852,7 +852,7 @@ workflows:
         - "build on amazonlinux:2.0.20220406.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220406.1-arm64"
         arch: "arm64"
@@ -861,7 +861,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220406.1-arm64"
         arch: "arm64"
@@ -872,7 +872,7 @@ workflows:
         - "build on amazonlinux:2.0.20220406.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220316.0-amd64"
         arch: "amd64"
@@ -881,7 +881,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220316.0-amd64"
         arch: "amd64"
@@ -892,7 +892,7 @@ workflows:
         - "build on amazonlinux:2.0.20220316.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220316.0-arm64"
         arch: "arm64"
@@ -901,7 +901,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220316.0-arm64"
         arch: "arm64"
@@ -912,7 +912,7 @@ workflows:
         - "build on amazonlinux:2.0.20220316.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220218.1-amd64"
         arch: "amd64"
@@ -921,7 +921,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220218.1-amd64"
         arch: "amd64"
@@ -932,7 +932,7 @@ workflows:
         - "build on amazonlinux:2.0.20220218.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220218.1-arm64"
         arch: "arm64"
@@ -941,7 +941,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220218.1-arm64"
         arch: "arm64"
@@ -952,7 +952,7 @@ workflows:
         - "build on amazonlinux:2.0.20220218.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220121.0-amd64"
         arch: "amd64"
@@ -961,7 +961,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220121.0-amd64"
         arch: "amd64"
@@ -972,7 +972,7 @@ workflows:
         - "build on amazonlinux:2.0.20220121.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on amazonlinux:2.0.20220121.0-arm64"
         arch: "arm64"
@@ -981,7 +981,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on amazonlinux:2.0.20220121.0-arm64"
         arch: "arm64"
@@ -992,7 +992,7 @@ workflows:
         - "build on amazonlinux:2.0.20220121.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.2-alpine-amd64"
         arch: "amd64"
@@ -1001,7 +1001,7 @@ workflows:
         nginx-version: "1.25.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.2-alpine-amd64"
         arch: "amd64"
@@ -1012,7 +1012,7 @@ workflows:
         - "build on nginx:1.25.2-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.2-alpine-arm64"
         arch: "arm64"
@@ -1021,7 +1021,7 @@ workflows:
         nginx-version: "1.25.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.2-alpine-arm64"
         arch: "arm64"
@@ -1032,7 +1032,7 @@ workflows:
         - "build on nginx:1.25.2-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.2-amd64"
         arch: "amd64"
@@ -1041,7 +1041,7 @@ workflows:
         nginx-version: "1.25.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.2-amd64"
         arch: "amd64"
@@ -1052,7 +1052,7 @@ workflows:
         - "build on nginx:1.25.2-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.2-arm64"
         arch: "arm64"
@@ -1061,7 +1061,7 @@ workflows:
         nginx-version: "1.25.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.2-arm64"
         arch: "arm64"
@@ -1072,7 +1072,7 @@ workflows:
         - "build on nginx:1.25.2-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.1-alpine-amd64"
         arch: "amd64"
@@ -1081,7 +1081,7 @@ workflows:
         nginx-version: "1.25.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.1-alpine-amd64"
         arch: "amd64"
@@ -1092,7 +1092,7 @@ workflows:
         - "build on nginx:1.25.1-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.1-alpine-arm64"
         arch: "arm64"
@@ -1101,7 +1101,7 @@ workflows:
         nginx-version: "1.25.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.1-alpine-arm64"
         arch: "arm64"
@@ -1112,7 +1112,7 @@ workflows:
         - "build on nginx:1.25.1-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.1-amd64"
         arch: "amd64"
@@ -1121,7 +1121,7 @@ workflows:
         nginx-version: "1.25.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.1-amd64"
         arch: "amd64"
@@ -1132,7 +1132,7 @@ workflows:
         - "build on nginx:1.25.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.1-arm64"
         arch: "arm64"
@@ -1141,7 +1141,7 @@ workflows:
         nginx-version: "1.25.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.1-arm64"
         arch: "arm64"
@@ -1152,7 +1152,7 @@ workflows:
         - "build on nginx:1.25.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.0-alpine-amd64"
         arch: "amd64"
@@ -1161,7 +1161,7 @@ workflows:
         nginx-version: "1.25.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.0-alpine-amd64"
         arch: "amd64"
@@ -1172,7 +1172,7 @@ workflows:
         - "build on nginx:1.25.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.0-alpine-arm64"
         arch: "arm64"
@@ -1181,7 +1181,7 @@ workflows:
         nginx-version: "1.25.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.0-alpine-arm64"
         arch: "arm64"
@@ -1192,7 +1192,7 @@ workflows:
         - "build on nginx:1.25.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.0-amd64"
         arch: "amd64"
@@ -1201,7 +1201,7 @@ workflows:
         nginx-version: "1.25.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.0-amd64"
         arch: "amd64"
@@ -1212,7 +1212,7 @@ workflows:
         - "build on nginx:1.25.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.25.0-arm64"
         arch: "arm64"
@@ -1221,7 +1221,7 @@ workflows:
         nginx-version: "1.25.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.25.0-arm64"
         arch: "arm64"
@@ -1232,7 +1232,7 @@ workflows:
         - "build on nginx:1.25.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.24.0-alpine-amd64"
         arch: "amd64"
@@ -1241,7 +1241,7 @@ workflows:
         nginx-version: "1.24.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.24.0-alpine-amd64"
         arch: "amd64"
@@ -1252,7 +1252,7 @@ workflows:
         - "build on nginx:1.24.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.24.0-alpine-arm64"
         arch: "arm64"
@@ -1261,7 +1261,7 @@ workflows:
         nginx-version: "1.24.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.24.0-alpine-arm64"
         arch: "arm64"
@@ -1272,7 +1272,7 @@ workflows:
         - "build on nginx:1.24.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.24.0-amd64"
         arch: "amd64"
@@ -1281,7 +1281,7 @@ workflows:
         nginx-version: "1.24.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.24.0-amd64"
         arch: "amd64"
@@ -1292,7 +1292,7 @@ workflows:
         - "build on nginx:1.24.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.24.0-arm64"
         arch: "arm64"
@@ -1301,7 +1301,7 @@ workflows:
         nginx-version: "1.24.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.24.0-arm64"
         arch: "arm64"
@@ -1312,7 +1312,7 @@ workflows:
         - "build on nginx:1.24.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.4-alpine-amd64"
         arch: "amd64"
@@ -1321,7 +1321,7 @@ workflows:
         nginx-version: "1.23.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.4-alpine-amd64"
         arch: "amd64"
@@ -1332,7 +1332,7 @@ workflows:
         - "build on nginx:1.23.4-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.4-alpine-arm64"
         arch: "arm64"
@@ -1341,7 +1341,7 @@ workflows:
         nginx-version: "1.23.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.4-alpine-arm64"
         arch: "arm64"
@@ -1352,7 +1352,7 @@ workflows:
         - "build on nginx:1.23.4-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.4-amd64"
         arch: "amd64"
@@ -1361,7 +1361,7 @@ workflows:
         nginx-version: "1.23.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.4-amd64"
         arch: "amd64"
@@ -1372,7 +1372,7 @@ workflows:
         - "build on nginx:1.23.4-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.4-arm64"
         arch: "arm64"
@@ -1381,7 +1381,7 @@ workflows:
         nginx-version: "1.23.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.4-arm64"
         arch: "arm64"
@@ -1392,7 +1392,7 @@ workflows:
         - "build on nginx:1.23.4-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.3-alpine-amd64"
         arch: "amd64"
@@ -1401,7 +1401,7 @@ workflows:
         nginx-version: "1.23.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.3-alpine-amd64"
         arch: "amd64"
@@ -1412,7 +1412,7 @@ workflows:
         - "build on nginx:1.23.3-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.3-alpine-arm64"
         arch: "arm64"
@@ -1421,7 +1421,7 @@ workflows:
         nginx-version: "1.23.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.3-alpine-arm64"
         arch: "arm64"
@@ -1432,7 +1432,7 @@ workflows:
         - "build on nginx:1.23.3-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.3-amd64"
         arch: "amd64"
@@ -1441,7 +1441,7 @@ workflows:
         nginx-version: "1.23.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.3-amd64"
         arch: "amd64"
@@ -1452,7 +1452,7 @@ workflows:
         - "build on nginx:1.23.3-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.3-arm64"
         arch: "arm64"
@@ -1461,7 +1461,7 @@ workflows:
         nginx-version: "1.23.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.3-arm64"
         arch: "arm64"
@@ -1472,7 +1472,7 @@ workflows:
         - "build on nginx:1.23.3-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.2-alpine-amd64"
         arch: "amd64"
@@ -1481,7 +1481,7 @@ workflows:
         nginx-version: "1.23.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.2-alpine-amd64"
         arch: "amd64"
@@ -1492,7 +1492,7 @@ workflows:
         - "build on nginx:1.23.2-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.2-alpine-arm64"
         arch: "arm64"
@@ -1501,7 +1501,7 @@ workflows:
         nginx-version: "1.23.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.2-alpine-arm64"
         arch: "arm64"
@@ -1512,7 +1512,7 @@ workflows:
         - "build on nginx:1.23.2-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.2-amd64"
         arch: "amd64"
@@ -1521,7 +1521,7 @@ workflows:
         nginx-version: "1.23.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.2-amd64"
         arch: "amd64"
@@ -1532,7 +1532,7 @@ workflows:
         - "build on nginx:1.23.2-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.2-arm64"
         arch: "arm64"
@@ -1541,7 +1541,7 @@ workflows:
         nginx-version: "1.23.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.2-arm64"
         arch: "arm64"
@@ -1552,7 +1552,7 @@ workflows:
         - "build on nginx:1.23.2-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.1-alpine-arm64"
         arch: "arm64"
@@ -1561,7 +1561,7 @@ workflows:
         nginx-version: "1.23.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.1-alpine-arm64"
         arch: "arm64"
@@ -1572,7 +1572,7 @@ workflows:
         - "build on nginx:1.23.1-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.1-alpine-amd64"
         arch: "amd64"
@@ -1581,7 +1581,7 @@ workflows:
         nginx-version: "1.23.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.1-alpine-amd64"
         arch: "amd64"
@@ -1592,7 +1592,7 @@ workflows:
         - "build on nginx:1.23.1-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.1-amd64"
         arch: "amd64"
@@ -1601,7 +1601,7 @@ workflows:
         nginx-version: "1.23.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.1-amd64"
         arch: "amd64"
@@ -1612,7 +1612,7 @@ workflows:
         - "build on nginx:1.23.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.1-arm64"
         arch: "arm64"
@@ -1621,7 +1621,7 @@ workflows:
         nginx-version: "1.23.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.1-arm64"
         arch: "arm64"
@@ -1632,7 +1632,7 @@ workflows:
         - "build on nginx:1.23.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.0-alpine-amd64"
         arch: "amd64"
@@ -1641,7 +1641,7 @@ workflows:
         nginx-version: "1.23.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.0-alpine-amd64"
         arch: "amd64"
@@ -1652,7 +1652,7 @@ workflows:
         - "build on nginx:1.23.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.0-alpine-arm64"
         arch: "arm64"
@@ -1661,7 +1661,7 @@ workflows:
         nginx-version: "1.23.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.0-alpine-arm64"
         arch: "arm64"
@@ -1672,7 +1672,7 @@ workflows:
         - "build on nginx:1.23.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.0-amd64"
         arch: "amd64"
@@ -1681,7 +1681,7 @@ workflows:
         nginx-version: "1.23.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.0-amd64"
         arch: "amd64"
@@ -1692,7 +1692,7 @@ workflows:
         - "build on nginx:1.23.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.23.0-arm64"
         arch: "arm64"
@@ -1701,7 +1701,7 @@ workflows:
         nginx-version: "1.23.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.23.0-arm64"
         arch: "arm64"
@@ -1712,7 +1712,7 @@ workflows:
         - "build on nginx:1.23.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.22.1-alpine-amd64"
         arch: "amd64"
@@ -1721,7 +1721,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.22.1-alpine-amd64"
         arch: "amd64"
@@ -1732,7 +1732,7 @@ workflows:
         - "build on nginx:1.22.1-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.22.1-alpine-arm64"
         arch: "arm64"
@@ -1741,7 +1741,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.22.1-alpine-arm64"
         arch: "arm64"
@@ -1752,7 +1752,7 @@ workflows:
         - "build on nginx:1.22.1-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.22.1-amd64"
         arch: "amd64"
@@ -1761,7 +1761,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.22.1-amd64"
         arch: "amd64"
@@ -1772,7 +1772,7 @@ workflows:
         - "build on nginx:1.22.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.22.1-arm64"
         arch: "arm64"
@@ -1781,7 +1781,7 @@ workflows:
         nginx-version: "1.22.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.22.1-arm64"
         arch: "arm64"
@@ -1792,7 +1792,7 @@ workflows:
         - "build on nginx:1.22.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.22.0-alpine-amd64"
         arch: "amd64"
@@ -1801,7 +1801,7 @@ workflows:
         nginx-version: "1.22.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.22.0-alpine-amd64"
         arch: "amd64"
@@ -1812,7 +1812,7 @@ workflows:
         - "build on nginx:1.22.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.22.0-alpine-arm64"
         arch: "arm64"
@@ -1821,7 +1821,7 @@ workflows:
         nginx-version: "1.22.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.22.0-alpine-arm64"
         arch: "arm64"
@@ -1832,7 +1832,7 @@ workflows:
         - "build on nginx:1.22.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.22.0-amd64"
         arch: "amd64"
@@ -1841,7 +1841,7 @@ workflows:
         nginx-version: "1.22.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.22.0-amd64"
         arch: "amd64"
@@ -1852,7 +1852,7 @@ workflows:
         - "build on nginx:1.22.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.22.0-arm64"
         arch: "arm64"
@@ -1861,7 +1861,7 @@ workflows:
         nginx-version: "1.22.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.22.0-arm64"
         arch: "arm64"
@@ -1872,7 +1872,7 @@ workflows:
         - "build on nginx:1.22.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.6-alpine-amd64"
         arch: "amd64"
@@ -1881,7 +1881,7 @@ workflows:
         nginx-version: "1.21.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.6-alpine-amd64"
         arch: "amd64"
@@ -1892,7 +1892,7 @@ workflows:
         - "build on nginx:1.21.6-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.6-alpine-arm64"
         arch: "arm64"
@@ -1901,7 +1901,7 @@ workflows:
         nginx-version: "1.21.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.6-alpine-arm64"
         arch: "arm64"
@@ -1912,7 +1912,7 @@ workflows:
         - "build on nginx:1.21.6-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.6-amd64"
         arch: "amd64"
@@ -1921,7 +1921,7 @@ workflows:
         nginx-version: "1.21.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.6-amd64"
         arch: "amd64"
@@ -1932,7 +1932,7 @@ workflows:
         - "build on nginx:1.21.6-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.6-arm64"
         arch: "arm64"
@@ -1941,7 +1941,7 @@ workflows:
         nginx-version: "1.21.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.6-arm64"
         arch: "arm64"
@@ -1952,7 +1952,7 @@ workflows:
         - "build on nginx:1.21.6-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.5-alpine-amd64"
         arch: "amd64"
@@ -1961,7 +1961,7 @@ workflows:
         nginx-version: "1.21.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.5-alpine-amd64"
         arch: "amd64"
@@ -1972,7 +1972,7 @@ workflows:
         - "build on nginx:1.21.5-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.5-alpine-arm64"
         arch: "arm64"
@@ -1981,7 +1981,7 @@ workflows:
         nginx-version: "1.21.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.5-alpine-arm64"
         arch: "arm64"
@@ -1992,7 +1992,7 @@ workflows:
         - "build on nginx:1.21.5-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.5-amd64"
         arch: "amd64"
@@ -2001,7 +2001,7 @@ workflows:
         nginx-version: "1.21.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.5-amd64"
         arch: "amd64"
@@ -2012,7 +2012,7 @@ workflows:
         - "build on nginx:1.21.5-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.5-arm64"
         arch: "arm64"
@@ -2021,7 +2021,7 @@ workflows:
         nginx-version: "1.21.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.5-arm64"
         arch: "arm64"
@@ -2032,7 +2032,7 @@ workflows:
         - "build on nginx:1.21.5-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.4-alpine-amd64"
         arch: "amd64"
@@ -2041,7 +2041,7 @@ workflows:
         nginx-version: "1.21.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.4-alpine-amd64"
         arch: "amd64"
@@ -2052,7 +2052,7 @@ workflows:
         - "build on nginx:1.21.4-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.4-alpine-arm64"
         arch: "arm64"
@@ -2061,7 +2061,7 @@ workflows:
         nginx-version: "1.21.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.4-alpine-arm64"
         arch: "arm64"
@@ -2072,7 +2072,7 @@ workflows:
         - "build on nginx:1.21.4-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.4-amd64"
         arch: "amd64"
@@ -2081,7 +2081,7 @@ workflows:
         nginx-version: "1.21.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.4-amd64"
         arch: "amd64"
@@ -2092,7 +2092,7 @@ workflows:
         - "build on nginx:1.21.4-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.4-arm64"
         arch: "arm64"
@@ -2101,7 +2101,7 @@ workflows:
         nginx-version: "1.21.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.4-arm64"
         arch: "arm64"
@@ -2112,7 +2112,7 @@ workflows:
         - "build on nginx:1.21.4-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.3-alpine-amd64"
         arch: "amd64"
@@ -2121,7 +2121,7 @@ workflows:
         nginx-version: "1.21.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.3-alpine-amd64"
         arch: "amd64"
@@ -2132,7 +2132,7 @@ workflows:
         - "build on nginx:1.21.3-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.3-alpine-arm64"
         arch: "arm64"
@@ -2141,7 +2141,7 @@ workflows:
         nginx-version: "1.21.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.3-alpine-arm64"
         arch: "arm64"
@@ -2152,7 +2152,7 @@ workflows:
         - "build on nginx:1.21.3-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.3-amd64"
         arch: "amd64"
@@ -2161,7 +2161,7 @@ workflows:
         nginx-version: "1.21.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.3-amd64"
         arch: "amd64"
@@ -2172,7 +2172,7 @@ workflows:
         - "build on nginx:1.21.3-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.3-arm64"
         arch: "arm64"
@@ -2181,7 +2181,7 @@ workflows:
         nginx-version: "1.21.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.3-arm64"
         arch: "arm64"
@@ -2192,7 +2192,7 @@ workflows:
         - "build on nginx:1.21.3-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.1-alpine-amd64"
         arch: "amd64"
@@ -2201,7 +2201,7 @@ workflows:
         nginx-version: "1.21.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.1-alpine-amd64"
         arch: "amd64"
@@ -2212,7 +2212,7 @@ workflows:
         - "build on nginx:1.21.1-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.1-alpine-arm64"
         arch: "arm64"
@@ -2221,7 +2221,7 @@ workflows:
         nginx-version: "1.21.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.1-alpine-arm64"
         arch: "arm64"
@@ -2232,7 +2232,7 @@ workflows:
         - "build on nginx:1.21.1-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.1-amd64"
         arch: "amd64"
@@ -2241,7 +2241,7 @@ workflows:
         nginx-version: "1.21.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.1-amd64"
         arch: "amd64"
@@ -2252,7 +2252,7 @@ workflows:
         - "build on nginx:1.21.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.1-arm64"
         arch: "arm64"
@@ -2261,7 +2261,7 @@ workflows:
         nginx-version: "1.21.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.1-arm64"
         arch: "arm64"
@@ -2272,7 +2272,7 @@ workflows:
         - "build on nginx:1.21.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.0-alpine-amd64"
         arch: "amd64"
@@ -2281,7 +2281,7 @@ workflows:
         nginx-version: "1.21.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.0-alpine-amd64"
         arch: "amd64"
@@ -2292,7 +2292,7 @@ workflows:
         - "build on nginx:1.21.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.0-alpine-arm64"
         arch: "arm64"
@@ -2301,7 +2301,7 @@ workflows:
         nginx-version: "1.21.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.0-alpine-arm64"
         arch: "arm64"
@@ -2312,7 +2312,7 @@ workflows:
         - "build on nginx:1.21.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.0-amd64"
         arch: "amd64"
@@ -2321,7 +2321,7 @@ workflows:
         nginx-version: "1.21.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.0-amd64"
         arch: "amd64"
@@ -2332,7 +2332,7 @@ workflows:
         - "build on nginx:1.21.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.21.0-arm64"
         arch: "arm64"
@@ -2341,7 +2341,7 @@ workflows:
         nginx-version: "1.21.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.21.0-arm64"
         arch: "arm64"
@@ -2352,7 +2352,7 @@ workflows:
         - "build on nginx:1.21.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.2-alpine-amd64"
         arch: "amd64"
@@ -2361,7 +2361,7 @@ workflows:
         nginx-version: "1.20.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.2-alpine-amd64"
         arch: "amd64"
@@ -2372,7 +2372,7 @@ workflows:
         - "build on nginx:1.20.2-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.2-alpine-arm64"
         arch: "arm64"
@@ -2381,7 +2381,7 @@ workflows:
         nginx-version: "1.20.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.2-alpine-arm64"
         arch: "arm64"
@@ -2392,7 +2392,7 @@ workflows:
         - "build on nginx:1.20.2-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.2-amd64"
         arch: "amd64"
@@ -2401,7 +2401,7 @@ workflows:
         nginx-version: "1.20.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.2-amd64"
         arch: "amd64"
@@ -2412,7 +2412,7 @@ workflows:
         - "build on nginx:1.20.2-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.2-arm64"
         arch: "arm64"
@@ -2421,7 +2421,7 @@ workflows:
         nginx-version: "1.20.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.2-arm64"
         arch: "arm64"
@@ -2432,7 +2432,7 @@ workflows:
         - "build on nginx:1.20.2-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.1-alpine-amd64"
         arch: "amd64"
@@ -2441,7 +2441,7 @@ workflows:
         nginx-version: "1.20.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.1-alpine-amd64"
         arch: "amd64"
@@ -2452,7 +2452,7 @@ workflows:
         - "build on nginx:1.20.1-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.1-alpine-arm64"
         arch: "arm64"
@@ -2461,7 +2461,7 @@ workflows:
         nginx-version: "1.20.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.1-alpine-arm64"
         arch: "arm64"
@@ -2472,7 +2472,7 @@ workflows:
         - "build on nginx:1.20.1-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.1-amd64"
         arch: "amd64"
@@ -2481,7 +2481,7 @@ workflows:
         nginx-version: "1.20.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.1-amd64"
         arch: "amd64"
@@ -2492,7 +2492,7 @@ workflows:
         - "build on nginx:1.20.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.1-arm64"
         arch: "arm64"
@@ -2501,7 +2501,7 @@ workflows:
         nginx-version: "1.20.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.1-arm64"
         arch: "arm64"
@@ -2512,7 +2512,7 @@ workflows:
         - "build on nginx:1.20.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.0-alpine-amd64"
         arch: "amd64"
@@ -2521,7 +2521,7 @@ workflows:
         nginx-version: "1.20.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.0-alpine-amd64"
         arch: "amd64"
@@ -2532,7 +2532,7 @@ workflows:
         - "build on nginx:1.20.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.0-alpine-arm64"
         arch: "arm64"
@@ -2541,7 +2541,7 @@ workflows:
         nginx-version: "1.20.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.0-alpine-arm64"
         arch: "arm64"
@@ -2552,7 +2552,7 @@ workflows:
         - "build on nginx:1.20.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.0-amd64"
         arch: "amd64"
@@ -2561,7 +2561,7 @@ workflows:
         nginx-version: "1.20.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.0-amd64"
         arch: "amd64"
@@ -2572,7 +2572,7 @@ workflows:
         - "build on nginx:1.20.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.20.0-arm64"
         arch: "arm64"
@@ -2581,7 +2581,7 @@ workflows:
         nginx-version: "1.20.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.20.0-arm64"
         arch: "arm64"
@@ -2592,7 +2592,7 @@ workflows:
         - "build on nginx:1.20.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.10-alpine-amd64"
         arch: "amd64"
@@ -2601,7 +2601,7 @@ workflows:
         nginx-version: "1.19.10"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.10-alpine-amd64"
         arch: "amd64"
@@ -2612,7 +2612,7 @@ workflows:
         - "build on nginx:1.19.10-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.10-alpine-arm64"
         arch: "arm64"
@@ -2621,7 +2621,7 @@ workflows:
         nginx-version: "1.19.10"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.10-alpine-arm64"
         arch: "arm64"
@@ -2632,7 +2632,7 @@ workflows:
         - "build on nginx:1.19.10-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.10-amd64"
         arch: "amd64"
@@ -2641,7 +2641,7 @@ workflows:
         nginx-version: "1.19.10"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.10-amd64"
         arch: "amd64"
@@ -2652,7 +2652,7 @@ workflows:
         - "build on nginx:1.19.10-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.10-arm64"
         arch: "arm64"
@@ -2661,7 +2661,7 @@ workflows:
         nginx-version: "1.19.10"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.10-arm64"
         arch: "arm64"
@@ -2672,7 +2672,7 @@ workflows:
         - "build on nginx:1.19.10-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.9-alpine-amd64"
         arch: "amd64"
@@ -2681,7 +2681,7 @@ workflows:
         nginx-version: "1.19.9"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.9-alpine-amd64"
         arch: "amd64"
@@ -2692,7 +2692,7 @@ workflows:
         - "build on nginx:1.19.9-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.9-alpine-arm64"
         arch: "arm64"
@@ -2701,7 +2701,7 @@ workflows:
         nginx-version: "1.19.9"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.9-alpine-arm64"
         arch: "arm64"
@@ -2712,7 +2712,7 @@ workflows:
         - "build on nginx:1.19.9-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.9-amd64"
         arch: "amd64"
@@ -2721,7 +2721,7 @@ workflows:
         nginx-version: "1.19.9"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.9-amd64"
         arch: "amd64"
@@ -2732,7 +2732,7 @@ workflows:
         - "build on nginx:1.19.9-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.9-arm64"
         arch: "arm64"
@@ -2741,7 +2741,7 @@ workflows:
         nginx-version: "1.19.9"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.9-arm64"
         arch: "arm64"
@@ -2752,7 +2752,7 @@ workflows:
         - "build on nginx:1.19.9-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.8-alpine-amd64"
         arch: "amd64"
@@ -2761,7 +2761,7 @@ workflows:
         nginx-version: "1.19.8"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.8-alpine-amd64"
         arch: "amd64"
@@ -2772,7 +2772,7 @@ workflows:
         - "build on nginx:1.19.8-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.8-alpine-arm64"
         arch: "arm64"
@@ -2781,7 +2781,7 @@ workflows:
         nginx-version: "1.19.8"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.8-alpine-arm64"
         arch: "arm64"
@@ -2792,7 +2792,7 @@ workflows:
         - "build on nginx:1.19.8-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.8-amd64"
         arch: "amd64"
@@ -2801,7 +2801,7 @@ workflows:
         nginx-version: "1.19.8"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.8-amd64"
         arch: "amd64"
@@ -2812,7 +2812,7 @@ workflows:
         - "build on nginx:1.19.8-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.8-arm64"
         arch: "arm64"
@@ -2821,7 +2821,7 @@ workflows:
         nginx-version: "1.19.8"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.8-arm64"
         arch: "arm64"
@@ -2832,7 +2832,7 @@ workflows:
         - "build on nginx:1.19.8-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.7-alpine-amd64"
         arch: "amd64"
@@ -2841,7 +2841,7 @@ workflows:
         nginx-version: "1.19.7"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.7-alpine-amd64"
         arch: "amd64"
@@ -2852,7 +2852,7 @@ workflows:
         - "build on nginx:1.19.7-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.7-alpine-arm64"
         arch: "arm64"
@@ -2861,7 +2861,7 @@ workflows:
         nginx-version: "1.19.7"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.7-alpine-arm64"
         arch: "arm64"
@@ -2872,7 +2872,7 @@ workflows:
         - "build on nginx:1.19.7-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.7-amd64"
         arch: "amd64"
@@ -2881,7 +2881,7 @@ workflows:
         nginx-version: "1.19.7"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.7-amd64"
         arch: "amd64"
@@ -2892,7 +2892,7 @@ workflows:
         - "build on nginx:1.19.7-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.7-arm64"
         arch: "arm64"
@@ -2901,7 +2901,7 @@ workflows:
         nginx-version: "1.19.7"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.7-arm64"
         arch: "arm64"
@@ -2912,7 +2912,7 @@ workflows:
         - "build on nginx:1.19.7-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.6-alpine-amd64"
         arch: "amd64"
@@ -2921,7 +2921,7 @@ workflows:
         nginx-version: "1.19.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.6-alpine-amd64"
         arch: "amd64"
@@ -2932,7 +2932,7 @@ workflows:
         - "build on nginx:1.19.6-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.6-alpine-arm64"
         arch: "arm64"
@@ -2941,7 +2941,7 @@ workflows:
         nginx-version: "1.19.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.6-alpine-arm64"
         arch: "arm64"
@@ -2952,7 +2952,7 @@ workflows:
         - "build on nginx:1.19.6-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.6-amd64"
         arch: "amd64"
@@ -2961,7 +2961,7 @@ workflows:
         nginx-version: "1.19.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.6-amd64"
         arch: "amd64"
@@ -2972,7 +2972,7 @@ workflows:
         - "build on nginx:1.19.6-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.6-arm64"
         arch: "arm64"
@@ -2981,7 +2981,7 @@ workflows:
         nginx-version: "1.19.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.6-arm64"
         arch: "arm64"
@@ -2992,7 +2992,7 @@ workflows:
         - "build on nginx:1.19.6-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.5-alpine-amd64"
         arch: "amd64"
@@ -3001,7 +3001,7 @@ workflows:
         nginx-version: "1.19.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.5-alpine-amd64"
         arch: "amd64"
@@ -3012,7 +3012,7 @@ workflows:
         - "build on nginx:1.19.5-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.5-alpine-arm64"
         arch: "arm64"
@@ -3021,7 +3021,7 @@ workflows:
         nginx-version: "1.19.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.5-alpine-arm64"
         arch: "arm64"
@@ -3032,7 +3032,7 @@ workflows:
         - "build on nginx:1.19.5-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.5-amd64"
         arch: "amd64"
@@ -3041,7 +3041,7 @@ workflows:
         nginx-version: "1.19.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.5-amd64"
         arch: "amd64"
@@ -3052,7 +3052,7 @@ workflows:
         - "build on nginx:1.19.5-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.5-arm64"
         arch: "arm64"
@@ -3061,7 +3061,7 @@ workflows:
         nginx-version: "1.19.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.5-arm64"
         arch: "arm64"
@@ -3072,7 +3072,7 @@ workflows:
         - "build on nginx:1.19.5-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.4-alpine-amd64"
         arch: "amd64"
@@ -3081,7 +3081,7 @@ workflows:
         nginx-version: "1.19.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.4-alpine-amd64"
         arch: "amd64"
@@ -3092,7 +3092,7 @@ workflows:
         - "build on nginx:1.19.4-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.4-alpine-arm64"
         arch: "arm64"
@@ -3101,7 +3101,7 @@ workflows:
         nginx-version: "1.19.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.4-alpine-arm64"
         arch: "arm64"
@@ -3112,7 +3112,7 @@ workflows:
         - "build on nginx:1.19.4-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.4-amd64"
         arch: "amd64"
@@ -3121,7 +3121,7 @@ workflows:
         nginx-version: "1.19.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.4-amd64"
         arch: "amd64"
@@ -3132,7 +3132,7 @@ workflows:
         - "build on nginx:1.19.4-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.4-arm64"
         arch: "arm64"
@@ -3141,7 +3141,7 @@ workflows:
         nginx-version: "1.19.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.4-arm64"
         arch: "arm64"
@@ -3152,7 +3152,7 @@ workflows:
         - "build on nginx:1.19.4-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.3-alpine-amd64"
         arch: "amd64"
@@ -3161,7 +3161,7 @@ workflows:
         nginx-version: "1.19.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.3-alpine-amd64"
         arch: "amd64"
@@ -3172,7 +3172,7 @@ workflows:
         - "build on nginx:1.19.3-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.3-alpine-arm64"
         arch: "arm64"
@@ -3181,7 +3181,7 @@ workflows:
         nginx-version: "1.19.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.3-alpine-arm64"
         arch: "arm64"
@@ -3192,7 +3192,7 @@ workflows:
         - "build on nginx:1.19.3-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.3-amd64"
         arch: "amd64"
@@ -3201,7 +3201,7 @@ workflows:
         nginx-version: "1.19.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.3-amd64"
         arch: "amd64"
@@ -3212,7 +3212,7 @@ workflows:
         - "build on nginx:1.19.3-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.3-arm64"
         arch: "arm64"
@@ -3221,7 +3221,7 @@ workflows:
         nginx-version: "1.19.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.3-arm64"
         arch: "arm64"
@@ -3232,7 +3232,7 @@ workflows:
         - "build on nginx:1.19.3-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.2-alpine-amd64"
         arch: "amd64"
@@ -3241,7 +3241,7 @@ workflows:
         nginx-version: "1.19.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.2-alpine-amd64"
         arch: "amd64"
@@ -3252,7 +3252,7 @@ workflows:
         - "build on nginx:1.19.2-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.2-alpine-arm64"
         arch: "arm64"
@@ -3261,7 +3261,7 @@ workflows:
         nginx-version: "1.19.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.2-alpine-arm64"
         arch: "arm64"
@@ -3272,7 +3272,7 @@ workflows:
         - "build on nginx:1.19.2-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.2-amd64"
         arch: "amd64"
@@ -3281,7 +3281,7 @@ workflows:
         nginx-version: "1.19.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.2-amd64"
         arch: "amd64"
@@ -3292,7 +3292,7 @@ workflows:
         - "build on nginx:1.19.2-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.2-arm64"
         arch: "arm64"
@@ -3301,7 +3301,7 @@ workflows:
         nginx-version: "1.19.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.2-arm64"
         arch: "arm64"
@@ -3312,7 +3312,7 @@ workflows:
         - "build on nginx:1.19.2-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.1-alpine-amd64"
         arch: "amd64"
@@ -3321,7 +3321,7 @@ workflows:
         nginx-version: "1.19.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.1-alpine-amd64"
         arch: "amd64"
@@ -3332,7 +3332,7 @@ workflows:
         - "build on nginx:1.19.1-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.1-alpine-arm64"
         arch: "arm64"
@@ -3341,7 +3341,7 @@ workflows:
         nginx-version: "1.19.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.1-alpine-arm64"
         arch: "arm64"
@@ -3352,7 +3352,7 @@ workflows:
         - "build on nginx:1.19.1-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.1-amd64"
         arch: "amd64"
@@ -3361,7 +3361,7 @@ workflows:
         nginx-version: "1.19.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.1-amd64"
         arch: "amd64"
@@ -3372,7 +3372,7 @@ workflows:
         - "build on nginx:1.19.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.1-arm64"
         arch: "arm64"
@@ -3381,7 +3381,7 @@ workflows:
         nginx-version: "1.19.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.1-arm64"
         arch: "arm64"
@@ -3392,7 +3392,7 @@ workflows:
         - "build on nginx:1.19.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.0-alpine-amd64"
         arch: "amd64"
@@ -3401,7 +3401,7 @@ workflows:
         nginx-version: "1.19.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.0-alpine-amd64"
         arch: "amd64"
@@ -3412,7 +3412,7 @@ workflows:
         - "build on nginx:1.19.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.0-alpine-arm64"
         arch: "arm64"
@@ -3421,7 +3421,7 @@ workflows:
         nginx-version: "1.19.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.0-alpine-arm64"
         arch: "arm64"
@@ -3432,7 +3432,7 @@ workflows:
         - "build on nginx:1.19.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.0-amd64"
         arch: "amd64"
@@ -3441,7 +3441,7 @@ workflows:
         nginx-version: "1.19.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.0-amd64"
         arch: "amd64"
@@ -3452,7 +3452,7 @@ workflows:
         - "build on nginx:1.19.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.19.0-arm64"
         arch: "arm64"
@@ -3461,7 +3461,7 @@ workflows:
         nginx-version: "1.19.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.19.0-arm64"
         arch: "arm64"
@@ -3472,7 +3472,7 @@ workflows:
         - "build on nginx:1.19.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.18.0-alpine-amd64"
         arch: "amd64"
@@ -3481,7 +3481,7 @@ workflows:
         nginx-version: "1.18.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.18.0-alpine-amd64"
         arch: "amd64"
@@ -3492,7 +3492,7 @@ workflows:
         - "build on nginx:1.18.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.18.0-alpine-arm64"
         arch: "arm64"
@@ -3501,7 +3501,7 @@ workflows:
         nginx-version: "1.18.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.18.0-alpine-arm64"
         arch: "arm64"
@@ -3512,7 +3512,7 @@ workflows:
         - "build on nginx:1.18.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.18.0-amd64"
         arch: "amd64"
@@ -3521,7 +3521,7 @@ workflows:
         nginx-version: "1.18.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.18.0-amd64"
         arch: "amd64"
@@ -3532,7 +3532,7 @@ workflows:
         - "build on nginx:1.18.0-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.18.0-arm64"
         arch: "arm64"
@@ -3541,7 +3541,7 @@ workflows:
         nginx-version: "1.18.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.18.0-arm64"
         arch: "arm64"
@@ -3552,7 +3552,7 @@ workflows:
         - "build on nginx:1.18.0-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.10-alpine-amd64"
         arch: "amd64"
@@ -3561,7 +3561,7 @@ workflows:
         nginx-version: "1.17.10"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.10-alpine-amd64"
         arch: "amd64"
@@ -3572,7 +3572,7 @@ workflows:
         - "build on nginx:1.17.10-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.10-alpine-arm64"
         arch: "arm64"
@@ -3581,7 +3581,7 @@ workflows:
         nginx-version: "1.17.10"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.10-alpine-arm64"
         arch: "arm64"
@@ -3592,7 +3592,7 @@ workflows:
         - "build on nginx:1.17.10-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.10-amd64"
         arch: "amd64"
@@ -3601,7 +3601,7 @@ workflows:
         nginx-version: "1.17.10"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.10-amd64"
         arch: "amd64"
@@ -3612,7 +3612,7 @@ workflows:
         - "build on nginx:1.17.10-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.10-arm64"
         arch: "arm64"
@@ -3621,7 +3621,7 @@ workflows:
         nginx-version: "1.17.10"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.10-arm64"
         arch: "arm64"
@@ -3632,7 +3632,7 @@ workflows:
         - "build on nginx:1.17.10-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.9-alpine-amd64"
         arch: "amd64"
@@ -3641,7 +3641,7 @@ workflows:
         nginx-version: "1.17.9"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.9-alpine-amd64"
         arch: "amd64"
@@ -3652,7 +3652,7 @@ workflows:
         - "build on nginx:1.17.9-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.9-alpine-arm64"
         arch: "arm64"
@@ -3661,7 +3661,7 @@ workflows:
         nginx-version: "1.17.9"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.9-alpine-arm64"
         arch: "arm64"
@@ -3672,7 +3672,7 @@ workflows:
         - "build on nginx:1.17.9-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.9-amd64"
         arch: "amd64"
@@ -3681,7 +3681,7 @@ workflows:
         nginx-version: "1.17.9"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.9-amd64"
         arch: "amd64"
@@ -3692,7 +3692,7 @@ workflows:
         - "build on nginx:1.17.9-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.9-arm64"
         arch: "arm64"
@@ -3701,7 +3701,7 @@ workflows:
         nginx-version: "1.17.9"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.9-arm64"
         arch: "arm64"
@@ -3712,7 +3712,7 @@ workflows:
         - "build on nginx:1.17.9-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.8-alpine-amd64"
         arch: "amd64"
@@ -3721,7 +3721,7 @@ workflows:
         nginx-version: "1.17.8"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.8-alpine-amd64"
         arch: "amd64"
@@ -3732,7 +3732,7 @@ workflows:
         - "build on nginx:1.17.8-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.8-alpine-arm64"
         arch: "arm64"
@@ -3741,7 +3741,7 @@ workflows:
         nginx-version: "1.17.8"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.8-alpine-arm64"
         arch: "arm64"
@@ -3752,7 +3752,7 @@ workflows:
         - "build on nginx:1.17.8-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.8-amd64"
         arch: "amd64"
@@ -3761,7 +3761,7 @@ workflows:
         nginx-version: "1.17.8"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.8-amd64"
         arch: "amd64"
@@ -3772,7 +3772,7 @@ workflows:
         - "build on nginx:1.17.8-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.8-arm64"
         arch: "arm64"
@@ -3781,7 +3781,7 @@ workflows:
         nginx-version: "1.17.8"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.8-arm64"
         arch: "arm64"
@@ -3792,7 +3792,7 @@ workflows:
         - "build on nginx:1.17.8-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.7-alpine-amd64"
         arch: "amd64"
@@ -3801,7 +3801,7 @@ workflows:
         nginx-version: "1.17.7"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.7-alpine-amd64"
         arch: "amd64"
@@ -3812,7 +3812,7 @@ workflows:
         - "build on nginx:1.17.7-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.7-alpine-arm64"
         arch: "arm64"
@@ -3821,7 +3821,7 @@ workflows:
         nginx-version: "1.17.7"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.7-alpine-arm64"
         arch: "arm64"
@@ -3832,7 +3832,7 @@ workflows:
         - "build on nginx:1.17.7-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.7-amd64"
         arch: "amd64"
@@ -3841,7 +3841,7 @@ workflows:
         nginx-version: "1.17.7"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.7-amd64"
         arch: "amd64"
@@ -3852,7 +3852,7 @@ workflows:
         - "build on nginx:1.17.7-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.7-arm64"
         arch: "arm64"
@@ -3861,7 +3861,7 @@ workflows:
         nginx-version: "1.17.7"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.7-arm64"
         arch: "arm64"
@@ -3872,7 +3872,7 @@ workflows:
         - "build on nginx:1.17.7-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.6-alpine-amd64"
         arch: "amd64"
@@ -3881,7 +3881,7 @@ workflows:
         nginx-version: "1.17.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.6-alpine-amd64"
         arch: "amd64"
@@ -3892,7 +3892,7 @@ workflows:
         - "build on nginx:1.17.6-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.6-alpine-arm64"
         arch: "arm64"
@@ -3901,7 +3901,7 @@ workflows:
         nginx-version: "1.17.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.6-alpine-arm64"
         arch: "arm64"
@@ -3912,7 +3912,7 @@ workflows:
         - "build on nginx:1.17.6-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.6-amd64"
         arch: "amd64"
@@ -3921,7 +3921,7 @@ workflows:
         nginx-version: "1.17.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.6-amd64"
         arch: "amd64"
@@ -3932,7 +3932,7 @@ workflows:
         - "build on nginx:1.17.6-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.6-arm64"
         arch: "arm64"
@@ -3941,7 +3941,7 @@ workflows:
         nginx-version: "1.17.6"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.6-arm64"
         arch: "arm64"
@@ -3952,7 +3952,7 @@ workflows:
         - "build on nginx:1.17.6-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.5-alpine-amd64"
         arch: "amd64"
@@ -3961,7 +3961,7 @@ workflows:
         nginx-version: "1.17.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.5-alpine-amd64"
         arch: "amd64"
@@ -3972,7 +3972,7 @@ workflows:
         - "build on nginx:1.17.5-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.5-alpine-arm64"
         arch: "arm64"
@@ -3981,7 +3981,7 @@ workflows:
         nginx-version: "1.17.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.5-alpine-arm64"
         arch: "arm64"
@@ -3992,7 +3992,7 @@ workflows:
         - "build on nginx:1.17.5-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.5-amd64"
         arch: "amd64"
@@ -4001,7 +4001,7 @@ workflows:
         nginx-version: "1.17.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.5-amd64"
         arch: "amd64"
@@ -4012,7 +4012,7 @@ workflows:
         - "build on nginx:1.17.5-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.5-arm64"
         arch: "arm64"
@@ -4021,7 +4021,7 @@ workflows:
         nginx-version: "1.17.5"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.5-arm64"
         arch: "arm64"
@@ -4032,7 +4032,7 @@ workflows:
         - "build on nginx:1.17.5-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.4-alpine-amd64"
         arch: "amd64"
@@ -4041,7 +4041,7 @@ workflows:
         nginx-version: "1.17.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.4-alpine-amd64"
         arch: "amd64"
@@ -4052,7 +4052,7 @@ workflows:
         - "build on nginx:1.17.4-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.4-alpine-arm64"
         arch: "arm64"
@@ -4061,7 +4061,7 @@ workflows:
         nginx-version: "1.17.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.4-alpine-arm64"
         arch: "arm64"
@@ -4072,7 +4072,7 @@ workflows:
         - "build on nginx:1.17.4-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.4-amd64"
         arch: "amd64"
@@ -4081,7 +4081,7 @@ workflows:
         nginx-version: "1.17.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.4-amd64"
         arch: "amd64"
@@ -4092,7 +4092,7 @@ workflows:
         - "build on nginx:1.17.4-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.4-arm64"
         arch: "arm64"
@@ -4101,7 +4101,7 @@ workflows:
         nginx-version: "1.17.4"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.4-arm64"
         arch: "arm64"
@@ -4112,7 +4112,7 @@ workflows:
         - "build on nginx:1.17.4-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.3-alpine-amd64"
         arch: "amd64"
@@ -4121,7 +4121,7 @@ workflows:
         nginx-version: "1.17.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.3-alpine-amd64"
         arch: "amd64"
@@ -4132,7 +4132,7 @@ workflows:
         - "build on nginx:1.17.3-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.3-alpine-arm64"
         arch: "arm64"
@@ -4141,7 +4141,7 @@ workflows:
         nginx-version: "1.17.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.3-alpine-arm64"
         arch: "arm64"
@@ -4152,7 +4152,7 @@ workflows:
         - "build on nginx:1.17.3-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.3-amd64"
         arch: "amd64"
@@ -4161,7 +4161,7 @@ workflows:
         nginx-version: "1.17.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.3-amd64"
         arch: "amd64"
@@ -4172,7 +4172,7 @@ workflows:
         - "build on nginx:1.17.3-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.3-arm64"
         arch: "arm64"
@@ -4181,7 +4181,7 @@ workflows:
         nginx-version: "1.17.3"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.3-arm64"
         arch: "arm64"
@@ -4192,7 +4192,7 @@ workflows:
         - "build on nginx:1.17.3-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.2-alpine-amd64"
         arch: "amd64"
@@ -4201,7 +4201,7 @@ workflows:
         nginx-version: "1.17.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.2-alpine-amd64"
         arch: "amd64"
@@ -4212,7 +4212,7 @@ workflows:
         - "build on nginx:1.17.2-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.2-alpine-arm64"
         arch: "arm64"
@@ -4221,7 +4221,7 @@ workflows:
         nginx-version: "1.17.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.2-alpine-arm64"
         arch: "arm64"
@@ -4232,7 +4232,7 @@ workflows:
         - "build on nginx:1.17.2-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.2-amd64"
         arch: "amd64"
@@ -4241,7 +4241,7 @@ workflows:
         nginx-version: "1.17.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.2-amd64"
         arch: "amd64"
@@ -4252,7 +4252,7 @@ workflows:
         - "build on nginx:1.17.2-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.2-arm64"
         arch: "arm64"
@@ -4261,7 +4261,7 @@ workflows:
         nginx-version: "1.17.2"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.2-arm64"
         arch: "arm64"
@@ -4272,7 +4272,7 @@ workflows:
         - "build on nginx:1.17.2-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.1-alpine-amd64"
         arch: "amd64"
@@ -4281,7 +4281,7 @@ workflows:
         nginx-version: "1.17.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.1-alpine-amd64"
         arch: "amd64"
@@ -4292,7 +4292,7 @@ workflows:
         - "build on nginx:1.17.1-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.1-alpine-arm64"
         arch: "arm64"
@@ -4301,7 +4301,7 @@ workflows:
         nginx-version: "1.17.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.1-alpine-arm64"
         arch: "arm64"
@@ -4312,7 +4312,7 @@ workflows:
         - "build on nginx:1.17.1-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.0-alpine-amd64"
         arch: "amd64"
@@ -4321,7 +4321,7 @@ workflows:
         nginx-version: "1.17.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.0-alpine-amd64"
         arch: "amd64"
@@ -4332,7 +4332,7 @@ workflows:
         - "build on nginx:1.17.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.17.0-alpine-arm64"
         arch: "arm64"
@@ -4341,7 +4341,7 @@ workflows:
         nginx-version: "1.17.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.17.0-alpine-arm64"
         arch: "arm64"
@@ -4352,7 +4352,7 @@ workflows:
         - "build on nginx:1.17.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.16.1-alpine-amd64"
         arch: "amd64"
@@ -4361,7 +4361,7 @@ workflows:
         nginx-version: "1.16.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.16.1-alpine-amd64"
         arch: "amd64"
@@ -4372,7 +4372,7 @@ workflows:
         - "build on nginx:1.16.1-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.16.1-alpine-arm64"
         arch: "arm64"
@@ -4381,7 +4381,7 @@ workflows:
         nginx-version: "1.16.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.16.1-alpine-arm64"
         arch: "arm64"
@@ -4392,7 +4392,7 @@ workflows:
         - "build on nginx:1.16.1-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.16.1-amd64"
         arch: "amd64"
@@ -4401,7 +4401,7 @@ workflows:
         nginx-version: "1.16.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.16.1-amd64"
         arch: "amd64"
@@ -4412,7 +4412,7 @@ workflows:
         - "build on nginx:1.16.1-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.16.1-arm64"
         arch: "arm64"
@@ -4421,7 +4421,7 @@ workflows:
         nginx-version: "1.16.1"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.16.1-arm64"
         arch: "arm64"
@@ -4432,7 +4432,7 @@ workflows:
         - "build on nginx:1.16.1-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.16.0-alpine-amd64"
         arch: "amd64"
@@ -4441,7 +4441,7 @@ workflows:
         nginx-version: "1.16.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.16.0-alpine-amd64"
         arch: "amd64"
@@ -4452,7 +4452,7 @@ workflows:
         - "build on nginx:1.16.0-alpine-amd64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - build:
         name: "build on nginx:1.16.0-alpine-arm64"
         arch: "arm64"
@@ -4461,7 +4461,7 @@ workflows:
         nginx-version: "1.16.0"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     - test:
         name: "test on nginx:1.16.0-alpine-arm64"
         arch: "arm64"
@@ -4472,5 +4472,5 @@ workflows:
         - "build on nginx:1.16.0-alpine-arm64"
         filters:
           tags:
-            only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
     # The following are generated by `../bin/generate_jobs_yaml.sh`.
