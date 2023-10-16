@@ -87,6 +87,10 @@ def child_env(parent_env=None):
 
     result['PATH'] = docker_bin
 
+    # `docker compose` uses $HOME to examine `~/.cache`, though I have no idea
+    # why.
+    result['HOME'] = parent_env['HOME']
+
     return result
 
 
