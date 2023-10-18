@@ -87,6 +87,10 @@ def child_env(parent_env=None):
 
     result['PATH'] = docker_bin
 
+    # `docker compose` uses $HOME to examine `~/.cache`, though I have no idea
+    # why.
+    result['HOME'] = parent_env['HOME']
+
     return result
 
 
@@ -325,6 +329,30 @@ def curl(url, headers, stderr=None):
     return fields, body
 
 
+def add_services_in_nginx_etc_hosts(services):
+    """When we added build/test support on ARM64 by using the ARM64 execution
+    environment in CircleCI, we started seeing intermittent delays in DNS
+    lookups, always about five seconds.
+
+    This function uses `getent` to look up the IP address of each `docker
+    compose` service, and then associates the address with the service name by
+    adding a line to /etc/hosts in the nginx service container. This way, the
+    default `gethostbyname()` resolver used by nginx will not use DNS."""
+    script = f"""
+    for service in {" ".join(f"'{service}'" for service in services)}; do
+        getent hosts "$service" >>/etc/hosts
+    done
+    """
+    # "-T" means "don't allocate a TTY".  This is necessary to avoid the
+    # error "the input device is not a TTY".
+    command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                     '/bin/sh')
+    subprocess.run(command,
+                            input=script,
+                            env=child_env(),
+                            encoding='utf8')
+
+
 class Orchestration:
     """A handle for a `docker compose` session.
 
@@ -386,6 +414,7 @@ class Orchestration:
         runtime_info = ready_queue.get()
         self.containers = runtime_info['containers']
         print(runtime_info, file=self.verbose, flush=True)
+        add_services_in_nginx_etc_hosts(self.services)
 
     def down(self):
         """Stop service orchestration.
