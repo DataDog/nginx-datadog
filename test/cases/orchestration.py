@@ -335,7 +335,7 @@ def add_services_in_nginx_etc_hosts(services):
     lookups, always about five seconds.
 
     This function uses `getent` to look up the IP address of each `docker
-    compose ` service, and then associates the address with the service name by
+    compose` service, and then associates the address with the service name by
     adding a line to /etc/hosts in the nginx service container. This way, the
     default `gethostbyname()` resolver used by nginx will not use DNS."""
     script = f"""
