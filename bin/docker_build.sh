@@ -15,7 +15,7 @@ usage:
 
         Prompt the user for confirmation unless --yes is specified.
 
-        --platform comma separated list of platform to build.
+        --platforms is a comma separated list of platforms to target. --platforms is required.
         Example: --platform linux/amd64,linux/arm64
 
         If --push is specified, push the resulting image to DockerHub
@@ -83,7 +83,7 @@ if [ -z "$base_image" ]; then
 fi
 
 if [ -z "$platform" ]; then
-  >&2 printf 'ERROR: missing platform.\n'
+  >&2 printf 'missing required option: --platforms\n'
   usage
   exit
 fi
