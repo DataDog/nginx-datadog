@@ -11,7 +11,7 @@ indentation='    '
 REPO=$(dirname "$(dirname "$(realpath "$0")")")
 cd "$REPO"
 
-# Here are the supported nginx tags.
+# Here are the supported build/test configurations.
 version_table=$(mktemp)
 # base-image    nginx-version    architecture    nginx-modules-path    nginx-conf-path
 >"$version_table" cat <<END_NGINX_TAGS
