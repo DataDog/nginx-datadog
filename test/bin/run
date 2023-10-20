@@ -1,7 +1,8 @@
-#!/usr/bin/env sh
-set -e
+#!/bin/sh
 
 cd "$(dirname "$0")/../"
+
+set -e
 
 . ../nginx-version-info
 export BASE_IMAGE

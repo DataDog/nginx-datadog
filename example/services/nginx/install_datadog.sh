@@ -1,16 +1,11 @@
-#!/usr/bin/env sh
-# Setup image with nginx if not installed and the corresponding version of
-# the nginx-datadog module.
+#!/bin/sh
+# Set up the nginx container image. Install nginx, if necessary, and install the nginx-datadog module.
 
 set -x
 set -e
 
 is_installed() {
-  if command -v "$1" > /dev/null 2>&1; then
-    return 1
-  else
-    return
-  fi
+  command -v "$1" > /dev/null 2>&1
 }
 
 get_latest_release() {
@@ -22,6 +17,8 @@ if [ "$BASE_IMAGE" = '' ]; then
   exit 1
 fi
 
+# Fail fast in case the base image is not supported.
+# For now, we only support nginx, nginx-alpine, and amazonlinux images.
 case "$BASE_IMAGE" in
     amazonlinux:*)
       nginx_modules_path=/usr/share/nginx/modules
@@ -30,7 +27,7 @@ case "$BASE_IMAGE" in
       nginx_modules_path=/usr/lib/nginx/modules
       ;;
     *)
-      >&2 echo 'Unsupported platform.'
+      >&2 echo 'BASE_IMAGE value "%s" is invalid. See nginx-version-info.example for more information.' "$BASE_IMAGE"
       exit 1
       ;;
 esac
@@ -85,8 +82,6 @@ if ! is_installed nginx; then
 fi
 
 # TODO(@dmehala): nginx version can be different from the base image
-# NGINX_VERSION="$(nginx -v 2>&1 | sed 's|\(.*\)nginx/\(.*\)|\2|')"
-
 RELEASE_TAG=$(get_latest_release DataDog/nginx-datadog)
 
 base_image_without_colons=$(echo "$BASE_IMAGE" | tr ':' '_')

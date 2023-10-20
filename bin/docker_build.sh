@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 set -e
 
 usage() {
@@ -7,7 +7,7 @@ docker_build.sh - Create a build image in Docker
 
 usage:
 
-    docker_build.sh --platform <PLATFORM> [--yes] [--push] [<BASE_IMAGE>]
+    docker_build.sh --platforms <PLATFORM> [--yes] [--push] [<BASE_IMAGE>]
         `docker build` an image suitable for building a Datadog nginx
         module compatible with the optionally specified BASE_IMAGE.
         If BASE_IMAGE is not specified, use the contents of the
@@ -16,7 +16,7 @@ usage:
         Prompt the user for confirmation unless --yes is specified.
 
         --platforms is a comma separated list of platforms to target. --platforms is required.
-        Example: --platform linux/amd64,linux/arm64
+        Example: --platforms linux/amd64,linux/arm64
 
         If --push is specified, push the resulting image to DockerHub
         with a suitable tag.
@@ -46,7 +46,7 @@ ask() {
 repo=$(dirname "$0")/..
 yes=0
 push=0
-platform=''
+platforms=''
 base_image=''
 
 while [ $# -ne 0 ]; do
@@ -61,8 +61,8 @@ while [ $# -ne 0 ]; do
     -p|--push)
       push=1
       ;;
-    --platform)
-      platform="$2"
+    --platforms)
+      platforms="$2"
       shift
       ;;
     *)
@@ -82,7 +82,7 @@ if [ -z "$base_image" ]; then
     base_image="$BASE_IMAGE"
 fi
 
-if [ -z "$platform" ]; then
+if [ -z "$platforms" ]; then
   >&2 printf 'missing required option: --platforms\n'
   usage
   exit
@@ -95,7 +95,7 @@ local_destination="$(pwd)/${built_tag}.tar"
 remote_destination="datadog/docker-library:$built_tag"
 buildx_output_args="--output=type=image,name=${remote_destination},push=true"
 
-if ! ask "Build image compatible with ${base_image} for ${platform} and tag as ${built_tag}?"; then
+if ! ask "Build image compatible with ${base_image} for ${platforms} and tag as ${built_tag}?"; then
     exit 1
 fi
 
@@ -106,7 +106,7 @@ if [ "$push" -eq 0 ]; then
 fi
 
 docker buildx build \
-  --platform "${platform}" \
+  --platform "${platforms}" \
   --build-arg "BASE_IMAGE=${base_image}" \
   "${buildx_output_args}" \
   "${repo}"
