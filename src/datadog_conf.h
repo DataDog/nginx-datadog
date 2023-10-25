@@ -161,7 +161,7 @@ struct datadog_loc_conf_t {
   // `proxy_directive` is empty.
   ngx_str_t proxy_directive;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
-  // `nullptr` if this context has not parent.
+  // `nullptr` if this context has no parent.
   datadog_loc_conf_t *parent;
   // `sample_rates` contains one entry per `sample_rate` directive in this
   // location. Entries for enclosing contexts can be accessed through `parent`.
