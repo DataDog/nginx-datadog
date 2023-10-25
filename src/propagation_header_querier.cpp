@@ -20,10 +20,9 @@ ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request, co
     expand_values(request, span);
   }
 
-  for (auto& key_value : span_context_expansion_) {
-    if (key_value.first == key) {
-      return to_ngx_str(key_value.second);
-    }
+  const auto found = span_context_expansion_.find(std::string{key});
+  if (found != span_context_expansion_.end()) {
+    return to_ngx_str(found->second);
   }
 
   // This will prevent the header from being added to the proxied request.
