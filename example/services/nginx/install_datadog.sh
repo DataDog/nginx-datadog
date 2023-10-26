@@ -27,7 +27,7 @@ case "$BASE_IMAGE" in
       nginx_modules_path=/usr/lib/nginx/modules
       ;;
     *)
-      >&2 echo 'BASE_IMAGE value "%s" is invalid. See nginx-version-info.example for more information.' "$BASE_IMAGE"
+      >&2 printf 'BASE_IMAGE value "%s" is invalid. See nginx-version-info.example for more information.\n' "$BASE_IMAGE"
       exit 1
       ;;
 esac
