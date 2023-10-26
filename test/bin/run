@@ -9,5 +9,13 @@ export BASE_IMAGE
 export NGINX_MODULES_PATH="${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}"
 export NGINX_CONF_PATH="${NGINX_CONF_PATH:-/etc/nginx/nginx.conf}"
 
+printf  "===============================\n"
+printf  "Running test with:\n"
+printf  " - ARCH=%s\n" "${ARCH}"
+printf  " - BASE_IMAGE=%s\n" "${BASE_IMAGE}"
+printf  " - NGINX_CONF_PATH=%s\n" "${NGINX_CONF_PATH}"
+printf  " - NGINX_MODULES_PATH=%s\n" "${NGINX_MODULES_PATH}"
+printf  "===============================\n"
+
 docker compose build --parallel
 python3 -m unittest "$@"

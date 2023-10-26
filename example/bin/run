@@ -1,11 +1,21 @@
 #!/bin/sh
-
 set -e
 
 cd "$(dirname "$0")"/..
 
 BASE_IMAGE="${BASE_IMAGE:-nginx:1.23.1-alpine}"
 export BASE_IMAGE
+
+# Fail fast in case the base image is not supported.
+# For now, we only support nginx, nginx-alpine, and amazonlinux images.
+case "$BASE_IMAGE" in
+    amazonlinux:*) ;;
+    nginx:*) ;;
+    *)
+      >&2 echo 'BASE_IMAGE value "%s" is invalid. See nginx-version-info.example for more information.' "$BASE_IMAGE"
+      exit 1
+      ;;
+esac
 
 if [ "$DD_API_KEY" = '' ]; then
     >&2 echo 'The environment variable DD_API_KEY must be set to a Datadog API key.'
