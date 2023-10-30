@@ -170,6 +170,16 @@ struct datadog_loc_conf_t {
   // The oldest ancestor (the `http` block) has `depth` zero. Each subsequent
   // generation has the `depth` of its parent plus one.
   int depth;
+  // `sampling_delegation_script` evaluates to one of "on", "off", or "" (the
+  // empty string). If "on", then sampling decisions will be delegated to the
+  // upstream at this location. If "off", then not. If "" (the empty string),
+  // then the `TracerConfig` will be used, which defaults to effectively "off"
+  // but can be overridden by the `DD_TRACE_DELEGATE_SAMPLING` environment
+  // variable.
+  NgxScript sampling_delegation_script;
+  // `sampling_delegation_directive` is the source location of the
+  // `datadog_delegate_sampling` directive in this location, if any.
+  conf_directive_source_location_t sampling_delegation_directive;
 };
 
 }  // namespace nginx

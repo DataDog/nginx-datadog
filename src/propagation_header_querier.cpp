@@ -1,6 +1,7 @@
 #include "propagation_header_querier.h"
 
 #include <datadog/dict_writer.h>
+#include <datadog/injection_options.h>
 
 #include <algorithm>
 #include <cassert>
@@ -9,7 +10,12 @@
 #include <string_view>
 
 #include "dd.h"
+#include "ngx_http_datadog_module.h"
 #include "string_util.h"
+
+extern "C" {
+#include <ngx_http_config.h>
+}
 
 namespace datadog {
 namespace nginx {
@@ -50,10 +56,30 @@ class SpanContextValueWriter : public dd::DictWriter {
 }  // namespace
 
 void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const dd::Span& span) {
+  dd::InjectionOptions options;
+  auto loc_conf = static_cast<datadog_loc_conf_t*>(
+      ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
+  const ngx_str_t delegation = loc_conf->sampling_delegation_script.run(request);
+  if (str(delegation) == "on") {
+    options.delegate_sampling_decision = true;
+  } else if (str(delegation) == "off") {
+    options.delegate_sampling_decision = false;
+  } else if (str(delegation) == "") {
+    // Leave `options.delegation_sampling_decision` null, so that the tracer
+    // configuration will be used instead.
+  } else {
+    const auto& directive = loc_conf->sampling_delegation_directive;
+    ngx_log_error(
+        NGX_LOG_ERR, request->connection->log, 0,
+        "Condition expression for %V directive at %V:%d evaluated to unexpected value "
+        "\"%V\". Expected \"on\" or \"off\". Proceeding as if the directive were absent.",
+        &directive.directive_name, &directive.file_name, directive.line, &delegation);
+  }
+
   values_span_ = &span;
   span_context_expansion_.clear();
   SpanContextValueWriter writer{span_context_expansion_, buffer_};
-  span.inject(writer);
+  span.inject(writer, options);
 }
 
 }  // namespace nginx

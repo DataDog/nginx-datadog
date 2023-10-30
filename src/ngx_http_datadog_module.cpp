@@ -275,6 +275,13 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
+    { ngx_string("datadog_delegate_sampling"),
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1 | NGX_CONF_NOARGS,
+      set_datadog_delegate_sampling,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
     ngx_null_command
 };
 
@@ -592,6 +599,10 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
   }
   if (const auto rc =
           merge_script(cf, prev->response_info_script, conf->response_info_script, "")) {
+    return rc;
+  }
+  if (const auto rc = merge_script(cf, prev->sampling_delegation_script,
+                                   conf->sampling_delegation_script, "")) {
     return rc;
   }
 

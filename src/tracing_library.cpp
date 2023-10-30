@@ -129,6 +129,7 @@ dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_n
         result.push_back("x-datadog-sampling-priority");
         result.push_back("x-datadog-origin");
         result.push_back("x-datadog-tags");
+        result.push_back("x-datadog-delegate-trace-sampling");
         break;
       case dd::PropagationStyle::B3:
         result.push_back("x-b3-traceid");

@@ -170,6 +170,9 @@ whose value is the result of evaluating the specified `<value>` in the context
 of the current request.  `<value>` is a string that may contain
 `$`-[variables][2] (including those provided by this module).
 
+### `datadog_delegate_sampling`
+TODO
+
 ### `datadog_enable`
 - **syntax** `datadog_enable`
 - **context** `http`, `server`, `location`
