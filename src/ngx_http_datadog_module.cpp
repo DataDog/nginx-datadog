@@ -1,5 +1,6 @@
 #include "ngx_http_datadog_module.h"
 
+#include <cassert>
 #include <cstdlib>
 #include <exception>
 #include <iterator>
@@ -282,6 +283,15 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
+    // based on ngx_http_headers_filter_module.c
+    { ngx_string("add_header"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
+                        |NGX_CONF_TAKE23,
+      hijack_add_header,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      NULL },
+
     ngx_null_command
 };
 
@@ -474,6 +484,65 @@ static int register_destructor(ngx_pool_t *pool, Config *config) {
   return 0;
 }
 
+// TODO: document
+static char *inject_sampling_delegation_response_header(ngx_conf_t *cf) noexcept try {
+  auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
+
+  // The only way that `main_conf` could be `nullptr` is if there's no `http`
+  // block in the nginx configuration.  In that case, this function would never
+  // get called, because it's called only from configuration directives that
+  // live inside the `http` block.
+  assert(main_conf != nullptr);
+
+  if (main_conf->is_sampling_delegation_response_header_added) {
+    // We already added the `add_header` directive previously, so there's
+    // nothing to do here.
+    return NGX_OK;
+  }
+  main_conf->is_sampling_delegation_response_header_added = true;
+
+  const ngx_str_t response_header = ngx_string("X-Datadog-Trace-Sampling-Decision");
+
+  // Prevent an upstream's "X-Datadog-Trace-Sampling-Decision" response header
+  // from leaking to the client:
+  //
+  //     proxy_hide_header X-Datadog-Trace-Sampling-Decision;
+  ngx_str_t args[] = {ngx_string("proxy_hide_header"), response_header, ngx_str_t(), ngx_str_t()};
+  ngx_array_t args_array;
+  args_array.elts = static_cast<void *>(&args);
+  args_array.nelts = 2;
+
+  auto old_args = cf->args;
+  cf->args = &args_array;
+  const auto guard = defer([&]() { cf->args = old_args; });
+
+  auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  // Add our own version of the "X-Datadog-Trace-Sampling-Decision" response
+  // header (if it's nonempty):
+  //
+  //     add_header X-Datadog-Trace-Sampling-Decision $datadog_sampling_delegation_response always;
+  args[0] = ngx_string("add_header");
+  args[1] = response_header;
+  args[2] = ngx_string("$datadog_sampling_delegation_response");
+  args[3] = ngx_string("always");
+  args_array.nelts = 4;
+
+  rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+  return static_cast<char *>(NGX_CONF_OK);
+} catch (const std::exception &e) {
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "inject_sampling_delegation_response_header failed: %s",
+                e.what());
+  return static_cast<char *>(NGX_CONF_ERROR);
+}
+
 //------------------------------------------------------------------------------
 // create_datadog_main_conf
 //------------------------------------------------------------------------------
@@ -505,6 +574,13 @@ static bool is_server_block_begin(const ngx_conf_t *conf) {
          str(*static_cast<const ngx_str_t *>(conf->args->elts)) == "server";
 }
 
+static ngx_str_t block_type(const ngx_conf_t *conf) {
+  if (conf->args == nullptr) {
+    return ngx_string("");
+  }
+  return to_ngx_str(conf->pool, str(*static_cast<const ngx_str_t *>(conf->args->elts)));
+}
+
 //------------------------------------------------------------------------------
 // create_datadog_loc_conf
 //------------------------------------------------------------------------------
@@ -530,11 +606,20 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   // block handler, but is a configuration context constructor that is called
   // before the handler. So, we're still currently "outside" the `server` block,
   // within the `http` block, which is the only place `log_format` is allowed.
+  //
+  // In addition to the `log_format` directives, we also add an `add_header`
+  // directive so that the trace sampling delegation response header can be sent
+  // back to the client, if appropriate.
   if (is_server_block_begin(conf)) {
     if (inject_datadog_log_formats(conf)) {
       return nullptr;  // error
     }
+    if (inject_sampling_delegation_response_header(conf)) {
+      return nullptr;  // error
+    }
   }
+
+  loc_conf->block_type = block_type(conf);
 
   return loc_conf;
 }
@@ -597,8 +682,9 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
                        TracingLibrary::default_resource_name_pattern())) {
     return rc;
   }
-  if (const auto rc =
-          merge_script(cf, prev->response_info_script, conf->response_info_script, "")) {
+  // TODO: Put this response info script default somewhere else.
+  if (const auto rc = merge_script(cf, prev->response_info_script, conf->response_info_script,
+                                   "$upstream_http_x_datadog_trace_sampling_decision")) {
     return rc;
   }
   if (const auto rc = merge_script(cf, prev->sampling_delegation_script,

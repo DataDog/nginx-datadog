@@ -259,6 +259,29 @@ static ngx_int_t expand_proxy_directive_variable(ngx_http_request_t* request,
   return NGX_OK;
 }
 
+// TODO: document
+static ngx_int_t expand_sampling_delegation_response_variable(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t /*data*/) noexcept {
+  auto context = get_datadog_context(request);
+  // Context can be null if tracing is disabled.
+  if (context == nullptr) {
+    variable_value->valid = true;
+    variable_value->no_cacheable = true;
+    variable_value->not_found = true;
+    return NGX_OK;
+  }
+
+  const ngx_str_t value = context->lookup_sampling_delegation_response_variable_value(request);
+  variable_value->len = value.len;
+  variable_value->valid = true;
+  variable_value->no_cacheable = true;
+  variable_value->not_found = false;
+  variable_value->data = value.data;
+
+  return NGX_OK;
+}
+
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   ngx_str_t prefix;
   ngx_http_variable_t* variable;
@@ -302,6 +325,12 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   name = to_ngx_str(TracingLibrary::proxy_directive_variable_name());
   variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
   variable->get_handler = expand_proxy_directive_variable;
+  variable->data = 0;
+
+  // TODO: document
+  name = to_ngx_str(TracingLibrary::sampling_delegation_response_variable_name());
+  variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
+  variable->get_handler = expand_sampling_delegation_response_variable;
   variable->data = 0;
 
   return NGX_OK;

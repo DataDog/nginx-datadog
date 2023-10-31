@@ -801,8 +801,6 @@ char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command, void *conf) 
 char *set_datadog_delegate_sampling(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
   const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
 
-  conf_directive_source_location_t directive = command_source_location(command, cf);
-
   auto values = static_cast<ngx_str_t *>(cf->args->elts);
   // values[0] is the command name, "datadog_delegate_sampling".
   // The other elements are the arguments: either zero or one of them.
@@ -824,6 +822,54 @@ char *set_datadog_delegate_sampling(ngx_conf_t *cf, ngx_command_t *command, void
   }
 
   return NGX_CONF_OK;
+}
+
+char *hijack_add_header(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept try {
+  // First, call the handler of the actual command that we're hijacking, i.e.
+  // "add_header".  Be sure to skip this module, so we don't call ourself.
+  ngx_int_t rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+
+  // If this is the `http` block, then don't bother. There is special logic to
+  // insert `add_header` (and `proxy_hide_header`) in the `http` block before
+  // the first `server` block.
+  if (str(loc_conf->block_type) == "http") {
+    return NGX_OK;
+  }
+
+  if (loc_conf->is_sampling_delegation_response_header_added) {
+    return NGX_OK;
+  }
+  loc_conf->is_sampling_delegation_response_header_added = true;
+
+  const ngx_str_t response_header = ngx_string("X-Datadog-Trace-Sampling-Decision");
+
+  // Add our own version of the "X-Datadog-Trace-Sampling-Decision" response
+  // header (if it's nonempty):
+  //
+  //     add_header X-Datadog-Trace-Sampling-Decision $datadog_sampling_delegation_response always;
+  ngx_str_t args[] = {ngx_string("add_header"), response_header,
+                      ngx_string("$datadog_sampling_delegation_response"), ngx_string("always")};
+  ngx_array_t args_array;
+  args_array.elts = static_cast<void *>(&args);
+  args_array.nelts = sizeof args / sizeof args[0];
+
+  auto old_args = cf->args;
+  cf->args = &args_array;
+  const auto guard = defer([&]() { cf->args = old_args; });
+
+  rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+  return static_cast<char *>(NGX_CONF_OK);
+} catch (const std::exception &e) {
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "hijack_add_header failed: %s", e.what());
+  return static_cast<char *>(NGX_CONF_ERROR);
 }
 
 }  // namespace nginx

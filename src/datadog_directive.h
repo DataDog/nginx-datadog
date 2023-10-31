@@ -66,5 +66,7 @@ char *set_datadog_agent_url(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 
 char *set_datadog_delegate_sampling(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
 
+char *hijack_add_header(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept;
+
 }  // namespace nginx
 }  // namespace datadog

@@ -109,6 +109,13 @@ struct datadog_main_conf_t {
   std::optional<configured_value_t> environment;
   // `agent_url` is set by the `datadog_agent_url` directive.
   std::optional<configured_value_t> agent_url;
+  //  `is_sampling_delegation_response_header_added` is whether we have added an
+  //  `add_header` directive before the first `server` block within the
+  //  configuration. The directive is used to include the
+  //  X-Datadog-Trace-Sampling-Decision response header when the client
+  //  requested trace sampling delegation. This `bool` ensures that the
+  //  directive is not added more than once.
+  bool is_sampling_delegation_response_header_added;
 };
 
 struct datadog_sample_rate_condition_t {
@@ -180,6 +187,18 @@ struct datadog_loc_conf_t {
   // `sampling_delegation_directive` is the source location of the
   // `datadog_delegate_sampling` directive in this location, if any.
   conf_directive_source_location_t sampling_delegation_directive;
+  //  `is_sampling_delegation_response_header_added` is whether we have added an
+  //  `add_header` directive before the first user-specified `add_header`
+  //  directive within this server/location block. The directive is used to
+  //  include the X-Datadog-Trace-Sampling-Decision response header when the
+  //  client requested trace sampling delegation. The inserted `add_header` is
+  //  necessary only if there are user-defined `add_header` directives at the
+  //  same level; if not, then the `add_header` is inherited from the `http`
+  //  block.
+  bool is_sampling_delegation_response_header_added;
+  // `block_type` is the name of the kind of configuration block we're in, e.g.
+  // "http", "server", "location", or "if".
+  ngx_str_t block_type;
 };
 
 }  // namespace nginx

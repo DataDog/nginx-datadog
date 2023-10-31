@@ -59,6 +59,16 @@ ngx_str_t DatadogContext::lookup_span_variable_value(ngx_http_request_t *request
   return trace->lookup_span_variable_value(key);
 }
 
+ngx_str_t DatadogContext::lookup_sampling_delegation_response_variable_value(
+    ngx_http_request_t *request) {
+  auto trace = find_trace(request);
+  if (trace == nullptr) {
+    throw std::runtime_error{
+        "lookup_sampling_delegation_response_variable_value failed: could not find request trace"};
+  }
+  return trace->lookup_sampling_delegation_response_variable_value();
+}
+
 RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {
   const auto found = std::find_if(traces_.begin(), traces_.end(),
                                   [=](const auto &trace) { return trace.request() == request; });

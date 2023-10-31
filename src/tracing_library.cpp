@@ -240,5 +240,9 @@ bool TracingLibrary::tracing_on_by_default() { return true; }
 
 bool TracingLibrary::trace_locations_by_default() { return false; }
 
+std::string_view TracingLibrary::sampling_delegation_response_variable_name() {
+  return "datadog_sampling_delegation_response";
+}
+
 }  // namespace nginx
 }  // namespace datadog
