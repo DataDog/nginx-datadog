@@ -133,6 +133,21 @@ def parse_trace(log_line):
     return trace
 
 
+def parse_spans(log_lines):
+    """Return a list of spans parsed from some subset of the specified
+    `log_lines`.
+    """
+    spans = []
+    for line in log_lines:
+        trace = parse_trace(line)
+        if trace is None:
+            continue
+        for chunk in trace:
+            for span in chunk:
+                spans.append(span)
+    return spans
+
+
 def parse_access_log_sync_line(log_line):
     # Return a `dict` containing the sync token parsed from the specified
     # `log_line` if `log_line` is from the nginx access log for a sync request.

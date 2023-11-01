@@ -613,12 +613,15 @@ END_CONF
         return status, log_lines
 
     @contextlib.contextmanager
-    def custom_nginx(self, nginx_conf, extra_env=None):
+    def custom_nginx(self, nginx_conf, extra_env=None, healthcheck_port=None):
         """Yield a managed `Popen` object referring to a new instance of nginx
         running in the nginx service container, where the new instance uses the
         specified `nginx_conf` and has in its environment the optionally
         specified `extra_env`.  When the context of the returned object exits,
         the nginx instance is gracefully shut down.
+        Optionally specify an integer `healthcheck_port` at which the
+        "/healthcheck" will be polled in order to determine when the nginx
+        instance is ready.
         """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
@@ -666,6 +669,32 @@ END_CONF
                                  stdout=self.verbose,
                                  stderr=self.verbose,
                                  env=child_env())
+
+        # Before we `yield child` to the caller, possibly poll the nginx
+        # instance's /healthcheck endpoint to wait for it to be ready.
+        if healthcheck_port is not None:
+            remaining_attempts = 20
+            pause_seconds = 0.25
+            before = time.time()
+            while remaining_attempts > 0:
+                try:
+                    status, _ = self.send_nginx_http_request(
+                        '/healthcheck', port=healthcheck_port)
+                    if status == 200:
+                        after = time.time()
+                        print(
+                            f'custom nginx at port {healthcheck_port} took {after - before} seconds to be ready',
+                            file=self.verbose)
+                        break
+                except Exception:
+                    pass
+                time.sleep(pause_seconds)
+                remaining_attempts -= 1
+            if remaining_attempts == 0:
+                raise Exception(
+                    f'custom nginx at port {healthcheck_port} did not become ready'
+                )
+
         try:
             yield child
         finally:
