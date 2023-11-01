@@ -1,0 +1,29 @@
+digraph {
+    rankdir="TB";
+
+    curl [label="curl 'http://nginx:80/[...]'"];
+    curl -> nginx1;
+
+    subgraph cluster_docker_compose {
+        graph[style=invis];
+        rankdir="LR";
+
+        nginx1 [label="nginx1\n(service)"];
+        nginx2 [label="nginx2\n(custom_nginx)"];
+        nginx3 [label="nginx3\n(custom_nginx)"];
+        http [label="http\n(service)"];
+        agent [label="agent\n(service)"];
+
+        {
+            rank=source;
+            nginx1 -> nginx2 -> nginx3 -> http;
+        }
+
+        {
+            nginx1 -> agent;
+            nginx2 -> agent;
+            nginx3 -> agent;
+            http -> agent;
+        }
+     }
+}
