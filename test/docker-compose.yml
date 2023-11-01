@@ -73,6 +73,7 @@ services:
     build:
       context: ./services/uwsgi
       dockerfile: ./Dockerfile
+    stop_signal: SIGQUIT
     environment:
       - DD_ENV=prod
       - DD_AGENT_HOST=agent
