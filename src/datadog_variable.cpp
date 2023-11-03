@@ -259,7 +259,12 @@ static ngx_int_t expand_proxy_directive_variable(ngx_http_request_t* request,
   return NGX_OK;
 }
 
-// TODO: document
+// Load into the specified `variable_value` the result of looking up the value
+// of the variable whose name is determined by
+// `TracingLibrary::sampling_delegation_response_variable_name()`.  The variable
+// evaluates to a JSON object containing information about the trace sampling
+// decision, or evaluates to the empty string if sampling delegation was not
+// requested in the incoming `request`.
 static ngx_int_t expand_sampling_delegation_response_variable(
     ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t /*data*/) noexcept {
@@ -327,7 +332,9 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   variable->get_handler = expand_proxy_directive_variable;
   variable->data = 0;
 
-  // TODO: document
+  // Register the variable name that will be used to send a response header
+  // containing the trace sampling decision whenever sampling delegation is
+  // requested.
   name = to_ngx_str(TracingLibrary::sampling_delegation_response_variable_name());
   variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
   variable->get_handler = expand_sampling_delegation_response_variable;

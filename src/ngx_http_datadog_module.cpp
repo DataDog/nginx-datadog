@@ -484,7 +484,10 @@ static int register_destructor(ngx_pool_t *pool, Config *config) {
   return 0;
 }
 
-// TODO: document
+// Insert `add_header` and `proxy_hide_header` directives into the specified
+// `cf` so that sampling delegation's X-Datadog-Trace-Sampling-Decision response
+// header can be delivered in response to requests that indicated sampling
+// delegation, if appropriate.
 static char *inject_sampling_delegation_response_header(ngx_conf_t *cf) noexcept try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
@@ -682,7 +685,9 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
                        TracingLibrary::default_resource_name_pattern())) {
     return rc;
   }
-  // TODO: Put this response info script default somewhere else.
+  // $upstream_http_x_datadog_trace_sampling_decision is the value of the
+  // X-Datadog-Trace-Sampling-Decision response header returned by the upstream,
+  // or empty if that response header is not present.
   if (const auto rc = merge_script(cf, prev->response_info_script, conf->response_info_script,
                                    "$upstream_http_x_datadog_trace_sampling_decision")) {
     return rc;

@@ -325,7 +325,6 @@ ngx_str_t RequestTracing::lookup_sampling_delegation_response_variable_value() {
   ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "RESPONSE PATTERN EVALUATED TO: %V ",
                 &response_header);
 
-  // TODO: Hmmm coupling between the nginx variable name and the header name.
   if (response_header.len) {
     class OneHeaderReader : public dd::DictReader {
       const ngx_str_t &value_;

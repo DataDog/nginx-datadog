@@ -143,7 +143,10 @@ struct TracingLibrary {
   // in the nginx configuration.
   static bool trace_locations_by_default();
 
-  // TODO: document
+  // Return the name of the nginx variable that expands to the value of the
+  // X-Datadog-Trace-Sampling-Decision response header to be delivered to a
+  // client that requested sampling delegation, or expands to the empty string
+  // in any other case.
   static std::string_view sampling_delegation_response_variable_name();
 };
 
