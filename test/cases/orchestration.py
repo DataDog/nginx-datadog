@@ -322,14 +322,15 @@ def curl(url, headers, stderr=None):
                             env=child_env(),
                             encoding='utf8',
                             check=True)
-    fields_json, body_json, *rest = result.stdout.split('\n')
+    fields_json, headers_json, body_json, *rest = result.stdout.split('\n')
     if any(line for line in rest):
         raise Exception('Unexpected trailing output to curljson.sh: ' +
                         json.dumps(rest))
 
     fields = json.loads(fields_json)
+    headers = json.loads(headers_json)
     body = json.loads(body_json)
-    return fields, body
+    return fields, headers, body
 
 
 class Orchestration:
@@ -425,8 +426,8 @@ class Orchestration:
         """
         url = f'http://nginx:{port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
-        fields, body = curl(url, headers, stderr=self.verbose)
-        return (fields['response_code'], body)
+        fields, headers, body = curl(url, headers, stderr=self.verbose)
+        return (fields['response_code'], headers, body)
 
     def send_nginx_grpc_request(self, symbol, port=1337):
         """Send an empty gRPC request to the nginx endpoint at "/", where
@@ -463,7 +464,7 @@ class Orchestration:
         the service's log.
         """
         token = str(uuid.uuid4())
-        fields, body = curl(f'http://{service}:{sync_port}',
+        fields, _, body = curl(f'http://{service}:{sync_port}',
                             headers={'X-Datadog-Test-Sync-Token': token})
 
         assert fields['response_code'] == 200
@@ -484,7 +485,7 @@ class Orchestration:
         Note that this assumes that nginx has a particular configuration.
         """
         token = str(uuid.uuid4())
-        status, body = self.send_nginx_http_request(f'/sync?token={token}')
+        status, _, body = self.send_nginx_http_request(f'/sync?token={token}')
         if status != 200:
             raise Exception(
                 f'nginx returned error (status, body): {(status, body)}')
@@ -678,7 +679,7 @@ END_CONF
             before = time.time()
             while remaining_attempts > 0:
                 try:
-                    status, _ = self.send_nginx_http_request(
+                    status, _, _ = self.send_nginx_http_request(
                         '/healthcheck', port=healthcheck_port)
                     if status == 200:
                         after = time.time()

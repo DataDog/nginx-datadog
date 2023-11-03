@@ -21,7 +21,7 @@ class TestConfiguration(case.TestCase):
             conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
-        status, body = self.orch.send_nginx_http_request('/')
+        status, _, body = self.orch.send_nginx_http_request('/')
         self.assertEqual(200, status)
 
         self.default_config = json.loads(body)
@@ -40,7 +40,7 @@ class TestConfiguration(case.TestCase):
             conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
-        status, body = self.orch.send_nginx_http_request('/')
+        status, _, body = self.orch.send_nginx_http_request('/')
         self.assertEqual(200, status)
 
         config = json.loads(body)

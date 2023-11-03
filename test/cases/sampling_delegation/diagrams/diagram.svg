@@ -54,8 +54,8 @@
 <!-- nginx1&#45;&gt;agent -->
 <g id="edge5" class="edge">
 <title>nginx1&#45;&gt;agent</title>
-<path fill="none" stroke="black" d="M165.58,-114.61C173.37,-111.56 181.48,-108.48 189.14,-105.74 235.32,-89.21 288.42,-72.42 327.39,-60.52"/>
-<polygon fill="black" stroke="black" points="328.43,-63.86 336.97,-57.6 326.39,-57.16 328.43,-63.86"/>
+<path fill="none" stroke="black" stroke-width="3" d="M165.58,-114.61C173.37,-111.56 181.48,-108.48 189.14,-105.74 235.32,-89.21 288.42,-72.42 327.39,-60.52"/>
+<polygon fill="black" stroke="black" stroke-width="3" points="328.43,-63.86 336.97,-57.6 326.39,-57.16 328.43,-63.86"/>
 </g>
 <!-- nginx3 -->
 <g id="node4" class="node">
@@ -73,8 +73,8 @@
 <!-- nginx2&#45;&gt;agent -->
 <g id="edge6" class="edge">
 <title>nginx2&#45;&gt;agent</title>
-<path fill="none" stroke="black" d="M313.42,-106.94C324.82,-96.62 338.16,-84.55 350.11,-73.74"/>
-<polygon fill="black" stroke="black" points="352.66,-76.16 357.73,-66.85 347.96,-70.97 352.66,-76.16"/>
+<path fill="none" stroke="black" stroke-width="3" d="M313.42,-106.94C324.82,-96.62 338.16,-84.55 350.11,-73.74"/>
+<polygon fill="black" stroke="black" stroke-width="3" points="352.66,-76.16 357.73,-66.85 347.96,-70.97 352.66,-76.16"/>
 </g>
 <!-- http -->
 <g id="node5" class="node">
@@ -92,8 +92,8 @@
 <!-- nginx3&#45;&gt;agent -->
 <g id="edge7" class="edge">
 <title>nginx3&#45;&gt;agent</title>
-<path fill="none" stroke="black" d="M453.58,-106.94C442.06,-96.62 428.58,-84.55 416.51,-73.74"/>
-<polygon fill="black" stroke="black" points="418.6,-70.92 408.81,-66.85 413.93,-76.13 418.6,-70.92"/>
+<path fill="none" stroke="black" stroke-width="3" d="M453.58,-106.94C442.06,-96.62 428.58,-84.55 416.51,-73.74"/>
+<polygon fill="black" stroke="black" stroke-width="3" points="418.6,-70.92 408.81,-66.85 413.93,-76.13 418.6,-70.92"/>
 </g>
 <!-- http&#45;&gt;agent -->
 <g id="edge8" class="edge">

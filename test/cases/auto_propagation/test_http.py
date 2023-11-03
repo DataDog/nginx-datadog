@@ -32,7 +32,7 @@ class TestHTTP(case.TestCase):
             conf_text, conf_path.name)
         self.assertEqual(status, 0, log_lines)
 
-        status, body = self.orch.send_nginx_http_request('/http')
+        status, _, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(status, 200)
         response = json.loads(body)
         self.assertEqual(response['service'], 'http')

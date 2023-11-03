@@ -140,7 +140,7 @@ class TestOperationName(case.TestCase):
         # Clear any outstanding logs from the agent.
         self.orch.sync_service('agent')
 
-        status, _ = self.orch.send_nginx_http_request('/foo')
+        status, _, _ = self.orch.send_nginx_http_request('/foo')
         self.assertEqual(200, status)
 
         # Reload nginx to force it to send its traces.

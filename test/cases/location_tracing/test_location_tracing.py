@@ -24,7 +24,7 @@ class TestLocationTracing(case.TestCase):
 
         self.orch.sync_service('agent')
 
-        status, body = self.orch.send_nginx_http_request('/http')
+        status, _, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
 
         self.orch.reload_nginx()
@@ -67,7 +67,7 @@ class TestLocationTracing(case.TestCase):
 
         self.orch.sync_service('agent')
 
-        status, body = self.orch.send_nginx_http_request('/http')
+        status, _, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
 
         self.orch.reload_nginx()

@@ -73,7 +73,7 @@ class TestSampleRate(case.TestCase):
         return nginx_log_lines
 
     def send_to_nginx_http(self):
-        status, _ = self.orch.send_nginx_http_request('/http')
+        status, _, _ = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
 
     def test_in_http(self):
@@ -195,7 +195,7 @@ class TestSampleRate(case.TestCase):
             }
 
             def send_with_headers():
-                status, _ = self.orch.send_nginx_http_request('/http',
+                status, _, _ = self.orch.send_nginx_http_request('/http',
                                                               headers=headers)
                 self.assertEqual(200, status)
 
@@ -234,7 +234,7 @@ class TestSampleRate(case.TestCase):
             }
 
             def send_with_headers():
-                status, _ = self.orch.send_nginx_http_request('/http',
+                status, _, _ = self.orch.send_nginx_http_request('/http',
                                                               headers=headers)
                 self.assertEqual(200, status)
 

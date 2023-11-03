@@ -20,9 +20,9 @@ digraph {
         }
 
         {
-            nginx1 -> agent;
-            nginx2 -> agent;
-            nginx3 -> agent;
+            nginx1 -> agent [penwidth=3];
+            nginx2 -> agent [penwidth=3];
+            nginx3 -> agent [penwidth=3];
             http -> agent;
         }
      }

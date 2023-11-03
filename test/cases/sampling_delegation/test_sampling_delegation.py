@@ -20,9 +20,6 @@ def value_match(subject, pattern):
     return subject == pattern
 
 
-# TODO?
-
-
 class TestSamplingDelegation(case.TestCase):
 
     def run_test(self, endpoint, check_output):
@@ -36,7 +33,7 @@ class TestSamplingDelegation(case.TestCase):
 
         with self.orch.custom_nginx((conf_dir / 'nginx2.conf').read_text(), healthcheck_port=8080) as nginx2, \
                 self.orch.custom_nginx((conf_dir / 'nginx3.conf').read_text(), healthcheck_port=8081) as nginx3:
-            status, body = self.orch.send_nginx_http_request(endpoint)
+            status, _, body = self.orch.send_nginx_http_request(endpoint)
             self.assertEqual(200, status, body)
 
         self.orch.reload_nginx()
