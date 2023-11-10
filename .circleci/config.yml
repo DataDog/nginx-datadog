@@ -124,24 +124,12 @@ jobs:
         docker_layer_caching: true
     - run: |
         env | sort
-    # Instead of just running the tests, we run the tests and note whether they
-    # succeeded.  This way, we can save the verbose output afterward and then
-    # fail if the tests didn't succeed.
-    # TODO: This sucks, though.  Find a better way.  The output of a failed test
-    # runner should be red in the CI interface.
-    - run: |
-        if test/bin/run --verbose --failfast; then
-          touch .tests-succeeded
-        fi
+    - run: ./test/bin/run --failfast --reporter xml
+    - store_test_results:
+        path: test/results.xml
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
-    - run: |
-        if ! [ -f .tests-succeeded ]; then
-          cat test/logs/test.log
-          printf '\n\nTests failed.  See the test run step for test driver output.  Verbose output is above.\n'
-          exit 1
-        fi
 
   shellcheck:
     docker:
