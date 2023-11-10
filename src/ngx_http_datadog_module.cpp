@@ -51,6 +51,9 @@ using namespace datadog::nginx;
         NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                         \
   }
 
+#define DEFINE_DEPRECATED_COMMAND(NAME, TYPE) \
+  {ngx_string(NAME), TYPE, warn_deprecated_command, NGX_HTTP_LOC_CONF_OFFSET, 0, NULL}
+
 // Part of configuring a command is saying where the command is allowed to
 // appear, e.g. in the `server` block, in a `location` block, etc.
 // There are two sets of places Datadog commands can appear: either "anywhere,"
@@ -111,35 +114,6 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr),
-
-    { ngx_string("proxy_pass"),
-      anywhere_but_main | NGX_CONF_TAKE1,
-      hijack_proxy_pass,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("fastcgi_pass"),
-      anywhere_but_main | NGX_CONF_TAKE1,
-      hijack_fastcgi_pass,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("grpc_pass"),
-      anywhere_but_main | NGX_CONF_TAKE1,
-      hijack_grpc_pass,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("uwsgi_pass"),
-      anywhere_but_main | NGX_CONF_TAKE1,
-      hijack_uwsgi_pass,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
     // The configuration of this directive was copied from
     // ../nginx/src/http/modules/ngx_http_log_module.c.
     { ngx_string("access_log"),
@@ -150,23 +124,43 @@ static ngx_command_t datadog_commands[] = {
       0,
       NULL },
 
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "datadog_fastcgi_propagate_context",
+    DEFINE_DEPRECATED_COMMAND(
       "opentracing_fastcgi_propagate_context",
-      anywhere | NGX_CONF_NOARGS,
-      propagate_fastcgi_datadog_context,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr),
+      anywhere | NGX_CONF_NOARGS
+    ),
 
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "datadog_grpc_propagate_context",
+    DEFINE_DEPRECATED_COMMAND(
       "opentracing_grpc_propagate_context",
-      anywhere | NGX_CONF_NOARGS,
-      propagate_grpc_datadog_context,
+      anywhere | NGX_CONF_NOARGS
+    ),
+
+    { ngx_string("proxy_pass"),
+      anywhere_but_main | NGX_CONF_TAKE1,
+      set_proxy_directive,
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
-      nullptr),
+      nullptr},
+
+    { ngx_string("fastcgi_pass"),
+      anywhere_but_main | NGX_CONF_TAKE1,
+      set_proxy_directive,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("grpc_pass"),
+      anywhere_but_main | NGX_CONF_TAKE1,
+      set_proxy_directive,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("uwsgi_pass"),
+      anywhere_but_main | NGX_CONF_TAKE1,
+      set_proxy_directive,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
 
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_operation_name",
