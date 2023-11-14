@@ -98,7 +98,7 @@ class TestVariables(case.TestCase):
             'X-Datadog-Sampling-Priority': 2  # manual keep
         }
         status, _, body = self.orch.send_nginx_http_request('/http',
-                                                         headers=headers)
+                                                            headers=headers)
         self.assertEqual(200, status)
         response = json.loads(body)
         headers = response['headers']
@@ -157,7 +157,7 @@ class TestVariables(case.TestCase):
             'X-Datadog-Sampling-Priority': 2  # manual keep
         }
         status, _, body = self.orch.send_nginx_http_request('/http',
-                                                         headers=headers)
+                                                            headers=headers)
         self.assertEqual(200, status, body)
         response = json.loads(body)
         headers = response['headers']

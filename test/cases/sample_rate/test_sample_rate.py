@@ -195,8 +195,8 @@ class TestSampleRate(case.TestCase):
             }
 
             def send_with_headers():
-                status, _, _ = self.orch.send_nginx_http_request('/http',
-                                                              headers=headers)
+                status, _, _ = self.orch.send_nginx_http_request(
+                    '/http', headers=headers)
                 self.assertEqual(200, status)
 
             self.run_sample_rate_test(
@@ -234,8 +234,8 @@ class TestSampleRate(case.TestCase):
             }
 
             def send_with_headers():
-                status, _, _ = self.orch.send_nginx_http_request('/http',
-                                                              headers=headers)
+                status, _, _ = self.orch.send_nginx_http_request(
+                    '/http', headers=headers)
                 self.assertEqual(200, status)
 
             self.run_sample_rate_test(

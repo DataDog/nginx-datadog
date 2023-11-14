@@ -465,7 +465,7 @@ class Orchestration:
         """
         token = str(uuid.uuid4())
         fields, _, body = curl(f'http://{service}:{sync_port}',
-                            headers={'X-Datadog-Test-Sync-Token': token})
+                               headers={'X-Datadog-Test-Sync-Token': token})
 
         assert fields['response_code'] == 200
 
