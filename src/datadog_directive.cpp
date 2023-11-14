@@ -800,6 +800,7 @@ char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command, void *conf) 
 
 char *set_datadog_delegate_sampling(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
   const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  loc_conf->sampling_delegation_directive = command_source_location(command, cf);
 
   auto values = static_cast<ngx_str_t *>(cf->args->elts);
   // values[0] is the command name, "datadog_delegate_sampling".
@@ -818,6 +819,35 @@ char *set_datadog_delegate_sampling(ngx_conf_t *cf, ngx_command_t *command, void
   }
 
   if (loc_conf->sampling_delegation_script.compile(cf, pattern) != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  return NGX_CONF_OK;
+}
+
+char *set_datadog_allow_sampling_delegation_in_subrequests(ngx_conf_t *cf, ngx_command_t *command,
+                                                           void *conf) noexcept {
+  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  loc_conf->allow_sampling_delegation_in_subrequests_directive =
+      command_source_location(command, cf);
+
+  auto values = static_cast<ngx_str_t *>(cf->args->elts);
+  // values[0] is the command name, "datadog_allow_sampling_delegation_in_subrequests".
+  // The other elements are the arguments: either zero or one of them.
+  //
+  //     datadog_allow_sampling_delegation_in_subrequests [on | off];
+
+  const int num_args = cf->args->nelts - 1;
+
+  ngx_str_t pattern;
+  if (num_args == 0) {
+    pattern = ngx_string("on");
+  } else {
+    assert(num_args == 1);
+    pattern = values[1];
+  }
+
+  if (loc_conf->allow_sampling_delegation_in_subrequests_script.compile(cf, pattern) != NGX_OK) {
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
@@ -869,6 +899,41 @@ char *hijack_add_header(ngx_conf_t *cf, ngx_command_t *command, void *conf) noex
   return static_cast<char *>(NGX_CONF_OK);
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, cf->log, 0, "hijack_add_header failed: %s", e.what());
+  return static_cast<char *>(NGX_CONF_ERROR);
+}
+
+char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept try {
+  // Call the underlying directive handler, and then insert the following:
+  //
+  //     auth_request_set $datadog_dummy_variable $datadog_auth_request_hook;
+  //
+  // The handler for $datadog_auth_request_hook will expose the current span to
+  // any sampling-delegation-relevant response headers from the subrequest. It
+  // must be evaluated within `auth_request_set` so that the
+  // `$upstream_http_...` variables refer to the subrequest's response, as
+  // opposed to the main upstream request's response.
+  ngx_int_t rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  ngx_str_t args[] = {ngx_string("auth_request_set"), ngx_string("$datadog_dummy_variable"),
+                      ngx_string("$datadog_auth_request_hook")};
+  ngx_array_t args_array;
+  args_array.elts = static_cast<void *>(&args);
+  args_array.nelts = sizeof args / sizeof args[0];
+
+  auto old_args = cf->args;
+  cf->args = &args_array;
+  const auto guard = defer([&]() { cf->args = old_args; });
+
+  rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
+  if (rcode != NGX_OK) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+  return static_cast<char *>(NGX_CONF_OK);
+} catch (const std::exception &e) {
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "hijack_auth_request failed: %s", e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 

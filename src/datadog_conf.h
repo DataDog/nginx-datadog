@@ -157,9 +157,9 @@ struct datadog_loc_conf_t {
   NgxScript loc_resource_name_script;
   ngx_flag_t trust_incoming_span = NGX_CONF_UNSET;
   ngx_array_t *tags;
-  // `response_info_script` is a script that can contain variables that refer
-  // to HTTP response headers.  The headers might be relevant in the future.
-  // Currently `response_info_script` is not used.
+  // `response_info_script` is a script containing variables that refer
+  // to HTTP response headers.  This is used by sampling delegation to
+  // retrieve the sampling decision made by an upstream service.
   NgxScript response_info_script;
   // `proxy_directive` is the name of the configuration directive used to proxy
   // requests at this location, i.e. `proxy_pass`, `grpc_pass`, or
@@ -185,7 +185,7 @@ struct datadog_loc_conf_t {
   // variable.
   NgxScript sampling_delegation_script;
   // `sampling_delegation_directive` is the source location of the
-  // `datadog_delegate_sampling` directive in this location, if any.
+  // `datadog_delegate_sampling` directive that applies this location, if any.
   conf_directive_source_location_t sampling_delegation_directive;
   //  `is_sampling_delegation_response_header_added` is whether we have added an
   //  `add_header` directive before the first user-specified `add_header`
@@ -197,8 +197,23 @@ struct datadog_loc_conf_t {
   //  block.
   bool is_sampling_delegation_response_header_added;
   // `block_type` is the name of the kind of configuration block we're in, e.g.
-  // "http", "server", "location", or "if".
+  // "http", "server", "location", or "if". `block_type` is used by some
+  // configuration directives to alter their behavior based on the current
+  // configuration context.
   ngx_str_t block_type;
+  // `allow_sampling_delegation_in_subrequests_script` evaluates to one of "on"
+  // or "off". If "on", then locations used as subrequests, such as those
+  // created by the `ngx_http_auth_request_module`, can delegate the trace
+  // sampling decision to their upstream if so configured (e.g. by a
+  // `datadog_delegate_sampling` directive at that location or in an enclosing
+  // configuration context). If "off", then sampling delegation will not be
+  // performed for subrequests in affected locations, even if those locations
+  // are configured to delegate sampling.
+  NgxScript allow_sampling_delegation_in_subrequests_script;
+  // `allow_sampling_delegation_in_subrequests_directive` is the source location
+  // of the `datadog_allow_sampling_delegation_in_subrequests` directive that
+  // applies this location, if any.
+  conf_directive_source_location_t allow_sampling_delegation_in_subrequests_directive;
 };
 
 }  // namespace nginx

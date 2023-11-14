@@ -59,7 +59,33 @@ void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const 
   dd::InjectionOptions options;
   auto loc_conf = static_cast<datadog_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
-  const ngx_str_t delegation = loc_conf->sampling_delegation_script.run(request);
+  // `loc_conf->sampling_delegation_script` tells us whether sampling delegation
+  // is configured for this `location`. First, though, we must check whether
+  // we're a subrequest (e.g. an authentication request), and consider the
+  // sampling delegation script only if sampling delegation is allowed for
+  // subrequests in this `location`.
+  ngx_str_t delegation;  // whether to delegate; filled out below
+  const bool is_subrequest = request->parent != nullptr;
+  if (is_subrequest) {
+    const ngx_str_t subrequest_delegation =
+        loc_conf->allow_sampling_delegation_in_subrequests_script.run(request);
+    if (str(subrequest_delegation) == "on") {
+      delegation = loc_conf->sampling_delegation_script.run(request);
+    } else if (str(subrequest_delegation) == "off") {
+      delegation = ngx_string("off");
+    } else {
+      const auto& directive = loc_conf->allow_sampling_delegation_in_subrequests_directive;
+      ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                    "Condition expression for %V directive at %V:%d evaluated to unexpected value "
+                    "\"%V\". Expected \"on\" or \"off\". Proceeding as if the value were \"off\".",
+                    &directive.directive_name, &directive.file_name, directive.line,
+                    &subrequest_delegation);
+      delegation = ngx_string("off");
+    }
+  } else {
+    delegation = loc_conf->sampling_delegation_script.run(request);
+  }
+
   if (str(delegation) == "on") {
     options.delegate_sampling_decision = true;
   } else if (str(delegation) == "off") {

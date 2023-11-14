@@ -309,6 +309,9 @@ request.
 
 This option is `off` by default, so that only one span is produced per request.
 
+### `datadog_allow_sampling_delegation_in_subrequests`
+TODO
+
 Variables
 ---------
 Nginx defines [variables][2] that may appear in various contexts in the nginx

@@ -287,6 +287,30 @@ static ngx_int_t expand_sampling_delegation_response_variable(
   return NGX_OK;
 }
 
+static ngx_int_t expand_auth_request_hook(ngx_http_request_t* request,
+                                          ngx_http_variable_value_t* variable_value,
+                                          uintptr_t /*data*/) noexcept try {
+  variable_value->valid = true;
+  variable_value->no_cacheable = true;
+  variable_value->not_found = true;
+
+  DatadogContext* context = get_datadog_context(request);
+  // Context can be null if tracing is disabled.
+  if (context == nullptr) {
+    return NGX_OK;
+  }
+
+  ngx_str_t response_header_value =
+      context->lookup_sampling_delegation_response_variable_value(request);
+  return NGX_OK;
+} catch (const std::exception& error) {
+  ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                "failed to expand $datadog_auth_request_hook"
+                " for request %p: %s",
+                request, error.what());
+  return NGX_ERROR;
+}
+
 ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   ngx_str_t prefix;
   ngx_http_variable_t* variable;
@@ -338,6 +362,19 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   name = to_ngx_str(TracingLibrary::sampling_delegation_response_variable_name());
   variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
   variable->get_handler = expand_sampling_delegation_response_variable;
+  variable->data = 0;
+
+  // Register a variable name whose purpose is to be used as one of the
+  // arguments to `auth_request_set` whenever `auth_request` is used. As a side
+  // effect of evaluating this variable in the context of `auth_request_set`,
+  // response headers (e.g. x-datadog-trace-sampling-decision) from the
+  // subrequest to the auth service (as opposed to the main request to the
+  // upstream) can be exposed to the active span. This is needed in order for
+  // sampling delegation to work with auth requests, in the unlikely case that
+  // nginx is configured to allow sampling delegation in subrequests.
+  name = ngx_string("datadog_auth_request_hook");
+  variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_CHANGEABLE);
+  variable->get_handler = expand_auth_request_hook;
   variable->data = 0;
 
   return NGX_OK;

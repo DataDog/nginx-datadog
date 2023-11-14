@@ -292,6 +292,21 @@ static ngx_command_t datadog_commands[] = {
       0,
       NULL },
 
+    { ngx_string("datadog_allow_sampling_delegation_in_subrequests"),
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1 | NGX_CONF_NOARGS,
+      set_datadog_allow_sampling_delegation_in_subrequests,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    // based on ngx_http_auth_request_module.c
+    { ngx_string("auth_request"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+      hijack_auth_request,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      NULL },
+
     ngx_null_command
 };
 
@@ -696,6 +711,10 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
                                    conf->sampling_delegation_script, "")) {
     return rc;
   }
+  if (const auto rc = merge_script(cf, prev->allow_sampling_delegation_in_subrequests_script,
+                                   conf->allow_sampling_delegation_in_subrequests_script, "off")) {
+    return rc;
+  }
 
   ngx_conf_merge_value(conf->trust_incoming_span, prev->trust_incoming_span, 1);
 
@@ -743,6 +762,10 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) n
       index++;
     }
   }
+
+  conf->sampling_delegation_directive = prev->sampling_delegation_directive;
+  conf->allow_sampling_delegation_in_subrequests_directive =
+      prev->allow_sampling_delegation_in_subrequests_directive;
 
   return NGX_CONF_OK;
 }
