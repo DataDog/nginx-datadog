@@ -5,8 +5,11 @@ FROM ${BASE_IMAGE}
 # If BASE_IMAGE is an OpenResty image, then the file system layout will differ
 # from that expected in the tests' conf files.
 # Put nginx's default HTML in a known location to smooth things over.
-RUN mkdir -p /usr/share/nginx/html
-COPY index.html /usr/share/nginx/html
+RUN mkdir -p /test-conf/html
+COPY index.html /test-conf/html
+
+# Override the default configuration with a minimal one.
+COPY ./nginx.conf /test-conf/nginx.conf
 
 # Install the `kill` command (`procps` package on Debian), so that one-off
 # nginx instances that are started via `docker compose exec` can be signaled to
@@ -14,12 +17,7 @@ COPY index.html /usr/share/nginx/html
 COPY ./install_tools.sh /tmp/
 RUN /tmp/install_tools.sh
 
-ARG NGINX_MODULES_PATH
-RUN mkdir -p ${NGINX_MODULES_PATH}
-COPY ngx_http_datadog_module.so ${NGINX_MODULES_PATH}
+COPY ngx_http_datadog_module.so /test-conf
 
-ENTRYPOINT ["nginx"]
+ENTRYPOINT ["nginx", "-c", "/test-conf/nginx.conf"]
 CMD ["-g", "daemon off;"]
-
-# Override the default configuration with a minimal one.
-COPY ./nginx.conf /etc/nginx/nginx.conf

@@ -5,7 +5,6 @@ from pathlib import Path
 
 
 class TestConfiguration(case.TestCase):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.default_config = None
@@ -17,8 +16,7 @@ class TestConfiguration(case.TestCase):
         conf_path = Path(__file__).parent / "conf" / "vanilla.conf"
         conf_text = conf_path.read_text()
 
-        status, log_lines = self.orch.nginx_replace_config(
-            conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
         status, body = self.orch.send_nginx_http_request("/")
@@ -36,8 +34,7 @@ class TestConfiguration(case.TestCase):
         conf_path = Path(__file__).parent / "conf" / "in_http.conf"
         conf_text = conf_path.read_text()
 
-        status, log_lines = self.orch.nginx_replace_config(
-            conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
         status, body = self.orch.send_nginx_http_request("/")
@@ -69,11 +66,11 @@ class TestConfiguration(case.TestCase):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
 
-        status, log_lines = self.orch.nginx_test_config(
-            conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_test_config(conf_text, conf_path.name)
         self.assertNotEqual(0, status)
-        self.assertTrue(any(diagnostic_excerpt in line for line in log_lines),
-                        log_lines)
+        self.assertTrue(
+            any(diagnostic_excerpt in line for line in log_lines), log_lines
+        )
 
     def test_duplicate_service_name(self):
         self.run_error_test(
@@ -111,8 +108,7 @@ class TestConfiguration(case.TestCase):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
 
-        status, log_lines = self.orch.nginx_test_config(
-            conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_test_config(conf_text, conf_path.name)
         self.assertNotEqual(0, status)
         excerpt = "directive is not allowed here"
         self.assertTrue(any(excerpt in line for line in log_lines), log_lines)
