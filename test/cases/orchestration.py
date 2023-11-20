@@ -173,7 +173,9 @@ def docker_compose_ps_with_retries(max_attempts, service):
         try:
             result = docker_compose_ps(service)
             if result == '':
-                raise Exception(f'docker_compose_ps({json.dumps(service)}) returned an empty string')
+                raise Exception(
+                    f'docker_compose_ps({json.dumps(service)}) returned an empty string'
+                )
             return result
         except Exception:
             max_attempts -= 1
@@ -266,7 +268,8 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # don't print any output.  So, we retry (up to a limit) until
                 # `docker compose ps` exits with status zero and produces
                 # output.
-                containers[service] = docker_compose_ps_with_retries(max_attempts=100, service=service)
+                containers[service] = docker_compose_ps_with_retries(
+                    max_attempts=100, service=service)
             elif kind == 'service_log':
                 # Got a line of logging from some service.  Push it onto the
                 # appropriate queue for consumption by tests.
@@ -345,12 +348,8 @@ def add_services_in_nginx_etc_hosts(services):
     """
     # "-T" means "don't allocate a TTY".  This is necessary to avoid the
     # error "the input device is not a TTY".
-    command = docker_compose_command('exec', '-T', '--', 'nginx',
-                                     '/bin/sh')
-    subprocess.run(command,
-                            input=script,
-                            env=child_env(),
-                            encoding='utf8')
+    command = docker_compose_command('exec', '-T', '--', 'nginx', '/bin/sh')
+    subprocess.run(command, input=script, env=child_env(), encoding='utf8')
 
 
 class Orchestration:
