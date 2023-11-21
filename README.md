@@ -25,9 +25,9 @@ include the following:
 
 Each release contains one zipped tarball per supported image above. The
 naming convention is
-`<base image with underscores><hyphen>ngx_http_datadog_module.so.tgz`,
-e.g. `nginx_1.23.1-alpine-ngx_http_datadog_module.so.tgz` or
-`amazonlinux_2.0.20230119.1-ngx_http_datadog_module.so.tgz`.
+`<base image with underscores>-<arch>-ngx_http_datadog_module.so.tgz`,
+e.g. `nginx_1.23.1-alpine-amd64-ngx_http_datadog_module.so.tgz` or
+`amazonlinux_2.0.20230119.1-arm64-ngx_http_datadog_module.so.tgz`.
 
 The zipped tarball contains a single file, `ngx_http_datadog_module.so`, which
 is the Datadog tracing nginx module.
