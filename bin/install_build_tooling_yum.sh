@@ -7,7 +7,7 @@ yum update -y
 
 # for downloading releases of build tools, and SSL for CMake build
 # nginx uses perl-compatible regular expressions (PCRE) and zlib (for gzip).
-yum install -y wget openssl openssl-devel pcre-devel zlib-devel
+yum install -y wget openssl openssl-devel pcre-devel zlib-devel clang
 
 # C and C++ build toolchains, and a bunch of other utilities like git.
 yum groupinstall -y 'Development Tools'
@@ -20,9 +20,18 @@ yum groupinstall -y 'Development Tools'
 # incomplete support for C++17, which dd-trace-cpp requires.
 #
 # gcc 10 does better.
-yum install -y gcc10 gcc10-c++
-ln -s /usr/bin/gcc10-gcc /usr/local/bin/cc
-ln -s /usr/bin/gcc10-g++ /usr/local/bin/c++
+#
+# If Amazon Linux 2023, ingore
+. /etc/os-release
+if [[ $VERSION_ID = "2" ]]
+then
+  yum install -y gcc10 gcc10-c++
+  ln -s /usr/bin/gcc10-gcc /usr/local/bin/cc
+  ln -s /usr/bin/gcc10-g++ /usr/local/bin/c++
+elif [[ $VERSION_ID = "2023" ]]
+then
+  yum install -y libstdc++-static
+fi
 
 # Install a recent cmake.  We need at least 3.24 (for dd-trace-cpp),
 # but package managers tend to have an earlier version.

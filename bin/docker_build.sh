@@ -93,7 +93,6 @@ fi
 base_image_without_colons=$(echo "$base_image" | tr ':' '_')
 built_tag="nginx-datadog-build-$base_image_without_colons"
 
-local_destination="$(pwd)/${built_tag}.tar"
 remote_destination="datadog/docker-library:$built_tag"
 buildx_output_args="--output=type=image,name=${remote_destination},push=true"
 
@@ -103,7 +102,7 @@ fi
 
 if [ "$push" -eq 0 ]; then
     if ! ask "Push built image to \"${remote_destination}\"?"; then
-        buildx_output_args="--output=type=tar,dest=${local_destination}"
+        buildx_output_args="--output=type=image,name=${built_tag},push=false"
     fi
 fi
 
