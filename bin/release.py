@@ -288,9 +288,9 @@ def prepare_release_artifact(build_job_number, work_dir):
     module_path = work_dir / 'ngx_http_datadog_module.so'
     download_file(module_url, module_path)
 
-    # `nginx_version_info` will define BASE_IMAGE. That's that value that we
-    # want to prefix the tarball name with, but with colons replaced by
-    # underscores.
+    # `nginx_version_info` serves to determine the values of BASE_IMAGE and ARCH.
+    # These values are instrumental in constructing the tarball name according to
+    # the specified convention: <BASE_IMAGE>-<ARCH>-ngx_http_datadog_module.so.tgz
     variables = parse_info_script(nginx_version_info)
     if 'BASE_IMAGE' not in variables:
         raise Exception(
