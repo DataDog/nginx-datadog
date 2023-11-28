@@ -34,11 +34,20 @@
 #
 #     NGINX_MODULES_PATH is not required for the "build" or "build-in-docker"
 #     make targets, but is required for the "test" and "lab" targets.
+#
+# ARCH
+#     The docker image architecture to use. The following values are supported:
+#
+#     - amd64
+#     - arm64
+#
+#     ARCH is not required by any of the make targets, but is used when
+#     preparing releases.
 
-ARCH=linux/amd64
 NGINX_VERSION=1.24.0
 BASE_IMAGE=nginx:1.24.0-alpine
 NGINX_MODULES_PATH=/usr/lib/nginx/modules
+ARCH=amd64
 
 # NGINX_VERSION=1.14.1
 # BASE_IMAGE=nginx:1.14.1
