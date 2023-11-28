@@ -29,6 +29,8 @@ naming convention is
 e.g. `nginx_1.23.1-alpine-amd64-ngx_http_datadog_module.so.tgz` or
 `amazonlinux_2.0.20230119.1-arm64-ngx_http_datadog_module.so.tgz`.
 
+Supported architectures (`<arch>`) are `amd64` and `arm64`.
+
 The zipped tarball contains a single file, `ngx_http_datadog_module.so`, which
 is the Datadog tracing nginx module.
 

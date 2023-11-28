@@ -15,8 +15,10 @@ usage:
 
         Prompt the user for confirmation unless --yes is specified.
 
-        --platforms is a comma separated list of platforms to target. --platforms is required.
-        Example: --platforms linux/amd64,linux/arm64
+        --platforms is a comma separated list of platforms to target.
+        --platforms is required. The option has the same format as --platform
+        in `docker buildx build`.
+        For example: --platforms linux/amd64,linux/arm64
 
         If --push is specified, push the resulting image to DockerHub
         with a suitable tag.
