@@ -8,23 +8,25 @@ import shlex
 
 
 class TestAccessLog(case.TestCase):
+
     def test_default_format(self):
         """Verify that the default access log format contains the trace ID
         and span ID.
         """
-        conf_path = Path(__file__).parent / "./conf/default_format.conf"
+        conf_path = Path(__file__).parent / './conf/default_format.conf'
         conf_text = conf_path.read_text()
-        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
         # discard any old log lines from nginx
         self.orch.sync_nginx_access_log()
 
-        status, body = self.orch.send_nginx_http_request("/http")
+        status, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
         response = json.loads(body)
-        trace_id = response["headers"]["x-datadog-trace-id"]
-        span_id = response["headers"]["x-datadog-parent-id"]
+        trace_id = response['headers']['x-datadog-trace-id']
+        span_id = response['headers']['x-datadog-parent-id']
 
         # Look through the logs for the access log message.
         log_lines = self.orch.sync_nginx_access_log()
@@ -41,11 +43,11 @@ class TestAccessLog(case.TestCase):
         # line.
         found_it = False
         for line in log_lines:
-            if re.match(r"[0-9]{1,3}(\.[0-9]{1,3}){3}\s", line) is None:
+            if re.match(r'[0-9]{1,3}(\.[0-9]{1,3}){3}\s', line) is None:
                 continue
             lexemes = shlex.split(line)
             self.assertEqual(13, len(lexemes), lexemes)
-            if not lexemes[5].startswith("GET /http"):
+            if not lexemes[5].startswith('GET /http'):
                 continue  # not the /http request
             self.assertEqual(trace_id, lexemes[11], lexemes)
             self.assertEqual(span_id, lexemes[12], lexemes)
@@ -57,15 +59,16 @@ class TestAccessLog(case.TestCase):
         """Verify that the default access log format contains "-" placeholders
         for trace ID and span ID when tracing is disabled.
         """
-        conf_path = Path(__file__).parent / "./conf/without_tracing.conf"
+        conf_path = Path(__file__).parent / './conf/without_tracing.conf'
         conf_text = conf_path.read_text()
-        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
         # discard any old log lines from nginx
         self.orch.sync_nginx_access_log()
 
-        status, body = self.orch.send_nginx_http_request("/http")
+        status, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
 
         # Look through the logs for the access log message.
@@ -83,12 +86,12 @@ class TestAccessLog(case.TestCase):
         # line.
         found_it = False
         for line in log_lines:
-            if re.match(r"[0-9]{1,3}(\.[0-9]{1,3}){3}\s", line) is None:
+            if re.match(r'[0-9]{1,3}(\.[0-9]{1,3}){3}\s', line) is None:
                 continue
             lexemes = shlex.split(line)
             self.assertEqual(13, len(lexemes), lexemes)
-            self.assertEqual("-", lexemes[11], lexemes)
-            self.assertEqual("-", lexemes[12], lexemes)
+            self.assertEqual('-', lexemes[11], lexemes)
+            self.assertEqual('-', lexemes[12], lexemes)
             found_it = True
 
         self.assertTrue(found_it, log_lines)
@@ -97,19 +100,20 @@ class TestAccessLog(case.TestCase):
         """Verify that specifying the "datadog_json" access log format produces
         access log line containing a JSON object of relevant fields.
         """
-        conf_path = Path(__file__).parent / "./conf/json_format.conf"
+        conf_path = Path(__file__).parent / './conf/json_format.conf'
         conf_text = conf_path.read_text()
-        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
         # discard any old log lines from nginx
         self.orch.sync_nginx_access_log()
 
-        status, body = self.orch.send_nginx_http_request("/http")
+        status, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
         response = json.loads(body)
-        trace_id = response["headers"]["x-datadog-trace-id"]
-        span_id = response["headers"]["x-datadog-parent-id"]
+        trace_id = response['headers']['x-datadog-trace-id']
+        span_id = response['headers']['x-datadog-parent-id']
 
         # Look through the logs for the access log message.
         log_lines = self.orch.sync_nginx_access_log()
@@ -122,9 +126,9 @@ class TestAccessLog(case.TestCase):
 
             found_it = True
             self.assertEqual(dict, type(record))
-            self.assertIn("trace_id", record)
-            self.assertEqual(trace_id, record["trace_id"])
-            self.assertIn("span_id", record)
-            self.assertEqual(trace_id, record["span_id"])
+            self.assertIn('trace_id', record)
+            self.assertEqual(trace_id, record['trace_id'])
+            self.assertIn('span_id', record)
+            self.assertEqual(trace_id, record['span_id'])
 
         self.assertTrue(found_it)
