@@ -7,11 +7,9 @@ set -e
 . ../nginx-version-info
 export BASE_IMAGE
 
-printf  "===============================\n"
-printf  "Running test with:\n"
-printf  " - ARCH=%s\n" "${ARCH}"
-printf  " - BASE_IMAGE=%s\n" "${BASE_IMAGE}"
-printf  "===============================\n"
+printf "              arch : %s\n" "${ARCH}"
+printf "        base image : %s\n" "${BASE_IMAGE}"
+printf "         test args : %s\n" "$@"
 
 docker compose build --parallel
 python3 -m unittest "$@"

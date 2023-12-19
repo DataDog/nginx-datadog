@@ -42,7 +42,7 @@ docker_flags = []
 
 # "/datadog-tests" is a directory created by the docker build of the nginx test
 # test image. It contains the module, the nginx config.
-nginx_conf_path = "/datadog-tests"
+nginx_conf_path = "/datadog-tests/nginx.conf"
 
 
 def docker_compose_command(*args):
