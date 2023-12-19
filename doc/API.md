@@ -310,6 +310,11 @@ request.
 This option is `off` by default, so that only one span is produced per request.
 
 ### `datadog_allow_sampling_delegation_in_subrequests`
+
+- **syntax** `datadog_allow_sampling_delegation_in_subrequests on|off`
+- **default**: `off`
+- **context**: `http`, `server`, `location`
+
 TODO
 
 Variables
@@ -410,5 +415,8 @@ context to be propagated to a service via `proxy_pass`.
 
 This family of variables is used in the implementation of the Datadog nginx
 module.
+
+### `datadog_auth_request_hook`
+This is an implementation detail of the module and should not be used.
 
 [2]: https://nginx.org/en/docs/varindex.html

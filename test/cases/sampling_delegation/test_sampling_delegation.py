@@ -77,7 +77,7 @@ class TestSamplingDelegation(case.TestCase):
         def check_output(response_body, agent_log_lines):
             spans = formats.parse_spans(agent_log_lines)
 
-            def pattern(service, is_decider=Absent()):
+            def pattern(service, is_decider):
                 return {
                     'service': service,
                     'metrics': {
@@ -93,7 +93,7 @@ class TestSamplingDelegation(case.TestCase):
                                           pattern('nginx1', is_decider='0'))
             self.assert_has_matching_span(spans,
                                           pattern('nginx2', is_decider='1'))
-            self.assert_has_matching_span(spans, pattern('nginx3'))
+            self.assert_has_matching_span(spans, pattern('nginx3', is_decider=Absent()))
 
         self.run_test('/delegate/no-delegate/keep', check_output)
 
@@ -104,7 +104,7 @@ class TestSamplingDelegation(case.TestCase):
         def check_output(response_body, agent_log_lines):
             spans = formats.parse_spans(agent_log_lines)
 
-            def pattern(service, is_decider=Absent()):
+            def pattern(service, is_decider):
                 return {
                     'service': service,
                     'metrics': {
@@ -123,7 +123,7 @@ class TestSamplingDelegation(case.TestCase):
 
             self.assert_has_matching_span(spans,
                                           pattern('nginx1', is_decider='0'))
-            self.assert_has_matching_span(spans, pattern('nginx2'))
+            self.assert_has_matching_span(spans, pattern('nginx2', is_decider=Absent()))
             self.assert_has_matching_span(spans,
                                           pattern('nginx3', is_decider='1'))
 
