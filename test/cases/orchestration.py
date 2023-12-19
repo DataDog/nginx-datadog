@@ -40,10 +40,9 @@ docker_command_path = shutil.which('docker')
 docker_compose_flags = []
 docker_flags = []
 
-# Depending on which Docker image nginx is running in, the nginx config might be
-# in different locations.  Ideally we could deduce the path to the config file
-# by parsing `nginx -V`, but that doesn't always work (e.g. OpenResty).
-nginx_conf_path = os.environ.get('NGINX_CONF_PATH', '/etc/nginx/nginx.conf')
+# "/datadog-tests" is a directory created by the docker build of the nginx test
+# test image. It contains the module, the nginx config.
+nginx_conf_path = "/datadog-tests/nginx.conf"
 
 
 def docker_compose_command(*args):
@@ -173,9 +172,7 @@ def docker_compose_ps_with_retries(max_attempts, service):
         try:
             result = docker_compose_ps(service)
             if result == '':
-                raise Exception(
-                    f'docker_compose_ps({json.dumps(service)}) returned an empty string'
-                )
+                raise Exception(f'docker_compose_ps({json.dumps(service)}) returned an empty string')
             return result
         except Exception:
             max_attempts -= 1
@@ -268,8 +265,7 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # don't print any output.  So, we retry (up to a limit) until
                 # `docker compose ps` exits with status zero and produces
                 # output.
-                containers[service] = docker_compose_ps_with_retries(
-                    max_attempts=100, service=service)
+                containers[service] = docker_compose_ps_with_retries(max_attempts=100, service=service)
             elif kind == 'service_log':
                 # Got a line of logging from some service.  Push it onto the
                 # appropriate queue for consumption by tests.
@@ -348,8 +344,12 @@ def add_services_in_nginx_etc_hosts(services):
     """
     # "-T" means "don't allocate a TTY".  This is necessary to avoid the
     # error "the input device is not a TTY".
-    command = docker_compose_command('exec', '-T', '--', 'nginx', '/bin/sh')
-    subprocess.run(command, input=script, env=child_env(), encoding='utf8')
+    command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                     '/bin/sh')
+    subprocess.run(command,
+                            input=script,
+                            env=child_env(),
+                            encoding='utf8')
 
 
 class Orchestration:
