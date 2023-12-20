@@ -31,8 +31,8 @@ class TestSamplingDelegation(case.TestCase):
                                                        conf_path.name)
         self.assertEqual(0, status, lines)
 
-        with self.orch.custom_nginx((conf_dir / 'nginx2.conf').read_text(), healthcheck_port=8080) as nginx2, \
-                self.orch.custom_nginx((conf_dir / 'nginx3.conf').read_text(), healthcheck_port=8081) as nginx3:
+        with self.orch.custom_nginx((conf_dir / 'nginx2.conf').read_text(), healthcheck_port=8080), \
+                self.orch.custom_nginx((conf_dir / 'nginx3.conf').read_text(), healthcheck_port=8081):
             status, _, body = self.orch.send_nginx_http_request(endpoint)
             self.assertEqual(200, status, body)
 

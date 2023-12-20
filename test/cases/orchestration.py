@@ -696,6 +696,16 @@ END_CONF
                     f'custom nginx at port {healthcheck_port} did not become ready'
                 )
 
+        # TODO
+        command = docker_compose_command('exec', '-T', '--', 'nginx', 'ls', '-lrt', '/usr/share/nginx/html')
+        result = subprocess.run(command,
+                                stdout=self.verbose,
+                                stderr=self.verbose,
+                                env=child_env(),
+                                encoding='utf8',
+                                check=True)
+        # end TODO
+
         try:
             yield child
         finally:
