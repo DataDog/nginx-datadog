@@ -621,8 +621,8 @@ END_CONF
         specified `extra_env`.  When the context of the returned object exits,
         the nginx instance is gracefully shut down.
         Optionally specify an integer `healthcheck_port` at which the
-        "/healthcheck" will be polled in order to determine when the nginx
-        instance is ready.
+        "/healthcheck" endpoint will be polled in order to determine when the
+        nginx instance is ready.
         """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
