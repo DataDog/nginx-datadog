@@ -17,6 +17,18 @@
 
 namespace datadog {
 namespace nginx {
+namespace {
+
+// Return whether the specified `request` is a subrequest for which tracing
+// ("logging") is disabled.
+bool is_untraced_subrequest(ngx_http_request_t* request) {
+  auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
+      ngx_http_get_module_loc_conf(request, ngx_http_core_module));
+
+  return request->parent != nullptr && !core_loc_conf->log_subrequest;
+}
+
+} // namespace
 
 // Load into the specified `variable_value` the result of looking up the value
 // of the variable name indicated by the specified `data`.  The variable name,
@@ -32,7 +44,7 @@ static ngx_int_t expand_span_variable(ngx_http_request_t* request,
 
   auto context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
-  if (context == nullptr) {
+  if (context == nullptr || is_untraced_subrequest(request)) {
     const ngx_str_t not_found_str = ngx_string("-");
     variable_value->len = not_found_str.len;
     variable_value->data = not_found_str.data;
@@ -74,7 +86,7 @@ static ngx_int_t expand_propagation_header_variable(ngx_http_request_t* request,
 
   auto context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
-  if (context == nullptr) {
+  if (context == nullptr || is_untraced_subrequest(request)) {
     variable_value->valid = true;
     variable_value->no_cacheable = true;
     variable_value->not_found = true;
@@ -270,7 +282,7 @@ static ngx_int_t expand_sampling_delegation_response_variable(
     uintptr_t /*data*/) noexcept {
   auto context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
-  if (context == nullptr) {
+  if (context == nullptr || is_untraced_subrequest(request)) {
     variable_value->valid = true;
     variable_value->no_cacheable = true;
     variable_value->not_found = true;
@@ -296,7 +308,7 @@ static ngx_int_t expand_auth_request_hook(ngx_http_request_t* request,
 
   DatadogContext* context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
-  if (context == nullptr) {
+  if (context == nullptr || is_untraced_subrequest(request)) {
     return NGX_OK;
   }
 

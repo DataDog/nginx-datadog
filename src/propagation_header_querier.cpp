@@ -86,7 +86,15 @@ void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const 
     delegation = loc_conf->sampling_delegation_script.run(request);
   }
 
-  if (str(delegation) == "on") {
+  // There's one last piece of logic. If the trace segment that `span` is part
+  // of has already successfully delegated the sampling decision (to a past
+  // subrequest), then don't delegate again.
+  const dd::Optional<dd::SamplingDecision> previous_decision = span.trace_segment().sampling_decision();
+  const bool already_delegated = previous_decision && previous_decision->origin == dd::SamplingDecision::Origin::DELEGATED;
+
+  if (already_delegated) {
+    options.delegate_sampling_decision = false;
+  } else if (str(delegation) == "on") {
     options.delegate_sampling_decision = true;
   } else if (str(delegation) == "off") {
     options.delegate_sampling_decision = false;
