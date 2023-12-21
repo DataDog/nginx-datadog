@@ -221,7 +221,6 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
 
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                                      datadog_loc_conf_t *loc_conf) {
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "ON_CHANGE_BLOCK");
   on_exit_block(std::chrono::steady_clock::now());
   core_loc_conf_ = core_loc_conf;
   loc_conf_ = loc_conf;
@@ -250,7 +249,6 @@ dd::Span &RequestTracing::active_span() {
 }
 
 void RequestTracing::on_exit_block(std::chrono::steady_clock::time_point finish_timestamp) {
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "ON_EXIT_BLOCK");
   // Set default and custom tags for the block. Many nginx variables won't be
   // available when a block is first entered, so set tags when the block is
   // exited instead.
@@ -324,8 +322,6 @@ ngx_str_t RequestTracing::lookup_span_variable_value(std::string_view key) {
 
 ngx_str_t RequestTracing::lookup_sampling_delegation_response_variable_value() {
   const ngx_str_t response_header = loc_conf_->response_info_script.run(request_);
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "RESPONSE PATTERN EVALUATED TO: %V ",
-                &response_header);
 
   if (response_header.len) {
     class OneHeaderReader : public dd::DictReader {
@@ -356,7 +352,6 @@ ngx_str_t RequestTracing::lookup_sampling_delegation_response_variable_value() {
     ~OneHeaderWriter() {}
   } writer;
 
-  ngx_log_error(NGX_LOG_ERR, request_->connection->log, 0, "I AM ABOUT TO DO THE THING ");
   active_span().trace_segment().write_sampling_delegation_response(writer);
   return to_ngx_str(request_->pool, writer.value_);
 }
