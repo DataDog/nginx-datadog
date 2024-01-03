@@ -204,7 +204,7 @@ is propagated to the proxied service.
 Datadog tracing is enabled by default.
 
 ### `datadog_disable`
-- **syntax** `datadog_enable`
+- **syntax** `datadog_disable`
 - **context** `http`, `server`, `location`
 
 Disable Datadog tracing in the current configuration context.  This overrides
