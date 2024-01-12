@@ -28,21 +28,21 @@
 #     BASE_IMAGE is not required for the "build" make target, but is required
 #     for "test", "build-in-docker", and "lab" targets.
 #
-# NGINX_MODULES_PATH
-#     This variable is used during testing.  It's the path to the nginx modules
-#     directory in the nginx installation available within $BASE_IMAGE.
+# ARCH
+#     The docker image architecture to use. The following values are supported:
 #
-#     NGINX_MODULES_PATH is not required for the "build" or "build-in-docker"
-#     make targets, but is required for the "test" and "lab" targets.
+#     - amd64
+#     - arm64
+#
+#     ARCH is not required by any of the make targets, but is used when
+#     preparing releases.
 
 NGINX_VERSION=1.24.0
 BASE_IMAGE=nginx:1.24.0-alpine
-NGINX_MODULES_PATH=/usr/lib/nginx/modules
+ARCH=amd64
 
 # NGINX_VERSION=1.14.1
 # BASE_IMAGE=nginx:1.14.1
-# NGINX_MODULES_PATH=/usr/lib/nginx/modules
 
 # NGINX_VERSION=1.22.1
 # BASE_IMAGE=amazonlinux:2.0.20230119.1
-# NGINX_MODULES_PATH=/usr/share/nginx/modules

@@ -6,8 +6,10 @@ set -e
 
 . ../nginx-version-info
 export BASE_IMAGE
-export NGINX_MODULES_PATH="${NGINX_MODULES_PATH:-/usr/lib/nginx/modules}"
-export NGINX_CONF_PATH="${NGINX_CONF_PATH:-/etc/nginx/nginx.conf}"
+
+printf "      arch : %s\n" "${ARCH}"
+printf "base image : %s\n" "${BASE_IMAGE}"
+printf " test args : %s\n" "$@"
 
 docker compose build --parallel
 python3 -m unittest "$@"

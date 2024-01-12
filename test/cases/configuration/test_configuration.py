@@ -142,15 +142,17 @@ class TestConfiguration(case.TestCase):
 
     def test_duplicate_propagation_styles(self):
         self.run_error_test(
-            conf_relative_path='./conf/duplicate/propagation_styles.conf',
+            conf_relative_path="./conf/duplicate/propagation_styles.conf",
             diagnostic_excerpt=
-            'Datadog propagation styles are already configured.')
+            "Datadog propagation styles are already configured.",
+        )
 
     def test_propagation_styles_error(self):
         return self.run_error_test(
-            conf_relative_path='./conf/propagation_styles_error.conf',
+            conf_relative_path="./conf/propagation_styles_error.conf",
             diagnostic_excerpt=
-            'Datadog propagation styles are already configured.')
+            "Datadog propagation styles are already configured.",
+        )
 
     def run_wrong_block_test(self, conf_relative_path):
         conf_path = Path(__file__).parent / conf_relative_path
@@ -164,31 +166,31 @@ class TestConfiguration(case.TestCase):
 
     def test_error_in_main_service_name(self):
         return self.run_wrong_block_test(
-            './conf/error_in_main/service_name.conf')
+            "./conf/error_in_main/service_name.conf")
 
     def test_error_in_main_environment(self):
         return self.run_wrong_block_test(
-            './conf/error_in_main/environment.conf')
+            "./conf/error_in_main/environment.conf")
 
     def test_error_in_main_agent_url(self):
         return self.run_wrong_block_test('./conf/error_in_main/agent_url.conf')
 
     def test_error_in_main_propagation_styles(self):
         return self.run_wrong_block_test(
-            './conf/error_in_main/propagation_styles.conf')
+            "./conf/error_in_main/propagation_styles.conf")
 
     def test_error_in_server_service_name(self):
         return self.run_wrong_block_test(
-            './conf/error_in_server/service_name.conf')
+            "./conf/error_in_server/service_name.conf")
 
     def test_error_in_server_environment(self):
         return self.run_wrong_block_test(
-            './conf/error_in_server/environment.conf')
+            "./conf/error_in_server/environment.conf")
 
     def test_error_in_server_agent_url(self):
         return self.run_wrong_block_test(
-            './conf/error_in_server/agent_url.conf')
+            "./conf/error_in_server/agent_url.conf")
 
     def test_error_in_server_propagation_styles(self):
         return self.run_wrong_block_test(
-            './conf/error_in_server/propagation_styles.conf')
+            "./conf/error_in_server/propagation_styles.conf")

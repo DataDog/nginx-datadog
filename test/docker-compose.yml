@@ -10,8 +10,6 @@ services:
       dockerfile: ./Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE}
-        NGINX_CONF_PATH: ${NGINX_CONF_PATH}
-        NGINX_MODULES_PATH: ${NGINX_MODULES_PATH}
     cap_add:
       - SYS_PTRACE
     depends_on:
