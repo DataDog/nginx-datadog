@@ -1,4 +1,4 @@
-FROM alpine:3.15
+FROM alpine:3.19
 
 # Note: WORKDIR must already be set  before installing npm.
 # If WORKDIR is not set, then npm will be installed at the container root, which
