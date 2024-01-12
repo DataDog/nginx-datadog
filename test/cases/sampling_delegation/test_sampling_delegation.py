@@ -93,7 +93,8 @@ class TestSamplingDelegation(case.TestCase):
                                           pattern('nginx1', is_decider='0'))
             self.assert_has_matching_span(spans,
                                           pattern('nginx2', is_decider='1'))
-            self.assert_has_matching_span(spans, pattern('nginx3', is_decider=Absent()))
+            self.assert_has_matching_span(
+                spans, pattern('nginx3', is_decider=Absent()))
 
         self.run_test('/delegate/no-delegate/keep', check_output)
 
@@ -123,7 +124,8 @@ class TestSamplingDelegation(case.TestCase):
 
             self.assert_has_matching_span(spans,
                                           pattern('nginx1', is_decider='0'))
-            self.assert_has_matching_span(spans, pattern('nginx2', is_decider=Absent()))
+            self.assert_has_matching_span(
+                spans, pattern('nginx2', is_decider=Absent()))
             self.assert_has_matching_span(spans,
                                           pattern('nginx3', is_decider='1'))
 

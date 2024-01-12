@@ -3,6 +3,7 @@
 #include <datadog/dict_writer.h>
 #include <datadog/span.h>
 #include <datadog/span_config.h>
+#include <datadog/trace_segment.h>
 
 #include <cassert>
 #include <chrono>

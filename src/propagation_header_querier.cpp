@@ -2,6 +2,8 @@
 
 #include <datadog/dict_writer.h>
 #include <datadog/injection_options.h>
+#include <datadog/sampling_decision.h>
+#include <datadog/trace_segment.h>
 
 #include <algorithm>
 #include <cassert>
@@ -89,8 +91,10 @@ void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const 
   // There's one last piece of logic. If the trace segment that `span` is part
   // of has already successfully delegated the sampling decision (to a past
   // subrequest), then don't delegate again.
-  const dd::Optional<dd::SamplingDecision> previous_decision = span.trace_segment().sampling_decision();
-  const bool already_delegated = previous_decision && previous_decision->origin == dd::SamplingDecision::Origin::DELEGATED;
+  const dd::Optional<dd::SamplingDecision> previous_decision =
+      span.trace_segment().sampling_decision();
+  const bool already_delegated =
+      previous_decision && previous_decision->origin == dd::SamplingDecision::Origin::DELEGATED;
 
   if (already_delegated) {
     options.delegate_sampling_decision = false;

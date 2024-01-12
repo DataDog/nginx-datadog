@@ -22,13 +22,13 @@ namespace {
 // Return whether the specified `request` is a subrequest for which tracing
 // ("logging") is disabled.
 bool is_untraced_subrequest(ngx_http_request_t* request) {
-  auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
+  auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_core_module));
 
   return request->parent != nullptr && !core_loc_conf->log_subrequest;
 }
 
-} // namespace
+}  // namespace
 
 // Load into the specified `variable_value` the result of looking up the value
 // of the variable name indicated by the specified `data`.  The variable name,
