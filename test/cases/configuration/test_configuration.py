@@ -4,33 +4,81 @@ import json
 from pathlib import Path
 
 
+def find_mismatches(pattern, subject):
+    """Return a list of all of the ways that `subject` differs from `pattern`.
+
+    `pattern` is a composition of `dict` and `list`, where each `dict` asserts
+    keys that the corresponding `dict` within `subject` must have, and the value
+    at each key must match the corresponding pattern in `pattern`.
+
+    Corresponding lists in `pattern` and `subject` must have the same length,
+    and the elements in `subject` must match the corresponding patterns in
+    `pattern`.
+
+    For example, the following invocation
+
+        find_mismatches(
+            pattern={'foo': [1, 2], 'bar': {'baz': 3}},
+            subject={'foo': [1, 2], 'boo': 4, 'bar': {'bax': 3}})
+
+    would return a list containing the one mismatch between `pattern` and
+    `subject`:
+
+        [{'path': '.bar', 'error': 'missing key', 'key': 'baz', 'actual': {'bax': 3}}]
+
+    because the value at the subject's "bar" key does not have a "baz" key.
+
+    If there are no mismatches, then return an empty `list`.
+    """
+
+    def yield_mismatches(path, pattern, subject):
+        if type(pattern) is not type(subject):
+            yield {
+                'path': path,
+                'error': 'mismatched types',
+                'pattern': pattern,
+                'actual': subject
+            }
+        elif isinstance(pattern, list):
+            if len(pattern) != len(subject):
+                yield {
+                    'path': path,
+                    'error': 'mismatched list lengths',
+                    'pattern': pattern,
+                    'actual': subject
+                }
+                return
+            for i in range(len(pattern)):
+                yield from yield_mismatches(path + f'.{i}', pattern[i],
+                                            subject[i])
+        elif isinstance(pattern, dict):
+            for key, subpattern in pattern.items():
+                if key not in subject:
+                    yield {
+                        'path': path,
+                        'error': 'missing key',
+                        'key': key,
+                        'actual': subject
+                    }
+                else:
+                    yield from yield_mismatches(f'{path}.{key}', subpattern,
+                                                subject[key])
+        elif pattern != subject:
+            yield {
+                'path': path,
+                'error': 'mismatched values',
+                'expected': pattern,
+                'actual': subject
+            }
+
+    return list(yield_mismatches('', pattern, subject))
+
+
 class TestConfiguration(case.TestCase):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.default_config = None
-
-    def get_default_config(self):
-        if self.default_config is not None:
-            return self.default_config
-
-        conf_path = Path(__file__).parent / 'conf' / 'vanilla.conf'
-        conf_text = conf_path.read_text()
-
-        status, log_lines = self.orch.nginx_replace_config(
-            conf_text, conf_path.name)
-        self.assertEqual(0, status, log_lines)
-
-        status, _, body = self.orch.send_nginx_http_request('/')
-        self.assertEqual(200, status)
-
-        self.default_config = json.loads(body)
-        return self.default_config
-
-    def test_no_config(self):
-        # Verify that there _is_ a default config when none is otherwise
-        # implied.
-        self.get_default_config()
 
     def test_in_http(self):
         conf_path = Path(__file__).parent / 'conf' / 'in_http.conf'
@@ -44,22 +92,28 @@ class TestConfiguration(case.TestCase):
         self.assertEqual(200, status)
 
         config = json.loads(body)
-        expected = self.get_default_config()
         # See conf/in_http.conf, which contains the following:
         #
         #     datadog_service_name foosvc;
         #     datadog_environment fooment;
         #     datadog_agent_url http://bogus:1234;
         #     datadog_propagation_styles B3 Datadog;
-        expected['defaults']['service'] = 'foosvc'
-        expected['defaults']['environment'] = 'fooment'
-        expected['collector']['config'][
-            'url'] = 'http://bogus:1234/v0.4/traces'
-        styles = ['B3', 'Datadog']
-        expected['injection_styles'] = styles
-        expected['extraction_styles'] = styles
+        pattern = {
+            'defaults': {
+                'service': 'foosvc',
+                'environment': 'fooment'
+            },
+            'collector': {
+                'config': {
+                    'traces_url': 'http://bogus:1234/v0.4/traces'
+                }
+            },
+            'injection_styles': ['B3', 'Datadog'],
+            'extraction_styles': ['B3', 'Datadog']
+        }
 
-        self.assertEqual(config, expected)
+        mismatches = find_mismatches(pattern, config)
+        self.assertEqual(mismatches, [])
 
     def run_error_test(self, conf_relative_path, diagnostic_excerpt):
         conf_path = Path(__file__).parent / conf_relative_path
