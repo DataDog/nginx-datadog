@@ -161,7 +161,6 @@ The following formats are supported:
 The port defaults to 8126 if it is not specified.
 
 ### `datadog_tag`
-
 - **syntax** `datadog_tag <key> <value>`
 - **context**: `http`, `server`, `location`
 
@@ -169,6 +168,27 @@ On the currently active span, set a tag whose name is the specified `<key>` and
 whose value is the result of evaluating the specified `<value>` in the context
 of the current request.  `<value>` is a string that may contain
 `$`-[variables][2] (including those provided by this module).
+
+### `datadog_delegate_sampling`
+- **syntax** `datadog_delegate_sampling [on|off]`
+- **default** `off`
+- **context** `http`, `server`, `location`
+
+If `on`, and if nginx is making the trace sampling decision (i.e. if nginx is
+the first service in the trace), then delegate the sampling decision to the
+upstream service.  nginx will make a provisional sampling decision, and convey
+it along with the intention to delegate to the upstream. The upstream service
+might then make its own sampling decision and convey that decision back in the
+response. If the upstream does so, then nginx will use the upstream's sampling
+decision instead of the provisional decision.
+
+Sampling delegation exists to allow nginx to act as a reverse proxy for multiple
+different services, where the trace sampling decision can be better made within
+the service than it can within nginx.
+
+Sampling delegation is `off` by default. The directive's argument can be a
+variable expression that evaluates to either of `on` or `off`. If the
+directive's argument is omitted, then it is as if it were `on`.
 
 ### `datadog_enable`
 - **syntax** `datadog_enable`
@@ -184,7 +204,7 @@ is propagated to the proxied service.
 Datadog tracing is enabled by default.
 
 ### `datadog_disable`
-- **syntax** `datadog_enable`
+- **syntax** `datadog_disable`
 - **context** `http`, `server`, `location`
 
 Disable Datadog tracing in the current configuration context.  This overrides
@@ -306,6 +326,22 @@ request.
 
 This option is `off` by default, so that only one span is produced per request.
 
+### `datadog_allow_sampling_delegation_in_subrequests`
+
+- **syntax** `datadog_allow_sampling_delegation_in_subrequests [on|off]`
+- **default**: `off`
+- **context**: `http`, `server`, `location`
+
+If `on`, then honor `datadog_delegate_sampling` directives in contexts where
+nginx is making a subrequest, e.g. with the `auth_request` directive.
+
+This option is `off` by default, so that sampling delegation is not performed
+for subrequests.
+
+Note that in addition to this directive, the nginx configuration must also
+contain the `log_subrequest on;` directive in order for tracing to be enabled
+for subrequests.
+
 Variables
 ---------
 Nginx defines [variables][2] that may appear in various contexts in the nginx
@@ -404,5 +440,8 @@ context to be propagated to a service via `proxy_pass`.
 
 This family of variables is used in the implementation of the Datadog nginx
 module.
+
+### `datadog_auth_request_hook`
+This is an implementation detail of the module and should not be used.
 
 [2]: https://nginx.org/en/docs/varindex.html

@@ -298,8 +298,7 @@ def prepare_release_artifact(build_job_number, work_dir):
         )
     if 'ARCH' not in variables:
         raise Exception(
-            f"ARCH not found in nginx-version-info: {nginx_version_info}"
-        )
+            f"ARCH not found in nginx-version-info: {nginx_version_info}")
 
     arch = variables['ARCH']
     base_prefix = variables['BASE_IMAGE'].replace(':', '_')

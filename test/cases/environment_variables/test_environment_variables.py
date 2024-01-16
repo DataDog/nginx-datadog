@@ -53,7 +53,7 @@ class TestEnvironmentVariables(case.TestCase):
             # the request a few times if it fails initially.
             # "A few" is actually a lot, because when the tests are running in
             # parallel, it can take a while to set up.
-            status, body = with_staggered_retries(
+            status, _, body = with_staggered_retries(
                 lambda: self.orch.send_nginx_http_request('/', 8080),
                 retry_interval_seconds=0.25,
                 max_attempts=200)

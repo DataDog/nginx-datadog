@@ -25,7 +25,7 @@ class TestTags(case.TestCase):
         # Consume any previous logging from the agent.
         self.orch.sync_service('agent')
 
-        status, _ = self.orch.send_nginx_http_request('/http')
+        status, _, _ = self.orch.send_nginx_http_request('/http')
         self.assertEqual(status, 200, conf_relative_path)
 
         self.orch.reload_nginx()
@@ -78,7 +78,7 @@ class TestTags(case.TestCase):
         # Consume any previous logging from the agent.
         self.orch.sync_service('agent')
 
-        status, _ = self.orch.send_nginx_http_request('/http')
+        status, _, _ = self.orch.send_nginx_http_request('/http')
         self.assertEqual(status, 200)
 
         self.orch.reload_nginx()

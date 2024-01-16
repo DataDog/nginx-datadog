@@ -18,7 +18,7 @@ class TestVariables(case.TestCase):
         # Drain any old nginx log lines.
         self.orch.sync_nginx_access_log()
 
-        status, body = self.orch.send_nginx_http_request('/http')
+        status, _, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status, body)
         response = json.loads(body)
         headers = response['headers']
@@ -49,7 +49,7 @@ class TestVariables(case.TestCase):
             conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
-        status, body = self.orch.send_nginx_http_request('/http')
+        status, _, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
         response = json.loads(body)
         headers = response['headers']
@@ -97,8 +97,8 @@ class TestVariables(case.TestCase):
             'X-Datadog-Parent-ID': 456,
             'X-Datadog-Sampling-Priority': 2  # manual keep
         }
-        status, body = self.orch.send_nginx_http_request('/http',
-                                                         headers=headers)
+        status, _, body = self.orch.send_nginx_http_request('/http',
+                                                            headers=headers)
         self.assertEqual(200, status)
         response = json.loads(body)
         headers = response['headers']
@@ -156,8 +156,8 @@ class TestVariables(case.TestCase):
             'X-Datadog-Parent-ID': 456,
             'X-Datadog-Sampling-Priority': 2  # manual keep
         }
-        status, body = self.orch.send_nginx_http_request('/http',
-                                                         headers=headers)
+        status, _, body = self.orch.send_nginx_http_request('/http',
+                                                            headers=headers)
         self.assertEqual(200, status, body)
         response = json.loads(body)
         headers = response['headers']

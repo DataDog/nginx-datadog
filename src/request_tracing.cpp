@@ -1,7 +1,9 @@
 #include "request_tracing.h"
 
+#include <datadog/dict_writer.h>
 #include <datadog/span.h>
 #include <datadog/span_config.h>
+#include <datadog/trace_segment.h>
 
 #include <cassert>
 #include <chrono>
@@ -296,10 +298,6 @@ void RequestTracing::on_log_request() {
   request_span_->set_name(get_request_operation_name(request_, core_loc_conf, loc_conf_));
   request_span_->set_resource_name(get_request_resource_name(request_, loc_conf_));
 
-  // Note: At this point, we could run an `NginxScript` to interrogate the
-  // proxied server's response headers, e.g. to retrieve a deferred sampling
-  // decision.
-
   request_span_->set_end_time(finish_timestamp);
 
   // We care about sampling rules for the request span only, because it's the
@@ -321,6 +319,42 @@ ngx_str_t RequestTracing::lookup_propagation_header_variable_value(std::string_v
 
 ngx_str_t RequestTracing::lookup_span_variable_value(std::string_view key) {
   return to_ngx_str(request_->pool, TracingLibrary::span_variables().resolve(key, active_span()));
+}
+
+ngx_str_t RequestTracing::lookup_sampling_delegation_response_variable_value() {
+  const ngx_str_t response_header = loc_conf_->response_info_script.run(request_);
+
+  if (response_header.len) {
+    class OneHeaderReader : public dd::DictReader {
+      const ngx_str_t &value_;
+
+     public:
+      explicit OneHeaderReader(const ngx_str_t &value) : value_(value) {}
+
+      dd::Optional<dd::StringView> lookup(dd::StringView key) const override {
+        if (key == "x-datadog-trace-sampling-decision") {
+          return str(value_);
+        }
+        return dd::nullopt;
+      }
+
+      void visit(const std::function<void(dd::StringView key, dd::StringView value)> &visitor)
+          const override {
+        visitor("x-datadog-trace-sampling-decision", str(value_));
+      }
+    } reader{response_header};
+
+    active_span().read_sampling_delegation_response(reader);
+  }
+
+  struct OneHeaderWriter : public dd::DictWriter {
+    std::string value_;
+    void set(dd::StringView /*key*/, dd::StringView value) override { value_ = value; }
+    ~OneHeaderWriter() {}
+  } writer;
+
+  active_span().trace_segment().write_sampling_delegation_response(writer);
+  return to_ngx_str(request_->pool, writer.value_);
 }
 
 }  // namespace nginx

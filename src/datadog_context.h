@@ -34,6 +34,8 @@ class DatadogContext {
 
   ngx_str_t lookup_span_variable_value(ngx_http_request_t* request, std::string_view key);
 
+  ngx_str_t lookup_sampling_delegation_response_variable_value(ngx_http_request_t* request);
+
  private:
   std::vector<RequestTracing> traces_;
 

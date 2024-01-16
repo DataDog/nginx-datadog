@@ -22,7 +22,7 @@ class TestAccessLog(case.TestCase):
         # discard any old log lines from nginx
         self.orch.sync_nginx_access_log()
 
-        status, body = self.orch.send_nginx_http_request('/http')
+        status, _, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
         response = json.loads(body)
         trace_id = response['headers']['x-datadog-trace-id']
@@ -68,7 +68,7 @@ class TestAccessLog(case.TestCase):
         # discard any old log lines from nginx
         self.orch.sync_nginx_access_log()
 
-        status, body = self.orch.send_nginx_http_request('/http')
+        status, _, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
 
         # Look through the logs for the access log message.
@@ -109,7 +109,7 @@ class TestAccessLog(case.TestCase):
         # discard any old log lines from nginx
         self.orch.sync_nginx_access_log()
 
-        status, body = self.orch.send_nginx_http_request('/http')
+        status, _, body = self.orch.send_nginx_http_request('/http')
         self.assertEqual(200, status)
         response = json.loads(body)
         trace_id = response['headers']['x-datadog-trace-id']

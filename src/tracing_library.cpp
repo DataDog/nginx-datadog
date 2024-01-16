@@ -129,6 +129,7 @@ dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_n
         result.push_back("x-datadog-sampling-priority");
         result.push_back("x-datadog-origin");
         result.push_back("x-datadog-tags");
+        result.push_back("x-datadog-delegate-trace-sampling");
         break;
       case dd::PropagationStyle::B3:
         result.push_back("x-b3-traceid");
@@ -238,6 +239,10 @@ std::string_view TracingLibrary::default_resource_name_pattern() { return "$requ
 bool TracingLibrary::tracing_on_by_default() { return true; }
 
 bool TracingLibrary::trace_locations_by_default() { return false; }
+
+std::string_view TracingLibrary::sampling_delegation_response_variable_name() {
+  return "datadog_sampling_delegation_response";
+}
 
 }  // namespace nginx
 }  // namespace datadog

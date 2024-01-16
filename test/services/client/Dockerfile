@@ -1,4 +1,4 @@
-from alpine:3.15
+from alpine:3.19
 
 copy install-tools.sh /tmp/install-tools.sh
 run chmod +x /tmp/install-tools.sh && /tmp/install-tools.sh

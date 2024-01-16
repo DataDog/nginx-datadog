@@ -10,12 +10,18 @@ import unittest
 
 class TestCase(unittest.TestCase):
     """Provide boilerplate for test cases.
-    
+
     Test cases derived from this class have an `orch` property that refers to
     the `orchestration` singleton.  It's a convenience to avoid needing to
     indent test cases in a `with orchestration.singleton() as orch:` block.
     """
     durations_seconds = {}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Don't elide error messages produced by `AssertionError`, i.e. avoid
+        # "Diff is 1893 characters long. Set self.maxDiff to None to see it."
+        self.maxDiff = None
 
     def setUp(self):
         context = self.orch_context = orchestration.singleton()

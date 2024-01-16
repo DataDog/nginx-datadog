@@ -31,7 +31,7 @@ ngx_int_t inject_datadog_log_formats(ngx_conf_t *conf) {
   // Set up `log_format ...` commands, and then use `datadog_conf_handler` to
   // execute them.
 
-  // log_format <name> <escaping style> <format>
+  // log_format <name> <escaping style> <format>;
   ngx_str_t args[] = {ngx_string("log_format"), ngx_str_t(), ngx_str_t(), ngx_str_t()};
   ngx_array_t args_array;
   args_array.elts = args;

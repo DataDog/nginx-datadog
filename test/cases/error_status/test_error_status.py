@@ -14,7 +14,7 @@ class TestErrorStatus(case.TestCase):
         """
         self.orch.sync_service('agent')
 
-        status, body = self.orch.send_nginx_http_request(
+        status, _, body = self.orch.send_nginx_http_request(
             f'/http/status/{expected_status}')
         self.assertEqual(expected_status, status)
 

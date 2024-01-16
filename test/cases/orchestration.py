@@ -172,7 +172,9 @@ def docker_compose_ps_with_retries(max_attempts, service):
         try:
             result = docker_compose_ps(service)
             if result == '':
-                raise Exception(f'docker_compose_ps({json.dumps(service)}) returned an empty string')
+                raise Exception(
+                    f'docker_compose_ps({json.dumps(service)}) returned an empty string'
+                )
             return result
         except Exception:
             max_attempts -= 1
@@ -265,7 +267,8 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # don't print any output.  So, we retry (up to a limit) until
                 # `docker compose ps` exits with status zero and produces
                 # output.
-                containers[service] = docker_compose_ps_with_retries(max_attempts=100, service=service)
+                containers[service] = docker_compose_ps_with_retries(
+                    max_attempts=100, service=service)
             elif kind == 'service_log':
                 # Got a line of logging from some service.  Push it onto the
                 # appropriate queue for consumption by tests.
@@ -318,14 +321,15 @@ def curl(url, headers, stderr=None):
                             env=child_env(),
                             encoding='utf8',
                             check=True)
-    fields_json, body_json, *rest = result.stdout.split('\n')
+    fields_json, headers_json, body_json, *rest = result.stdout.split('\n')
     if any(line for line in rest):
         raise Exception('Unexpected trailing output to curljson.sh: ' +
                         json.dumps(rest))
 
     fields = json.loads(fields_json)
+    headers = json.loads(headers_json)
     body = json.loads(body_json)
-    return fields, body
+    return fields, headers, body
 
 
 def add_services_in_nginx_etc_hosts(services):
@@ -344,12 +348,8 @@ def add_services_in_nginx_etc_hosts(services):
     """
     # "-T" means "don't allocate a TTY".  This is necessary to avoid the
     # error "the input device is not a TTY".
-    command = docker_compose_command('exec', '-T', '--', 'nginx',
-                                     '/bin/sh')
-    subprocess.run(command,
-                            input=script,
-                            env=child_env(),
-                            encoding='utf8')
+    command = docker_compose_command('exec', '-T', '--', 'nginx', '/bin/sh')
+    subprocess.run(command, input=script, env=child_env(), encoding='utf8')
 
 
 class Orchestration:
@@ -446,8 +446,8 @@ class Orchestration:
         """
         url = f'http://nginx:{port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
-        fields, body = curl(url, headers, stderr=self.verbose)
-        return (fields['response_code'], body)
+        fields, headers, body = curl(url, headers, stderr=self.verbose)
+        return (fields['response_code'], headers, body)
 
     def send_nginx_grpc_request(self, symbol, port=1337):
         """Send an empty gRPC request to the nginx endpoint at "/", where
@@ -484,8 +484,8 @@ class Orchestration:
         the service's log.
         """
         token = str(uuid.uuid4())
-        fields, body = curl(f'http://{service}:{sync_port}',
-                            headers={'X-Datadog-Test-Sync-Token': token})
+        fields, _, body = curl(f'http://{service}:{sync_port}',
+                               headers={'X-Datadog-Test-Sync-Token': token})
 
         assert fields['response_code'] == 200
 
@@ -505,7 +505,7 @@ class Orchestration:
         Note that this assumes that nginx has a particular configuration.
         """
         token = str(uuid.uuid4())
-        status, body = self.send_nginx_http_request(f'/sync?token={token}')
+        status, _, body = self.send_nginx_http_request(f'/sync?token={token}')
         if status != 200:
             raise Exception(
                 f'nginx returned error (status, body): {(status, body)}')
@@ -634,12 +634,15 @@ END_CONF
         return status, log_lines
 
     @contextlib.contextmanager
-    def custom_nginx(self, nginx_conf, extra_env=None):
+    def custom_nginx(self, nginx_conf, extra_env=None, healthcheck_port=None):
         """Yield a managed `Popen` object referring to a new instance of nginx
         running in the nginx service container, where the new instance uses the
         specified `nginx_conf` and has in its environment the optionally
         specified `extra_env`.  When the context of the returned object exits,
         the nginx instance is gracefully shut down.
+        Optionally specify an integer `healthcheck_port` at which the
+        "/healthcheck" endpoint will be polled in order to determine when the
+        nginx instance is ready.
         """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
@@ -687,6 +690,32 @@ END_CONF
                                  stdout=self.verbose,
                                  stderr=self.verbose,
                                  env=child_env())
+
+        # Before we `yield child` to the caller, possibly poll the nginx
+        # instance's /healthcheck endpoint to wait for it to be ready.
+        if healthcheck_port is not None:
+            remaining_attempts = 20
+            pause_seconds = 0.25
+            before = time.time()
+            while remaining_attempts > 0:
+                try:
+                    status, _, _ = self.send_nginx_http_request(
+                        '/healthcheck', port=healthcheck_port)
+                    if status == 200:
+                        after = time.time()
+                        print(
+                            f'custom nginx at port {healthcheck_port} took {after - before} seconds to be ready',
+                            file=self.verbose)
+                        break
+                except Exception:
+                    pass
+                time.sleep(pause_seconds)
+                remaining_attempts -= 1
+            if remaining_attempts == 0:
+                raise Exception(
+                    f'custom nginx at port {healthcheck_port} did not become ready'
+                )
+
         try:
             yield child
         finally:
