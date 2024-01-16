@@ -348,12 +348,8 @@ def add_services_in_nginx_etc_hosts(services):
     """
     # "-T" means "don't allocate a TTY".  This is necessary to avoid the
     # error "the input device is not a TTY".
-    command = docker_compose_command('exec', '-T', '--', 'nginx',
-                                     '/bin/sh')
-    subprocess.run(command,
-                            input=script,
-                            env=child_env(),
-                            encoding='utf8')
+    command = docker_compose_command('exec', '-T', '--', 'nginx', '/bin/sh')
+    subprocess.run(command, input=script, env=child_env(), encoding='utf8')
 
 
 class Orchestration:
