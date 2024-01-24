@@ -123,12 +123,9 @@ jobs:
     resource_class: small
     steps:
     - checkout
-    - run: git submodule update --init --recursive
     - run:
         name: Lint
-        command: |
-          cp dd-trace-cpp/.clang-format .clang-format
-          bin/lint.sh
+        command: make lint
 
   shellcheck:
     docker:
