@@ -2,6 +2,11 @@
 # Print any discrepancies between the formatting of the code and the expected
 # style.
 
+if ! [ -e .clang-format ]; then
+    >&2 echo '.clang-format file is missing. Run "make lint".'
+    exit 1
+fi
+
 error_messages=''
 
 find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file

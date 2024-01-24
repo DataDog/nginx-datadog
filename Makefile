@@ -44,14 +44,14 @@ nginx-version-info:
 dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 
 .clang-format: dd-trace-cpp/.clang-format
-	cp $< $@
 
 .PHONY: format
 format: .clang-format
-	./bin/format.sh
+	bin/format.sh
 
+.PHONY: lint
 lint: .clang-format
-	./bin/lint.sh
+	bin/lint.sh
 
 .PHONY: clean
 clean:
