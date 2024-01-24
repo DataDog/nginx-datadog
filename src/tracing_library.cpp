@@ -35,7 +35,8 @@ std::string_view or_default(std::string_view config_json) {
 
 }  // namespace
 
-dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf) {
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
+    const datadog_main_conf_t &nginx_conf) {
   dd::TracerConfig config;
   config.logger = std::make_shared<NgxLogger>();
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
@@ -90,8 +91,10 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t &
   return dd::Tracer(*final_config);
 }
 
-dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_names(
-    const std::vector<dd::PropagationStyle> &configured_styles, dd::Logger &logger) {
+dd::Expected<std::vector<std::string_view>>
+TracingLibrary::propagation_header_names(
+    const std::vector<dd::PropagationStyle> &configured_styles,
+    dd::Logger &logger) {
   std::vector<std::string_view> result;
 
   // Create a tracer config that contains `configured_styles` (or the default
@@ -112,7 +115,8 @@ dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_n
     return std::move(*error);
   }
 
-  if (!configured_styles.empty() && configured_styles != finalized_config->injection_styles) {
+  if (!configured_styles.empty() &&
+      configured_styles != finalized_config->injection_styles) {
     logger.log_error([&](std::ostream &log) {
       log << "Actual injection propagation styles differ from that specified "
              "in the nginx "
