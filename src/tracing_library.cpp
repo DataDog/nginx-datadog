@@ -35,11 +35,12 @@ std::string_view or_default(std::string_view config_json) {
 
 }  // namespace
 
-dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
-    const datadog_main_conf_t& nginx_conf) {
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf) {
   dd::TracerConfig config;
   config.logger = std::make_shared<NgxLogger>();
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
+  config.integration_name = "nginx";
+  config.integration_version = NGINX_VERSION;
 
   if (!nginx_conf.propagation_styles.empty()) {
     config.injection_styles = config.extraction_styles =
@@ -73,11 +74,11 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   // order in which we try the rules doesn't change the outcome.
   // Deeper directives are more likely to match a given request, though, and
   // so this can be thought of as an optimization.
-  const auto by_depth_descending = [](const auto& left, const auto& right) {
+  const auto by_depth_descending = [](const auto &left, const auto &right) {
     return *left.depth > *right.depth;
   };
   std::stable_sort(rules.begin(), rules.end(), by_depth_descending);
-  for (sampling_rule_t& rule : rules) {
+  for (sampling_rule_t &rule : rules) {
     config.trace_sampler.rules.push_back(std::move(rule.rule));
   }
 
@@ -89,10 +90,8 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   return dd::Tracer(*final_config);
 }
 
-dd::Expected<std::vector<std::string_view>>
-TracingLibrary::propagation_header_names(
-    const std::vector<dd::PropagationStyle>& configured_styles,
-    dd::Logger& logger) {
+dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_names(
+    const std::vector<dd::PropagationStyle> &configured_styles, dd::Logger &logger) {
   std::vector<std::string_view> result;
 
   // Create a tracer config that contains `configured_styles` (or the default
@@ -109,13 +108,12 @@ TracingLibrary::propagation_header_names(
     minimal_config.extraction_styles = configured_styles;
   }
   auto finalized_config = dd::finalize_config(minimal_config);
-  if (auto* error = finalized_config.if_error()) {
+  if (auto *error = finalized_config.if_error()) {
     return std::move(*error);
   }
 
-  if (!configured_styles.empty() &&
-      configured_styles != finalized_config->injection_styles) {
-    logger.log_error([&](std::ostream& log) {
+  if (!configured_styles.empty() && configured_styles != finalized_config->injection_styles) {
+    logger.log_error([&](std::ostream &log) {
       log << "Actual injection propagation styles differ from that specified "
              "in the nginx "
              "configuration.  The datadog_propagation_styles directive "
@@ -191,10 +189,10 @@ class SpanContextJSONWriter : public dd::DictWriter {
     output_object_[std::move(normalized_key)] = value;
   }
 
-  nlohmann::json& json() { return output_object_; }
+  nlohmann::json &json() { return output_object_; }
 };
 
-std::string span_property(std::string_view key, const dd::Span& span) {
+std::string span_property(std::string_view key, const dd::Span &span) {
   const auto not_found = "-";
 
   if (key == "trace_id") {
