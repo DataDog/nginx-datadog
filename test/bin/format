@@ -1,4 +1,0 @@
-#!/bin/sh
-
-test_dir=$(dirname "$(dirname "$0")")
-yapf3 --recursive --in-place "$@" "$test_dir"

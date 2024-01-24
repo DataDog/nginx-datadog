@@ -33,9 +33,13 @@ inline ngx_str_t to_ngx_str(std::string_view s) {
   return result;
 }
 
-inline char to_upper(unsigned char c) { return static_cast<char>(std::toupper(c)); }
+inline char to_upper(unsigned char c) {
+  return static_cast<char>(std::toupper(c));
+}
 
-inline char to_lower(unsigned char c) { return static_cast<char>(std::tolower(c)); }
+inline char to_lower(unsigned char c) {
+  return static_cast<char>(std::tolower(c));
+}
 
 inline char hyphen_to_underscore(char c) {
   if (c == '-') return '_';
@@ -44,17 +48,22 @@ inline char hyphen_to_underscore(char c) {
 
 // Perform the transformations on header characters described by
 // http://nginx.org/en/docs/http/ngx_http_core_module.html#var_http_
-inline char header_transform_char(char c) { return to_lower(hyphen_to_underscore(c)); }
+inline char header_transform_char(char c) {
+  return to_lower(hyphen_to_underscore(c));
+}
 
-inline bool starts_with(const std::string_view& subject, const std::string_view& prefix) {
+inline bool starts_with(const std::string_view& subject,
+                        const std::string_view& prefix) {
   if (prefix.size() > subject.size()) {
     return false;
   }
 
-  return std::mismatch(subject.begin(), subject.end(), prefix.begin()).second == prefix.end();
+  return std::mismatch(subject.begin(), subject.end(), prefix.begin()).second ==
+         prefix.end();
 }
 
-inline std::string_view slice(const std::string_view& text, int begin, int end) {
+inline std::string_view slice(const std::string_view& text, int begin,
+                              int end) {
   if (begin < 0) {
     begin += text.size();
   }

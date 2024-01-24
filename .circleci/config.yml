@@ -117,6 +117,19 @@ jobs:
         path: test/logs/test.log
         destination: test.log
 
+  format:
+    docker:
+    - image: "datadog/docker-library:dd-trace-cpp-ci"
+    resource_class: small
+    steps:
+    - checkout
+    - run: git submodule update --init --recursive
+    - run:
+        name: Lint
+        command: |
+          cp dd-trace-cpp/.clang-format .clang-format
+          bin/lint.sh
+
   shellcheck:
     docker:
     - image: koalaman/shellcheck-alpine:stable
@@ -128,6 +141,7 @@ jobs:
 workflows:
   build-and-test:
     jobs:
+    - format
     - shellcheck:
         name: "run shellcheck on shell scripts"
         filters:

@@ -8,7 +8,8 @@ namespace nginx {
 namespace {
 
 ngx_msec_t to_milliseconds(std::chrono::steady_clock::duration interval) {
-  return std::chrono::duration_cast<std::chrono::milliseconds>(interval).count();
+  return std::chrono::duration_cast<std::chrono::milliseconds>(interval)
+      .count();
 }
 
 extern "C" void handle_event(ngx_event_t *ev) {
@@ -31,7 +32,8 @@ NgxEventScheduler::Event::Event(std::function<void()> callback,
 }
 
 dd::EventScheduler::Cancel NgxEventScheduler::schedule_recurring_event(
-    std::chrono::steady_clock::duration interval, std::function<void()> callback) {
+    std::chrono::steady_clock::duration interval,
+    std::function<void()> callback) {
   auto event = std::make_unique<Event>(std::move(callback), interval);
   events_.insert(event.get());
   ngx_add_timer(&event->event, to_milliseconds(event->interval));
@@ -52,7 +54,8 @@ NgxEventScheduler::~NgxEventScheduler() {
 }
 
 nlohmann::json NgxEventScheduler::config_json() const {
-  return nlohmann::json::object({{"type", "datadog::nginx::NgxEventScheduler"}});
+  return nlohmann::json::object(
+      {{"type", "datadog::nginx::NgxEventScheduler"}});
 }
 
 }  // namespace nginx

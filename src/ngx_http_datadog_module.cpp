@@ -46,10 +46,11 @@ using namespace datadog::nginx;
 // "datadog_trace_locations".  The `ngx_command_t::type` bitmask of the two
 // versions must match.  To ensure this, `DEFINE_COMMAND_WITH_OLD_ALIAS` is a
 // macro that defines both commands at the same time.
-#define DEFINE_COMMAND_WITH_OLD_ALIAS(NAME, OLD_NAME, TYPE, SET, CONF, OFFSET, POST) \
-  {ngx_string(NAME), TYPE, SET, CONF, OFFSET, POST}, {                               \
-    ngx_string(OLD_NAME), TYPE, delegate_to_datadog_directive_with_warning,          \
-        NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                         \
+#define DEFINE_COMMAND_WITH_OLD_ALIAS(NAME, OLD_NAME, TYPE, SET, CONF, OFFSET, \
+                                      POST)                                    \
+  {ngx_string(NAME), TYPE, SET, CONF, OFFSET, POST}, {                         \
+    ngx_string(OLD_NAME), TYPE, delegate_to_datadog_directive_with_warning,    \
+        NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                   \
   }
 
 // Part of configuring a command is saying where the command is allowed to
@@ -355,7 +356,8 @@ ngx_module_t ngx_http_datadog_module = {
 // Note that `ngx_set_env` is adapted from the function of the same name in
 // `nginx.c` within the nginx source code.
 static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
-  ngx_core_conf_t *ccf = (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
+  ngx_core_conf_t *ccf =
+      (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
   ngx_str_t *value, *var;
   ngx_uint_t i;
@@ -378,9 +380,11 @@ static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
   return NGX_CONF_OK;
 }
 
-static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept {
+static ngx_int_t datadog_master_process_post_config(
+    ngx_cycle_t *cycle) noexcept {
   // Forward tracer-specific environment variables to worker processes.
-  for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
+  for (const auto &env_var_name :
+       TracingLibrary::environment_variable_names()) {
     if (const void *const error = ngx_set_env(env_var_name, cycle)) {
       return ngx_int_t(error);
     }
@@ -400,7 +404,8 @@ static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept
 
   // Forward tracer-specific environment variables to worker processes.
   std::string name;
-  for (const auto &env_var_name : TracingLibrary::environment_variable_names()) {
+  for (const auto &env_var_name :
+       TracingLibrary::environment_variable_names()) {
     name = env_var_name;
     if (const char *value = std::getenv(name.c_str())) {
       main_conf->environment_variables.push_back(
@@ -423,8 +428,8 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   }
 
   // Add handlers to create tracing data.
-  auto handler = static_cast<ngx_http_handler_pt *>(
-      ngx_array_push(&core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
+  auto handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
+      &core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_enter_block;
 
@@ -436,11 +441,12 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();
   if (tags.empty()) return NGX_OK;
-  main_conf->tags = ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
+  main_conf->tags =
+      ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
   if (!main_conf->tags) return NGX_ERROR;
   for (const auto &tag : tags) {
-    if (add_datadog_tag(cf, main_conf->tags, to_ngx_str(tag.first), to_ngx_str(tag.second)) !=
-        NGX_CONF_OK) {
+    if (add_datadog_tag(cf, main_conf->tags, to_ngx_str(tag.first),
+                        to_ngx_str(tag.second)) != NGX_CONF_OK) {
       return NGX_ERROR;
     }
   }
@@ -457,7 +463,8 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 
   auto maybe_tracer = TracingLibrary::make_tracer(*main_conf);
   if (auto *error = maybe_tracer.if_error()) {
-    ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "Failed to construct tracer: [error code %d] %s",
+    ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                  "Failed to construct tracer: [error code %d] %s",
                   int(error->code), error->message.c_str());
     return NGX_ERROR;
   }
@@ -465,7 +472,8 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   reset_global_tracer(std::move(*maybe_tracer));
   return NGX_OK;
 } catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s", e.what());
+  ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s",
+                e.what());
   return NGX_ERROR;
 }
 
@@ -503,7 +511,8 @@ static int register_destructor(ngx_pool_t *pool, Config *config) {
 // `cf` so that sampling delegation's X-Datadog-Trace-Sampling-Decision response
 // header can be delivered in response to requests that indicated sampling
 // delegation, if appropriate.
-static char *inject_sampling_delegation_response_header(ngx_conf_t *cf) noexcept try {
+static char *inject_sampling_delegation_response_header(ngx_conf_t *cf) noexcept
+    try {
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
@@ -520,13 +529,15 @@ static char *inject_sampling_delegation_response_header(ngx_conf_t *cf) noexcept
   }
   main_conf->is_sampling_delegation_response_header_added = true;
 
-  const ngx_str_t response_header = ngx_string("X-Datadog-Trace-Sampling-Decision");
+  const ngx_str_t response_header =
+      ngx_string("X-Datadog-Trace-Sampling-Decision");
 
   // Prevent an upstream's "X-Datadog-Trace-Sampling-Decision" response header
   // from leaking to the client:
   //
   //     proxy_hide_header X-Datadog-Trace-Sampling-Decision;
-  ngx_str_t args[] = {ngx_string("proxy_hide_header"), response_header, ngx_str_t(), ngx_str_t()};
+  ngx_str_t args[] = {ngx_string("proxy_hide_header"), response_header,
+                      ngx_str_t(), ngx_str_t()};
   ngx_array_t args_array;
   args_array.elts = static_cast<void *>(&args);
   args_array.nelts = 2;
@@ -543,7 +554,8 @@ static char *inject_sampling_delegation_response_header(ngx_conf_t *cf) noexcept
   // Add our own version of the "X-Datadog-Trace-Sampling-Decision" response
   // header (if it's nonempty):
   //
-  //     add_header X-Datadog-Trace-Sampling-Decision $datadog_sampling_delegation_response always;
+  //     add_header X-Datadog-Trace-Sampling-Decision
+  //     $datadog_sampling_delegation_response always;
   args[0] = ngx_string("add_header");
   args[1] = response_header;
   args[2] = ngx_string("$datadog_sampling_delegation_response");
@@ -556,7 +568,8 @@ static char *inject_sampling_delegation_response_header(ngx_conf_t *cf) noexcept
   }
   return static_cast<char *>(NGX_CONF_OK);
 } catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "inject_sampling_delegation_response_header failed: %s",
+  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
+                "inject_sampling_delegation_response_header failed: %s",
                 e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
 }
@@ -596,7 +609,8 @@ static ngx_str_t block_type(const ngx_conf_t *conf) {
   if (conf->args == nullptr) {
     return ngx_string("");
   }
-  return to_ngx_str(conf->pool, str(*static_cast<const ngx_str_t *>(conf->args->elts)));
+  return to_ngx_str(conf->pool,
+                    str(*static_cast<const ngx_str_t *>(conf->args->elts)));
 }
 
 //------------------------------------------------------------------------------
@@ -671,48 +685,54 @@ char *merge_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
 //------------------------------------------------------------------------------
 // merge_datadog_loc_conf
 //------------------------------------------------------------------------------
-static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent, void *child) noexcept {
+static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
+                                    void *child) noexcept {
   auto prev = static_cast<datadog_loc_conf_t *>(parent);
   auto conf = static_cast<datadog_loc_conf_t *>(child);
 
   conf->parent = prev;
   conf->depth = prev->depth + 1;
 
-  ngx_conf_merge_value(conf->enable, prev->enable, TracingLibrary::tracing_on_by_default());
+  ngx_conf_merge_value(conf->enable, prev->enable,
+                       TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
 
-  if (const auto rc = merge_script(cf, prev->operation_name_script, conf->operation_name_script,
-                                   TracingLibrary::default_request_operation_name_pattern())) {
+  if (const auto rc = merge_script(
+          cf, prev->operation_name_script, conf->operation_name_script,
+          TracingLibrary::default_request_operation_name_pattern())) {
     return rc;
   }
-  if (const auto rc =
-          merge_script(cf, prev->loc_operation_name_script, conf->loc_operation_name_script,
-                       TracingLibrary::default_location_operation_name_pattern())) {
+  if (const auto rc = merge_script(
+          cf, prev->loc_operation_name_script, conf->loc_operation_name_script,
+          TracingLibrary::default_location_operation_name_pattern())) {
     return rc;
   }
-  if (const auto rc = merge_script(cf, prev->resource_name_script, conf->resource_name_script,
-                                   TracingLibrary::default_resource_name_pattern())) {
+  if (const auto rc = merge_script(
+          cf, prev->resource_name_script, conf->resource_name_script,
+          TracingLibrary::default_resource_name_pattern())) {
     return rc;
   }
-  if (const auto rc =
-          merge_script(cf, prev->loc_resource_name_script, conf->loc_resource_name_script,
-                       TracingLibrary::default_resource_name_pattern())) {
+  if (const auto rc = merge_script(
+          cf, prev->loc_resource_name_script, conf->loc_resource_name_script,
+          TracingLibrary::default_resource_name_pattern())) {
     return rc;
   }
   // $upstream_http_x_datadog_trace_sampling_decision is the value of the
   // X-Datadog-Trace-Sampling-Decision response header returned by the upstream,
   // or empty if that response header is not present.
-  if (const auto rc = merge_script(cf, prev->response_info_script, conf->response_info_script,
-                                   "$upstream_http_x_datadog_trace_sampling_decision")) {
+  if (const auto rc = merge_script(
+          cf, prev->response_info_script, conf->response_info_script,
+          "$upstream_http_x_datadog_trace_sampling_decision")) {
     return rc;
   }
   if (const auto rc = merge_script(cf, prev->sampling_delegation_script,
                                    conf->sampling_delegation_script, "")) {
     return rc;
   }
-  if (const auto rc = merge_script(cf, prev->allow_sampling_delegation_in_subrequests_script,
-                                   conf->allow_sampling_delegation_in_subrequests_script, "off")) {
+  if (const auto rc = merge_script(
+          cf, prev->allow_sampling_delegation_in_subrequests_script,
+          conf->allow_sampling_delegation_in_subrequests_script, "off")) {
     return rc;
   }
 

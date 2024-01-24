@@ -32,8 +32,8 @@ void NgxLogger::log_error(const dd::Error& error) {
   const ngx_str_t ngx_message = to_ngx_str(error.message);
 
   std::lock_guard<std::mutex> lock(mutex_);
-  ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "datadog: [error code %d] %V", int(error.code),
-                &ngx_message);
+  ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "datadog: [error code %d] %V",
+                int(error.code), &ngx_message);
 }
 
 void NgxLogger::log_error(std::string_view message) {

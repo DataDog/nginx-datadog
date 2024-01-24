@@ -28,19 +28,21 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
 
   // This is a new subrequest, so add a RequestTracing for it.
   // TODO: Should `active_span` be `request_span` instead?
-  traces_.emplace_back(request, core_loc_conf, loc_conf, &traces_[0].active_span());
+  traces_.emplace_back(request, core_loc_conf, loc_conf,
+                       &traces_[0].active_span());
 }
 
 void DatadogContext::on_log_request(ngx_http_request_t *request) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
-    throw std::runtime_error{"on_log_request failed: could not find request trace"};
+    throw std::runtime_error{
+        "on_log_request failed: could not find request trace"};
   }
   trace->on_log_request();
 }
 
-ngx_str_t DatadogContext::lookup_propagation_header_variable_value(ngx_http_request_t *request,
-                                                                   std::string_view key) {
+ngx_str_t DatadogContext::lookup_propagation_header_variable_value(
+    ngx_http_request_t *request, std::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
@@ -50,11 +52,12 @@ ngx_str_t DatadogContext::lookup_propagation_header_variable_value(ngx_http_requ
   return trace->lookup_propagation_header_variable_value(key);
 }
 
-ngx_str_t DatadogContext::lookup_span_variable_value(ngx_http_request_t *request,
-                                                     std::string_view key) {
+ngx_str_t DatadogContext::lookup_span_variable_value(
+    ngx_http_request_t *request, std::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
-    throw std::runtime_error{"lookup_span_variable_value failed: could not find request trace"};
+    throw std::runtime_error{
+        "lookup_span_variable_value failed: could not find request trace"};
   }
   return trace->lookup_span_variable_value(key);
 }
@@ -64,21 +67,24 @@ ngx_str_t DatadogContext::lookup_sampling_delegation_response_variable_value(
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
-        "lookup_sampling_delegation_response_variable_value failed: could not find request trace"};
+        "lookup_sampling_delegation_response_variable_value failed: could not "
+        "find request trace"};
   }
   return trace->lookup_sampling_delegation_response_variable_value();
 }
 
 RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {
-  const auto found = std::find_if(traces_.begin(), traces_.end(),
-                                  [=](const auto &trace) { return trace.request() == request; });
+  const auto found = std::find_if(
+      traces_.begin(), traces_.end(),
+      [=](const auto &trace) { return trace.request() == request; });
   if (found != traces_.end()) {
     return &*found;
   }
   return nullptr;
 }
 
-const RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) const {
+const RequestTracing *DatadogContext::find_trace(
+    ngx_http_request_t *request) const {
   return const_cast<DatadogContext *>(this)->find_trace(request);
 }
 
@@ -87,7 +93,8 @@ static void cleanup_datadog_context(void *data) noexcept {
 }
 
 static ngx_pool_cleanup_t *find_datadog_cleanup(ngx_http_request_t *request) {
-  for (auto cleanup = request->pool->cleanup; cleanup; cleanup = cleanup->next) {
+  for (auto cleanup = request->pool->cleanup; cleanup;
+       cleanup = cleanup->next) {
     if (cleanup->handler == cleanup_datadog_context) {
       return cleanup;
     }
@@ -96,8 +103,8 @@ static ngx_pool_cleanup_t *find_datadog_cleanup(ngx_http_request_t *request) {
 }
 
 DatadogContext *get_datadog_context(ngx_http_request_t *request) noexcept {
-  auto context =
-      static_cast<DatadogContext *>(ngx_http_get_module_ctx(request, ngx_http_datadog_module));
+  auto context = static_cast<DatadogContext *>(
+      ngx_http_get_module_ctx(request, ngx_http_datadog_module));
   if (context != nullptr || !request->internal) {
     return context;
   }
@@ -114,7 +121,8 @@ DatadogContext *get_datadog_context(ngx_http_request_t *request) noexcept {
   // If we found a context, attach with ngx_http_set_ctx so that we don't have
   // to loop through the cleanup handlers again.
   if (context != nullptr) {
-    ngx_http_set_ctx(request, static_cast<void *>(context), ngx_http_datadog_module);
+    ngx_http_set_ctx(request, static_cast<void *>(context),
+                     ngx_http_datadog_module);
   }
 
   return context;
@@ -138,7 +146,8 @@ void set_datadog_context(ngx_http_request_t *request, DatadogContext *context) {
   }
   cleanup->data = static_cast<void *>(context);
   cleanup->handler = cleanup_datadog_context;
-  ngx_http_set_ctx(request, static_cast<void *>(context), ngx_http_datadog_module);
+  ngx_http_set_ctx(request, static_cast<void *>(context),
+                   ngx_http_datadog_module);
 }
 
 // Supports early destruction of the DatadogContext (in case of an
@@ -147,7 +156,8 @@ void destroy_datadog_context(ngx_http_request_t *request) noexcept {
   auto cleanup = find_datadog_cleanup(request);
   if (cleanup == nullptr) {
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                  "Unable to find Datadog cleanup handler for request %p", request);
+                  "Unable to find Datadog cleanup handler for request %p",
+                  request);
     return;
   }
   delete static_cast<DatadogContext *>(cleanup->data);

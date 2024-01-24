@@ -22,7 +22,8 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request, const dd::Span& span,
+ngx_str_t PropagationHeaderQuerier::lookup_value(ngx_http_request_t* request,
+                                                 const dd::Span& span,
                                                  std::string_view key) {
   if (&span != values_span_) {
     expand_values(request, span);
@@ -45,19 +46,22 @@ class SpanContextValueWriter : public dd::DictWriter {
 
  public:
   explicit SpanContextValueWriter(
-      std::unordered_map<std::string, std::string>& span_context_expansion, std::string& buffer)
+      std::unordered_map<std::string, std::string>& span_context_expansion,
+      std::string& buffer)
       : span_context_expansion_(&span_context_expansion), buffer_(&buffer) {}
 
   void set(std::string_view key, std::string_view value) override {
     buffer_->clear();
-    std::transform(key.begin(), key.end(), std::back_inserter(*buffer_), header_transform_char);
+    std::transform(key.begin(), key.end(), std::back_inserter(*buffer_),
+                   header_transform_char);
     span_context_expansion_->insert_or_assign(*buffer_, value);
   }
 };
 
 }  // namespace
 
-void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const dd::Span& span) {
+void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request,
+                                             const dd::Span& span) {
   dd::InjectionOptions options;
   auto loc_conf = static_cast<datadog_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
@@ -76,12 +80,15 @@ void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const 
     } else if (str(subrequest_delegation) == "off") {
       delegation = ngx_string("off");
     } else {
-      const auto& directive = loc_conf->allow_sampling_delegation_in_subrequests_directive;
+      const auto& directive =
+          loc_conf->allow_sampling_delegation_in_subrequests_directive;
       ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                    "Condition expression for %V directive at %V:%d evaluated to unexpected value "
-                    "\"%V\". Expected \"on\" or \"off\". Proceeding as if the value were \"off\".",
-                    &directive.directive_name, &directive.file_name, directive.line,
-                    &subrequest_delegation);
+                    "Condition expression for %V directive at %V:%d evaluated "
+                    "to unexpected value "
+                    "\"%V\". Expected \"on\" or \"off\". Proceeding as if the "
+                    "value were \"off\".",
+                    &directive.directive_name, &directive.file_name,
+                    directive.line, &subrequest_delegation);
       delegation = ngx_string("off");
     }
   } else {
@@ -94,7 +101,8 @@ void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const 
   const dd::Optional<dd::SamplingDecision> previous_decision =
       span.trace_segment().sampling_decision();
   const bool already_delegated =
-      previous_decision && previous_decision->origin == dd::SamplingDecision::Origin::DELEGATED;
+      previous_decision &&
+      previous_decision->origin == dd::SamplingDecision::Origin::DELEGATED;
 
   if (already_delegated) {
     options.delegate_sampling_decision = false;
@@ -107,11 +115,13 @@ void PropagationHeaderQuerier::expand_values(ngx_http_request_t* request, const 
     // configuration will be used instead.
   } else {
     const auto& directive = loc_conf->sampling_delegation_directive;
-    ngx_log_error(
-        NGX_LOG_ERR, request->connection->log, 0,
-        "Condition expression for %V directive at %V:%d evaluated to unexpected value "
-        "\"%V\". Expected \"on\" or \"off\". Proceeding as if the directive were absent.",
-        &directive.directive_name, &directive.file_name, directive.line, &delegation);
+    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                  "Condition expression for %V directive at %V:%d evaluated to "
+                  "unexpected value "
+                  "\"%V\". Expected \"on\" or \"off\". Proceeding as if the "
+                  "directive were absent.",
+                  &directive.directive_name, &directive.file_name,
+                  directive.line, &delegation);
   }
 
   values_span_ = &span;

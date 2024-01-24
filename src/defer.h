@@ -57,7 +57,8 @@ class CleanupFuncGuard {
   bool active_;  // whether to call `on_destroy_` in the destructor
 
  public:
-  explicit CleanupFuncGuard(Func&& func) : on_destroy_(std::move(func)), active_(true) {}
+  explicit CleanupFuncGuard(Func&& func)
+      : on_destroy_(std::move(func)), active_(true) {}
 
   CleanupFuncGuard(CleanupFuncGuard&& other)
       : on_destroy_(std::move(other.on_destroy_)), active_(true) {
