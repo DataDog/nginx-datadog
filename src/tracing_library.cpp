@@ -33,10 +33,9 @@ std::string_view or_default(std::string_view config_json) {
   return config_json;
 }
 
-} // namespace
+}  // namespace
 
-dd::Expected<dd::Tracer>
-TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf) {
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf) {
   dd::TracerConfig config;
   config.logger = std::make_shared<NgxLogger>();
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
@@ -44,8 +43,7 @@ TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf) {
   config.integration_version = NGINX_VERSION;
 
   if (!nginx_conf.propagation_styles.empty()) {
-    config.injection_styles = config.extraction_styles =
-        nginx_conf.propagation_styles;
+    config.injection_styles = config.extraction_styles = nginx_conf.propagation_styles;
   }
 
   if (nginx_conf.service_name) {
@@ -91,10 +89,8 @@ TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf) {
   return dd::Tracer(*final_config);
 }
 
-dd::Expected<std::vector<std::string_view>>
-TracingLibrary::propagation_header_names(
-    const std::vector<dd::PropagationStyle> &configured_styles,
-    dd::Logger &logger) {
+dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_names(
+    const std::vector<dd::PropagationStyle> &configured_styles, dd::Logger &logger) {
   std::vector<std::string_view> result;
 
   // Create a tracer config that contains `configured_styles` (or the default
@@ -115,8 +111,7 @@ TracingLibrary::propagation_header_names(
     return std::move(*error);
   }
 
-  if (!configured_styles.empty() &&
-      configured_styles != finalized_config->injection_styles) {
+  if (!configured_styles.empty() && configured_styles != finalized_config->injection_styles) {
     logger.log_error([&](std::ostream &log) {
       log << "Actual injection propagation styles differ from that specified "
              "in the nginx "
@@ -133,25 +128,25 @@ TracingLibrary::propagation_header_names(
   // in dd-trace-cpp.
   for (const auto style : finalized_config->injection_styles) {
     switch (style) {
-    case dd::PropagationStyle::DATADOG:
-      result.push_back("x-datadog-trace-id");
-      result.push_back("x-datadog-parent-id");
-      result.push_back("x-datadog-sampling-priority");
-      result.push_back("x-datadog-origin");
-      result.push_back("x-datadog-tags");
-      result.push_back("x-datadog-delegate-trace-sampling");
-      break;
-    case dd::PropagationStyle::B3:
-      result.push_back("x-b3-traceid");
-      result.push_back("x-b3-spanid");
-      result.push_back("x-b3-sampled");
-      break;
-    case dd::PropagationStyle::W3C:
-      result.push_back("traceparent");
-      result.push_back("tracestate");
-      break;
-    case dd::PropagationStyle::NONE:
-      break;
+      case dd::PropagationStyle::DATADOG:
+        result.push_back("x-datadog-trace-id");
+        result.push_back("x-datadog-parent-id");
+        result.push_back("x-datadog-sampling-priority");
+        result.push_back("x-datadog-origin");
+        result.push_back("x-datadog-tags");
+        result.push_back("x-datadog-delegate-trace-sampling");
+        break;
+      case dd::PropagationStyle::B3:
+        result.push_back("x-b3-traceid");
+        result.push_back("x-b3-spanid");
+        result.push_back("x-b3-sampled");
+        break;
+      case dd::PropagationStyle::W3C:
+        result.push_back("traceparent");
+        result.push_back("tracestate");
+        break;
+      case dd::PropagationStyle::NONE:
+        break;
     }
   }
 
@@ -162,17 +157,13 @@ std::string_view TracingLibrary::propagation_header_variable_name_prefix() {
   return "datadog_propagation_header_";
 }
 
-std::string_view TracingLibrary::environment_variable_name_prefix() {
-  return "datadog_env_";
-}
+std::string_view TracingLibrary::environment_variable_name_prefix() { return "datadog_env_"; }
 
 std::string_view TracingLibrary::configuration_json_variable_name() {
   return "datadog_config_json";
 }
 
-std::string_view TracingLibrary::location_variable_name() {
-  return "datadog_location";
-}
+std::string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
 
 std::string_view TracingLibrary::proxy_directive_variable_name() {
   return "datadog_proxy_directive";
@@ -183,7 +174,7 @@ namespace {
 class SpanContextJSONWriter : public dd::DictWriter {
   nlohmann::json output_object_;
 
-public:
+ public:
   SpanContextJSONWriter() : output_object_(nlohmann::json::object()) {}
 
   void set(std::string_view key, std::string_view value) override {
@@ -212,16 +203,15 @@ std::string span_property(std::string_view key, const dd::Span &span) {
   return not_found;
 }
 
-} // namespace
+}  // namespace
 
 NginxVariableFamily TracingLibrary::span_variables() {
   return {.prefix = "datadog_", .resolve = span_property};
 }
 
 std::vector<std::string_view> TracingLibrary::environment_variable_names() {
-  return std::vector<std::string_view>{
-      std::begin(dd::environment::variable_names),
-      std::end(dd::environment::variable_names)};
+  return std::vector<std::string_view>{std::begin(dd::environment::variable_names),
+                                       std::end(dd::environment::variable_names)};
 }
 
 std::string_view TracingLibrary::default_request_operation_name_pattern() {
@@ -232,8 +222,7 @@ std::string_view TracingLibrary::default_location_operation_name_pattern() {
   return "nginx.$datadog_proxy_directive";
 }
 
-std::unordered_map<std::string_view, std::string_view>
-TracingLibrary::default_tags() {
+std::unordered_map<std::string_view, std::string_view> TracingLibrary::default_tags() {
   return {
       // originally defined by nginx-opentracing
       {"component", "nginx"},
@@ -250,9 +239,7 @@ TracingLibrary::default_tags() {
       {"nginx.location", "$datadog_location"}};
 }
 
-std::string_view TracingLibrary::default_resource_name_pattern() {
-  return "$request_method $uri";
-}
+std::string_view TracingLibrary::default_resource_name_pattern() { return "$request_method $uri"; }
 
 bool TracingLibrary::tracing_on_by_default() { return true; }
 
@@ -262,5 +249,5 @@ std::string_view TracingLibrary::sampling_delegation_response_variable_name() {
   return "datadog_sampling_delegation_response";
 }
 
-} // namespace nginx
-} // namespace datadog
+}  // namespace nginx
+}  // namespace datadog
