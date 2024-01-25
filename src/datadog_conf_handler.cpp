@@ -5,9 +5,9 @@
 namespace datadog {
 namespace nginx {
 /* The eight fixed arguments */
-static ngx_uint_t argument_number[] = {NGX_CONF_NOARGS, NGX_CONF_TAKE1, NGX_CONF_TAKE2,
-                                       NGX_CONF_TAKE3,  NGX_CONF_TAKE4, NGX_CONF_TAKE5,
-                                       NGX_CONF_TAKE6,  NGX_CONF_TAKE7};
+static ngx_uint_t argument_number[] = {
+    NGX_CONF_NOARGS, NGX_CONF_TAKE1, NGX_CONF_TAKE2, NGX_CONF_TAKE3,
+    NGX_CONF_TAKE4,  NGX_CONF_TAKE5, NGX_CONF_TAKE6, NGX_CONF_TAKE7};
 
 ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig &args) noexcept {
   ngx_conf_t *const cf = args.conf;
@@ -30,7 +30,8 @@ ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig &args) noexcept {
       continue;
     }
 
-    if (args.skip_this_module && cf->cycle->modules[i] == &ngx_http_datadog_module) {
+    if (args.skip_this_module &&
+        cf->cycle->modules[i] == &ngx_http_datadog_module) {
       continue;
     }
 
@@ -57,14 +58,15 @@ ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig &args) noexcept {
       }
 
       if (!(cmd->type & NGX_CONF_BLOCK) && last != NGX_OK) {
-        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "directive \"%s\" is not terminated by \";\"",
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "directive \"%s\" is not terminated by \";\"",
                            name->data);
         return NGX_ERROR;
       }
 
       if ((cmd->type & NGX_CONF_BLOCK) && last != NGX_CONF_BLOCK_START) {
-        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "directive \"%s\" has no opening \"{\"",
-                           name->data);
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                           "directive \"%s\" has no opening \"{\"", name->data);
         return NGX_ERROR;
       }
 
@@ -122,25 +124,29 @@ ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig &args) noexcept {
         return NGX_ERROR;
       }
 
-      ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%s\" directive %s", name->data, rv);
+      ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%s\" directive %s",
+                         name->data, rv);
 
       return NGX_ERROR;
     }
   }
 
   if (found) {
-    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%s\" directive is not allowed here", name->data);
+    ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                       "\"%s\" directive is not allowed here", name->data);
 
     return NGX_ERROR;
   }
 
-  ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "unknown directive \"%s\"", name->data);
+  ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "unknown directive \"%s\"",
+                     name->data);
 
   return NGX_ERROR;
 
 invalid:
 
-  ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "invalid number of arguments in \"%s\" directive",
+  ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                     "invalid number of arguments in \"%s\" directive",
                      name->data);
 
   return NGX_ERROR;

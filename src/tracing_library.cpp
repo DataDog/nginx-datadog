@@ -35,7 +35,8 @@ std::string_view or_default(std::string_view config_json) {
 
 }  // namespace
 
-dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf) {
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
+    const datadog_main_conf_t &nginx_conf) {
   dd::TracerConfig config;
   config.logger = std::make_shared<NgxLogger>();
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
@@ -43,7 +44,8 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t &
   config.integration_version = NGINX_VERSION;
 
   if (!nginx_conf.propagation_styles.empty()) {
-    config.injection_styles = config.extraction_styles = nginx_conf.propagation_styles;
+    config.injection_styles = config.extraction_styles =
+        nginx_conf.propagation_styles;
   }
 
   if (nginx_conf.service_name) {
@@ -89,8 +91,10 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(const datadog_main_conf_t &
   return dd::Tracer(*final_config);
 }
 
-dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_names(
-    const std::vector<dd::PropagationStyle> &configured_styles, dd::Logger &logger) {
+dd::Expected<std::vector<std::string_view>>
+TracingLibrary::propagation_header_names(
+    const std::vector<dd::PropagationStyle> &configured_styles,
+    dd::Logger &logger) {
   std::vector<std::string_view> result;
 
   // Create a tracer config that contains `configured_styles` (or the default
@@ -111,7 +115,8 @@ dd::Expected<std::vector<std::string_view>> TracingLibrary::propagation_header_n
     return std::move(*error);
   }
 
-  if (!configured_styles.empty() && configured_styles != finalized_config->injection_styles) {
+  if (!configured_styles.empty() &&
+      configured_styles != finalized_config->injection_styles) {
     logger.log_error([&](std::ostream &log) {
       log << "Actual injection propagation styles differ from that specified "
              "in the nginx "
@@ -157,13 +162,17 @@ std::string_view TracingLibrary::propagation_header_variable_name_prefix() {
   return "datadog_propagation_header_";
 }
 
-std::string_view TracingLibrary::environment_variable_name_prefix() { return "datadog_env_"; }
+std::string_view TracingLibrary::environment_variable_name_prefix() {
+  return "datadog_env_";
+}
 
 std::string_view TracingLibrary::configuration_json_variable_name() {
   return "datadog_config_json";
 }
 
-std::string_view TracingLibrary::location_variable_name() { return "datadog_location"; }
+std::string_view TracingLibrary::location_variable_name() {
+  return "datadog_location";
+}
 
 std::string_view TracingLibrary::proxy_directive_variable_name() {
   return "datadog_proxy_directive";
@@ -210,8 +219,9 @@ NginxVariableFamily TracingLibrary::span_variables() {
 }
 
 std::vector<std::string_view> TracingLibrary::environment_variable_names() {
-  return std::vector<std::string_view>{std::begin(dd::environment::variable_names),
-                                       std::end(dd::environment::variable_names)};
+  return std::vector<std::string_view>{
+      std::begin(dd::environment::variable_names),
+      std::end(dd::environment::variable_names)};
 }
 
 std::string_view TracingLibrary::default_request_operation_name_pattern() {
@@ -222,7 +232,8 @@ std::string_view TracingLibrary::default_location_operation_name_pattern() {
   return "nginx.$datadog_proxy_directive";
 }
 
-std::unordered_map<std::string_view, std::string_view> TracingLibrary::default_tags() {
+std::unordered_map<std::string_view, std::string_view>
+TracingLibrary::default_tags() {
   return {
       // originally defined by nginx-opentracing
       {"component", "nginx"},
@@ -239,7 +250,9 @@ std::unordered_map<std::string_view, std::string_view> TracingLibrary::default_t
       {"nginx.location", "$datadog_location"}};
 }
 
-std::string_view TracingLibrary::default_resource_name_pattern() { return "$request_method $uri"; }
+std::string_view TracingLibrary::default_resource_name_pattern() {
+  return "$request_method $uri";
+}
 
 bool TracingLibrary::tracing_on_by_default() { return true; }
 

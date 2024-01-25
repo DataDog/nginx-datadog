@@ -29,11 +29,14 @@ class NgxHeaderReader : public dd::DictReader {
 
  public:
   explicit NgxHeaderReader(const ngx_http_request_t *request) {
-    for_each<ngx_table_elt_t>(request->headers_in.headers, [&](const ngx_table_elt_t &header) {
-      auto key = std::string_view{reinterpret_cast<char *>(header.lowcase_key), header.key.len};
-      auto value = std::string_view{reinterpret_cast<char *>(header.value.data), header.value.len};
-      headers_.emplace(key, value);
-    });
+    for_each<ngx_table_elt_t>(
+        request->headers_in.headers, [&](const ngx_table_elt_t &header) {
+          auto key = std::string_view{
+              reinterpret_cast<char *>(header.lowcase_key), header.key.len};
+          auto value = std::string_view{
+              reinterpret_cast<char *>(header.value.data), header.value.len};
+          headers_.emplace(key, value);
+        });
   }
 
   std::optional<std::string_view> lookup(std::string_view key) const override {
@@ -47,8 +50,9 @@ class NgxHeaderReader : public dd::DictReader {
     return std::nullopt;
   }
 
-  void visit(const std::function<void(std::string_view key, std::string_view value)> &visitor)
-      const override {
+  void visit(
+      const std::function<void(std::string_view key, std::string_view value)>
+          &visitor) const override {
     for (const auto &[key, value] : headers_) {
       visitor(key, value);
     }

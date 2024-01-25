@@ -213,7 +213,8 @@ struct datadog_loc_conf_t {
   // `allow_sampling_delegation_in_subrequests_directive` is the source location
   // of the `datadog_allow_sampling_delegation_in_subrequests` directive that
   // applies this location, if any.
-  conf_directive_source_location_t allow_sampling_delegation_in_subrequests_directive;
+  conf_directive_source_location_t
+      allow_sampling_delegation_in_subrequests_directive;
 };
 
 }  // namespace nginx

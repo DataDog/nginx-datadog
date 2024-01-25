@@ -54,7 +54,8 @@ static ngx_int_t expand_span_variable(ngx_http_request_t* request,
     return NGX_OK;
   }
 
-  auto span_variable_value = context->lookup_span_variable_value(request, suffix);
+  auto span_variable_value =
+      context->lookup_span_variable_value(request, suffix);
   variable_value->len = span_variable_value.len;
   variable_value->valid = true;
   variable_value->no_cacheable = true;
@@ -77,11 +78,12 @@ static ngx_int_t expand_span_variable(ngx_http_request_t* request,
 // string containing the value of the "x-datadog-origin" header as it would be
 // propagated to a proxied upstream service.  Return `NGX_OK` on success or
 // another value if an error occurs.
-static ngx_int_t expand_propagation_header_variable(ngx_http_request_t* request,
-                                                    ngx_http_variable_value_t* variable_value,
-                                                    uintptr_t data) noexcept try {
+static ngx_int_t expand_propagation_header_variable(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t data) noexcept try {
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
-  auto prefix_length = TracingLibrary::propagation_header_variable_name_prefix().size();
+  auto prefix_length =
+      TracingLibrary::propagation_header_variable_name_prefix().size();
   auto suffix = slice(variable_name, prefix_length);
 
   auto context = get_datadog_context(request);
@@ -93,7 +95,8 @@ static ngx_int_t expand_propagation_header_variable(ngx_http_request_t* request,
     return NGX_OK;
   }
 
-  auto value = context->lookup_propagation_header_variable_value(request, suffix);
+  auto value =
+      context->lookup_propagation_header_variable_value(request, suffix);
   variable_value->len = value.len;
   variable_value->valid = true;
   variable_value->no_cacheable = true;
@@ -118,19 +121,22 @@ static ngx_int_t expand_propagation_header_variable(ngx_http_request_t* request,
 // only the environment variables listed in
 // `TracingLibrary::environment_variable_names`.  Return `NGX_OK` on success or
 // another value if an error occurs.
-static ngx_int_t expand_environment_variable(ngx_http_request_t* request,
-                                             ngx_http_variable_value_t* variable_value,
-                                             uintptr_t data) noexcept {
+static ngx_int_t expand_environment_variable(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t data) noexcept {
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
-  auto prefix_length = TracingLibrary::environment_variable_name_prefix().size();
+  auto prefix_length =
+      TracingLibrary::environment_variable_name_prefix().size();
   auto suffix = slice(variable_name, prefix_length);
 
   std::string env_var_name{suffix.data(), suffix.size()};
-  std::transform(env_var_name.begin(), env_var_name.end(), env_var_name.begin(), to_upper);
+  std::transform(env_var_name.begin(), env_var_name.end(), env_var_name.begin(),
+                 to_upper);
 
   const auto allow_list = TracingLibrary::environment_variable_names();
   const char* env_value = nullptr;
-  if (std::find(allow_list.begin(), allow_list.end(), env_var_name) != allow_list.end()) {
+  if (std::find(allow_list.begin(), allow_list.end(), env_var_name) !=
+      allow_list.end()) {
     env_value = std::getenv(env_var_name.c_str());
   }
 
@@ -159,9 +165,9 @@ static ngx_int_t expand_environment_variable(ngx_http_request_t* request,
 // `TracingLibrary::configuration_json_variable_name()`.  The variable
 // evaluates to a JSON representation of the tracer configuration.  Return
 // `NGX_OK` on success or another value if an error occurs.
-static ngx_int_t expand_configuration_variable(ngx_http_request_t* request,
-                                               ngx_http_variable_value_t* variable_value,
-                                               uintptr_t /*data*/) noexcept {
+static ngx_int_t expand_configuration_variable(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t /*data*/) noexcept {
   variable_value->valid = true;
   variable_value->no_cacheable = true;
   variable_value->not_found = false;
@@ -175,7 +181,8 @@ static ngx_int_t expand_configuration_variable(ngx_http_request_t* request,
     return NGX_OK;
   }
 
-  const ngx_str_t json_str = to_ngx_str(request->pool, tracer->config_json().dump());
+  const ngx_str_t json_str =
+      to_ngx_str(request->pool, tracer->config_json().dump());
   variable_value->len = json_str.len;
   variable_value->data = json_str.data;
   return NGX_OK;
@@ -213,9 +220,9 @@ static ngx_int_t expand_configuration_variable(ngx_http_request_t* request,
 // `variable_value` a hyphen character ("-").
 //
 // Return `NGX_OK` on success or another value if an error occurs.
-static ngx_int_t expand_location_variable(ngx_http_request_t* request,
-                                          ngx_http_variable_value_t* variable_value,
-                                          uintptr_t /*data*/) noexcept {
+static ngx_int_t expand_location_variable(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t /*data*/) noexcept {
   const auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_core_module));
 
@@ -245,9 +252,9 @@ static ngx_int_t expand_location_variable(ngx_http_request_t* request,
 // to the name of the proxy-related configuration directive directly within the
 // location associated with `request`, or "location" if there is no such
 // directive.
-static ngx_int_t expand_proxy_directive_variable(ngx_http_request_t* request,
-                                                 ngx_http_variable_value_t* variable_value,
-                                                 uintptr_t /*data*/) noexcept {
+static ngx_int_t expand_proxy_directive_variable(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t /*data*/) noexcept {
   const auto loc_conf = static_cast<datadog_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
 
@@ -289,7 +296,8 @@ static ngx_int_t expand_sampling_delegation_response_variable(
     return NGX_OK;
   }
 
-  const ngx_str_t value = context->lookup_sampling_delegation_response_variable_value(request);
+  const ngx_str_t value =
+      context->lookup_sampling_delegation_response_variable_value(request);
   variable_value->len = value.len;
   variable_value->valid = true;
   variable_value->no_cacheable = true;
@@ -299,9 +307,9 @@ static ngx_int_t expand_sampling_delegation_response_variable(
   return NGX_OK;
 }
 
-static ngx_int_t expand_auth_request_hook(ngx_http_request_t* request,
-                                          ngx_http_variable_value_t* variable_value,
-                                          uintptr_t /*data*/) noexcept try {
+static ngx_int_t expand_auth_request_hook(
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
+    uintptr_t /*data*/) noexcept try {
   variable_value->valid = true;
   variable_value->no_cacheable = true;
   variable_value->not_found = true;
@@ -330,14 +338,17 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   // Register the variable name prefix for span variables.
   prefix = to_ngx_str(TracingLibrary::span_variables().prefix);
   variable = ngx_http_add_variable(
-      cf, &prefix, NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
+      cf, &prefix,
+      NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
   variable->get_handler = expand_span_variable;
   variable->data = 0;
 
   // Register the variable name prefix for propagation header variables.
-  prefix = to_ngx_str(TracingLibrary::propagation_header_variable_name_prefix());
+  prefix =
+      to_ngx_str(TracingLibrary::propagation_header_variable_name_prefix());
   variable = ngx_http_add_variable(
-      cf, &prefix, NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
+      cf, &prefix,
+      NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
   variable->get_handler = expand_propagation_header_variable;
   variable->data = 0;
 
@@ -345,12 +356,14 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   // variables.
   prefix = to_ngx_str(TracingLibrary::environment_variable_name_prefix());
   variable = ngx_http_add_variable(
-      cf, &prefix, NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
+      cf, &prefix,
+      NGX_HTTP_VAR_NOCACHEABLE | NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_PREFIX);
   variable->get_handler = expand_environment_variable;
   variable->data = 0;
 
   // Register the variable name for getting the tracer configuration.
-  ngx_str_t name = to_ngx_str(TracingLibrary::configuration_json_variable_name());
+  ngx_str_t name =
+      to_ngx_str(TracingLibrary::configuration_json_variable_name());
   variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
   variable->get_handler = expand_configuration_variable;
   variable->data = 0;
@@ -371,7 +384,8 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   // Register the variable name that will be used to send a response header
   // containing the trace sampling decision whenever sampling delegation is
   // requested.
-  name = to_ngx_str(TracingLibrary::sampling_delegation_response_variable_name());
+  name =
+      to_ngx_str(TracingLibrary::sampling_delegation_response_variable_name());
   variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
   variable->get_handler = expand_sampling_delegation_response_variable;
   variable->data = 0;
@@ -385,7 +399,8 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   // sampling delegation to work with auth requests, in the unlikely case that
   // nginx is configured to allow sampling delegation in subrequests.
   name = ngx_string("datadog_auth_request_hook");
-  variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_CHANGEABLE);
+  variable = ngx_http_add_variable(
+      cf, &name, NGX_HTTP_VAR_NOHASH | NGX_HTTP_VAR_CHANGEABLE);
   variable->get_handler = expand_auth_request_hook;
   variable->data = 0;
 
