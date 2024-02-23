@@ -17,7 +17,7 @@
 #include "defer.h"
 #include "global_tracer.h"
 #include "log_conf.h"
-#include "security_library.h"
+#include "security/library.h"
 #include "string_util.h"
 #include "tracing_library.h"
 
@@ -443,7 +443,7 @@ static ngx_int_t datadog_master_process_post_config(
     }
   }
 
-  for (const auto &env_var_name : security_library::environment_variable_names()) {
+  for (const auto &env_var_name : security::library::environment_variable_names()) {
     name = env_var_name;
     if (const char *value = std::getenv(name.c_str())) {
       main_conf->environment_variables.push_back(
@@ -522,7 +522,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
                     "AppSec is enabled, but no ruleset file was specified");
     } else {
       try {
-        security_library::initialise_security_library(file_sv);
+        security::library::initialise_security_library(file_sv);
       } catch (const std::exception &e) {
         ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                       "Initialising security library failed: %s", e.what());

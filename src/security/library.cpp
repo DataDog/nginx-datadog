@@ -1,13 +1,7 @@
+#include "library.h"
+
 #include <fstream>
-#include <string>
-
 #include <rapidjson/schema.h>
-#include <rapidjson/error/en.h>
-
-#include "security_library.h"
-
-namespace datadog {
-namespace nginx {
 
 namespace {
 
@@ -94,8 +88,11 @@ ddwaf_object read_rule_file(std::string_view filename)
 
     return object;
 }
-
 }
+
+namespace datadog {
+namespace nginx {
+namespace security {
 
 waf_handle::waf_handle(ddwaf_object *ruleset) {
     static constexpr ddwaf_config config{
@@ -118,15 +115,15 @@ waf_handle::~waf_handle() {
     }
 }
 
-std::shared_ptr<waf_handle> security_library::handle_{nullptr};
+std::shared_ptr<waf_handle> library::handle_{nullptr};
 
-void security_library::initialise_security_library(std::string_view file)
+void library::initialise_security_library(std::string_view file)
 {
     auto ruleset = read_rule_file(file);
-    security_library::handle_ = std::make_shared<waf_handle>(&ruleset);
+    library::handle_ = std::make_shared<waf_handle>(&ruleset);
 }
 
-std::vector<std::string_view> security_library::environment_variable_names()
+std::vector<std::string_view> library::environment_variable_names()
 {
   return {// These environment variable names are taken from `tracer_options.cpp`
           // and `tracer.cpp` in the `dd-opentracing-cpp` repository.
@@ -136,5 +133,6 @@ std::vector<std::string_view> security_library::environment_variable_names()
           "DD_APPSEC_RULES"};
 }
 
-}
-}
+} // namespace security
+} // namespace nginx
+} // namespace datadog

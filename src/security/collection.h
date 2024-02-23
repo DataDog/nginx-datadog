@@ -1,27 +1,33 @@
 #pragma once
 
 #include <ddwaf.h>
-#include <algorithm>
+
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 extern "C" {
 #include <ngx_http.h>
 }
 
 namespace datadog {
 namespace nginx {
+namespace security {
 
 class ddwaf_memres {
   static inline constexpr size_t MIN_OBJ_SEG_SIZE = 20;
   static inline constexpr size_t MIN_STR_SEG_SIZE = 512;
-public:
- ddwaf_memres() = default;
- ddwaf_memres(const ddwaf_memres &) = delete;
- ddwaf_memres &operator=(const ddwaf_memres &) = delete;
- ddwaf_memres(ddwaf_memres &&) = default;
- ddwaf_memres &operator=(ddwaf_memres &&) = default;
 
- ddwaf_object *allocate_objects(size_t num_objects) {
+ public:
+  ddwaf_memres() = default;
+  ddwaf_memres(const ddwaf_memres &) = delete;
+  ddwaf_memres &operator=(const ddwaf_memres &) = delete;
+  ddwaf_memres(ddwaf_memres &&) = default;
+  ddwaf_memres &operator=(ddwaf_memres &&) = default;
+
+  ddwaf_object *allocate_objects(size_t num_objects) {
     if (objects_stored_ + num_objects >= cur_object_seg_size_) {
-      size_t size = std::max(MIN_OBJ_SEG_SIZE, num_objects);
+      std::size_t size = std::max(MIN_OBJ_SEG_SIZE, num_objects);
       new_objects_segment(size);
     }
     auto *p =
@@ -34,7 +40,7 @@ public:
 
   char *allocate_string(size_t len) {
     if (strings_stored_ + len + 1 >= cur_string_seg_size_) {
-      size_t size = std::max(MIN_STR_SEG_SIZE, len + 1);
+      std::size_t size = std::max(MIN_STR_SEG_SIZE, len + 1);
       new_strings_segment(size);
     }
     char *p = allocs_string_.back().get() + strings_stored_;
@@ -45,7 +51,7 @@ public:
     return p;
   }
 
-private:
+ private:
   void new_objects_segment(size_t num_objects) {
     allocs_object_.emplace_back(
         new std::uint8_t[sizeof(ddwaf_object) * num_objects]);
@@ -59,16 +65,16 @@ private:
     strings_stored_ = 0;
   }
 
-  size_t cur_object_seg_size_{0}; // in num objects
-  size_t cur_string_seg_size_{0}; // in bytes
+  std::size_t cur_object_seg_size_{0};  // in num objects
+  std::size_t cur_string_seg_size_{0};  // in bytes
   std::vector<std::unique_ptr<std::uint8_t[]>> allocs_object_;
   std::vector<std::unique_ptr<char>> allocs_string_;
-  size_t objects_stored_{0};
-  size_t strings_stored_{0};
+  std::size_t objects_stored_{0};
+  std::size_t strings_stored_{0};
 };
 
 ddwaf_object *collect_request_data(const ngx_http_request_t &request,
                                    ddwaf_memres &memres);
-} // namespace nginx
-} // namespace datadog
-
+}  // namespace security
+}  // namespace nginx
+}  // namespace datadog

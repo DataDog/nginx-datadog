@@ -1,9 +1,11 @@
-#include "security_collection.h"
+#include "collection.h"
+
+#include <ddwaf.h>
 
 #include <cassert>
+#include <cstring>
+#include <string_view>
 #include <unordered_map>
-
-#include "ddwaf.h"
 
 extern "C" {
 #include <ngx_string.h>
@@ -11,13 +13,13 @@ extern "C" {
 
 namespace {
 
-using datadog::nginx::ddwaf_memres;
+using datadog::nginx::security::ddwaf_memres;
 
 struct ngx_str_hash {
   std::size_t operator()(const ngx_str_t &str) const noexcept {
     // could use ngx_hash_key(str.data, str.len) but this way it can be inlined
     std::size_t hash = 5381;
-    for (size_t i = 0; i < str.len; ++i) {
+    for (std::size_t i = 0; i < str.len; ++i) {
       hash = ((hash << 5) + hash) + str.data[i];  // hash * 33 + c
     }
     return hash;
@@ -104,7 +106,7 @@ class req_serializer {
       "server.request.headers.no_cookies"};
   static constexpr std::string_view COOKIES{"server.request.cookies"};
 
-public:
+ public:
   req_serializer(ddwaf_memres &memres) : memres_{memres} {}
 
   ddwaf_object *serialize(const ngx_http_request_t &request) {
@@ -189,7 +191,7 @@ public:
     slot.type = DDWAF_OBJ_MAP;
 
     ngx_str_bag header_bag = count_headers(request.headers_in.headers);
-    size_t header_count = tally_headers_no_cookies(header_bag);
+    std::size_t header_count = tally_headers_no_cookies(header_bag);
     slot.nbEntries = header_count;
 
     slot.parameterName = "server.request.headers.no_cookies";
@@ -268,8 +270,9 @@ public:
       std::vector<const ngx_table_elt_t *> cookie_headers;
       ngnix_header_iter it{request.headers_in.headers};
       for (auto &&h : it) {
-        if (h.key.len != sizeof("cookie") - 1 ||
-            std::memcmp(h.lowcase_key, "cookie", sizeof("cookie") - 1) != 0) {
+        static constexpr std::string_view COOKIE{"cookie"};
+        if (std::string_view{reinterpret_cast<char *>(h.lowcase_key),
+                             h.key.len} != COOKIE) {
           continue;
         }
         if (h.hash == 0) {
@@ -300,8 +303,6 @@ public:
   ddwaf_memres &memres_;
 };
 
-
-
 }  // namespace
 
 namespace datadog {
@@ -309,9 +310,9 @@ namespace nginx {
 
 ddwaf_object *collect_request_data(const ngx_http_request_t &request,
                                    ddwaf_memres &memres) {
-    req_serializer rs{memres};
-    return rs.serialize(request);
-                                   }
+  req_serializer rs{memres};
+  return rs.serialize(request);
+}
 
 }  // namespace nginx
 }  // namespace datadog

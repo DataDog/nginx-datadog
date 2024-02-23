@@ -25,7 +25,7 @@ dd-trace-cpp/.git libddwaf/.git:
 dd-trace-cpp-deps: dd-trace-cpp/.git
 
 nginx/objs/Makefile: nginx/ module/config
-	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat
+	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat --with-threads
 
 nginx/: nginx-version-info
 	rm -rf nginx && \

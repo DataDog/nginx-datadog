@@ -8,6 +8,7 @@
 #include <cassert>
 #include <chrono>
 #include <ctime>
+#include <ddwaf.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -18,10 +19,9 @@
 #include "global_tracer.h"
 #include "ngx_header_reader.h"
 #include "ngx_http_datadog_module.h"
-#include "security_context.h"
+#include "security/context.h"
 #include "string_util.h"
 #include "tracing_library.h"
-#include <ddwaf.h>
 
 namespace datadog {
 namespace nginx {
