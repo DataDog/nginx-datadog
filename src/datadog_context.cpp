@@ -83,6 +83,13 @@ RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {
   return nullptr;
 }
 
+RequestTracing &DatadogContext::single_trace() {
+  if (traces_.size() != 1) {
+    throw std::runtime_error{"Expected there to be exactly one trace"};
+  }
+  return traces_[0];
+}
+
 const RequestTracing *DatadogContext::find_trace(
     ngx_http_request_t *request) const {
   return const_cast<DatadogContext *>(this)->find_trace(request);

@@ -31,6 +31,8 @@ class RequestTracing {
   void on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
                        datadog_loc_conf_t *loc_conf);
 
+  bool on_main_request_start() noexcept;
+
   void on_log_request();
 
   ngx_str_t lookup_propagation_header_variable_value(std::string_view key);

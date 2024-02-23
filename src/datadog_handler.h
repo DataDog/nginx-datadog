@@ -10,7 +10,7 @@ namespace datadog {
 namespace nginx {
 
 ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept;
-
+ngx_int_t on_access(ngx_http_request_t *request) noexcept;
 ngx_int_t on_log_request(ngx_http_request_t *request) noexcept;
 
 }  // namespace nginx

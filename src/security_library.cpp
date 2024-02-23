@@ -1,7 +1,6 @@
 #include <fstream>
 #include <string>
 
-#include <rapidjson/prettywriter.h>
 #include <rapidjson/schema.h>
 #include <rapidjson/error/en.h>
 
@@ -12,57 +11,56 @@ namespace nginx {
 
 namespace {
 
-template <typename T> void json_to_object(ddwaf_object *object, T &doc)
+template <typename T> void json_to_object(ddwaf_object &object, T &doc)
 {
     switch (doc.GetType()) {
     case rapidjson::kFalseType:
-        ddwaf_object_stringl(object, "false", sizeof("false") - 1);
+        ddwaf_object_stringl(&object, "false", sizeof("false") - 1);
         break;
     case rapidjson::kTrueType:
-        ddwaf_object_stringl(object, "true", sizeof("true") - 1);
+        ddwaf_object_stringl(&object, "true", sizeof("true") - 1);
         break;
     case rapidjson::kObjectType: {
-        ddwaf_object_map(object);
+        ddwaf_object_map(&object);
         for (auto &kv : doc.GetObject()) {
             ddwaf_object element;
-            json_to_object(&element, kv.value);
+            json_to_object(element, kv.value);
 
-            string_view key = kv.name.GetString();
-            ddwaf_object_map_addl(object, key.data(), key.length(), &element);
+            std::string_view key = kv.name.GetString();
+            ddwaf_object_map_addl(&object, key.data(), key.length(), &element);
         }
         break;
     }
     case rapidjson::kArrayType: {
-        ddwaf_object_array(object);
+        ddwaf_object_array(&object);
         for (auto &v : doc.GetArray()) {
             ddwaf_object element;
-            json_to_object(&element, v);
+            json_to_object(element, v);
 
-            ddwaf_object_array_add(object, &element);
+            ddwaf_object_array_add(&object, &element);
         }
         break;
     }
     case rapidjson::kStringType: {
-        string_view str = doc.GetString();
-        ddwaf_object_stringl(object, str.data(), str.size());
+        ddwaf_object_stringl(&object, doc.GetString(), doc.GetStringLength());
         break;
     }
     case rapidjson::kNumberType: {
         if (doc.IsInt64()) {
-            ddwaf_object_signed(object, doc.GetInt64());
+            ddwaf_object_signed(&object, doc.GetInt64());
         } else if (doc.IsUint64()) {
-            ddwaf_object_unsigned(object, doc.GetUint64());
+            ddwaf_object_unsigned(&object, doc.GetUint64());
         }
         break;
     }
     case rapidjson::kNullType:
     default:
-        ddwaf_object_invalid(object);
+        ddwaf_object_invalid(&object);
         break;
     }
 }
 
-ddwaf_object read_rule_file(string_view filename)
+ddwaf_object read_rule_file(std::string_view filename)
 {
     std::ifstream rule_file(filename.data(), std::ios::in);
     if (!rule_file) {
@@ -92,7 +90,7 @@ ddwaf_object read_rule_file(string_view filename)
     }
 
     ddwaf_object object;
-    json_to_object(&object, document);
+    json_to_object(object, document);
 
     return object;
 }
@@ -100,7 +98,15 @@ ddwaf_object read_rule_file(string_view filename)
 }
 
 waf_handle::waf_handle(ddwaf_object *ruleset) {
-    handle_ = ddwaf_init(ruleset, nullptr, nullptr);
+    static constexpr ddwaf_config config{
+        .limits = {
+            .max_container_size = 150,
+            .max_container_depth = 10,
+            .max_string_length = 4096,
+        },
+        .free_fn = nullptr,
+    };
+    handle_ = ddwaf_init(ruleset, &config, nullptr);
     if (handle_ == nullptr) {
         throw std::runtime_error("unknown error");
     }
@@ -112,16 +118,15 @@ waf_handle::~waf_handle() {
     }
 }
 
-
 std::shared_ptr<waf_handle> security_library::handle_{nullptr};
 
-void security_library::initialise_security_library()
+void security_library::initialise_security_library(std::string_view file)
 {
-    auto ruleset = read_rule_file("/tmp/ruleset.json");
+    auto ruleset = read_rule_file(file);
     security_library::handle_ = std::make_shared<waf_handle>(&ruleset);
 }
 
-std::vector<string_view> security_library::environment_variable_names()
+std::vector<std::string_view> security_library::environment_variable_names()
 {
   return {// These environment variable names are taken from `tracer_options.cpp`
           // and `tracer.cpp` in the `dd-opentracing-cpp` repository.

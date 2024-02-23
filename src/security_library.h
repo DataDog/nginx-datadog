@@ -2,8 +2,8 @@
 
 #include <ddwaf.h>
 #include <memory>
+#include <string_view>
 #include <vector>
-#include "string_view.h"
 
 namespace datadog {
 namespace nginx {
@@ -22,11 +22,11 @@ protected:
 
 class security_library {
 public:
-    static void initialise_security_library();
+    static void initialise_security_library(std::string_view ruleset);
     static std::shared_ptr<waf_handle> get_handle() {
         return handle_;
     }
-    static std::vector<string_view> environment_variable_names();
+    static std::vector<std::string_view> environment_variable_names();
 protected:
     static std::shared_ptr<waf_handle> handle_;
 };

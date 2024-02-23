@@ -18,6 +18,7 @@
 #include "global_tracer.h"
 #include "ngx_header_reader.h"
 #include "ngx_http_datadog_module.h"
+#include "security_context.h"
 #include "string_util.h"
 #include "tracing_library.h"
 #include <ddwaf.h>
@@ -262,6 +263,10 @@ dd::Span &RequestTracing::active_span() {
   }
 }
 
+bool RequestTracing::on_main_request_start() noexcept {
+  return sec_ctx_.on_request_start(*request_, *request_span_);
+}
+
 void RequestTracing::on_exit_block(
     std::chrono::steady_clock::time_point finish_timestamp) {
   // Set default and custom tags for the block. Many nginx variables won't be
@@ -296,7 +301,7 @@ void RequestTracing::on_exit_block(
 
 void RequestTracing::on_log_request() {
   auto finish_timestamp = std::chrono::steady_clock::now();
-  sec_ctx_.on_log_request(request_, *request_span_);
+  sec_ctx_.on_request_end(*request_, *request_span_);
 
   on_exit_block(finish_timestamp);
 

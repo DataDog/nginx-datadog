@@ -40,6 +40,8 @@ class DatadogContext {
   ngx_str_t lookup_sampling_delegation_response_variable_value(
       ngx_http_request_t* request);
 
+  RequestTracing& single_trace();
+
  private:
   std::vector<RequestTracing> traces_;
 

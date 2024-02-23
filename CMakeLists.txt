@@ -52,4 +52,13 @@ add_dependencies(ngx_http_datadog_module
     libddwaf_objects
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects libddwaf_objects -static-libstdc++ -static-libgcc)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects libddwaf_objects)
+if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+    if(LINUX)
+        target_link_libraries(ngx_http_datadog_module -static-libstdc++ -static-libgcc)
+    endif()
+    if (APPLE)
+        target_link_options(ngx_http_datadog_module PRIVATE -undefined dynamic_lookup)
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
+    endif()
+endif()

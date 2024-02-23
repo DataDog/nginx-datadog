@@ -311,6 +311,33 @@ static ngx_command_t datadog_commands[] = {
       0,
       NULL },
 
+    {
+      ngx_string("datadog_waf_thread_pool_name"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+      waf_thread_pool_name,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(datadog_loc_conf_t, waf_thread_pool_name),
+      NULL
+    },
+
+    {
+      ngx_string("datadog_appsec_enabled"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_enabled),
+      NULL,
+    },
+
+    {
+      ngx_string("datadog_appsec_ruleset_file"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_ruleset_file),
+      NULL,
+    },
+
     ngx_null_command
 };
 
@@ -444,6 +471,11 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_enter_block;
 
+  handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
+      &core_main_config->phases[NGX_HTTP_ACCESS_PHASE].handlers));
+  if (handler == nullptr) return NGX_ERROR;
+  *handler = on_access;
+
   handler = static_cast<ngx_http_handler_pt *>(
       ngx_array_push(&core_main_config->phases[NGX_HTTP_LOG_PHASE].handlers));
   if (handler == nullptr) return NGX_ERROR;
@@ -480,11 +512,22 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_ERROR;
   }
 
-  // FIXME check the environment variables?
-  try {
-    security_library::initialise_security_library();
-  } catch (const std::exception &e) {
-     ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "Initialising security library failed: %s", e.what());
+  if (main_conf->appsec_enabled) {
+    auto &file = main_conf->appsec_ruleset_file;
+    auto file_sv =
+        std::string_view{reinterpret_cast<char *>(file.data), file.len};
+
+    if (file_sv.empty()) {
+      ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                    "AppSec is enabled, but no ruleset file was specified");
+    } else {
+      try {
+        security_library::initialise_security_library(file_sv);
+      } catch (const std::exception &e) {
+        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                      "Initialising security library failed: %s", e.what());
+      }
+    }
   }
 
   reset_global_tracer(std::move(*maybe_tracer));
@@ -804,6 +847,12 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
   conf->sampling_delegation_directive = prev->sampling_delegation_directive;
   conf->allow_sampling_delegation_in_subrequests_directive =
       prev->allow_sampling_delegation_in_subrequests_directive;
+
+  ngx_conf_merge_str_value(conf->waf_thread_pool_name,
+                           prev->waf_thread_pool_name, "");
+  if (conf->waf_pool == nullptr) {
+    conf->waf_pool = prev->waf_pool;
+  }
 
   return NGX_CONF_OK;
 }

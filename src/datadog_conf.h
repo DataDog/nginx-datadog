@@ -116,6 +116,9 @@ struct datadog_main_conf_t {
   //  requested trace sampling delegation. This `bool` ensures that the
   //  directive is not added more than once.
   bool is_sampling_delegation_response_header_added;
+
+  ngx_flag_t appsec_enabled{NGX_CONF_UNSET};
+  ngx_str_t appsec_ruleset_file;
 };
 
 struct datadog_sample_rate_condition_t {
@@ -215,6 +218,9 @@ struct datadog_loc_conf_t {
   // applies this location, if any.
   conf_directive_source_location_t
       allow_sampling_delegation_in_subrequests_directive;
+
+  ngx_str_t waf_thread_pool_name;
+  ngx_thread_pool_t *waf_pool;
 };
 
 }  // namespace nginx

@@ -20,6 +20,10 @@
 #include "string_util.h"
 #include "tracing_library.h"
 
+extern "C" {
+#include <ngx_thread_pool.h>
+}
+
 namespace datadog {
 namespace nginx {
 namespace {
@@ -1026,6 +1030,18 @@ char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
   ngx_log_error(NGX_LOG_ERR, cf->log, 0, "hijack_auth_request failed: %s",
                 e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
+}
+
+char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
+                           void *conf) noexcept {
+  datadog_loc_conf_t *loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  auto *value = static_cast<ngx_str_t *>(cf->args->elts);
+  value++; // 1st is the command name
+
+  ngx_thread_pool_t *t = ngx_thread_pool_add(cf, value);
+  loc_conf->waf_pool = t;
+
+  return NGX_CONF_OK;
 }
 
 }  // namespace nginx
