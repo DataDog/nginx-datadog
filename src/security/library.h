@@ -24,7 +24,10 @@ class waf_handle {
 
 class library {
  public:
-  static void initialise_security_library(std::string_view ruleset);
+  static void initialise_security_library(
+    std::string_view ruleset,
+    std::string_view template_html,
+    std::string_view template_json);
   static std::shared_ptr<waf_handle> get_handle() { return handle_; }
   static std::vector<std::string_view> environment_variable_names();
 

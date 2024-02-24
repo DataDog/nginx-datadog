@@ -1,8 +1,7 @@
 #pragma once
 
-#include <ddwaf.h>
-
 #include <cstdint>
+#include <ddwaf.h>
 #include <memory>
 #include <vector>
 
@@ -15,8 +14,8 @@ namespace nginx {
 namespace security {
 
 class ddwaf_memres {
-  static inline constexpr size_t MIN_OBJ_SEG_SIZE = 20;
-  static inline constexpr size_t MIN_STR_SEG_SIZE = 512;
+  static inline constexpr std::size_t MIN_OBJ_SEG_SIZE = 20;
+  static inline constexpr std::size_t MIN_STR_SEG_SIZE = 512;
 
  public:
   ddwaf_memres() = default;
@@ -25,7 +24,7 @@ class ddwaf_memres {
   ddwaf_memres(ddwaf_memres &&) = default;
   ddwaf_memres &operator=(ddwaf_memres &&) = default;
 
-  ddwaf_object *allocate_objects(size_t num_objects) {
+  ddwaf_object *allocate_objects(std::size_t num_objects) {
     if (objects_stored_ + num_objects >= cur_object_seg_size_) {
       std::size_t size = std::max(MIN_OBJ_SEG_SIZE, num_objects);
       new_objects_segment(size);
@@ -39,6 +38,7 @@ class ddwaf_memres {
   }
 
   char *allocate_string(size_t len) {
+    // TODO: can we remove the NUL termination?
     if (strings_stored_ + len + 1 >= cur_string_seg_size_) {
       std::size_t size = std::max(MIN_STR_SEG_SIZE, len + 1);
       new_strings_segment(size);
@@ -52,6 +52,7 @@ class ddwaf_memres {
   }
 
  private:
+  // TODO: allocate in request pool?
   void new_objects_segment(size_t num_objects) {
     allocs_object_.emplace_back(
         new std::uint8_t[sizeof(ddwaf_object) * num_objects]);

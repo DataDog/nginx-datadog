@@ -3,6 +3,8 @@
 #include <fstream>
 #include <rapidjson/schema.h>
 
+#include "security/blocking.h"
+
 namespace {
 
 template <typename T> void json_to_object(ddwaf_object &object, T &doc)
@@ -117,10 +119,12 @@ waf_handle::~waf_handle() {
 
 std::shared_ptr<waf_handle> library::handle_{nullptr};
 
-void library::initialise_security_library(std::string_view file)
-{
-    auto ruleset = read_rule_file(file);
-    library::handle_ = std::make_shared<waf_handle>(&ruleset);
+void library::initialise_security_library(std::string_view file,
+                                          std::string_view template_html,
+                                          std::string_view template_json) {
+  auto ruleset = read_rule_file(file);
+  library::handle_ = std::make_shared<waf_handle>(&ruleset);
+  blocking_service::initialize(template_html, template_json); // TODO: read config
 }
 
 std::vector<std::string_view> library::environment_variable_names()

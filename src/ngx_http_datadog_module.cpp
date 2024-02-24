@@ -522,7 +522,8 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
                     "AppSec is enabled, but no ruleset file was specified");
     } else {
       try {
-        security::library::initialise_security_library(file_sv);
+        // TODO: last 2 args should come from config
+        security::library::initialise_security_library(file_sv, {}, {});
       } catch (const std::exception &e) {
         ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                       "Initialising security library failed: %s", e.what());

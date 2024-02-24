@@ -1,11 +1,12 @@
 #include "collection.h"
 
-#include <ddwaf.h>
-
 #include <cassert>
 #include <cstring>
+#include <ddwaf.h>
 #include <string_view>
 #include <unordered_map>
+
+#include "util.h"
 
 extern "C" {
 #include <ngx_string.h>
@@ -13,82 +14,7 @@ extern "C" {
 
 namespace {
 
-using datadog::nginx::security::ddwaf_memres;
-
-struct ngx_str_hash {
-  std::size_t operator()(const ngx_str_t &str) const noexcept {
-    // could use ngx_hash_key(str.data, str.len) but this way it can be inlined
-    std::size_t hash = 5381;
-    for (std::size_t i = 0; i < str.len; ++i) {
-      hash = ((hash << 5) + hash) + str.data[i];  // hash * 33 + c
-    }
-    return hash;
-  }
-};
-
-struct ngx_str_equal {
-  bool operator()(const ngx_str_t &lhs, const ngx_str_t &rhs) const {
-    if (lhs.len != rhs.len) {
-      return false;
-    }
-    return std::memcmp(lhs.data, rhs.data, lhs.len) == 0;
-  }
-};
-
-template <typename T>
-class nginx_list_iter {
- public:
-  explicit nginx_list_iter(const ngx_list_t &list)
-      : nginx_list_iter{list.last} {}
-
-  nginx_list_iter(ngx_list_part_t *part)
-      : part_{part},
-        elts_{static_cast<T *>(part_ ? part_->elts : nullptr)},
-        index_{0} {}
-
-  bool operator!=(const nginx_list_iter &other) const {
-    return part_ != other.part_ || index_ != other.index_;
-  }
-
-  nginx_list_iter &operator++() {
-    if (!part_) {
-      return *this;
-    }
-
-    ++index_;
-    if (index_ >= part_->nelts) {
-      part_ = part_->next;
-      elts_ = static_cast<T *>(part_ ? part_->elts : nullptr);
-      index_ = 0;
-    }
-    return *this;
-  }
-
-  T &operator*() { return elts_[index_]; }
-
-  static nginx_list_iter<T> end() { return nginx_list_iter{nullptr}; }
-
- private:
-  ngx_list_part_t *part_;
-  T *elts_;  // part_->elts, after cast
-  ngx_uint_t index_;
-};
-
-class ngnix_header_iter {
- public:
-  explicit ngnix_header_iter(const ngx_list_t &list) : list_{list} {}
-
-  nginx_list_iter<ngx_table_elt_t> begin() {
-    return nginx_list_iter<ngx_table_elt_t>{list_};
-  }
-
-  nginx_list_iter<ngx_table_elt_t> end() {
-    return nginx_list_iter<ngx_table_elt_t>::end();
-  }
-
- private:
-  const ngx_list_t &list_;
-};
+namespace dns = datadog::nginx::security;
 
 template <typename T, typename = std::void_t<>>
 struct has_cookie : std::false_type {};
@@ -107,7 +33,7 @@ class req_serializer {
   static constexpr std::string_view COOKIES{"server.request.cookies"};
 
  public:
-  req_serializer(ddwaf_memres &memres) : memres_{memres} {}
+  req_serializer(dns::ddwaf_memres &memres) : memres_{memres} {}
 
   ddwaf_object *serialize(const ngx_http_request_t &request) {
     ddwaf_object *root = memres_.allocate_objects(1);
@@ -153,10 +79,10 @@ class req_serializer {
   }
 
   using ngx_str_bag =
-      std::unordered_map<ngx_str_t, int, ngx_str_hash, ngx_str_equal>;
+      std::unordered_map<ngx_str_t, int, dns::ngx_str_hash, dns::ngx_str_equal>;
   ngx_str_bag count_headers(const ngx_list_t &list) {
     ngx_str_bag ret;
-    ngnix_header_iter it{list};
+    dns::ngnix_header_iterable it{list};
     for (auto &&h : it) {
       if (h.hash == 0) {
         ret.erase(h.key);
@@ -174,8 +100,9 @@ class req_serializer {
       return bag.size() - 1;
     }
   }
-  using ngx_str_dobj_arr = std::unordered_map<ngx_str_t, ddwaf_object *,
-                                              ngx_str_hash, ngx_str_equal>;
+  using ngx_str_dobj_arr =
+      std::unordered_map<ngx_str_t, ddwaf_object *, dns::ngx_str_hash,
+                         dns::ngx_str_equal>;
   auto alloc_multivalue_header_arr(const ngx_str_bag &headers) {
     ngx_str_dobj_arr ret;
     for (auto it = headers.begin(); it != headers.end(); it++) {
@@ -199,7 +126,7 @@ class req_serializer {
     slot.array = memres_.allocate_objects(header_count);
 
     ngx_str_dobj_arr multivalue_arr = alloc_multivalue_header_arr(header_bag);
-    ngnix_header_iter it{request.headers_in.headers};
+    dns::ngnix_header_iterable it{request.headers_in.headers};
     std::size_t i = 0;
     for (auto &&h : it) {
       assert(h.lowcase_key != nullptr);  // TODO
@@ -268,7 +195,7 @@ class req_serializer {
       }
     } else {
       std::vector<const ngx_table_elt_t *> cookie_headers;
-      ngnix_header_iter it{request.headers_in.headers};
+      dns::ngnix_header_iterable it{request.headers_in.headers};
       for (auto &&h : it) {
         static constexpr std::string_view COOKIE{"cookie"};
         if (std::string_view{reinterpret_cast<char *>(h.lowcase_key),
@@ -300,19 +227,20 @@ class req_serializer {
     }
   }
 
-  ddwaf_memres &memres_;
+  dns::ddwaf_memres &memres_;
 };
 
 }  // namespace
 
 namespace datadog {
 namespace nginx {
+namespace security {
 
 ddwaf_object *collect_request_data(const ngx_http_request_t &request,
                                    ddwaf_memres &memres) {
   req_serializer rs{memres};
   return rs.serialize(request);
 }
-
+}  // namespace security
 }  // namespace nginx
 }  // namespace datadog
