@@ -10,6 +10,7 @@
 
 #include "../dd.h"
 #include "collection.h"
+#include "security/library.h"
 
 extern "C" {
 #include <nginx.h>
@@ -83,11 +84,12 @@ class context {
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
   void do_on_request_end(const ngx_http_request_t &request, dd::Span &span);
 
-  // runs on a separate thread
-  void run_waf_start(const ngx_http_request_t &request, dd::Span &span);
+  // runs on a separate thread; returns whether it blocked
+  bool run_waf_start(ngx_http_request_t &request, dd::Span &span);
 
   std::vector<owned_ddwaf_result> results_;
   owned_ddwaf_context ctx_{nullptr};
+  std::shared_ptr<waf_handle> waf_handle_;
   ddwaf_memres memres_;
 
   enum class stage { start, after_begin_waf, after_report };

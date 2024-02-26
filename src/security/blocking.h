@@ -15,9 +15,6 @@ namespace nginx {
 namespace security {
 
 struct block_spec {
-  static inline constexpr int DEFAULT_STATUS = 403;
-  static inline constexpr int DEFAULT_REDIRECT_STATUS = 302;
-
   enum class ct {
     AUTO,
     HTML,
@@ -38,7 +35,7 @@ class blocking_service {
 
   static blocking_service *get_instance() { return instance; }
 
-  ngx_int_t block(block_spec spec, ngx_http_request_t &req);
+  void block(block_spec spec, ngx_http_request_t &req);
 
  private:
   blocking_service(std::string_view templ_html_path,
@@ -49,8 +46,8 @@ class blocking_service {
   static void push_header(ngx_http_request_t &req, std::string_view name,
                           std::string_view value);
 
-  std::string_view templ_html;
-  std::string_view templ_json;
+  ngx_str_t templ_html;
+  ngx_str_t templ_json;
   std::string custom_templ_html;
   std::string custom_templ_json;
 };

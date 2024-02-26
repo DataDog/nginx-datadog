@@ -43,11 +43,11 @@ class req_serializer {
 
     ddwaf_object *arr = root->array;
 
-    set_request_query(request, root[0]);
-    set_request_uri_raw(request, root[1]);
-    set_request_method(request, root[2]);
-    set_request_headers_nocookies(request, root[3]);
-    set_request_cookie(request, root[4]);
+    set_request_query(request, arr[0]);
+    set_request_uri_raw(request, arr[1]);
+    set_request_method(request, arr[2]);
+    set_request_headers_nocookies(request, arr[3]);
+    set_request_cookie(request, arr[4]);
 
     return root;
   }

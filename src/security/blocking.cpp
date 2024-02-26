@@ -11,6 +11,8 @@ extern "C" {
 #include <ngx_http.h>
 }
 
+using namespace std::literals;
+
 namespace {
 
 namespace dns = datadog::nginx::security;
@@ -34,15 +36,7 @@ struct block_resp {
     int status;
     enum ct ct;
 
-    if (spec.status < 200 || spec.status > 599) {
-      if (!spec.location.empty()) {
-        status = dns::block_spec::DEFAULT_STATUS;
-      } else {
-        status = dns::block_spec::DEFAULT_REDIRECT_STATUS;
-      }
-    } else {
-      status = spec.status;
-    }
+    status = spec.status;
 
     switch (spec.ct) {
       case dns::block_spec::ct::AUTO:
@@ -242,9 +236,6 @@ struct block_resp {
   }
 };
 
-ngx_str_t template_html;
-ngx_str_t template_json;
-
 const std::string_view default_template_html{
     "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta "
     "name=\"viewport\" "
@@ -292,61 +283,75 @@ void blocking_service::initialize(std::string_view templ_html,
   instance = new blocking_service(templ_html, templ_json);
 }
 
-ngx_int_t blocking_service::block(block_spec spec, ngx_http_request_t &req) {
+void blocking_service::block(block_spec spec, ngx_http_request_t &req) {
   block_resp resp = block_resp::calculate_for(spec, req);
   ngx_str_t *templ{};
   if (resp.ct == block_resp::ct::HTML) {
-    templ = &template_html;
+    templ = &templ_html;
   } else if (resp.ct == block_resp::ct::JSON) {
-    templ = &template_json;
+    templ = &templ_json;
   }
 
   ngx_http_discard_request_body(&req);
+
+  // TODO: clear all current headers?
 
   req.headers_out.status = resp.status;
   req.headers_out.content_type = block_resp::content_type_header(resp.ct);
   req.headers_out.content_type_len = req.headers_out.content_type.len;
 
   if (!resp.location.empty()) {
-    push_header(req, "Location", resp.location);
+    push_header(req, "Location"sv, resp.location);
+  }
+  if (templ) {
+    req.headers_out.content_length_n = templ->len;
   }
 
+  // TODO: bypass header filters?
   auto res = ngx_http_send_header(&req);
   if (res == NGX_ERROR || res > NGX_OK || req.header_only) {
-    return res;
+    ngx_http_finalize_request(&req, res);
+    return;
+  }
+
+  if (!templ) {
+    ngx_http_finalize_request(&req, res);
+    return;
   }
 
   ngx_buf_t *b = static_cast<decltype(b)>(ngx_calloc_buf(req.pool));
   if (b == nullptr) {
-    return NGX_ERROR;
+    ngx_http_finalize_request(&req, NGX_ERROR);
+    return;
   }
 
   b->pos = templ->data;
   b->last = templ->data + templ->len;
   b->last_buf = 1;
+  b->memory = 1;
 
   ngx_chain_t out{};
   out.buf = b;
 
-  res = ngx_http_output_filter(&req, &out);
+  // TODO: bypass and call ngx_http_write_filter?
+  ngx_http_output_filter(&req, &out);
   ngx_http_finalize_request(&req, NGX_DONE);
-  return res;
 }
 
 blocking_service::blocking_service(std::string_view templ_html_path,
                                    std::string_view templ_json_path) {
   if (templ_html_path.size() == 0) {
-    templ_html = default_template_html;
+    templ_html = ngx_stringv(default_template_html);
   } else {
     custom_templ_html = load_template(templ_html_path);
-    templ_html = custom_templ_html;
+    templ_html = ngx_stringv(custom_templ_html);
   }
 
   if (templ_json_path.size() == 0) {
-    templ_json = default_template_json;
+    templ_json = ngx_stringv(default_template_json);
   } else {
     custom_templ_json = load_template(templ_json_path);
-    templ_json = custom_templ_json;
+    templ_json = ngx_stringv(custom_templ_json);
   }
 }
 
