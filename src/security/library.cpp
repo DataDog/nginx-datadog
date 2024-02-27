@@ -128,7 +128,6 @@ waf_handle::waf_handle(ddwaf_object *ruleset) {
  */
 waf_handle::action_info_map_t waf_handle::extract_actions(
     const ddwaf_object &ruleset) {
-
   ddwaf_map_obj root{ruleset};
   std::optional<ddwaf_arr_obj> actions = root.get_opt<ddwaf_arr_obj>("actions");
   if (!actions) {
@@ -139,8 +138,10 @@ waf_handle::action_info_map_t waf_handle::extract_actions(
   for (auto &&v : *actions) {
     ddwaf_map_obj action_spec{v};
 
-    std::string_view id = ddwaf_str_obj{action_spec.get<ddwaf_str_obj>("id")}.value();
-    std::string_view type = ddwaf_str_obj{action_spec.get<ddwaf_str_obj>("type")}.value();
+    std::string_view id =
+        ddwaf_str_obj{action_spec.get<ddwaf_str_obj>("id")}.value();
+    std::string_view type =
+        ddwaf_str_obj{action_spec.get<ddwaf_str_obj>("type")}.value();
     std::optional<ddwaf_map_obj> parameters =
         action_spec.get_opt<ddwaf_map_obj>("parameters");
 
@@ -178,8 +179,7 @@ void library::initialise_security_library(std::string_view file,
                                           std::string_view template_json) {
   auto ruleset = read_rule_file(file);
   library::handle_ = std::make_shared<waf_handle>(&ruleset);
-  blocking_service::initialize(template_html,
-                               template_json);
+  blocking_service::initialize(template_html, template_json);
 }
 
 std::vector<std::string_view> library::environment_variable_names() {

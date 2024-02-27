@@ -1,4 +1,5 @@
 #include "context.h"
+
 #include <charconv>
 #include <optional>
 #include <utility>
@@ -7,9 +8,9 @@
 #include "../datadog_conf.h"
 #include "../ngx_http_datadog_module.h"
 #include "collection.h"
-#include "ddwaf_obj.h"
 #include "datadog/span_data.h"
 #include "datadog/trace_segment.h"
+#include "ddwaf_obj.h"
 #include "library.h"
 #include "security/blocking.h"
 #include "tracing_library.h"
@@ -26,6 +27,7 @@ extern "C" {
 #include <rapidjson/document.h>
 #include <rapidjson/encodings.h>
 #include <rapidjson/prettywriter.h>
+
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -149,7 +151,7 @@ auto catch_exceptions(std::string_view name, const ngx_http_request_t &req,
   }
 }
 
-decltype(auto) get_span_data(dd::Span &s) {
+dd::SpanData &get_span_data(dd::Span &s) {
   auto *p =
       reinterpret_cast<char *>(&s) + sizeof(std::shared_ptr<dd::TraceSegment>);
   dd::SpanData *span_data;
@@ -178,18 +180,12 @@ context::context() : stage_{new std::atomic<stage>{}} {
   stage_->store(stage::start, std::memory_order_release);
 }
 
-bool context::on_request_start(ngx_http_request_t &request,
-                                        dd::Span &span) noexcept {
-  return catch_exceptions("on_request_start", request, [&]() {
-    return context::do_on_request_start(request, span);
-  });
-}
-
 struct pol_task_ctx {
   static void handler(void *self, ngx_log_t *log) noexcept {
     static_cast<pol_task_ctx *>(self)->handle(log);
   }
 
+  // runs on the thread pool
   void handle(ngx_log_t *log) noexcept {
     try {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
@@ -204,6 +200,7 @@ struct pol_task_ctx {
     }
   }
 
+  // runs on the main thread
   static void completion_handler(ngx_event_t *evt) noexcept {
     pol_task_ctx *self = static_cast<pol_task_ctx *>(evt->data);
     static_cast<pol_task_ctx *>(self)->complete();
@@ -227,8 +224,14 @@ struct pol_task_ctx {
   std::optional<block_spec> block_spec_;
 };
 
-bool context::do_on_request_start(ngx_http_request_t &request,
-                                           dd::Span &span) {
+bool context::on_request_start(ngx_http_request_t &request,
+                               dd::Span &span) noexcept {
+  return catch_exceptions("on_request_start", request, [&]() {
+    return context::do_on_request_start(request, span);
+  });
+}
+
+bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
   if (ctx_.resource == nullptr) {
     return false;
   }
@@ -265,119 +268,121 @@ bool context::do_on_request_start(ngx_http_request_t &request,
 }
 
 namespace {
-  template<typename Map>
-  int getOrDefaultInt(const Map &m, std::string_view k, int def) {
-    auto it = m.find(k);
-    if (it == m.end()) {
-      return def;
+template <typename Map>
+int getOrDefaultInt(const Map &m, std::string_view k, int def) {
+  auto it = m.find(k);
+  if (it == m.end()) {
+    return def;
+  }
+  const action_info::str_or_int &v{it->second};
+  if (std::holds_alternative<int>(v)) {
+    return std::get<int>(v);
+  } else {
+    // try to convert to number
+    std::string_view sv{std::get<std::string>(v)};
+    int n;
+    auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), n);
+    if (ec == std::errc{} && ptr == sv.data() + sv.size()) {
+      return n;
     }
-    const action_info::str_or_int &v{it->second};
-    if (std::holds_alternative<int>(v)) {
-      return std::get<int>(v);
-    } else {
-      // try to convert to number
-      std::string_view sv{std::get<std::string>(v)};
-      int n;
-      auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), n);
-      if (ec == std::errc{} && ptr == sv.data() + sv.size()) {
-        return n;
-      }
-      return def;
-    }
+    return def;
+  }
+}
+
+template <typename Map>
+std::string_view getOrDefaultString(const Map &m, std::string_view k,
+                                    std::string_view def) {
+  auto it = m.find(k);
+  if (it == m.end()) {
+    return def;
+  }
+  const action_info::str_or_int &v{it->second};
+  if (std::holds_alternative<std::string>(v)) {
+    return {std::get<std::string>(v)};
+  } else {
+    return def;
+  }
+}
+
+block_spec create_block_request_action(const action_info &ai) {
+  static constexpr int default_status = 403;
+  enum block_spec::ct ct{block_spec::ct::AUTO};
+  int status = getOrDefaultInt(ai.parameters, "status_code"sv, default_status);
+  if (status < 100 || status > 599) {
+    status = default_status;
+  }
+  std::string_view ct_sv =
+      getOrDefaultString(ai.parameters, "type"sv, "auto"sv);
+  if (ct_sv == "auto"sv) {
+    ct = block_spec::ct::AUTO;
+  } else if (ct_sv == "html"sv) {
+    ct = block_spec::ct::HTML;
+  } else if (ct_sv == "json"sv) {
+    ct = block_spec::ct::JSON;
+  } else if (ct_sv == "none"sv) {
+    ct = block_spec::ct::NONE;
   }
 
-  template<typename Map>
-  std::string_view getOrDefaultString(const Map &m, std::string_view k, std::string_view def) {
-    auto it = m.find(k);
-    if (it == m.end()) {
-      return def;
-    }
-    const action_info::str_or_int &v{it->second};
-    if (std::holds_alternative<std::string>(v)) {
-      return {std::get<std::string>(v)};
-    } else {
-      return def;
-    }
+  return block_spec{status, ct};
+}
+
+std::optional<block_spec> create_redirect_request_action(
+    const action_info &ai) {
+  static constexpr int default_status = 303;
+  enum block_spec::ct ct{block_spec::ct::NONE};
+  int status = getOrDefaultInt(ai.parameters, "status_code"sv, default_status);
+  if (status < 300 || status > 399) {
+    status = default_status;
   }
 
-  block_spec create_block_request_action(const action_info &ai) {
-    static constexpr int default_status = 403;
-    enum block_spec::ct ct{block_spec::ct::AUTO};
-    int status = getOrDefaultInt(ai.parameters, "status_code"sv, default_status);
-    if (status < 100 || status > 599) {
-      status = default_status;
-    }
-    std::string_view ct_sv = getOrDefaultString(ai.parameters, "type"sv, "auto"sv);
-    if (ct_sv == "auto"sv) {
-      ct = block_spec::ct::AUTO;
-    } else if (ct_sv == "html"sv) {
-      ct = block_spec::ct::HTML;
-    } else if (ct_sv == "json"sv) {
-      ct = block_spec::ct::JSON;
-    } else if (ct_sv == "none"sv) {
-      ct = block_spec::ct::NONE;
-    }
-
-    return block_spec{status, ct};
-  }
-
- std::optional<block_spec> create_redirect_request_action(const action_info &ai) {
-    static constexpr int default_status = 303;
-    enum block_spec::ct ct{block_spec::ct::NONE};
-    int status = getOrDefaultInt(ai.parameters, "status_code"sv, default_status);
-    if (status < 300 || status > 399) {
-      status = default_status;
-    }
-
-    std::string_view loc =
-        getOrDefaultString(ai.parameters, "location"sv, ""sv);
-    if (loc == ""sv) {
-      return std::nullopt;
-    }
-
-    return {block_spec{status, ct, loc}};
-  }
-
-  std::optional<block_spec> resolve_block_spec(
-      const waf_handle::action_info_map_t &aim,
-      const ddwaf_arr_obj &actions_arr,
-      ngx_log_t& log) {
-    for (auto &&id_obj : actions_arr) {
-      if (id_obj.type != DDWAF_OBJ_STRING) {
-        continue;
-      }
-
-      std::string_view id{id_obj.string_val_unchecked()};
-      auto &&it = aim.find(id);
-      if (it == aim.end()) {
-        ngx_log_error(NGX_LOG_WARN, &log, 0,
-                      "WAF indicated actions %.*s, but such action id is unknown",
-                      static_cast<int>(id.size()), id.data());
-        continue;
-      }
-
-      const action_info &ai = it->second;
-      if (ai.type == "block_request"sv) {
-        return {create_block_request_action(ai)};
-      } else if (ai.type == "redirect_request"sv) {
-        auto maybe_spec = create_redirect_request_action(ai);
-        if (maybe_spec) {
-           return maybe_spec;
-        } else {
-           ngx_log_error(NGX_LOG_WARN, &log, 0,
-                         "redirect_request action has no location");
-        } 
-      } else {
-        ngx_log_error(NGX_LOG_WARN, &log, 0, "Action type %.*s is unknown",
-                      static_cast<int>(ai.type.size()), ai.type.data());
-        continue;
-      }
-    }
+  std::string_view loc = getOrDefaultString(ai.parameters, "location"sv, ""sv);
+  if (loc == ""sv) {
     return std::nullopt;
   }
-} // namespace
 
-std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req, dd::Span &span) {
+  return {block_spec{status, ct, loc}};
+}
+
+std::optional<block_spec> resolve_block_spec(
+    const waf_handle::action_info_map_t &aim, const ddwaf_arr_obj &actions_arr,
+    ngx_log_t &log) {
+  for (auto &&id_obj : actions_arr) {
+    if (id_obj.type != DDWAF_OBJ_STRING) {
+      continue;
+    }
+
+    std::string_view id{id_obj.string_val_unchecked()};
+    auto &&it = aim.find(id);
+    if (it == aim.end()) {
+      ngx_log_error(NGX_LOG_WARN, &log, 0,
+                    "WAF indicated actions %.*s, but such action id is unknown",
+                    static_cast<int>(id.size()), id.data());
+      continue;
+    }
+
+    const action_info &ai = it->second;
+    if (ai.type == "block_request"sv) {
+      return {create_block_request_action(ai)};
+    } else if (ai.type == "redirect_request"sv) {
+      auto maybe_spec = create_redirect_request_action(ai);
+      if (maybe_spec) {
+        return maybe_spec;
+      } else {
+        ngx_log_error(NGX_LOG_WARN, &log, 0,
+                      "redirect_request action has no location");
+      }
+    } else {
+      ngx_log_error(NGX_LOG_WARN, &log, 0, "Action type %.*s is unknown",
+                    static_cast<int>(ai.type.size()), ai.type.data());
+      continue;
+    }
+  }
+  return std::nullopt;
+}
+}  // namespace
+
+std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req,
+                                                 dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
   if (st != stage::start) {
     return std::nullopt;
@@ -410,14 +415,13 @@ std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req, dd::Sp
 }
 
 void context::on_request_end(const ngx_http_request_t &request,
-                                      dd::Span &span) noexcept {
-  return catch_exceptions("on_request_end", request, [&]() {
-    context::do_on_request_end(request, span);
-  });
+                             dd::Span &span) noexcept {
+  return catch_exceptions("on_request_end", request,
+                          [&]() { context::do_on_request_end(request, span); });
 }
 
 void context::do_on_request_end(const ngx_http_request_t &request,
-                                         dd::Span &span) {
+                                dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
   if (st != stage::after_begin_waf) {
     return;
