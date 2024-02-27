@@ -1,5 +1,6 @@
 #include "context.h"
 
+#include <atomic>
 #include <charconv>
 #include <optional>
 #include <utility>
@@ -193,6 +194,7 @@ struct pol_task_ctx {
       block_spec_ = f_(log);
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "after task main: %p", &req_);
+      ran_on_thread.store(true, std::memory_order_release);
     } catch (std::exception &e) {
       ngx_log_error(NGX_LOG_ERR, log, 0, "task failed: %s", e.what());
     } catch (...) {
@@ -207,7 +209,8 @@ struct pol_task_ctx {
   }
 
   void complete() noexcept {
-    if (block_spec_) {
+    bool ran = ran_on_thread.load(std::memory_order_acquire);
+    if (ran && block_spec_) {
       auto *service = blocking_service::get_instance();
       assert(service != nullptr);
       try {
@@ -228,6 +231,7 @@ struct pol_task_ctx {
   ngx_http_request_t &req_;
   std::function<std::optional<block_spec>(ngx_log_t *)> f_;
   std::optional<block_spec> block_spec_;
+  std::atomic<bool> ran_on_thread{false};
 };
 
 bool context::on_request_start(ngx_http_request_t &request,
