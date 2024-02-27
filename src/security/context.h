@@ -10,6 +10,7 @@
 
 #include "../dd.h"
 #include "collection.h"
+#include "security/blocking.h"
 #include "security/library.h"
 
 extern "C" {
@@ -85,7 +86,7 @@ class context {
   void do_on_request_end(const ngx_http_request_t &request, dd::Span &span);
 
   // runs on a separate thread; returns whether it blocked
-  bool run_waf_start(ngx_http_request_t &request, dd::Span &span);
+  std::optional<block_spec> run_waf_start(ngx_http_request_t &request, dd::Span &span);
 
   std::vector<owned_ddwaf_result> results_;
   owned_ddwaf_context ctx_{nullptr};

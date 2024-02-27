@@ -1,4 +1,6 @@
 #include "context.h"
+#include <charconv>
+#include <optional>
 #include <utility>
 #include <variant>
 
@@ -188,27 +190,13 @@ struct pol_task_ctx {
     static_cast<pol_task_ctx *>(self)->handle(log);
   }
 
-  static void completion_handler(ngx_event_t *evt) {
-    pol_task_ctx *task_ctx = static_cast<pol_task_ctx *>(evt->data);
-
-    bool blocked = task_ctx->blocked_;
-    task_ctx->~pol_task_ctx();
-
-    if (!blocked) {
-      task_ctx->req_.phase_handler++;  // move past us
-      ngx_http_core_run_phases(&task_ctx->req_);
-    }
-  }
-
-  void handle(ngx_log_t *log) {
+  void handle(ngx_log_t *log) noexcept {
     try {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "before task main: %p", &req_);
-      ;
-      blocked_ = f_(log);
+      block_spec_ = f_(log);
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "after task main: %p", &req_);
-      ;
     } catch (std::exception &e) {
       ngx_log_error(NGX_LOG_ERR, log, 0, "task failed: %s", e.what());
     } catch (...) {
@@ -216,9 +204,27 @@ struct pol_task_ctx {
     }
   }
 
+  static void completion_handler(ngx_event_t *evt) noexcept {
+    pol_task_ctx *self = static_cast<pol_task_ctx *>(evt->data);
+    static_cast<pol_task_ctx *>(self)->complete();
+  }
+
+  void complete() noexcept {
+    if (block_spec_) {
+      auto *service = blocking_service::get_instance();
+      assert(service != nullptr);
+      service->block(*block_spec_, req_);
+    } else {
+      req_.phase_handler++;  // move past us
+      ngx_http_core_run_phases(&req_);
+    }
+
+    this->~pol_task_ctx();
+  }
+
   ngx_http_request_t &req_;
-  std::function<bool(ngx_log_t *)> f_;
-  bool blocked_;
+  std::function<std::optional<block_spec>(ngx_log_t *)> f_;
+  std::optional<block_spec> block_spec_;
 };
 
 bool context::do_on_request_start(ngx_http_request_t &request,
@@ -269,9 +275,17 @@ namespace {
     if (std::holds_alternative<int>(v)) {
       return std::get<int>(v);
     } else {
+      // try to convert to number
+      std::string_view sv{std::get<std::string>(v)};
+      int n;
+      auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), n);
+      if (ec == std::errc{} && ptr == sv.data() + sv.size()) {
+        return n;
+      }
       return def;
     }
   }
+
   template<typename Map>
   std::string_view getOrDefaultString(const Map &m, std::string_view k, std::string_view def) {
     auto it = m.find(k);
@@ -363,10 +377,10 @@ namespace {
   }
 } // namespace
 
-bool context::run_waf_start(ngx_http_request_t &req, dd::Span &span) {
+std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req, dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
   if (st != stage::start) {
-    return false;
+    return std::nullopt;
   }
 
   dd::SpanData &span_data = get_span_data(span);
@@ -388,20 +402,11 @@ bool context::run_waf_start(ngx_http_request_t &req, dd::Span &span) {
 
   ddwaf_arr_obj actions_arr{result.actions};
   if (code != DDWAF_MATCH || actions_arr.nbEntries == 0) {
-    return false;
+    return std::nullopt;
   }
 
   const waf_handle::action_info_map_t &aim = waf_handle_->action_info_map();
-  std::optional<block_spec> maybe_block_spec =
-      resolve_block_spec(aim, actions_arr, *req.connection->log);
-  if (maybe_block_spec) {
-    auto *bs = blocking_service::get_instance();
-    assert(bs != nullptr);
-    // finalization will occur on this thread
-    bs->block(*maybe_block_spec, req);
-    return true;
-  }
-  return false;
+  return resolve_block_spec(aim, actions_arr, *req.connection->log);
 }
 
 void context::on_request_end(const ngx_http_request_t &request,
