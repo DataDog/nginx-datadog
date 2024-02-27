@@ -210,7 +210,13 @@ struct pol_task_ctx {
     if (block_spec_) {
       auto *service = blocking_service::get_instance();
       assert(service != nullptr);
-      service->block(*block_spec_, req_);
+      try {
+        service->block(*block_spec_, req_);
+      } catch (const std::exception &e) {
+        ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
+                      "failed to block request: %s", e.what());
+        ngx_http_finalize_request(&req_, NGX_DONE);
+      }
     } else {
       req_.phase_handler++;  // move past us
       ngx_http_core_run_phases(&req_);
