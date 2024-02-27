@@ -136,7 +136,7 @@ template <typename Callable,
 auto catch_exceptions(std::string_view name, const ngx_http_request_t &req,
                       Callable &&f) noexcept {
   try {
-    return f();
+    return std::invoke(std::forward<Callable>(f));
   } catch (const std::exception &e) {
     ngx_log_error(NGX_LOG_ERR, req.connection->log, 0,
                   "security_context::%.*s: %s", static_cast<int>(name.size()),
@@ -232,7 +232,7 @@ struct pol_task_ctx {
 
 bool context::on_request_start(ngx_http_request_t &request,
                                dd::Span &span) noexcept {
-  return catch_exceptions("on_request_start", request, [&]() {
+  return catch_exceptions("on_request_start"sv, request, [&]() {
     return context::do_on_request_start(request, span);
   });
 }
@@ -422,7 +422,7 @@ std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req,
 
 void context::on_request_end(const ngx_http_request_t &request,
                              dd::Span &span) noexcept {
-  return catch_exceptions("on_request_end", request,
+  return catch_exceptions("on_request_end"sv, request,
                           [&]() { context::do_on_request_end(request, span); });
 }
 
