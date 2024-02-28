@@ -84,13 +84,13 @@ void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
   w.EndObject(1);
   w.Flush();
 
-  const char *json_str = buffer.GetString();
-  std::size_t json_str_len = buffer.GetLength();
+  std::string_view json{buffer.GetString(), buffer.GetLength()};
 
+  ngx_str_t json_ns{dns::ngx_stringv(json)};
   ngx_log_error(NGX_LOG_WARN, req.connection->log, 0, "appsec event: %V",
-                ngx_stringv(std::string_view{json_str, json_str_len}));
+                &json_ns);
 
-  span.tags[std::string{APPSEC_JSON}] = std::string{json_str, json_str_len};
+  span.tags[std::string{APPSEC_JSON}] = json;
 }
 
 void ddwaf_object_to_json(JsonWriter &w, const ddwaf_object &dobj) {
@@ -208,12 +208,10 @@ struct pol_task_ctx {
   static void completion_handler(ngx_event_t *evt) noexcept {
     pol_task_ctx *self = static_cast<pol_task_ctx *>(evt->data);
     static_cast<pol_task_ctx *>(self)->complete();
+    self->~pol_task_ctx();
   }
 
   void complete() noexcept {
-    // invoke destructor at the end
-    std::unique_ptr<pol_task_ctx> self{this};
-
     bool ran = ran_on_thread.load(std::memory_order_acquire);
     if (ran && block_spec_) {
       span_.set_tag("appsec.blocked"sv, "true"sv);
