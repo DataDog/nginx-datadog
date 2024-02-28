@@ -8,7 +8,8 @@ MAKE_JOB_COUNT ?= $(shell nproc)
 
 .PHONY: build
 build: build-deps nginx/objs/Makefile sources
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre/8.45/include -DCMAKE_LDFLAGS=-L/opt/homebrew//Cellar/pcre/8.45/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
+	#mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DLIBDDWAF_BUILD_SHARED=0 -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre/8.45/include -DCMAKE_LDFLAGS=-L/opt/homebrew//Cellar/pcre/8.45/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
 	chmod 755 $(BUILD_DIR)/libngx_http_datadog_module.$$(if [ $$(uname) = 'Darwin' ]; then echo dylib; else echo so; fi)
 	@echo 'build successful 👍'
 
@@ -71,14 +72,17 @@ build-in-docker: sources
 .PHONY: test
 test: build-in-docker
 	cp .docker-build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
+	cp .docker-build/_deps/libddwaf-src/lib/libddwaf.so test/services/nginx/
 	test/bin/run $(TEST_ARGS)
 
 .PHONY: test-parallel
 test-parallel: build-in-docker
 	cp .docker-build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
+	cp .docker-build/_deps/libddwaf-src/lib/libddwaf.so test/services/nginx/
 	test/bin/run_parallel $(TEST_ARGS)
 
 .PHONY: lab
 lab: build-in-docker
 	cp .docker-build/libngx_http_datadog_module.so lab/services/nginx/ngx_http_datadog_module.so
+	cp .docker-build/_deps/libddwaf-src/lib/libddwaf.so test/services/nginx/
 	lab/bin/run $(TEST_ARGS)

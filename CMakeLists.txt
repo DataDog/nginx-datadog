@@ -30,8 +30,8 @@ include(./nginx-module.cmake)
 include(./nginx-datadog.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
-add_subdirectory(./libddwaf EXCLUDE_FROM_ALL)
-include_directories(libddwaf/include)
+include(./libddwaf.cmake)
+find_package(libddwaf REQUIRED)
 include_directories(rapidjson/include)
 
 
@@ -42,17 +42,15 @@ target_sources(ngx_http_datadog_module
         $<TARGET_OBJECTS:nginx_module>
         $<TARGET_OBJECTS:nginx_datadog>
         $<TARGET_OBJECTS:dd_trace_cpp-objects>
-        $<TARGET_OBJECTS:libddwaf_objects>
 )
 
 add_dependencies(ngx_http_datadog_module
     nginx_module
     nginx_datadog
     dd_trace_cpp-objects
-    libddwaf_objects
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects libddwaf_objects)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects libddwaf_shared)
 if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
     if(LINUX)
         target_link_libraries(ngx_http_datadog_module -static-libstdc++ -static-libgcc)
@@ -62,3 +60,15 @@ if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
     endif()
 endif()
+
+get_target_property(libddwaf_target_path libddwaf_shared LOCATION)
+get_filename_component(libddwaf_target_dir ${libddwaf_target_path}  DIRECTORY)
+if(APPLE)
+    set(RPATH_VAL "@loader_path" "${libddwaf_target_dir}")
+else()
+    set(RPATH_VAL "$ORIGIN" "${libddwaf_target_dir}")
+endif()
+set_target_properties(ngx_http_datadog_module PROPERTIES
+    INSTALL_RPATH_USE_LINK_PATH false
+    BUILD_WITH_INSTALL_RPATH true
+    INSTALL_RPATH "${RPATH_VAL}")

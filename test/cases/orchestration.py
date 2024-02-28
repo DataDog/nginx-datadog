@@ -633,6 +633,26 @@ END_CONF
         self.reload_nginx()
         return status, log_lines
 
+    def nginx_replace_file(self, file, content):
+        """Replaces the contents of an arbitrary file in the nginx container."""
+
+        script = f"""
+>{file} cat <<'END_CONF'
+{content}
+END_CONF
+"""
+        # "-T" means "don't allocate a TTY".  This is necessary to avoid the
+        # error "the input device is not a TTY".
+        command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                         '/bin/sh')
+        subprocess.run(command,
+                       input=script,
+                       stdout=self.verbose,
+                       stderr=self.verbose,
+                       env=child_env(),
+                       check=True,
+                       encoding='utf8')
+
     @contextlib.contextmanager
     def custom_nginx(self, nginx_conf, extra_env=None, healthcheck_port=None):
         """Yield a managed `Popen` object referring to a new instance of nginx

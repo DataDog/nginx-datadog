@@ -4,6 +4,7 @@
 #include <rapidjson/schema.h>
 #include <unistd.h>
 
+#include <optional>
 #include <fstream>
 #include <string_view>
 #include <utility>
@@ -95,6 +96,31 @@ ddwaf_object read_rule_file(std::string_view filename) {
 
   return object;
 }
+
+int ddwaf_log_level_to_nginx(DDWAF_LOG_LEVEL level) noexcept {
+  switch (level) {
+    case DDWAF_LOG_TRACE:
+      return NGX_LOG_DEBUG;
+    case DDWAF_LOG_DEBUG:
+      return NGX_LOG_DEBUG;
+    case DDWAF_LOG_INFO:
+      return NGX_LOG_INFO;
+    case DDWAF_LOG_WARN:
+      return NGX_LOG_WARN;
+    case DDWAF_LOG_ERROR:
+      return NGX_LOG_ERR;
+    default:
+      return NGX_LOG_NOTICE;
+  }
+}
+
+void ddwaf_log(DDWAF_LOG_LEVEL level, const char *function, const char *file,
+               unsigned line, const char *message,
+               uint64_t message_len) noexcept {
+  int log_level = ddwaf_log_level_to_nginx(level);
+  ngx_log_error(log_level, ngx_cycle->log, 0, "ddwaf: %.*s at %s on %s:%d",
+                static_cast<int>(message_len), message, function, file, line);
+}
 }  // namespace
 
 namespace datadog {
@@ -177,7 +203,14 @@ std::shared_ptr<waf_handle> library::handle_{nullptr};
 void library::initialise_security_library(std::string_view file,
                                           std::string_view template_html,
                                           std::string_view template_json) {
-  auto ruleset = read_rule_file(file);
+  ddwaf_object ruleset;
+  try {
+    ruleset = read_rule_file(file);
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string{"failed to read ruleset "} + "at " +
+                             std::string{file} + ": " + e.what());
+  }
+  ddwaf_set_log_cb(ddwaf_log, DDWAF_LOG_DEBUG);
   library::handle_ = std::make_shared<waf_handle>(&ruleset);
   blocking_service::initialize(template_html, template_json);
 }

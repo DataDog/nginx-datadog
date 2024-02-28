@@ -3,18 +3,21 @@
 #include <atomic>
 #include <charconv>
 #include <optional>
+#include <sstream>
+#include <string>
+#include <type_traits>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 
 #include "../datadog_conf.h"
 #include "../ngx_http_datadog_module.h"
+#include "../tracing_library.h"
+#include "blocking.h"
 #include "collection.h"
-#include "datadog/span_data.h"
-#include "datadog/trace_segment.h"
 #include "ddwaf_obj.h"
 #include "library.h"
-#include "security/blocking.h"
-#include "tracing_library.h"
+#include "util.h"
 
 extern "C" {
 #include <ngx_hash.h>
@@ -24,15 +27,14 @@ extern "C" {
 #include <ngx_thread_pool.h>
 }
 
+#include <datadog/span.h>
+#include <datadog/span_data.h>
+#include <datadog/trace_segment.h>
 #include <ddwaf.h>
 #include <rapidjson/document.h>
 #include <rapidjson/encodings.h>
 #include <rapidjson/prettywriter.h>
 
-#include <sstream>
-#include <string>
-#include <type_traits>
-#include <unordered_set>
 
 using namespace std::literals;
 
@@ -85,8 +87,8 @@ void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
   const char *json_str = buffer.GetString();
   std::size_t json_str_len = buffer.GetLength();
 
-  ngx_log_error(NGX_LOG_WARN, req.connection->log, 0, "appsec event: %.*s",
-                static_cast<int>(json_str_len), json_str);
+  ngx_log_error(NGX_LOG_WARN, req.connection->log, 0, "appsec event: %V",
+                ngx_stringv(std::string_view{json_str, json_str_len}));
 
   span.tags[std::string{APPSEC_JSON}] = std::string{json_str, json_str_len};
 }
@@ -209,8 +211,13 @@ struct pol_task_ctx {
   }
 
   void complete() noexcept {
+    // invoke destructor at the end
+    std::unique_ptr<pol_task_ctx> self{this};
+
     bool ran = ran_on_thread.load(std::memory_order_acquire);
     if (ran && block_spec_) {
+      span_.set_tag("appsec.blocked"sv, "true"sv);
+
       auto *service = blocking_service::get_instance();
       assert(service != nullptr);
       try {
@@ -224,11 +231,10 @@ struct pol_task_ctx {
       req_.phase_handler++;  // move past us
       ngx_http_core_run_phases(&req_);
     }
-
-    this->~pol_task_ctx();
   }
 
   ngx_http_request_t &req_;
+  dd::Span &span_;
   std::function<std::optional<block_spec>(ngx_log_t *)> f_;
   std::optional<block_spec> block_spec_;
   std::atomic<bool> ran_on_thread{false};
@@ -255,10 +261,12 @@ bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
 
   ngx_thread_task_t *task =
       ngx_thread_task_alloc(request.pool, sizeof(pol_task_ctx));
-  auto *task_ctx = new (task->ctx) pol_task_ctx{
-      .req_ = request, .f_ = [this, &request, &span](ngx_log_t *log) {
-        return this->run_waf_start(request, span);
-      }};
+  auto *task_ctx = new (task->ctx)
+      pol_task_ctx{.req_ = request,
+                   .span_ = span,
+                   .f_ = [this, &request, &span](ngx_log_t *log) {
+                     return this->run_waf_start(request, span);
+                   }};
 
   task->handler = &pol_task_ctx::handler;
   task->event.handler = &pol_task_ctx::completion_handler;
