@@ -177,10 +177,10 @@ workflows:
         matrix:
           parameters:
             arch: ["amd64", "arm64"]
-        name: "build on nginx:1.25.2-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.2-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2-alpine"
-        nginx-version: "1.25.2"
+        name: "build on nginx:1.25.4-alpine-<< matrix.arch >>"
+        base-image: "nginx:1.25.4-alpine"
+        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.4-alpine"
+        nginx-version: "1.25.4"
         filters:
           tags:
             ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
@@ -188,10 +188,10 @@ workflows:
         matrix:
           parameters:
             arch: ["amd64", "arm64"]
-        name: "test on nginx:1.25.2-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.2-alpine"
+        name: "test on nginx:1.25.4-alpine-<< matrix.arch >>"
+        base-image: "nginx:1.25.4-alpine"
         requires:
-        - "build on nginx:1.25.2-alpine-<< matrix.arch >>"
+        - "build on nginx:1.25.4-alpine-<< matrix.arch >>"
         filters:
           tags:
             ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
@@ -199,10 +199,10 @@ workflows:
         matrix:
           parameters:
             arch: ["amd64", "arm64"]
-        name: "build on nginx:1.25.2-<< matrix.arch >>"
-        base-image: "nginx:1.25.2"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2"
-        nginx-version: "1.25.2"
+        name: "build on nginx:1.25.4-<< matrix.arch >>"
+        base-image: "nginx:1.25.4"
+        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.4"
+        nginx-version: "1.25.4"
         filters:
           tags:
             ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
@@ -210,16 +210,17 @@ workflows:
         matrix:
           parameters:
             arch: ["amd64", "arm64"]
-        name: "test on nginx:1.25.2-<< matrix.arch >>"
-        base-image: "nginx:1.25.2"
+        name: "test on nginx:1.25.4-<< matrix.arch >>"
+        base-image: "nginx:1.25.4"
         requires:
-        - "build on nginx:1.25.2-<< matrix.arch >>"
+        - "build on nginx:1.25.4-<< matrix.arch >>"
         filters:
           tags:
             ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
 
   build-and-test-all:
     jobs:
+    # Output of `bin/generate_jobs_yaml.sh` begins on the following line.
     - build:
         <<: *release_tag_only
         matrix:
@@ -562,6 +563,42 @@ workflows:
         - "build on amazonlinux:2.0.20220121.0-<< matrix.arch >>"
         name: "test on amazonlinux:2.0.20220121.0-<< matrix.arch >>"
         base-image: "amazonlinux:2.0.20220121.0"
+    - build:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        name: "build on nginx:1.25.4-alpine-<< matrix.arch >>"
+        base-image: "nginx:1.25.4-alpine"
+        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.4-alpine"
+        nginx-version: "1.25.4"
+    - test:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        requires:
+        - "build on nginx:1.25.4-alpine-<< matrix.arch >>"
+        name: "test on nginx:1.25.4-alpine-<< matrix.arch >>"
+        base-image: "nginx:1.25.4-alpine"
+    - build:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        name: "build on nginx:1.25.4-<< matrix.arch >>"
+        base-image: "nginx:1.25.4"
+        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.4"
+        nginx-version: "1.25.4"
+    - test:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        requires:
+        - "build on nginx:1.25.4-<< matrix.arch >>"
+        name: "test on nginx:1.25.4-<< matrix.arch >>"
+        base-image: "nginx:1.25.4"
     - build:
         <<: *release_tag_only
         matrix:
