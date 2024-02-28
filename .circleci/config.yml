@@ -604,6 +604,42 @@ workflows:
         matrix:
           parameters:
             arch: [amd64,arm64]
+        name: "build on nginx:1.25.3-alpine-<< matrix.arch >>"
+        base-image: "nginx:1.25.3-alpine"
+        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.3-alpine"
+        nginx-version: "1.25.3"
+    - test:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        requires:
+        - "build on nginx:1.25.3-alpine-<< matrix.arch >>"
+        name: "test on nginx:1.25.3-alpine-<< matrix.arch >>"
+        base-image: "nginx:1.25.3-alpine"
+    - build:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        name: "build on nginx:1.25.3-<< matrix.arch >>"
+        base-image: "nginx:1.25.3"
+        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.3"
+        nginx-version: "1.25.3"
+    - test:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        requires:
+        - "build on nginx:1.25.3-<< matrix.arch >>"
+        name: "test on nginx:1.25.3-<< matrix.arch >>"
+        base-image: "nginx:1.25.3"
+    - build:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
         name: "build on nginx:1.25.2-alpine-<< matrix.arch >>"
         base-image: "nginx:1.25.2-alpine"
         build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2-alpine"

@@ -36,6 +36,8 @@ amazonlinux:2.0.20220218.1 1.22.1 amd64,arm64
 amazonlinux:2.0.20220121.0 1.22.1 amd64,arm64
 nginx:1.25.4-alpine 1.25.4 amd64,arm64
 nginx:1.25.4 1.25.4 amd64,arm64
+nginx:1.25.3-alpine 1.25.3 amd64,arm64
+nginx:1.25.3 1.25.3 amd64,arm64
 nginx:1.25.2-alpine 1.25.2 amd64,arm64
 nginx:1.25.2 1.25.2 amd64,arm64
 nginx:1.25.1-alpine 1.25.1 amd64,arm64
