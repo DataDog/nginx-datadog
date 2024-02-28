@@ -24,8 +24,23 @@
       "id": "block_html",
       "type": "block_request",
       "parameters": {
-        "status_code": 403,
         "type": "html"
+      }
+    },
+    {
+      "id": "redirect",
+      "type": "redirect_request",
+      "parameters": {
+        "status_code": 301,
+        "location": "https://www.cloudflare.com"
+      }
+    },
+    {
+      "id": "redirect_bad_status",
+      "type": "redirect_request",
+      "parameters": {
+        "status_code": 400,
+        "location": "https://www.cloudflare.com"
       }
     }
   ],
@@ -136,6 +151,60 @@
       ],
       "on_match": [
         "block_html"
+      ]
+    },
+    {
+      "id": "redirect",
+      "name": "Redirect with status code 301",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^redirect$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "redirect"
+      ]
+    },
+    {
+      "id": "redirect_bad_status",
+      "name": "Redirect with bad status defaults to 303",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^redirect_bad_status$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "redirect_bad_status"
       ]
     }
   ]

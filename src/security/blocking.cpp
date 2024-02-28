@@ -193,46 +193,62 @@ struct block_resp {
     specificity json_spec{};
     specificity html_spec{};
     double json_qvalue = 0.0;
+    size_t json_pos = 0;
     double html_qvalue = 0.0;
-    for (; it != accept_entry_iter::end(); ++it) {
+    size_t html_pos = 0;
+
+    for (size_t pos = 0; it != accept_entry_iter::end(); ++it, ++pos) {
       accept_entry ae = *it;
 
       if (ae.type == "*" && ae.subtype == "*") {
         if (accept_entry::is_more_specific(specificity::asterisk, json_spec)) {
           json_spec = specificity::asterisk;
           json_qvalue = ae.qvalue;
+          json_pos = pos;
         }
         if (accept_entry::is_more_specific(specificity::asterisk, html_spec)) {
           html_spec = specificity::asterisk;
           html_qvalue = ae.qvalue;
+          html_pos = pos;
         }
       } else if (ae.type == "text" && ae.subtype == "*") {
         if (accept_entry::is_more_specific(specificity::partial, html_spec)) {
           html_spec = specificity::partial;
           html_qvalue = ae.qvalue;
+          html_pos = pos;
         }
       } else if (ae.type == "text" && ae.subtype == "html") {
         if (accept_entry::is_more_specific(specificity::full, html_spec)) {
           html_spec = specificity::full;
           html_qvalue = ae.qvalue;
+          html_pos = pos;
         }
       } else if (ae.type == "application" && ae.subtype == "*") {
         if (accept_entry::is_more_specific(specificity::partial, json_spec)) {
           json_spec = specificity::partial;
           json_qvalue = ae.qvalue;
+          json_pos = pos;
         }
       } else if (ae.type == "application" && ae.subtype == "json") {
         if (accept_entry::is_more_specific(specificity::full, json_spec)) {
           json_spec = specificity::full;
           json_qvalue = ae.qvalue;
+          json_pos = pos;
         }
       }
     }
 
     if (html_qvalue > json_qvalue) {
       return ct::HTML;
+    } else if (json_qvalue > html_qvalue) {
+      return ct::JSON;
+    } else { // equal: what comes first has priority
+      if (html_pos < json_pos) {
+        return ct::HTML;
+      } else {
+        return ct::JSON;
+      }
     }
-    return ct::JSON;
   }
 };
 
@@ -290,6 +306,8 @@ void blocking_service::block(block_spec spec, ngx_http_request_t &req) {
     templ = &templ_html;
   } else if (resp.ct == block_resp::ct::JSON) {
     templ = &templ_json;
+  } else {
+    req.header_only = 1;
   }
 
   ngx_http_discard_request_body(&req);
@@ -305,16 +323,13 @@ void blocking_service::block(block_spec spec, ngx_http_request_t &req) {
   }
   if (templ) {
     req.headers_out.content_length_n = templ->len;
+  } else {
+    req.headers_out.content_length_n = 0;
   }
 
   // TODO: bypass header filters?
   auto res = ngx_http_send_header(&req);
   if (res == NGX_ERROR || res > NGX_OK || req.header_only) {
-    ngx_http_finalize_request(&req, res);
-    return;
-  }
-
-  if (!templ) {
     ngx_http_finalize_request(&req, res);
     return;
   }

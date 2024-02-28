@@ -42,3 +42,53 @@ class TestSecBlocking(case.TestCase):
             return x[0][0]['meta'].get('appsec.blocked') == 'true'
 
         self.assertTrue(any(predicate(trace) for trace in traces))
+
+    def test_default_action_html(self):
+        status, headers, body, _ = self.run_with_ua('block_default', 'text/html')
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+        self.assertRegex(body, r'<title>You\'ve been blocked')
+
+    def test_default_action_html_quality(self):
+        status, headers, body, _ = self.run_with_ua('block_default', 'application/json;q=0.5, text/html')
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+        self.assertRegex(body, r'<title>You\'ve been blocked')
+
+    def test_default_action_html_specificity(self):
+        status, headers, body, _ = self.run_with_ua('block_default', 'application/json;q=0.5,text/html;q=0.6,'
+                                                                     'text/*;q=0.4')
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+        self.assertRegex(body, r'<title>You\'ve been blocked')
+
+    def test_default_action_html_order(self):
+        status, headers, body, _ = self.run_with_ua('block_default', 'text/html, application/json')
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+        self.assertRegex(body, r'<title>You\'ve been blocked')
+
+    def test_html_action(self):
+        status, headers, body, _ = self.run_with_ua('block_html', 'application/json')
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+
+    def test_json_action(self):
+        status, headers, body, _ = self.run_with_ua('block_json', 'text/html')
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'application/json')
+
+    def test_block_alt_code(self):
+        status, headers, body, _ = self.run_with_ua('block_alt_code', '*/*')
+        self.assertEqual(status, 501)
+        self.assertEqual(headers['content-type'], 'application/json')
+
+    def test_redirect_action(self):
+        status, headers, _, _ = self.run_with_ua('redirect', '*/*')
+        self.assertEqual(status, 301)
+        self.assertEqual(headers['location'], 'https://www.cloudflare.com')
+
+    def test_redirect_bad_status(self):
+        status, headers, _, _ = self.run_with_ua('redirect_bad_status', '*/*')
+        self.assertEqual(status, 303)
+        self.assertEqual(headers['location'], 'https://www.cloudflare.com')
