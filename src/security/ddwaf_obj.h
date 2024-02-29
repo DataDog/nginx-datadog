@@ -1,65 +1,114 @@
 #pragma once
 
 #include <ddwaf.h>
+
 #include <string>
 #include <string_view>
+
+#include "ddwaf_memres.h"
+
+#define may_alias __attribute__((__may_alias__))
 
 namespace datadog {
 namespace nginx {
 namespace security {
 
+using ddwaf_str_obj_ma = struct ddwaf_str_obj may_alias;
+using ddwaf_arr_obj_ma = struct ddwaf_arr_obj may_alias;
+using ddwaf_map_obj_ma = struct ddwaf_map_obj may_alias;
+
 struct ddwaf_obj : ddwaf_object {
-    using nb_entries_t = decltype(nbEntries);
-    ddwaf_obj(const ddwaf_object &dobj) : ddwaf_object{dobj} {}
+  using nb_entries_t = decltype(nbEntries);
+  ddwaf_obj() = default;
+  ddwaf_obj(const ddwaf_object &dobj) : ddwaf_object{dobj} {}
 
-    std::string_view key_name() const noexcept {
-        return std::string_view{parameterName, parameterNameLength};
-    }
+  std::string_view key() const noexcept {
+    return std::string_view{parameterName, parameterNameLength};
+  }
 
-    std::string_view string_val_unchecked() const noexcept {
-        return std::string_view{stringValue, nbEntries};
-    }
+  // string lifetime must be at least that of the object
+  void set_key(std::string_view sv) noexcept {
+    parameterName = sv.data();
+    parameterNameLength = sv.length();
+  }
 
-    bool is_numeric() const noexcept {
-        return type == DDWAF_OBJ_SIGNED || type == DDWAF_OBJ_UNSIGNED ||
-               type == DDWAF_OBJ_FLOAT;
-    }
+  std::string_view string_val_unchecked() const noexcept {
+    return std::string_view{stringValue, nbEntries};
+  }
 
-    template<typename T>
-    T numeric_val_unchecked() const {
-        static constexpr auto min = std::numeric_limits<T>::min();
-        static constexpr auto max = std::numeric_limits<T>::max();
-        if (type == DDWAF_OBJ_SIGNED) {
-            if (intValue < min || intValue > max) {
-                throw std::out_of_range("value out of range");
-            }
-            return static_cast<T>(intValue);
-        } else if (type == DDWAF_OBJ_UNSIGNED) {
-            static constexpr auto max = std::numeric_limits<T>::max();
-            if (uintValue > max) {
-                throw std::out_of_range("value out of range");
-            }
-            return static_cast<T>(uintValue);
-        } else if (type == DDWAF_OBJ_FLOAT) {
-            if (f64 < min || f64 > max) {
-                throw std::out_of_range("value out of range");
-            }
-            return static_cast<T>(f64);
-        }
-        throw std::invalid_argument("not a numeric value");
+  bool is_numeric() const noexcept {
+    return type == DDWAF_OBJ_SIGNED || type == DDWAF_OBJ_UNSIGNED ||
+           type == DDWAF_OBJ_FLOAT;
+  }
+
+  template <typename T>
+  T numeric_val_unchecked() const {
+    static constexpr auto min = std::numeric_limits<T>::min();
+    static constexpr auto max = std::numeric_limits<T>::max();
+    if (type == DDWAF_OBJ_SIGNED) {
+      if (intValue < min || intValue > max) {
+        throw std::out_of_range("value out of range");
+      }
+      return static_cast<T>(intValue);
+    } else if (type == DDWAF_OBJ_UNSIGNED) {
+      static constexpr auto max = std::numeric_limits<T>::max();
+      if (uintValue > max) {
+        throw std::out_of_range("value out of range");
+      }
+      return static_cast<T>(uintValue);
+    } else if (type == DDWAF_OBJ_FLOAT) {
+      if (f64 < min || f64 > max) {
+        throw std::out_of_range("value out of range");
+      }
+      return static_cast<T>(f64);
     }
+    throw std::invalid_argument("not a numeric value");
+  }
+
+  ddwaf_str_obj_ma &make_string(std::string_view sv) {
+    type = DDWAF_OBJ_STRING;
+    stringValue = const_cast<char *>(sv.data());
+    nbEntries = sv.length();
+    return *reinterpret_cast<ddwaf_str_obj_ma *>(this);
+  }
+
+  ddwaf_arr_obj_ma &make_array(ddwaf_obj *arr, nb_entries_t size) {
+    type = DDWAF_OBJ_ARRAY;
+    array = arr;
+    nbEntries = size;
+    return *reinterpret_cast<ddwaf_arr_obj_ma *>(this);
+  }
+  ddwaf_arr_obj_ma &make_array(nb_entries_t size, ddwaf_memres &memres) {
+    type = DDWAF_OBJ_ARRAY;
+    array = memres.allocate_objects(size);
+    nbEntries = size;
+    return *reinterpret_cast<ddwaf_arr_obj_ma *>(this);
+  }
+
+  ddwaf_map_obj_ma &make_map(ddwaf_obj *entries, nb_entries_t size) {
+    type = DDWAF_OBJ_MAP;
+    array = entries;
+    nbEntries = size;
+    return *reinterpret_cast<ddwaf_map_obj_ma *>(this);
+  }
+  ddwaf_map_obj_ma &make_map(nb_entries_t size, ddwaf_memres &memres) {
+    type = DDWAF_OBJ_MAP;
+    array = memres.allocate_objects(size);
+    nbEntries = size;
+    return *reinterpret_cast<ddwaf_map_obj_ma *>(this);
+  }
 };
 
 struct ddwaf_str_obj : ddwaf_obj {
-    ddwaf_str_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
-        if (dobj.type != DDWAF_OBJ_STRING) {
-            throw std::invalid_argument("not a string");
-        }
+  ddwaf_str_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
+    if (dobj.type != DDWAF_OBJ_STRING) {
+      throw std::invalid_argument("not a string");
     }
+  }
 
-    std::string_view value() const {
-        return std::string_view{stringValue, nbEntries};
-    }
+  std::string_view value() const {
+    return std::string_view{stringValue, nbEntries};
+  }
 };
 
 struct ddwaf_arr_obj : ddwaf_obj {
@@ -69,14 +118,14 @@ struct ddwaf_arr_obj : ddwaf_obj {
     }
   }
 
-  template<typename T>
-  T at(nb_entries_t index) const {
+  template <typename T = ddwaf_object, typename TMA = T may_alias>
+  TMA &at(nb_entries_t index) const {
     static_assert(std::is_base_of<ddwaf_obj, T>::value,
                   "T must be a subclass of ddwaf_obj");
     if (index >= nbEntries) {
       throw std::out_of_range("index out of range");
     }
-    return T{array[index]};
+    return *reinterpret_cast<TMA*>(&array[index]);
   }
 
   struct iterator {
@@ -94,7 +143,8 @@ struct ddwaf_arr_obj : ddwaf_obj {
     }
 
     ddwaf_obj operator*() const { return arr_.at<ddwaf_obj>(index_); }
-    private:
+
+   private:
     const ddwaf_arr_obj &arr_;
     nb_entries_t index_;
   };
@@ -104,63 +154,63 @@ struct ddwaf_arr_obj : ddwaf_obj {
 };
 
 struct ddwaf_map_obj : ddwaf_obj {
-    ddwaf_map_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
-        if (dobj.type != DDWAF_OBJ_MAP) {
-            throw std::invalid_argument("not a map");
-        }
+  ddwaf_map_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
+    if (dobj.type != DDWAF_OBJ_MAP) {
+      throw std::invalid_argument("not a map");
+    }
+  }
+
+  template <typename T>
+  T get(std::string_view key) const {
+    static_assert(std::is_base_of<ddwaf_obj, T>::value,
+                  "T must be a subclass of ddwaf_obj");
+    for (nb_entries_t i = 0; i < nbEntries; i++) {
+      ddwaf_obj dobj{array[i]};
+      if (dobj.key() == key) {
+        return T{dobj};
+      }
+    }
+    throw std::out_of_range(std::string{"key "} + std::string{key} +
+                            " not found");
+  }
+
+  template <typename T>
+  std::optional<T> get_opt(std::string_view key) const {
+    for (nb_entries_t i = 0; i < nbEntries; i++) {
+      ddwaf_obj dobj{array[i]};
+      if (dobj.key() == key) {
+        return {dobj};
+      }
+    }
+    return std::nullopt;
+  }
+
+  struct iterator {
+    iterator(const ddwaf_map_obj &map, nb_entries_t index = 0)
+        : map_{map}, index_{index} {}
+
+    bool operator!=(const iterator &other) const {
+      return index_ != other.index_ ||
+             std::memcmp(&map_, &other.map_, sizeof(map_)) != 0;
     }
 
-    template<typename T>
-    T get(std::string_view key) const {
-        static_assert(std::is_base_of<ddwaf_obj, T>::value,
-                      "T must be a subclass of ddwaf_obj");
-        for (nb_entries_t i = 0; i < nbEntries; i++) {
-            ddwaf_obj dobj{array[i]};
-            if (dobj.key_name() == key) {
-                return T{dobj};
-            }
-        }
-        throw std::out_of_range(std::string{"key "} + std::string{key} +
-                                " not found");
+    iterator &operator++() {
+      index_++;
+      return *this;
     }
 
-    template<typename T>
-    std::optional<T> get_opt(std::string_view key) const {
-        for (nb_entries_t i = 0; i < nbEntries; i++) {
-            ddwaf_obj dobj{array[i]};
-            if (dobj.key_name() == key) {
-                return {dobj};
-            }
-        }
-        return std::nullopt;
+    std::pair<std::string_view, ddwaf_obj> operator*() const {
+      ddwaf_obj dobj{map_.array[index_]};
+      return {dobj.key(), dobj};
     }
 
-    struct iterator {
-        iterator(const ddwaf_map_obj &map, nb_entries_t index = 0)
-            : map_{map}, index_{index} {}
+   private:
+    const ddwaf_map_obj &map_;
+    nb_entries_t index_;
+  };
 
-        bool operator!=(const iterator &other) const {
-            return index_ != other.index_ ||
-                   std::memcmp(&map_, &other.map_, sizeof(map_)) != 0;
-        }
-
-        iterator &operator++() {
-            index_++;
-            return *this;
-        }
-
-        std::pair<std::string_view, ddwaf_obj> operator*() const {
-            ddwaf_obj dobj{map_.array[index_]};
-            return {dobj.key_name(), dobj};
-        }
-
-      private:
-        const ddwaf_map_obj &map_;
-        nb_entries_t index_;
-    };
-
-    iterator begin() const { return {*this}; }
-    iterator end() const { return {*this, nbEntries}; }
+  iterator begin() const { return {*this}; }
+  iterator end() const { return {*this, nbEntries}; }
 };
 
 }  // namespace security

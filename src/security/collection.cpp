@@ -1,11 +1,14 @@
 #include "collection.h"
 
 #include <cassert>
+#include <charconv>
 #include <cstring>
 #include <ddwaf.h>
 #include <string_view>
 #include <unordered_map>
 
+#include "ddwaf_obj.h"
+#include "decode.h"
 #include "util.h"
 
 extern "C" {
@@ -15,6 +18,7 @@ extern "C" {
 namespace {
 
 namespace dns = datadog::nginx::security;
+using std::string_view_literals::operator""sv;
 
 template <typename T, typename = std::void_t<>>
 struct has_cookie : std::false_type {};
@@ -39,9 +43,8 @@ class req_serializer {
     ddwaf_object *root = memres_.allocate_objects(1);
     root->type = DDWAF_OBJ_MAP;
     root->nbEntries = 5;
-    root->array = memres_.allocate_objects(5);
-
-    ddwaf_object *arr = root->array;
+    dns::ddwaf_obj *arr = memres_.allocate_objects<dns::ddwaf_obj>(5);
+    root->array = arr;
 
     set_request_query(request, arr[0]);
     set_request_uri_raw(request, arr[1]);
@@ -53,28 +56,77 @@ class req_serializer {
   }
 
  private:
-  void set_map_entry_str(ddwaf_object &slot, std::string_view key,
+  void set_map_entry_str(dns::ddwaf_obj &slot, std::string_view key,
                          const ngx_str_t &value) {
-    slot.parameterName = key.data();
-    slot.parameterNameLength = key.size();
-    slot.type = DDWAF_OBJ_STRING;
-    slot.stringValue = reinterpret_cast<const char *>(value.data);
-    slot.nbEntries = value.len;
+    slot.set_key(key);
+    slot.make_string(dns::to_sv(value));
   }
 
   void set_request_query(const ngx_http_request_t &request,
-                         ddwaf_object &slot) {
-    // FIXME: args contains more than the query string
-    set_map_entry_str(slot, QUERY, request.args);
+                         dns::ddwaf_obj &slot) {
+    slot.set_key(QUERY);
+    const ngx_str_t& query = request.args;
+    if (query.len == 0) {
+      slot.make_array(nullptr, 0);
+      return;
+    }
+
+    dns::query_string_iter it{query, memres_};
+
+    // first, count the number of occurrences for each key
+    std::unordered_map<std::string_view, std::size_t> keys_bag;
+    for (; !it.ended(); ++it) {
+      std::string_view key = it.cur_key();
+      keys_bag[key]++;
+    }
+
+    // we now know the number of keys; allocate map entries
+    dns::ddwaf_obj *entries =
+        memres_.allocate_objects<dns::ddwaf_obj>(keys_bag.size());
+    slot.make_map(entries, keys_bag.size());
+    dns::ddwaf_obj *next_free_entry = entries;
+
+    // fill the map entries
+    // map that saves the ddwaf_object for keys that occurr more than once
+    std::unordered_map<std::string_view, dns::ddwaf_arr_obj *> indexed_entries;
+    for (it.reset(); !it.ended(); ++it) {
+      auto [key, value] = *it;
+      std::size_t num_occurr = keys_bag[key];
+      
+      // common scenario: only 1 occurrence of the key
+      if (num_occurr == 1) {
+        dns::ddwaf_obj &entry = *next_free_entry++;
+        entry.set_key(key);
+        entry.make_string(value);
+        continue;
+      }
+
+      auto ie = indexed_entries.find(key);
+      if (ie == indexed_entries.end()) {
+        // first occurrence of this key
+        dns::ddwaf_obj &entry = *next_free_entry++;
+
+        entry.set_key(key);
+        auto &arr_val = entry.make_array(num_occurr, memres_);
+        arr_val.at<dns::ddwaf_obj>(0).make_string(value);
+        entry.nbEntries = 1;
+
+        indexed_entries.insert({key, &arr_val});
+      } else {
+        // subsequence occurrence of this key
+        auto &arr_val = *ie->second;
+        arr_val.at<dns::ddwaf_obj>(arr_val.nbEntries++).make_string(value);
+      }
+    }
   }
 
   void set_request_uri_raw(const ngx_http_request_t &request,
-                           ddwaf_object &slot) {
+                           dns::ddwaf_obj &slot) {
     set_map_entry_str(slot, URI_RAW, request.uri);
   }
 
   void set_request_method(const ngx_http_request_t &request,
-                          ddwaf_object &slot) {
+                          dns::ddwaf_obj &slot) {
     set_map_entry_str(slot, METHOD, request.method_name);
   }
 
@@ -101,29 +153,27 @@ class req_serializer {
     }
   }
   using ngx_str_dobj_arr =
-      std::unordered_map<ngx_str_t, ddwaf_object *, dns::ngx_str_hash,
+      std::unordered_map<ngx_str_t, dns::ddwaf_obj *, dns::ngx_str_hash,
                          dns::ngx_str_equal>;
   auto alloc_multivalue_header_arr(const ngx_str_bag &headers) {
     ngx_str_dobj_arr ret;
     for (auto it = headers.begin(); it != headers.end(); it++) {
       if (it->second > 1) {
-        ret[it->first] = memres_.allocate_objects(it->second);
+        ret[it->first] = memres_.allocate_objects<dns::ddwaf_obj>(it->second);
       }
     }
     return ret;
   }
 
   void set_request_headers_nocookies(const ngx_http_request_t &request,
-                                     ddwaf_object &slot) {
-    slot.type = DDWAF_OBJ_MAP;
+                                     dns::ddwaf_obj &slot) {
+    slot.set_key(HEADERS_NO_COOKIES);
 
     ngx_str_bag header_bag = count_headers(request.headers_in.headers);
     std::size_t header_count = tally_headers_no_cookies(header_bag);
-    slot.nbEntries = header_count;
 
-    slot.parameterName = "server.request.headers.no_cookies";
-    slot.parameterNameLength = sizeof("server.request.headers.no_cookies") - 1;
-    slot.array = memres_.allocate_objects(header_count);
+    dns::ddwaf_obj *entries = memres_.allocate_objects<dns::ddwaf_obj>(header_count);
+    slot.make_map(entries, header_count);
 
     ngx_str_dobj_arr multivalue_arr = alloc_multivalue_header_arr(header_bag);
     dns::ngnix_header_iterable it{request.headers_in.headers};
@@ -134,23 +184,20 @@ class req_serializer {
       ngx_str_t key{h.key.len, h.lowcase_key};
       auto count = header_bag[key];
 
-      ddwaf_object &dobj = slot.array[i++];
-      dobj.parameterName = (char *)h.lowcase_key;
-      dobj.parameterNameLength = h.key.len;
+      dns::ddwaf_obj &dobj = *entries++;
+      dobj.set_key({reinterpret_cast<char *>(h.lowcase_key), h.key.len});
       if (count == 1) {
         if (h.hash == 0) {
           continue;
         }
-        dobj.type = DDWAF_OBJ_STRING;
-        dobj.stringValue = (char *)h.value.data;
-        dobj.nbEntries = h.value.len;
+        dobj.make_string({reinterpret_cast<char *>(h.value.data), h.value.len});
       } else {
         if (h.hash == 0) {
           dobj.nbEntries = 0;
           continue;
         }
         ngx_str_t lowcase_key{h.key.len, h.lowcase_key};
-        ddwaf_object *arr = multivalue_arr[lowcase_key];
+        dns::ddwaf_obj *arr = multivalue_arr[lowcase_key];
 
         dobj.type = DDWAF_OBJ_ARRAY;
         dobj.array = arr;
@@ -165,9 +212,8 @@ class req_serializer {
   }
 
   template <typename Request = ngx_http_request_t>
-  void set_request_cookie(const Request &request, ddwaf_object &slot) {
-    slot.parameterName = "server.request.cookies";
-    slot.parameterNameLength = sizeof("server.request.cookies") - 1;
+  void set_request_cookie(const Request &request, dns::ddwaf_obj &slot) {
+    slot.set_key(COOKIES);
 
     if constexpr (headers_in_has_cookie_v) {
       auto *t = request.headers_in.cookie;
@@ -178,9 +224,7 @@ class req_serializer {
       }
 
       if (count == 1) {
-        slot.type = DDWAF_OBJ_STRING;
-        slot.stringValue = (char *)t->value.data;
-        slot.nbEntries = t->value.len;
+        slot.make_string(dns::to_sv(t->value));
       } else {
         slot.type = DDWAF_OBJ_ARRAY;
         slot.nbEntries = count;
@@ -210,8 +254,7 @@ class req_serializer {
       }
 
       if (cookie_headers.empty()) {
-        slot.type = DDWAF_OBJ_MAP;
-        slot.nbEntries = 0;
+        slot.make_map(nullptr, 0);
         return;
       }
 

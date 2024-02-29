@@ -92,6 +92,10 @@ inline ngx_str_t ngx_stringv(std::string_view sv) noexcept {
           const_cast<u_char *>(reinterpret_cast<const u_char *>(sv.data()))};
 }
 
+inline std::string_view to_sv(const ngx_str_t &str) noexcept {
+  return {reinterpret_cast<const char *>(str.data), str.len};
+}
+
 }  // namespace security
 }  // namespace nginx
 }  // namespace datadog
