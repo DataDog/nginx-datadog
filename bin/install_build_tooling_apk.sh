@@ -14,6 +14,14 @@ apk add coreutils
 # nginx uses perl-compatible regular expressions (PCRE) and zlib (for gzip).
 apk add pcre-dev zlib-dev
 
+# At some point, Alpine stopped having `/usr/bin/gmake` and instead has
+# `/usr/bin/make`. CMake assumes that the make driver is `/usr/bin/gmake`,
+# though. So, symlink if the latter is missing.
+if ! [ -e /usr/bin/gmake ]; then
+    ln -s /usr/bin/make /usr/bin/gmake
+    chmod a+x /usr/bin/gmake
+fi
+
 # Build a recent cmake from source.  dd-trace-cpp requires a version more recent than
 # what is commonly packaged.
 # We have to build it from source, because Kitware doesn't produce binary
