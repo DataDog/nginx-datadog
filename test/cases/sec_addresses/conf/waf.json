@@ -17,6 +17,9 @@
             "inputs": [
               {
                 "address": "server.request.query"
+              },
+              {
+                "address": "server.request.cookies"
               }
             ],
             "regex": "^(?:%(?:a)?)?matched key(?:%(?:a)?)?$"
@@ -41,6 +44,9 @@
             "inputs": [
               {
                 "address": "server.request.query"
+              },
+              {
+                "address": "server.request.cookies"
               }
             ],
             "regex": "^(?:%(?:a)?)?matched value(?:%(?:a)?)?$$"

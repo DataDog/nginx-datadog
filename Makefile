@@ -5,16 +5,22 @@ include nginx-version-info
 
 BUILD_DIR ?= .build
 MAKE_JOB_COUNT ?= $(shell nproc)
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    LIB_SUFFIX = .dylib
+else
+    LIB_SUFFIX = .so
+endif
 
 .PHONY: build
-build: build-deps nginx/objs/Makefile sources
-	#mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DLIBDDWAF_BUILD_SHARED=0 -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre/8.45/include -DCMAKE_LDFLAGS=-L/opt/homebrew//Cellar/pcre/8.45/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
-	chmod 755 $(BUILD_DIR)/libngx_http_datadog_module.$$(if [ $$(uname) = 'Darwin' ]; then echo dylib; else echo so; fi)
+build: build-deps nginx-version-info sources
+	#mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DNGINX_VERSION=$(NGINX_VERSION) -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DNGINX_VERSION=$(NGINX_VERSION) -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
+	chmod 755 $(BUILD_DIR)/libngx_http_datadog_module$(LIB_SUFFIX)
 	@echo 'build successful 👍'
 
 .PHONY: sources
-sources: dd-trace-cpp/.git nginx/
+sources: dd-trace-cpp/.git
 
 .PHONY: build-deps
 build-deps: sources dd-trace-cpp-deps
@@ -25,22 +31,16 @@ dd-trace-cpp/.git libddwaf/.git:
 .PHONY: dd-trace-cpp-deps
 dd-trace-cpp-deps: dd-trace-cpp/.git
 
-nginx/objs/Makefile: nginx/ module/config
-	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat --with-threads
-
-nginx/: nginx-version-info
-	rm -rf nginx && \
-	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
-		mkdir nginx && \
-		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
-		rm nginx.tar.gz
-
 # In the "build" target, we use ./nginx-version-info just for the nginx version
 # (to download the appropriate sources).
 # In the "build-in-docker" target, we use ./nginx-version-info to also identify
 # the appropriate base image.
-nginx-version-info:
-	$(error The file "nginx-version-info" must be present and contain definitions for NGINX_VERSION and BASE_IMAGE")
+ifndef NGINX_VERSION
+$(error The file "nginx-version-info" must be present and contain definitions for NGINX_VERSION and BASE_IMAGE")
+endif
+ifndef BASE_IMAGE
+$(error The file "nginx-version-info" must be present and contain definitions for NGINX_VERSION and BASE_IMAGE")
+endif
 
 dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 

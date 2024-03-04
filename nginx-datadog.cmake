@@ -41,4 +41,4 @@ target_include_directories(
         dd-trace-cpp/src/
 )
 
-target_link_libraries(nginx_datadog libddwaf_shared) # for includes
+target_link_libraries(nginx_datadog nginx_module libddwaf_shared) # for includes

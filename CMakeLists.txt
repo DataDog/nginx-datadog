@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.7)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+cmake_policy(SET CMP0068 NEW)
 
 # This build configuration combines the following other build configurations:
 # - `nginx-datadog.cmake`, the actual nginx module source in `src/`,
@@ -44,13 +45,6 @@ target_sources(ngx_http_datadog_module
         $<TARGET_OBJECTS:dd_trace_cpp-objects>
 )
 
-add_dependencies(ngx_http_datadog_module
-    nginx_module
-    nginx_datadog
-    dd_trace_cpp-objects
-)
-
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects libddwaf_shared)
 if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
     if(LINUX)
         target_link_libraries(ngx_http_datadog_module -static-libstdc++ -static-libgcc)

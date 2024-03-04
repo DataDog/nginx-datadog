@@ -20,17 +20,20 @@ namespace security {
 using namespace std::literals;
 
 struct query_string_iter {
-  unsigned char separator;
+  enum class trim_mode { no_trim, do_trim } trim;
   std::string_view qs;
   std::size_t pos{0};
   ddwaf_memres &memres;
   std::unordered_set<std::string_view> interned_strings;
+  unsigned char separator;
 
-  query_string_iter(std::string_view qs, ddwaf_memres &memres, unsigned char separator)
-      : qs{qs}, memres{memres}, separator{separator} {}
+  query_string_iter(std::string_view qs, ddwaf_memres &memres,
+                    unsigned char separator, trim_mode trim)
+      : qs{qs}, memres{memres}, separator{separator}, trim{trim} {}
 
-  query_string_iter(const ngx_str_t &qs, ddwaf_memres &memres, unsigned char separator)
-      : query_string_iter{to_sv(qs), memres, separator} {}
+  query_string_iter(const ngx_str_t &qs, ddwaf_memres &memres,
+                    unsigned char separator, trim_mode trim)
+      : query_string_iter{to_sv(qs), memres, separator, trim} {}
 
   void reset() noexcept { pos = 0; }
 
@@ -96,6 +99,14 @@ struct query_string_iter {
   std::string_view rest() const noexcept { return qs.substr(pos); }
 
   std::string_view decode(std::string_view sv) {
+    if (trim == trim_mode::do_trim) {
+      return decode_trim(sv);
+    } else {
+      return decode_no_trim(sv);
+    }
+  }
+
+  std::string_view decode_no_trim(std::string_view sv) {
     if (sv.empty()) {
       return ""sv;
     }
@@ -157,6 +168,17 @@ struct query_string_iter {
     return intern_string(res);
   }
 
+  std::string_view decode_trim(std::string_view sv) {
+    auto result = decode_no_trim(sv);
+    while (!result.empty() && std::isspace(result.front())) {
+      result.remove_prefix(1);
+    }
+    while (!result.empty() && std::isspace(result.back())) {
+      result.remove_suffix(1);
+    }
+    return result;
+  }
+
   unsigned char decode_plus(unsigned char c) {
     if (c == '+') {
       return ' ';
@@ -177,6 +199,48 @@ struct query_string_iter {
     std::string_view interned_res{p, sv.length()};
     interned_strings.insert(p);
     return interned_res;
+  }
+};
+
+struct qs_iter_agg {
+  std::vector<std::unique_ptr<query_string_iter>> iters;
+  std::size_t cur{0};
+
+  void add(std::unique_ptr<query_string_iter> iter) {
+    iters.push_back(std::move(iter));
+    if (cur == iters.size()) {
+      if (iters[cur]->ended()) {
+        cur++;
+      }
+    }
+  }
+
+  std::string_view cur_key() {
+    return iters[cur]->cur_key();
+  }
+
+  void reset() noexcept {
+    cur = 0;
+    while (cur < iters.size() && iters[cur]->ended()) {
+      cur++;
+    }
+  }
+
+  bool ended() const noexcept {
+    return cur >= iters.size();
+  }
+
+  std::pair<std::string_view, std::string_view> operator*() {
+    return *(*iters[cur]);
+  }
+
+  qs_iter_agg &operator++() {
+    iters[cur]->operator++();
+    while (cur < iters.size() && iters[cur]->ended()) {
+      cur++;
+    }
+
+    return *this;
   }
 };
 }  // namespace security

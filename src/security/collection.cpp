@@ -70,8 +70,13 @@ class req_serializer {
       return;
     }
 
-    dns::query_string_iter it{query, memres_, '&'};
+    dns::query_string_iter it{query, memres_, '&',
+                              dns::query_string_iter::trim_mode::no_trim};
+    set_value_from_iter(it, slot);
+  }
 
+  template<typename Iter>
+  void set_value_from_iter(Iter &it, dns::ddwaf_obj &slot) {
     // first, count the number of occurrences for each key
     std::unordered_map<std::string_view, std::size_t> keys_bag;
     for (; !it.ended(); ++it) {
@@ -114,7 +119,7 @@ class req_serializer {
       } else {
         // subsequence occurrence of this key
         auto &arr_val = *ie->second;
-        arr_val.at_unchecked<dns::ddwaf_obj>(arr_val.nbEntries++)
+        arr_val.template at_unchecked<dns::ddwaf_obj>(arr_val.nbEntries++)
             .make_string(value);
       }
     }
@@ -215,6 +220,8 @@ class req_serializer {
   void set_request_cookie(const Request &request, dns::ddwaf_obj &slot) {
     slot.set_key(COOKIES);
 
+    dns::qs_iter_agg iter{};
+
     if constexpr (headers_in_has_cookie_v) {
       auto *t = request.headers_in.cookie;
       std::size_t count = 0;
@@ -223,19 +230,12 @@ class req_serializer {
         count++;
       }
 
-      if (count == 1) {
-        slot.make_string(dns::to_sv(t->value));
-      } else {
-        slot.type = DDWAF_OBJ_ARRAY;
-        slot.nbEntries = count;
-        slot.array = memres_.allocate_objects(count);
-        for (std::size_t i = 0; i < count; i++) {
-          slot.array[i].type = DDWAF_OBJ_STRING;
-          // XXX: cookies need decoding
-          slot.array[i].stringValue = (char *)t->value.data;
-          slot.array[i].nbEntries = t->value.len;
-          t = t->next;
-        }
+      iter.iters.reserve(count);
+
+      for (auto tp = t; tp; tp = tp->next) {
+        iter.add(std::make_unique<dns::query_string_iter>(
+            dns::to_sv(tp->value), memres_, ';',
+            dns::query_string_iter::trim_mode::do_trim));
       }
     } else {
       std::vector<const ngx_table_elt_t *> cookie_headers;
@@ -253,21 +253,19 @@ class req_serializer {
         cookie_headers.push_back(&h);
       }
 
-      if (cookie_headers.empty()) {
-        slot.make_map(nullptr, 0);
-        return;
-      }
-
-      // XXX: cookies need decoding
-      slot.type = DDWAF_OBJ_ARRAY;
-      slot.nbEntries = cookie_headers.size();
-      slot.array = memres_.allocate_objects(cookie_headers.size());
-      for (std::size_t i = 0; i < cookie_headers.size(); i++) {
-        slot.array[i].type = DDWAF_OBJ_STRING;
-        slot.array[i].stringValue = (char *)cookie_headers[i]->value.data;
-        slot.array[i].nbEntries = cookie_headers[i]->value.len;
+      for (auto &&ch: cookie_headers) {
+        iter.add(std::make_unique<dns::query_string_iter>(
+            dns::to_sv(ch->value), memres_, ';',
+            dns::query_string_iter::trim_mode::do_trim));
       }
     }
+
+    if (iter.ended()) {
+      slot.make_map(nullptr, 0);
+      return;
+    }
+
+    set_value_from_iter(iter, slot);
   }
 
   dns::ddwaf_memres &memres_;

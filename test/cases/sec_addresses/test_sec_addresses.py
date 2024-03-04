@@ -28,10 +28,18 @@ class TestSecAddresses(case.TestCase):
         # Consume any previous logging from the agent.
         self.orch.sync_service('agent')
 
-    def do_request(self, query):
+    def do_request_query(self, query):
         status, _, _ = self.orch.send_nginx_http_request('/http?' + query, 80)
         self.assertEqual(status, 200)
+        return self.do_request_common()
 
+    def do_request_headers(self, headers):
+        status, _, _ = self.orch.send_nginx_http_request('/http', 80, headers)
+        self.assertEqual(status, 200)
+        return self.do_request_common()
+
+
+    def do_request_common(self):
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service('agent')
         entries = [json.loads(line) for line in log_lines]
@@ -102,3 +110,7 @@ class TestSecAddresses(case.TestCase):
     def test_value_unfinished_percent_enc4(self):
         result = self.do_request('key=%amatched%20value')
         self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], '%amatched value')
+
+    def test_cookie_simple(self):
+        result = self.do_request_headers({'Cookie': 'key=matched+value'})
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], 'matched value')
