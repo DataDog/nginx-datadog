@@ -6,21 +6,29 @@ from pathlib import Path
 
 
 class TestSecBlocking(case.TestCase):
-    def run_with_ua(self, user_agent, accept):
-        waf_path = Path(__file__).parent / './conf/waf.json'
-        waf_text = waf_path.read_text()
-        self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
+    config_setup_done = False
 
-        conf_path = Path(__file__).parent / './conf/http.conf'
-        conf_text = conf_path.read_text()
+    def setUp(self):
+        super().setUp()
+        # avoid reconfiguration (cuts time almost in half)
+        if not TestSecBlocking.config_setup_done:
+            waf_path = Path(__file__).parent / './conf/waf.json'
+            waf_text = waf_path.read_text()
+            self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
 
-        status, log_lines = self.orch.nginx_replace_config(
-            conf_text, conf_path.name)
-        self.assertEqual(0, status, log_lines)
+            conf_path = Path(__file__).parent / './conf/http.conf'
+            conf_text = conf_path.read_text()
+
+            status, log_lines = self.orch.nginx_replace_config(
+                conf_text, conf_path.name)
+            self.assertEqual(0, status, log_lines)
+
+            TestSecBlocking.config_setup_done = True
 
         # Consume any previous logging from the agent.
         self.orch.sync_service('agent')
 
+    def run_with_ua(self, user_agent, accept):
         headers = {'User-Agent': user_agent, 'Accept': accept}
         status, headers, body = self.orch.send_nginx_http_request('/http', 80, headers)
 

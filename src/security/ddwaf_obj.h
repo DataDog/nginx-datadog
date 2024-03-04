@@ -2,6 +2,10 @@
 
 #include <ddwaf.h>
 
+#include <cstring>
+#include <limits>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -13,11 +17,11 @@ namespace datadog {
 namespace nginx {
 namespace security {
 
-using ddwaf_str_obj_ma = struct ddwaf_str_obj may_alias;
-using ddwaf_arr_obj_ma = struct ddwaf_arr_obj may_alias;
-using ddwaf_map_obj_ma = struct ddwaf_map_obj may_alias;
+struct may_alias ddwaf_str_obj;
+struct may_alias ddwaf_arr_obj;
+struct may_alias ddwaf_map_obj;
 
-struct ddwaf_obj : ddwaf_object {
+struct may_alias ddwaf_obj : ddwaf_object {
   using nb_entries_t = decltype(nbEntries);
   ddwaf_obj() = default;
   ddwaf_obj(const ddwaf_object &dobj) : ddwaf_object{dobj} {}
@@ -65,37 +69,37 @@ struct ddwaf_obj : ddwaf_object {
     throw std::invalid_argument("not a numeric value");
   }
 
-  ddwaf_str_obj_ma &make_string(std::string_view sv) {
+  ddwaf_str_obj &make_string(std::string_view sv) {
     type = DDWAF_OBJ_STRING;
     stringValue = const_cast<char *>(sv.data());
     nbEntries = sv.length();
-    return *reinterpret_cast<ddwaf_str_obj_ma *>(this);
+    return *reinterpret_cast<ddwaf_str_obj *>(this);
   }
 
-  ddwaf_arr_obj_ma &make_array(ddwaf_obj *arr, nb_entries_t size) {
+  ddwaf_arr_obj &make_array(ddwaf_obj *arr, nb_entries_t size) {
     type = DDWAF_OBJ_ARRAY;
     array = arr;
     nbEntries = size;
-    return *reinterpret_cast<ddwaf_arr_obj_ma *>(this);
+    return *reinterpret_cast<ddwaf_arr_obj *>(this);
   }
-  ddwaf_arr_obj_ma &make_array(nb_entries_t size, ddwaf_memres &memres) {
+  ddwaf_arr_obj &make_array(nb_entries_t size, ddwaf_memres &memres) {
     type = DDWAF_OBJ_ARRAY;
     array = memres.allocate_objects(size);
     nbEntries = size;
-    return *reinterpret_cast<ddwaf_arr_obj_ma *>(this);
+    return *reinterpret_cast<ddwaf_arr_obj *>(this);
   }
 
-  ddwaf_map_obj_ma &make_map(ddwaf_obj *entries, nb_entries_t size) {
+  ddwaf_map_obj &make_map(ddwaf_obj *entries, nb_entries_t size) {
     type = DDWAF_OBJ_MAP;
     array = entries;
     nbEntries = size;
-    return *reinterpret_cast<ddwaf_map_obj_ma *>(this);
+    return *reinterpret_cast<ddwaf_map_obj *>(this);
   }
-  ddwaf_map_obj_ma &make_map(nb_entries_t size, ddwaf_memres &memres) {
+  ddwaf_map_obj &make_map(nb_entries_t size, ddwaf_memres &memres) {
     type = DDWAF_OBJ_MAP;
     array = memres.allocate_objects(size);
     nbEntries = size;
-    return *reinterpret_cast<ddwaf_map_obj_ma *>(this);
+    return *reinterpret_cast<ddwaf_map_obj *>(this);
   }
 };
 
@@ -118,14 +122,19 @@ struct ddwaf_arr_obj : ddwaf_obj {
     }
   }
 
-  template <typename T = ddwaf_object, typename TMA = T may_alias>
-  TMA &at(nb_entries_t index) const {
+  template <typename T = ddwaf_object>
+  T &at_unchecked(nb_entries_t index) const {
     static_assert(std::is_base_of<ddwaf_obj, T>::value,
                   "T must be a subclass of ddwaf_obj");
+    return *reinterpret_cast<T*>(&array[index]);
+  }
+
+  template <typename T = ddwaf_object>
+  T &at(nb_entries_t index) const {
     if (index >= nbEntries) {
       throw std::out_of_range("index out of range");
     }
-    return *reinterpret_cast<TMA*>(&array[index]);
+    return at_unchecked<T>(index);
   }
 
   struct iterator {

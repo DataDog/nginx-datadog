@@ -20,16 +20,17 @@ namespace security {
 using namespace std::literals;
 
 struct query_string_iter {
+  unsigned char separator;
   std::string_view qs;
   std::size_t pos{0};
   ddwaf_memres &memres;
   std::unordered_set<std::string_view> interned_strings;
 
-  query_string_iter(const ngx_str_t &qs, ddwaf_memres &memres)
-      : qs{to_sv(qs)}, memres{memres} {}
+  query_string_iter(std::string_view qs, ddwaf_memres &memres, unsigned char separator)
+      : qs{qs}, memres{memres}, separator{separator} {}
 
-  query_string_iter(std::string_view qs, ddwaf_memres &memres)
-      : qs{qs}, memres{memres} {}
+  query_string_iter(const ngx_str_t &qs, ddwaf_memres &memres, unsigned char separator)
+      : query_string_iter{to_sv(qs), memres, separator} {}
 
   void reset() noexcept { pos = 0; }
 
@@ -41,50 +42,52 @@ struct query_string_iter {
     return pos == qs.length();
   }
 
+  // this may return empty keys and/or values, e.g. ?a=&=v&
   std::pair<std::string_view, std::string_view> operator*() {
-    std::string_view sv{rest()};
+    std::string_view kv{rest()};
 
-    auto amp = sv.find('&');
-    if (amp != std::string_view::npos) {
-      sv = sv.substr(0, amp);
+    auto sep_pos = kv.find(separator);
+    if (sep_pos != std::string_view::npos) {
+      kv = kv.substr(0, sep_pos);
     }
 
-    auto eq = sv.find('=');
-    if (eq == std::string_view::npos) {
+    auto eq_pos = kv.find('=');
+    if (eq_pos == std::string_view::npos) {
       // no =
-      return {decode(sv), ""sv};
+      return {decode(kv), ""sv};
     }
-    if (eq == sv.size() - 1) {
+    if (eq_pos == kv.size() - 1) {
       // foo=, with nothing after
-      return {decode(sv.substr(0, eq)), ""sv};
+      return {decode(kv.substr(0, eq_pos)), ""sv};
     }
 
-    return {sv.substr(0, eq), sv.substr(eq + 1, sv.size() - eq - 1)};
+    return {decode(kv.substr(0, eq_pos)),
+            decode(kv.substr(eq_pos + 1, kv.size() - eq_pos - 1))};
   }
 
   std::string_view cur_key() {
-    std::string_view sv{rest()};
+    std::string_view kv{rest()};
 
-    auto amp = sv.find('&');
-    if (amp != std::string_view::npos) {
-      sv = sv.substr(0, amp);
+    auto sep_pos = kv.find(separator);
+    if (sep_pos != std::string_view::npos) {
+      kv = kv.substr(0, sep_pos);
     }
 
-    auto eq = sv.find('=');
-    if (eq == std::string_view::npos) {
+    auto eq_pos = kv.find('=');
+    if (eq_pos == std::string_view::npos) {
       // no =
-      return decode(sv);
+      return decode(kv);
     }
 
-    return decode(sv.substr(0, eq));
+    return decode(kv.substr(0, eq_pos));
   }
 
   query_string_iter &operator++() {
-    auto amp = rest().find('&');
-    if (amp == std::string_view::npos || amp == qs.size() - 1) {
+    auto sep_pos = rest().find(separator);
+    if (sep_pos == std::string_view::npos) {
       pos = qs.length();
     } else {
-      pos += amp + 1;
+      pos += sep_pos + 1;
     }
     return *this;
   }
@@ -97,61 +100,81 @@ struct query_string_iter {
       return ""sv;
     }
 
-    auto perc = sv.find('%');
-    if (perc == std::string_view::npos) {
+    auto perc_or_plus = sv.find_first_of("%+");
+    if (perc_or_plus == std::string_view::npos) {
       return sv;
     }
 
-    // allocate the same size, because some % might not introduce a valid
-    // hexadecimal sequence
+    // allocate the same size; this may be an overstimation
     std::unique_ptr<unsigned char[]> buf{new unsigned char[sv.size()]};
-    std::string_view r{sv};
-    unsigned char *w = buf.get();
-    while (true) {
-      std::memcpy(w, r.data(), perc);
-      w += perc;
-
-      if (r.length() >= perc + 3) {
-        auto num = sv.substr(perc + 1, 2);
-        unsigned result;
-        const char *end = num.data() + num.length();
-        auto [ptr, ec] = std::from_chars(num.data(), end, result, 16);
-        if (ec == std::errc{} && ptr == end) {
-          *w = static_cast<unsigned char>(result);
-          w++;
-          sv.remove_prefix(perc + 3);
-          perc = sv.find('%');
-        } else {
-          *w = '%';
-          w++;
-          sv.remove_prefix(perc + 1);
-          perc = sv.find('%');
-        }
-        if (perc == std::string_view::npos) {
-          std::memcpy(w, sv.data(), sv.length());
-          w += sv.length();
+    enum class state { normal, percent, percent1 } state = state::normal;
+    const unsigned char *r = reinterpret_cast<const unsigned char *>(sv.data());
+    const unsigned char *end = r + sv.size();
+    unsigned char *w = reinterpret_cast<unsigned char *>(buf.get());
+    for (; r < end; r++) {
+      switch (state) {
+        case state::normal:
+          if (*r == '%') {
+            state = state::percent;
+          } else {
+            *w++ = decode_plus(*r);
+          }
           break;
-        }
-      } else {
-        std::memcpy(w, r.data() + perc, r.length() - perc);
-        w += r.length();
-        break;
+        case state::percent:
+          if (std::isxdigit(*r)) {
+            state = state::percent1;
+          } else {
+            *w++ = '%';
+            *w++ = decode_plus(*r);
+            state = state::normal;
+          }
+          break;
+        case state::percent1:
+          if (std::isxdigit(*r)) {
+            unsigned result;
+            // can't fail
+            std::from_chars(reinterpret_cast<const char *>(r - 1),
+                            reinterpret_cast<const char *>(r + 1), result, 16);
+            *w++ = static_cast<unsigned char>(result);
+          } else {
+            *w++ = '%';
+            *w++ = *(r - 1);
+            *w++ = decode_plus(*r);
+          }
+          state = state::normal;
+          break;
       }
+    }
+    if (state == state::percent) {
+      *w++ = '%';
+    } else if (state == state::percent1) {
+      *w++ = '%';
+      *w++ = *(sv.data() + sv.size() - 1);
     }
 
     std::string_view res{reinterpret_cast<char *>(buf.get()),
                          static_cast<std::uintptr_t>(w - buf.get())};
+    return intern_string(res);
+  }
 
-    auto interned = interned_strings.find(res);
+  unsigned char decode_plus(unsigned char c) {
+    if (c == '+') {
+      return ' ';
+    }
+    return c;
+  }
+
+  std::string_view intern_string(std::string_view sv) {
+    auto interned = interned_strings.find(sv);
     if (interned != interned_strings.end()) {
       return *interned;
     }
 
-    auto *p = memres.allocate_string(res.length() + 1);
-    std::memcpy(p, res.data(), res.length());
-    p[res.length()] = '\0';
+    auto *p = memres.allocate_string(sv.length() + 1);
+    std::memcpy(p, sv.data(), sv.length());
+    p[sv.length()] = '\0';
 
-    std::string_view interned_res{p, res.length()};
+    std::string_view interned_res{p, sv.length()};
     interned_strings.insert(p);
     return interned_res;
   }

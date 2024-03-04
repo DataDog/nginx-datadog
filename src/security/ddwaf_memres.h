@@ -3,6 +3,7 @@
 #include <ddwaf.h>
 #include <algorithm>
 #include <cstdlib>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -38,8 +39,7 @@ class ddwaf_memres {
       std::size_t size = std::max(MIN_OBJ_SEG_SIZE, num_objects);
       new_objects_segment(size);
     }
-    auto *p =
-        allocs_object_.back().get() + (objects_stored_ * sizeof(T));
+    auto *p = allocs_object_.back().get() + (objects_stored_);
 
     objects_stored_ += num_objects;
     // keep braces, some code depends on this being zero-initialized:
@@ -63,8 +63,7 @@ class ddwaf_memres {
  private:
   // TODO: allocate in request pool?
   void new_objects_segment(size_t num_objects) {
-    allocs_object_.emplace_back(
-        new std::uint8_t[sizeof(ddwaf_object) * num_objects]);
+    allocs_object_.emplace_back(new ddwaf_object[num_objects]);
     cur_object_seg_size_ = num_objects;
     objects_stored_ = 0;
   }
@@ -77,7 +76,7 @@ class ddwaf_memres {
 
   std::size_t cur_object_seg_size_{0};  // in num objects
   std::size_t cur_string_seg_size_{0};  // in bytes
-  std::vector<std::unique_ptr<std::uint8_t[]>> allocs_object_;
+  std::vector<std::unique_ptr<ddwaf_object[]>> allocs_object_;
   std::vector<std::unique_ptr<char>> allocs_string_;
   std::size_t objects_stored_{0};
   std::size_t strings_stored_{0};

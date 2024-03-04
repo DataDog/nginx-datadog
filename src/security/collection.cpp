@@ -18,7 +18,6 @@ extern "C" {
 namespace {
 
 namespace dns = datadog::nginx::security;
-using std::string_view_literals::operator""sv;
 
 template <typename T, typename = std::void_t<>>
 struct has_cookie : std::false_type {};
@@ -71,7 +70,7 @@ class req_serializer {
       return;
     }
 
-    dns::query_string_iter it{query, memres_};
+    dns::query_string_iter it{query, memres_, '&'};
 
     // first, count the number of occurrences for each key
     std::unordered_map<std::string_view, std::size_t> keys_bag;
@@ -108,14 +107,15 @@ class req_serializer {
 
         entry.set_key(key);
         auto &arr_val = entry.make_array(num_occurr, memres_);
-        arr_val.at<dns::ddwaf_obj>(0).make_string(value);
+        arr_val.at_unchecked<dns::ddwaf_obj>(0).make_string(value);
         entry.nbEntries = 1;
 
         indexed_entries.insert({key, &arr_val});
       } else {
         // subsequence occurrence of this key
         auto &arr_val = *ie->second;
-        arr_val.at<dns::ddwaf_obj>(arr_val.nbEntries++).make_string(value);
+        arr_val.at_unchecked<dns::ddwaf_obj>(arr_val.nbEntries++)
+            .make_string(value);
       }
     }
   }
