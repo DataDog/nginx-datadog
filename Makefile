@@ -57,7 +57,10 @@ lint: .clang-format
 clean:
 	rm -rf \
 		.build \
-		.docker-build
+		.docker-build \
+		nginx \
+		dd-trace-cpp
+	mkdir dd-trace-cpp
 
 .PHONY: clobber
 clobber: clean
