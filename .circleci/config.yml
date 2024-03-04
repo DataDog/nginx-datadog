@@ -155,6 +155,28 @@ workflows:
         matrix:
           parameters:
             arch: ["amd64", "arm64"]
+        name: "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
+        base-image: "amazonlinux:2023.3.20240219.0"
+        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2023.3.20240219.0"
+        nginx-version: "1.22.1"
+        filters:
+          tags:
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - test:
+        matrix:
+          parameters:
+            arch: ["amd64", "arm64"]
+        name: "test on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
+        base-image: "amazonlinux:2023.3.20240219.0"
+        requires:
+        - "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
+        filters:
+          tags:
+            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - build:
+        matrix:
+          parameters:
+            arch: ["amd64", "arm64"]
         name: "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
         base-image: "amazonlinux:2.0.20230418.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230418.0"
@@ -221,6 +243,24 @@ workflows:
   build-and-test-all:
     jobs:
     # Output of `bin/generate_jobs_yaml.sh` begins on the following line.
+    - build:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        name: "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
+        base-image: "amazonlinux:2023.3.20240219.0"
+        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2023.3.20240219.0"
+        nginx-version: "1.24.0"
+    - test:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            arch: [amd64,arm64]
+        requires:
+        - "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
+        name: "test on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
+        base-image: "amazonlinux:2023.3.20240219.0"
     - build:
         <<: *release_tag_only
         matrix:

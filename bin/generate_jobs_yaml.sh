@@ -2,7 +2,7 @@
 
 # Print out a snippet that will go in .circleci/config.yaml
 #
-# It describes a "build" and "test" job for each supported nginx tag.
+# It describes a "build" and "test" job for each supported base docker image.
 
 set -e
 
@@ -13,8 +13,9 @@ cd "$REPO"
 
 # Here are the supported build/test configurations.
 version_table=$(mktemp)
-# base-image    nginx-version    architecture
->"$version_table" cat <<END_NGINX_TAGS
+# base-image    nginx-version    architectures
+>"$version_table" cat <<END_TABLE
+amazonlinux:2023.3.20240219.0 1.24.0 amd64,arm64
 amazonlinux:2.0.20230418.0 1.22.1 amd64,arm64
 amazonlinux:2.0.20230320.0 1.22.1 amd64,arm64
 amazonlinux:2.0.20230307.0 1.22.1 amd64,arm64
@@ -125,7 +126,7 @@ nginx:1.17.0-alpine 1.17.0 amd64,arm64
 nginx:1.16.1-alpine 1.16.1 amd64,arm64
 nginx:1.16.1 1.16.1 amd64,arm64
 nginx:1.16.0-alpine 1.16.0 amd64,arm64
-END_NGINX_TAGS
+END_TABLE
 
 while read -r base_image nginx_version archs; do
   base_image_without_colons=$(echo "$base_image" | tr ':' '_')

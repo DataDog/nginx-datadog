@@ -3,7 +3,12 @@
 set -e
 
 install_nginx_on_amazon_linux() {
-    amazon-linux-extras enable -y nginx1
+    # Older versions of Amazon Linux needed "amazon-linux-extras" in order to
+    # install nginx. Newer versions of Amazon Linux don't have
+    # "amazon-linux-extras".
+    if >/dev/null command -v amazon-linux-extras; then
+        amazon-linux-extras enable -y nginx1
+    fi
     yum install -y nginx
 }
 
