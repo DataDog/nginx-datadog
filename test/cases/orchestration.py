@@ -300,9 +300,15 @@ def docker_compose_services():
 def curl(url, headers, stderr=None):
 
     def header_args():
-        for name, value in headers.items():
-            yield '--header'
-            yield f'{name}: {value}'
+        if isinstance(headers, dict):
+            for name, value in headers.items():
+                yield '--header'
+                yield f'{name}: {value}'
+        else:
+            for name, value in headers:
+                yield '--header'
+                yield f'{name}: {value}'
+
 
     # "curljson.sh" is a script that lives in the "client" docker compose
     # service.  It's a wrapper around "curl" that outputs a JSON object of

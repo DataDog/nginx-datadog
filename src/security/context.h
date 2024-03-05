@@ -87,6 +87,7 @@ class context {
 
   // runs on a separate thread; returns whether it blocked
   std::optional<block_spec> run_waf_start(ngx_http_request_t &request, dd::Span &span);
+  void run_waf_end(const ngx_http_request_t &request, dd::Span &span);
 
   std::vector<owned_ddwaf_result> results_;
   owned_ddwaf_context ctx_{nullptr};

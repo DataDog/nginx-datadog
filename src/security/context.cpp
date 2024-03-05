@@ -249,6 +249,10 @@ bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
   if (ctx_.resource == nullptr) {
     return false;
   }
+  if (request.main != &request) {
+    // not the main request
+    return false;
+  }
 
   auto *conf = static_cast<datadog_loc_conf_t *>(
       ngx_http_get_module_loc_conf(&request, ngx_http_datadog_module));

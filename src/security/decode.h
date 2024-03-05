@@ -220,6 +220,9 @@ struct qs_iter_agg {
   }
 
   void reset() noexcept {
+    for (size_t i = 0; i < iters.size(); i++) {
+      iters[i]->reset();
+    }
     cur = 0;
     while (cur < iters.size() && iters[cur]->ended()) {
       cur++;

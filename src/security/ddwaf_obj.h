@@ -194,6 +194,11 @@ struct ddwaf_map_obj : ddwaf_obj {
     return std::nullopt;
   }
 
+  template<typename T = ddwaf_obj>
+  T& get_entry_unchecked(std::size_t i) {
+    return *reinterpret_cast<T*>(&array[i]);
+  }
+
   struct iterator {
     iterator(const ddwaf_map_obj &map, nb_entries_t index = 0)
         : map_{map}, index_{index} {}

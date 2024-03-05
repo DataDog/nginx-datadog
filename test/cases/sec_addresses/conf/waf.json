@@ -57,6 +57,30 @@
       "transformers": [
         "values_only"
       ]
+    },
+    {
+      "id": "partial_match_values",
+      "name": "Partially match values",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.uri.raw"
+              }
+            ],
+            "regex": ".*matched.value.*"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [
+        "values_only"
+      ]
     }
   ]
 }
