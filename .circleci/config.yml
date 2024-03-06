@@ -158,7 +158,7 @@ workflows:
         name: "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
         base-image: "amazonlinux:2023.3.20240219.0"
         build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2023.3.20240219.0"
-        nginx-version: "1.22.1"
+        nginx-version: "1.24.0"
         filters:
           tags:
             ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
