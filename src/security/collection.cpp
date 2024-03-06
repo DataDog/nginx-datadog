@@ -6,6 +6,7 @@
 #include <cctype>
 #include <charconv>
 #include <cstring>
+#include <functional>
 #include <string_view>
 #include <unordered_map>
 
@@ -200,17 +201,17 @@ class req_serializer {
 
   void set_request_headers_nocookies(const ngx_http_request_t &request,
                                      dns::ddwaf_obj &slot) {
-    set_headers_generic(request, slot, HEADERS_NO_COOKIES,
+    set_headers_generic(request.headers_in.headers, slot, HEADERS_NO_COOKIES,
                         tally_headers_no_cookies);
   }
 
   template <typename TallyFunc>
-  void set_headers_generic(const ngx_http_request_t &request,
+  void set_headers_generic(const ngx_list_t &headers,
                            dns::ddwaf_obj &slot, std::string_view key,
                            TallyFunc &&tally_func) {
     slot.set_key(key);
 
-    ngx_str_bag header_bag = count_headers(request.headers_out.headers);
+    ngx_str_bag header_bag = count_headers(headers);
     std::size_t header_count =
         std::invoke(std::forward<TallyFunc>(tally_func), header_bag);
 
@@ -218,7 +219,7 @@ class req_serializer {
     dns::ddwaf_obj *entries = static_cast<dns::ddwaf_obj *>(slot.array);
 
     ngx_str_dobj_arr multivalue_arr = alloc_multivalue_header_arr(header_bag);
-    dns::ngnix_header_iterable it{request.headers_out.headers};
+    dns::ngnix_header_iterable it{headers};
     std::size_t i = 0;
     for (auto &&h : it) {
       assert(h.lowcase_key != nullptr);  // TODO
@@ -335,8 +336,8 @@ class req_serializer {
 
   void set_response_headers_no_cookies(const ngx_http_request_t &request,
                                        dns::ddwaf_obj &slot) {
-    set_headers_generic(request, slot, RESP_HEADERS_NO_COOKIES,
-                        tally_resp_headers_no_cookies);
+    set_headers_generic(request.headers_out.headers, slot,
+                        RESP_HEADERS_NO_COOKIES, tally_resp_headers_no_cookies);
   }
 
   dns::ddwaf_memres &memres_;

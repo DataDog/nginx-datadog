@@ -15,7 +15,7 @@ endif
 .PHONY: build
 build: build-deps nginx-version-info sources
 	#mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DNGINX_VERSION=$(NGINX_VERSION) -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DNGINX_VERSION=$(NGINX_VERSION) -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DNGINX_VERSION=$(NGINX_VERSION) -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
 	chmod 755 $(BUILD_DIR)/libngx_http_datadog_module$(LIB_SUFFIX)
 	@echo 'build successful 👍'
 

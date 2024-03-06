@@ -446,6 +446,7 @@ void context::do_on_request_end(const ngx_http_request_t &request,
   if (st != stage::after_begin_waf) {
     return;
   }
+
   if (results_.empty()) {
     return;
   }
