@@ -31,6 +31,8 @@ class DatadogContext {
 
   void on_log_request(ngx_http_request_t* request);
 
+  ngx_int_t output_header_filter(ngx_http_request_t& request);
+
   ngx_str_t lookup_propagation_header_variable_value(
       ngx_http_request_t* request, std::string_view key);
 

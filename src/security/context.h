@@ -78,23 +78,29 @@ class context {
   context();
 
   bool on_request_start(ngx_http_request_t &request, dd::Span &span) noexcept;
-  void on_request_end(const ngx_http_request_t &request,
-                      dd::Span &span) noexcept;
+  ngx_int_t output_header_filter(
+      ngx_http_request_t &request,
+      dd::Span &span) noexcept;
 
  private:
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
-  void do_on_request_end(const ngx_http_request_t &request, dd::Span &span);
+  ngx_int_t do_output_header_filter(ngx_http_request_t &request, dd::Span &span);
 
   // runs on a separate thread; returns whether it blocked
   std::optional<block_spec> run_waf_start(ngx_http_request_t &request, dd::Span &span);
-  void run_waf_end(const ngx_http_request_t &request, dd::Span &span);
+  std::optional<block_spec> run_waf_end(ngx_http_request_t &request, dd::Span &span);
 
   std::vector<owned_ddwaf_result> results_;
   owned_ddwaf_context ctx_{nullptr};
   std::shared_ptr<waf_handle> waf_handle_;
   ddwaf_memres memres_;
 
-  enum class stage { start, after_begin_waf, after_report };
+  enum class stage {
+    start,
+    after_begin_waf,
+    after_begin_waf_block, // in this case we won't run the waf at the end
+    after_report
+  };
   std::unique_ptr<std::atomic<stage>> stage_;
 };
 

@@ -35,6 +35,8 @@ class RequestTracing {
 
   void on_log_request();
 
+  ngx_int_t output_header_filter();
+
   ngx_str_t lookup_propagation_header_variable_value(std::string_view key);
   ngx_str_t lookup_span_variable_value(std::string_view key);
   ngx_str_t lookup_sampling_delegation_response_variable_value();

@@ -481,6 +481,9 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_log_request;
 
+  ngx_http_next_output_header_filter = ngx_http_top_header_filter;
+  ngx_http_top_header_filter = output_header_filter;
+
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();
   if (tags.empty()) return NGX_OK;

@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "datadog_handler.h"
 #include "dd.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
@@ -39,6 +40,15 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
         "on_log_request failed: could not find request trace"};
   }
   trace->on_log_request();
+}
+
+ngx_int_t DatadogContext::output_header_filter(ngx_http_request_t &request) {
+  auto trace = find_trace(&request);
+  if (trace == nullptr) {
+    throw std::runtime_error{
+        "on_log_request failed: could not find request trace"};
+  }
+  return trace->output_header_filter();
 }
 
 ngx_str_t DatadogContext::lookup_propagation_header_variable_value(

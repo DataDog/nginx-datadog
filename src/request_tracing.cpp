@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "array_util.h"
+#include "datadog_handler.h"
 #include "dd.h"
 #include "global_tracer.h"
 #include "ngx_header_reader.h"
@@ -301,7 +302,6 @@ void RequestTracing::on_exit_block(
 
 void RequestTracing::on_log_request() {
   auto finish_timestamp = std::chrono::steady_clock::now();
-  sec_ctx_.on_request_end(*request_, *request_span_);
 
   on_exit_block(finish_timestamp);
 
@@ -328,6 +328,14 @@ void RequestTracing::on_log_request() {
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
+}
+
+ngx_int_t RequestTracing::output_header_filter() {
+  if (request_ != request_->main) {
+    return ngx_http_next_output_header_filter(request_);
+  }
+
+  return sec_ctx_.output_header_filter(*request_, *request_span_);
 }
 
 // Expands the active span context into a list of key-value pairs and returns
