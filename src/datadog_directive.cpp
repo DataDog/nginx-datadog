@@ -89,89 +89,6 @@ static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-static ngx_str_t make_propagation_header_variable(ngx_pool_t *pool,
-                                                  std::string_view key) {
-  auto prefix = TracingLibrary::propagation_header_variable_name_prefix();
-  // result = "$" + prefix + key
-  auto size = 1 + prefix.size() + key.size();
-  auto data = static_cast<char *>(ngx_palloc(pool, size));
-  if (data == nullptr) throw std::bad_alloc{};
-
-  // result = "$" + prefix + key
-  char *iter = data;
-  *iter++ = '$';
-  iter = std::copy(prefix.begin(), prefix.end(), iter);
-  std::transform(key.begin(), key.end(), iter, header_transform_char);
-
-  return {size, reinterpret_cast<unsigned char *>(data)};
-}
-
-// Sets up headers to be added so that the active span context is propagated
-// upstream when using ngx_http_proxy_module.
-//
-// The directive gets translated to the directives
-//
-//      proxy_set_header header_name0 $header_variable_key0
-//      proxy_set_header header_name1 $header_variable_key1
-//      ...
-//      proxy_set_header header_nameN $header_variable_keyN
-//
-// where header_variable_keyN is a prefix variable that expands to the
-// corresponding value of the active span context.
-//
-// The key value of proxy_set_header isn't allowed to be a variable, so the keys
-// used for propagation need to be discovered before this directive is called.
-// (See the definition of lock_propagation_styles).
-//
-// This approach was discussed here
-//     http://mailman.nginx.org/pipermail/nginx-devel/2018-March/011008.html
-char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
-                                void *conf) noexcept try {
-  auto main_conf = static_cast<datadog_main_conf_t *>(
-      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
-
-  // The only way that `main_conf` could be `nullptr` is if there's no `http`
-  // block in the nginx configuration.  In that case, this function would never
-  // get called, because it's called only from configuration directives that
-  // live inside the `http` block.
-  assert(main_conf != nullptr);
-
-  if (!main_conf->are_propagation_styles_locked) {
-    if (auto rcode = lock_propagation_styles(command, cf)) {
-      return rcode;
-    }
-  }
-  // For each propagation header (from `span_context_keys`), add a
-  // "proxy_set_header ...;" directive to the configuration, and then process
-  // the injected directive by calling `datadog_conf_handler`.
-  const auto &keys = main_conf->span_context_keys;
-
-  auto old_args = cf->args;
-
-  ngx_str_t args[] = {ngx_string("proxy_set_header"), ngx_str_t(), ngx_str_t()};
-  ngx_array_t args_array;
-  args_array.elts = static_cast<void *>(&args);
-  args_array.nelts = sizeof args / sizeof args[0];
-
-  cf->args = &args_array;
-  const auto guard = defer([&]() { cf->args = old_args; });
-
-  for (const std::string_view key : keys) {
-    args[1] = ngx_str_t{key.size(), reinterpret_cast<unsigned char *>(
-                                        const_cast<char *>(key.data()))};
-    args[2] = make_propagation_header_variable(cf->pool, key);
-    auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
-    if (rcode != NGX_OK) {
-      return static_cast<char *>(NGX_CONF_ERROR);
-    }
-  }
-  return static_cast<char *>(NGX_CONF_OK);
-} catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0, "datadog_propagate_context failed: %s",
-                e.what());
-  return static_cast<char *>(NGX_CONF_ERROR);
-}
-
 char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
                                                  ngx_command_t *command,
                                                  void *conf) noexcept {
@@ -267,6 +184,22 @@ char *hijack_access_log(ngx_conf_t *cf, ngx_command_t *command,
                 "Datadog-wrapped configuration directive %V failed: %s",
                 command->name, e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
+}
+
+char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
+                      ngx_str_t value) noexcept {
+  if (!tags) return static_cast<char *>(NGX_CONF_ERROR);
+
+  auto tag = static_cast<datadog_tag_t *>(ngx_array_push(tags));
+  if (!tag) return static_cast<char *>(NGX_CONF_ERROR);
+
+  ngx_memzero(tag, sizeof(datadog_tag_t));
+  if (tag->key_script.compile(cf, key) != NGX_OK)
+    return static_cast<char *>(NGX_CONF_ERROR);
+  if (tag->value_script.compile(cf, value) != NGX_OK)
+    return static_cast<char *>(NGX_CONF_ERROR);
+
+  return static_cast<char *>(NGX_CONF_OK);
 }
 
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
@@ -736,6 +669,18 @@ char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
   ngx_log_error(NGX_LOG_ERR, cf->log, 0, "hijack_auth_request failed: %s",
                 e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
+}
+char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t * /*command*/,
+                              void * /*conf*/) noexcept {
+  const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
+  assert(cf->args->nelts >= 1);
+
+  ngx_log_error(
+      NGX_LOG_WARN, cf->log, 0,
+      "Directive \"%V\" is deprecated and can be removed since v1.0.15.",
+      &elements[0]);
+
+  return NGX_OK;
 }
 
 }  // namespace nginx

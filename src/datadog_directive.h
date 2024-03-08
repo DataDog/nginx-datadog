@@ -10,9 +10,6 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-char *propagate_datadog_context(ngx_conf_t *cf, ngx_command_t *command,
-                                void *conf) noexcept;
-
 char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
                                                  ngx_command_t *command,
                                                  void *conf) noexcept;
@@ -76,6 +73,9 @@ char *set_datadog_allow_sampling_delegation_in_subrequests(
 
 char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept;
+
+char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t * /*command*/,
+                              void * /*conf*/) noexcept;
 
 }  // namespace nginx
 }  // namespace datadog

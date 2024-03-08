@@ -12,6 +12,7 @@
 
 #include "array_util.h"
 #include "dd.h"
+#include "string_util.h"
 
 extern "C" {
 #include <nginx.h>
@@ -24,19 +25,26 @@ namespace datadog {
 namespace nginx {
 
 class NgxHeaderReader : public dd::DictReader {
-  std::unordered_map<std::string_view, std::string_view> headers_;
+  std::unordered_map<std::string, std::string_view> headers_;
   mutable std::string buffer_;
 
  public:
-  explicit NgxHeaderReader(const ngx_http_request_t *request) {
-    for_each<ngx_table_elt_t>(
-        request->headers_in.headers, [&](const ngx_table_elt_t &header) {
-          auto key = std::string_view{
-              reinterpret_cast<char *>(header.lowcase_key), header.key.len};
-          auto value = std::string_view{
-              reinterpret_cast<char *>(header.value.data), header.value.len};
-          headers_.emplace(key, value);
-        });
+  explicit NgxHeaderReader(const ngx_list_t *headers) {
+    for_each<ngx_table_elt_t>(*headers, [&](const ngx_table_elt_t &header) {
+      if (header.lowcase_key != NULL && header.hash != 1) {
+        auto key = std::string_view{
+            reinterpret_cast<char *>(header.lowcase_key), header.key.len};
+        auto value = std::string_view{
+            reinterpret_cast<char *>(header.value.data), header.value.len};
+        headers_.emplace(key, value);
+      } else {
+        auto key = std::string_view{reinterpret_cast<char *>(header.key.data),
+                                    header.key.len};
+        auto value = std::string_view{
+            reinterpret_cast<char *>(header.value.data), header.value.len};
+        headers_.emplace(to_lower_sv(key), value);
+      }
+    });
   }
 
   std::optional<std::string_view> lookup(std::string_view key) const override {
