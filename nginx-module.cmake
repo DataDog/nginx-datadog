@@ -10,9 +10,13 @@ separate_arguments(NGINX_CONF_ARGS NATIVE_COMMAND "${NGINX_CONF_ARGS}")
 
 list(APPEND NGINX_CONF_ARGS
   "--add-dynamic-module=${CMAKE_SOURCE_DIR}/module/"
-  "--with-threads"
   "--with-compat"
 )
+
+if (NGINX_DATADOG_ASM_ENABLED)
+  list(APPEND NGINX_CONF_ARGS "--with-threads")
+endif ()
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   list(APPEND NGINX_CONF_ARGS "--with-debug")
 endif()

@@ -94,7 +94,6 @@ target_sources(ngx_http_datadog_module
     src/ngx_http_datadog_module.cpp
     src/ngx_logger.cpp
     src/ngx_script.cpp
-    src/propagation_header_querier.cpp
     src/request_tracing.cpp
     src/string_util.cpp
     src/tracing_library.cpp
@@ -145,9 +144,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set_target_properties(ngx_http_datadog_module PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT})
   target_link_options(ngx_http_datadog_module PRIVATE "-Wl,--version-script=${LINKER_SCRIPT}")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(EXPORTED_SYMBOLS ${CMAKE_SOURCE_DIR}/nginx_module.exported)
-  set_target_properties(ngx_http_datadog_module PROPERTIES LINK_DEPENDS ${EXPORTED_SYMBOLS})
-  target_link_options(ngx_http_datadog_module PRIVATE "-Wl,-exported_symbols_list" "-Wl,${EXPORTED_SYMBOLS}")
+  #set(EXPORTED_SYMBOLS ${CMAKE_SOURCE_DIR}/nginx_module.exported)
+  #set_target_properties(ngx_http_datadog_module PROPERTIES LINK_DEPENDS ${EXPORTED_SYMBOLS})
+  #target_link_options(ngx_http_datadog_module PRIVATE "-Wl,-exported_symbols_list" "-Wl,${EXPORTED_SYMBOLS}")
+  set_property(TARGET ngx_http_datadog_module PROPERTY SUFFIX ".so")
+  target_link_options(ngx_http_datadog_module PRIVATE -undefined dynamic_lookup)
 endif()
 
 if(NGINX_PATCH_AWAY_LIBC)

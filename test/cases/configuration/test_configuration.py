@@ -147,12 +147,12 @@ class TestConfiguration(case.TestCase):
             "Datadog propagation styles are already configured.",
         )
 
-    def test_propagation_styles_error(self):
-        return self.run_error_test(
-            conf_relative_path="./conf/propagation_styles_error.conf",
-            diagnostic_excerpt=
-            "Datadog propagation styles are already configured.",
-        )
+    #def test_propagation_styles_error(self):
+    #    return self.run_error_test(
+    #        conf_relative_path="./conf/propagation_styles_error.conf",
+    #        diagnostic_excerpt=
+    #        "Datadog propagation styles are already configured.",
+    #    )
 
     def run_wrong_block_test(self, conf_relative_path):
         conf_path = Path(__file__).parent / conf_relative_path

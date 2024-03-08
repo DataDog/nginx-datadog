@@ -36,6 +36,10 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
   if (!is_datadog_enabled(request, core_loc_conf, loc_conf))
     return NGX_DECLINED;
 
+  // try
+  // auto proxy_loc_conf = static_cast<ngx_http_proxy_loc_conf_t *>(
+  //     ngx_http_get_module_loc_conf(request, ngx_http_proxy_module));
+
   auto context = get_datadog_context(request);
   if (context == nullptr) {
     context = new DatadogContext{request, core_loc_conf, loc_conf};

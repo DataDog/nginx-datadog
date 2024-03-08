@@ -86,17 +86,6 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
 #endif
 }
 
-ngx_str_t DatadogContext::lookup_propagation_header_variable_value(
-    ngx_http_request_t *request, std::string_view key) {
-  auto trace = find_trace(request);
-  if (trace == nullptr) {
-    throw std::runtime_error{
-        "lookup_propagation_header_variable_value failed: could not find "
-        "request trace"};
-  }
-  return trace->lookup_propagation_header_variable_value(key);
-}
-
 ngx_str_t DatadogContext::lookup_span_variable_value(
     ngx_http_request_t *request, std::string_view key) {
   auto trace = find_trace(request);
@@ -105,17 +94,6 @@ ngx_str_t DatadogContext::lookup_span_variable_value(
         "lookup_span_variable_value failed: could not find request trace"};
   }
   return trace->lookup_span_variable_value(key);
-}
-
-ngx_str_t DatadogContext::lookup_sampling_delegation_response_variable_value(
-    ngx_http_request_t *request) {
-  auto trace = find_trace(request);
-  if (trace == nullptr) {
-    throw std::runtime_error{
-        "lookup_sampling_delegation_response_variable_value failed: could not "
-        "find request trace"};
-  }
-  return trace->lookup_sampling_delegation_response_variable_value();
 }
 
 RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {

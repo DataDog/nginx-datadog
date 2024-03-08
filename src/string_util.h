@@ -44,6 +44,18 @@ inline char to_lower(unsigned char c) {
   return static_cast<char>(std::tolower(c));
 }
 
+inline std::string to_lower_sv(std::string_view sv) {
+  const auto n = sv.size();
+  std::string result;
+  result.reserve(n);
+
+  for (const auto c : sv) {
+    result += to_lower(c);
+  }
+
+  return result;
+}
+
 inline char hyphen_to_underscore(char c) {
   if (c == '-') return '_';
   return c;

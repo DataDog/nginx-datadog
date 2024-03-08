@@ -539,19 +539,6 @@ the environment, then the variable expands to a hyphen character (`-`) instead.
 
 This family of variables is used in the tests for the Datadog nginx module.
 
-### `datadog_propagation_header_*`
-`$datadog_propagation_header_<header>` expands to the value of the specified
-HTTP `<header>` as it would appear in a request to a service proxied using the
-`proxy_pass` directive.
-
-`<header>` is transformed into the name of an HTTP request header by replacing
-underscores with hyphens, e.g. `$datadog_propagation_header_x_datadog_origin`
-expands to what would be the value of the `X-Datadog-Origin` header were trace
-context to be propagated to a service via `proxy_pass`.
-
-This family of variables is used in the implementation of the Datadog nginx
-module.
-
 ### `datadog_auth_request_hook`
 This is an implementation detail of the module and should not be used.
 
