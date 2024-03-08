@@ -297,7 +297,7 @@ def docker_compose_services():
     return result.stdout.split()
 
 
-def curl(url, headers, stderr=None):
+def curl(url, headers, stderr=None, method='GET'):
 
     def header_args():
         if isinstance(headers, dict):
@@ -320,7 +320,7 @@ def curl(url, headers, stderr=None):
     # "-T" means "don't allocate a TTY".  This prevents `jq` from outputting in
     # color.
     command = docker_compose_command('exec', '-T', '--', 'client',
-                                     'curljson.sh', *header_args(), url)
+                                     'curljson.sh', f'-X{method}', *header_args(), url)
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             stderr=stderr,
@@ -446,13 +446,13 @@ class Orchestration:
 
         self.verbose.close()
 
-    def send_nginx_http_request(self, path, port=80, headers={}):
+    def send_nginx_http_request(self, path, port=80, headers={}, method='GET'):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
         url = f'http://nginx:{port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
-        fields, headers, body = curl(url, headers, stderr=self.verbose)
+        fields, headers, body = curl(url, headers, stderr=self.verbose, method=method)
         return (fields['response_code'], headers, body)
 
     def send_nginx_grpc_request(self, symbol, port=1337):

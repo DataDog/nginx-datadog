@@ -5,7 +5,8 @@
 #include <string_view>
 
 extern "C" {
-    #include <ngx_core.h>
+#include <ngx_config.h>
+#include <ngx_core.h>
 }
 
 namespace datadog {
@@ -34,39 +35,41 @@ struct ngx_str_equal {
 
 template <typename T>
 class nginx_list_iter {
- public:
-  explicit nginx_list_iter(const ngx_list_t &list)
-      : nginx_list_iter{list.last} {}
-
-  nginx_list_iter(ngx_list_part_t *part)
+  explicit nginx_list_iter(const ngx_list_part_t *part, ngx_uint_t index)
       : part_{part},
         elts_{static_cast<T *>(part_ ? part_->elts : nullptr)},
-        index_{0} {}
+        index_{index} {}
+
+ public:
+  explicit nginx_list_iter(const ngx_list_t &list)
+      : nginx_list_iter{&list.part, 0} {}
 
   bool operator!=(const nginx_list_iter &other) const {
     return part_ != other.part_ || index_ != other.index_;
   }
 
   nginx_list_iter &operator++() {
-    if (!part_) {
-      return *this;
-    }
-
     ++index_;
-    if (index_ >= part_->nelts) {
+    while (index_ >= part_->nelts) {
+      if (part_->next == nullptr) {
+        return *this; // reached the end
+      }
+
       part_ = part_->next;
       elts_ = static_cast<T *>(part_ ? part_->elts : nullptr);
-      index_ = 0;
+      index_ = 0; // if the part is empty, we go for another iteration
     }
     return *this;
   }
 
-  T &operator*() { return elts_[index_]; }
+  T &operator*() const { return elts_[index_]; }
 
-  static nginx_list_iter<T> end() { return nginx_list_iter{nullptr}; }
+  static nginx_list_iter<T> end(const ngx_list_t &list) {
+    return nginx_list_iter{list.last, list.last ? list.last->nelts : 0};
+  }
 
  private:
-  ngx_list_part_t *part_;
+  const ngx_list_part_t *part_;
   T *elts_;  // part_->elts, after cast
   ngx_uint_t index_;
 };
@@ -80,7 +83,7 @@ class ngnix_header_iterable {
   }
 
   nginx_list_iter<ngx_table_elt_t> end() {
-    return nginx_list_iter<ngx_table_elt_t>::end();
+    return nginx_list_iter<ngx_table_elt_t>::end(list_);
   }
 
  private:

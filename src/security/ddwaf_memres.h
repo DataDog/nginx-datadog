@@ -5,7 +5,12 @@
 #include <cstdlib>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <vector>
+
+extern "C" {
+#include <ngx_core.h>
+}
 
 namespace datadog {
 namespace nginx {
@@ -39,7 +44,7 @@ class ddwaf_memres {
       std::size_t size = std::max(MIN_OBJ_SEG_SIZE, num_objects);
       new_objects_segment(size);
     }
-    auto *p = allocs_object_.back().get() + (objects_stored_);
+    auto *p = allocs_object_.back() + (objects_stored_);
 
     objects_stored_ += num_objects;
     // keep braces, some code depends on this being zero-initialized:
@@ -47,37 +52,50 @@ class ddwaf_memres {
   }
 
   char *allocate_string(size_t len) {
-    // TODO: can we remove the NUL termination?
-    if (strings_stored_ + len + 1 >= cur_string_seg_size_) {
-      std::size_t size = std::max(MIN_STR_SEG_SIZE, len + 1);
+    if (strings_stored_ + len >= cur_string_seg_size_) {
+      std::size_t size = std::max(MIN_STR_SEG_SIZE, len);
       new_strings_segment(size);
     }
-    char *p = allocs_string_.back().get() + strings_stored_;
-    p[len] = '\0';
+    char *p = allocs_string_.back() + strings_stored_;
 
-    strings_stored_ += len + 1;
+    strings_stored_ += len;
 
     return p;
   }
 
+  void set_pool(ngx_pool_t &pool) { pool_ = &pool; }
+
  private:
-  // TODO: allocate in request pool?
   void new_objects_segment(size_t num_objects) {
-    allocs_object_.emplace_back(new ddwaf_object[num_objects]);
+    if (!pool_) {
+      throw std::runtime_error("ddwaf_memres: pool not set");
+    }
+
+    auto *block = ngx_palloc(pool_, sizeof(ddwaf_object) * num_objects);
+    if (!block) {
+      throw std::bad_alloc{};
+    }
+    allocs_object_.emplace_back(new (block) ddwaf_object[num_objects]);
     cur_object_seg_size_ = num_objects;
     objects_stored_ = 0;
   }
 
   void new_strings_segment(size_t size) {
-    allocs_string_.emplace_back(new char[size]);
+    if (!pool_) {
+      throw std::runtime_error("ddwaf_memres: pool not set");
+    }
+
+    auto *block = ngx_palloc(pool_, size);
+    allocs_string_.emplace_back(new (block) char[size]);
     cur_string_seg_size_ = size;
     strings_stored_ = 0;
   }
 
+  ngx_pool_t *pool_;
   std::size_t cur_object_seg_size_{0};  // in num objects
   std::size_t cur_string_seg_size_{0};  // in bytes
-  std::vector<std::unique_ptr<ddwaf_object[]>> allocs_object_;
-  std::vector<std::unique_ptr<char>> allocs_string_;
+  std::vector<ddwaf_object*> allocs_object_;
+  std::vector<char*> allocs_string_;
   std::size_t objects_stored_{0};
   std::size_t strings_stored_{0};
 };

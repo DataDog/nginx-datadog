@@ -189,14 +189,12 @@ context::context() : stage_{new std::atomic<stage>{}} {
 
 template<typename Self>
 class pol_task_ctx {
-  pol_task_ctx(ngx_http_request_t &req, dd::Span &span,
-               std::function<std::optional<block_spec>(ngx_log_t *)> f)
-      : req_{req}, span_{span}, f_{std::move(f)} {}
+  pol_task_ctx(ngx_http_request_t &req, context& ctx, dd::Span &span)
+      : req_{req}, ctx_{ctx}, span_{span} {}
 
  public:
   template <typename... Args>
-  static Self &create(ngx_http_request_t &req, dd::Span &span,
-                      std::function<std::optional<block_spec>(ngx_log_t *)> f,
+  static Self &create(ngx_http_request_t &req, context& ctx, dd::Span &span,
                       Args &&...extra_args) {
     ngx_thread_task_t *task =
         ngx_thread_task_alloc(req.pool, sizeof(Self));
@@ -204,8 +202,8 @@ class pol_task_ctx {
       throw std::runtime_error{"failed to allocate task"};
     }
 
-    auto *task_ctx = new (task->ctx)
-        Self{req, span, std::move(f), std::forward<Args>(extra_args)...};
+    auto *task_ctx =
+        new (task->ctx) Self{req, ctx, span, std::forward<Args>(extra_args)...};
     task->handler = &pol_task_ctx::handler;
     task->event.handler = &pol_task_ctx::completion_handler;
     task->event.data = task_ctx;
@@ -230,7 +228,7 @@ class pol_task_ctx {
     try {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "before task main: %p", &req_);
-      block_spec_ = f_(log);
+      block_spec_ = static_cast<Self *>(this)->do_handle(*log);
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "after task main: %p", &req_);
       ran_on_thread.store(true, std::memory_order_release);
@@ -240,6 +238,9 @@ class pol_task_ctx {
       ngx_log_error(NGX_LOG_ERR, log, 0, "task failed: unknown failure");
     }
   }
+
+  // define in subclasses
+  // std::optional<block_spec> do_handle(ngx_log_t &log) {}
 
   // runs on the main thread
   static void completion_handler(ngx_event_t *evt) noexcept {
@@ -254,14 +255,18 @@ class pol_task_ctx {
 private:
  friend Self;
  ngx_http_request_t &req_;
+ context &ctx_;
  dd::Span &span_;
- std::function<std::optional<block_spec>(ngx_log_t *)> f_;
  std::optional<block_spec> block_spec_;
  std::atomic<bool> ran_on_thread{false};
 };
 
 class pol_1st_waf_ctx : public pol_task_ctx<pol_1st_waf_ctx> {
   using pol_task_ctx::pol_task_ctx;
+
+  std::optional<block_spec> do_handle(ngx_log_t &log) {
+    return ctx_.run_waf_start(req_, span_);
+  }
 
   void complete() noexcept {
     bool ran = ran_on_thread.load(std::memory_order_acquire);
@@ -301,6 +306,8 @@ bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
     return false;
   }
 
+  memres_.set_pool(*request.pool);
+
   auto *conf = static_cast<datadog_loc_conf_t *>(
       ngx_http_get_module_loc_conf(&request, ngx_http_datadog_module));
 
@@ -308,10 +315,7 @@ bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
     return false;
   }
 
-  auto &task_ctx = pol_1st_waf_ctx::create(
-      request, span, [this, &request, &span](ngx_log_t *log) {
-        return this->run_waf_start(request, span);
-      });
+  auto &task_ctx = pol_1st_waf_ctx::create(request, *this, span);
 
  if (ngx_thread_task_post(conf->waf_pool, &task_ctx.get_task()) != NGX_OK) {
     // log error
@@ -462,18 +466,19 @@ std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req,
     ddwaf_result_free(&result);
   }
 
+  std::optional<block_spec> block_spec;
   ddwaf_arr_obj actions_arr{result.actions};
-  if (code != DDWAF_MATCH || actions_arr.nbEntries == 0) {
-    return std::nullopt;
+  if (code == DDWAF_MATCH && actions_arr.nbEntries == 0) {
+    const waf_handle::action_info_map_t &aim = waf_handle_->action_info_map();
+    block_spec = resolve_block_spec(aim, actions_arr, *req.connection->log);
   }
 
-  const waf_handle::action_info_map_t &aim = waf_handle_->action_info_map();
-  std::optional<block_spec> block_spec = resolve_block_spec(aim, actions_arr, *req.connection->log);
   if (block_spec) {
     stage_->store(stage::after_begin_waf_block, std::memory_order_release);
   } else {
     stage_->store(stage::after_begin_waf, std::memory_order_release);
   }
+
   return block_spec;
 }
 
@@ -487,9 +492,13 @@ ngx_int_t context::output_header_filter(
 class pol_final_waf_ctx : public pol_task_ctx<pol_final_waf_ctx> {
   using pol_task_ctx::pol_task_ctx;
 
+  std::optional<block_spec> do_handle(ngx_log_t &log) {
+    return ctx_.run_waf_end(req_, span_);
+  }
+
   void complete() noexcept {
     [[maybe_unused]] bool ran = ran_on_thread.load(std::memory_order_acquire);
-    ngx_http_close_request(&req_, 0);
+    ngx_http_finalize_request(&req_, NGX_DONE);
   }
 
   friend pol_task_ctx;
@@ -502,10 +511,7 @@ ngx_int_t context::do_output_header_filter(
     return ngx_http_next_output_header_filter(&request);
   }
 
-  pol_final_waf_ctx &task_ctx = pol_final_waf_ctx::create(
-      request, span, [this, &request, &span](ngx_log_t *log) {
-        return this->run_waf_end(request, span);
-      });
+  pol_final_waf_ctx &task_ctx = pol_final_waf_ctx::create(request, *this, span);
 
   auto *conf = static_cast<datadog_loc_conf_t *>(
       ngx_http_get_module_loc_conf(&request, ngx_http_datadog_module));
@@ -556,13 +562,12 @@ std::optional<block_spec> context::run_waf_end(ngx_http_request_t &request,
     ddwaf_result_free(&result);
   }
 
-  if (results_.empty()) {
-      return std::nullopt;
+  if (!results_.empty()) {
+    auto &span_data = get_span_data(span);
+    report_match(request, span.trace_segment(), span_data, results_);
+    results_.clear();
   }
 
-  auto &span_data = get_span_data(span);
-  report_match(request, span.trace_segment(), span_data, results_);
-  results_.clear();
   stage_->store(stage::after_report, std::memory_order_release);
 
   return std::nullopt; // we don't support blocking in the final waf run

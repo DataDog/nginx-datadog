@@ -76,6 +76,9 @@ struct may_alias ddwaf_obj : ddwaf_object {
     return *reinterpret_cast<ddwaf_str_obj *>(this);
   }
 
+  template<typename C>
+  ddwaf_str_obj &make_string(C *) = delete;
+
   ddwaf_arr_obj &make_array(ddwaf_obj *arr, nb_entries_t size) {
     type = DDWAF_OBJ_ARRAY;
     array = arr;
