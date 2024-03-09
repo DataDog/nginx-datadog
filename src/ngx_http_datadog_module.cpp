@@ -529,10 +529,6 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   // block handler, but is a configuration context constructor that is called
   // before the handler. So, we're still currently "outside" the `server` block,
   // within the `http` block, which is the only place `log_format` is allowed.
-  //
-  // In addition to the `log_format` directives, we also add an `add_header`
-  // directive so that the trace sampling delegation response header can be sent
-  // back to the client, if appropriate.
   if (is_server_block_begin(conf)) {
     if (inject_datadog_log_formats(conf)) {
       return nullptr;  // error

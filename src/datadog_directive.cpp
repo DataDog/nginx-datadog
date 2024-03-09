@@ -60,17 +60,6 @@ char *lock_propagation_styles(const ngx_command_t *command, ngx_conf_t *conf) {
   main_conf->propagation_styles_source_location =
       command_source_location(command, conf);
 
-  // In order for span context propagation to work, the names of the HTTP
-  // headers added to requests need to be known ahead of time.
-  NgxLogger logger;
-  auto maybe_headers = TracingLibrary::propagation_header_names(
-      main_conf->propagation_styles, logger);
-  if (auto *error = maybe_headers.if_error()) {
-    logger.log_error(*error);
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-  main_conf->span_context_keys = std::move(*maybe_headers);
-
   return static_cast<char *>(NGX_CONF_OK);
 }
 

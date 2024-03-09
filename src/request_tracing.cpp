@@ -383,19 +383,6 @@ void RequestTracing::on_log_request() {
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
-// Expands the active span context into a list of key-value pairs and returns
-// the value for `key` if it exists.
-//
-// Note: there's caching so that if lookup_propagation_header_variable_value is
-// repeatedly called for the same active span context, it will only be expanded
-// once.
-//
-// See propagate_datadog_context
-ngx_str_t RequestTracing::lookup_propagation_header_variable_value(
-    std::string_view key) {
-  return propagation_header_querier_.lookup_value(request_, active_span(), key);
-}
-
 ngx_str_t RequestTracing::lookup_span_variable_value(std::string_view key) {
   return to_ngx_str(request_->pool, TracingLibrary::span_variables().resolve(
                                         key, active_span()));
