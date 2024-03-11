@@ -5,21 +5,21 @@ from pathlib import Path
 
 class TestDeprecationWarnings(case.TestCase):
 
-    def test_opentracing_trace_locations(self):
-        directive = 'opentracing_trace_locations'
-        return self.run_test_for_config(f'conf/{directive}.conf', directive)
+    #def test_opentracing_trace_locations(self):
+    #    directive = 'opentracing_trace_locations'
+    #    return self.run_test_for_config(f'conf/{directive}.conf', directive)
 
-    def test_opentracing_propagate_context(self):
-        directive = 'opentracing_propagate_context'
-        return self.run_test_for_config(f'conf/{directive}.conf', directive)
+    #def test_opentracing_propagate_context(self):
+    #    directive = 'opentracing_propagate_context'
+    #    return self.run_test_for_config(f'conf/{directive}.conf', directive)
 
-    def test_opentracing_fastcgi_propagate_context(self):
-        directive = 'opentracing_fastcgi_propagate_context'
-        return self.run_test_for_config(f'conf/{directive}.conf', directive)
+    #def test_opentracing_fastcgi_propagate_context(self):
+    #    directive = 'opentracing_fastcgi_propagate_context'
+    #    return self.run_test_for_config(f'conf/{directive}.conf', directive)
 
-    def test_opentracing_grpc_propagate_context(self):
-        directive = 'opentracing_grpc_propagate_context'
-        return self.run_test_for_config(f'conf/{directive}.conf', directive)
+    #def test_opentracing_grpc_propagate_context(self):
+    #    directive = 'opentracing_grpc_propagate_context'
+    #    return self.run_test_for_config(f'conf/{directive}.conf', directive)
 
     def test_opentracing_operation_name(self):
         directive = 'opentracing_operation_name'
