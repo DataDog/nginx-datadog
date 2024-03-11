@@ -73,7 +73,12 @@ if ! is_installed nginx; then
       apk add nginx
   elif is_installed yum; then
       yum update -y
-      amazon-linux-extras enable -y nginx1
+      # Older versions of Amazon Linux needed "amazon-linux-extras" in order to
+      # install nginx. Newer versions of Amazon Linux don't have
+      # "amazon-linux-extras".
+      if >/dev/null command -v amazon-linux-extras; then
+          amazon-linux-extras enable -y nginx1
+      fi
       yum install -y nginx
   else
       >&2 printf 'Did not find a supported package manager.\n'

@@ -67,9 +67,13 @@ while [ $# -ne 0 ]; do
       platforms="$2"
       shift
       ;;
+    -*)
+      >&2 printf 'unknown option: %s\n' "$1"
+      exit 1
+      ;;
     *)
         if [ -n "$base_image" ]; then
-            >&2 printf 'base image was specified twice: first as %s and now as %s.' "$base_image" "$1"
+            >&2 printf 'base image was specified twice: first as %s and now as %s.\n' "$base_image" "$1"
             exit 1
         fi
         base_image="$1"
@@ -97,7 +101,7 @@ local_destination="$(pwd)/${built_tag}.tar"
 remote_destination="datadog/docker-library:$built_tag"
 buildx_output_args="--output=type=image,name=${remote_destination},push=true"
 
-if ! ask "Build image compatible with ${base_image} for ${platforms} and tag as ${built_tag}?"; then
+if ! ask "Build image compatible with ${base_image} for ${platforms}?"; then
     exit 1
 fi
 
