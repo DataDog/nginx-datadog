@@ -468,7 +468,7 @@ std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req,
 
   std::optional<block_spec> block_spec;
   ddwaf_arr_obj actions_arr{result.actions};
-  if (code == DDWAF_MATCH && actions_arr.nbEntries == 0) {
+  if (code == DDWAF_MATCH && actions_arr.nbEntries > 0) {
     const waf_handle::action_info_map_t &aim = waf_handle_->action_info_map();
     block_spec = resolve_block_spec(aim, actions_arr, *req.connection->log);
   }
