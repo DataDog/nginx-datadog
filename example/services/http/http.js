@@ -24,7 +24,7 @@ const requestListener = function (request, response) {
 
 console.log('http node.js web server is running');
 const server = http.createServer(requestListener);
-server.listen(8081);
+server.listen(8080);
 
 process.on('SIGTERM', function () {
   console.log('Received SIGTERM');
