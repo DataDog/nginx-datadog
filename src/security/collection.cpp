@@ -18,6 +18,10 @@ extern "C" {
 #include <ngx_string.h>
 }
 
+using namespace std::literals;
+
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+
 namespace {
 
 namespace dns = datadog::nginx::security;
@@ -27,7 +31,7 @@ struct has_cookie : std::false_type {};
 template <typename T>
 struct has_cookie<T, std::void_t<decltype(std::declval<T>().cookie)>>
     : std::true_type {};
-static constexpr auto headers_in_has_cookie_v =
+constexpr auto headers_in_has_cookie_v =
     has_cookie<decltype(ngx_http_request_t{}.headers_in)>::value;
 
 class req_serializer {
@@ -42,7 +46,7 @@ class req_serializer {
       "server.response.headers.no_cookies"};
 
  public:
-  req_serializer(dns::ddwaf_memres &memres) : memres_{memres} {}
+  explicit req_serializer(dns::ddwaf_memres &memres) : memres_{memres} {}
 
   ddwaf_object *serialize(const ngx_http_request_t &request) {
     dns::ddwaf_obj *root = memres_.allocate_objects<dns::ddwaf_obj>(1);
@@ -68,7 +72,7 @@ class req_serializer {
   }
 
  private:
-  void set_map_entry_str(dns::ddwaf_obj &slot, std::string_view key,
+  static void set_map_entry_str(dns::ddwaf_obj &slot, std::string_view key,
                          const ngx_str_t &value) {
     slot.set_key(key);
     slot.make_string(dns::to_sv(value));
@@ -93,7 +97,7 @@ class req_serializer {
     // first, count the number of occurrences for each key
     std::unordered_map<std::string_view, std::size_t> keys_bag;
     for (; !it.ended(); ++it) {
-      std::string_view key = it.cur_key();
+      std::string_view const key = it.cur_key();
       keys_bag[key]++;
     }
 
@@ -108,7 +112,7 @@ class req_serializer {
     std::unordered_map<std::string_view, dns::ddwaf_arr_obj *> indexed_entries;
     for (it.reset(); !it.ended(); ++it) {
       auto [key, value] = *it;
-      std::size_t num_occurr = keys_bag[key];
+      std::size_t const num_occurr = keys_bag[key];
 
       // common scenario: only 1 occurrence of the key
       if (num_occurr == 1) {
@@ -138,19 +142,19 @@ class req_serializer {
     }
   }
 
-  void set_request_uri_raw(const ngx_http_request_t &request,
+  static void set_request_uri_raw(const ngx_http_request_t &request,
                            dns::ddwaf_obj &slot) {
     set_map_entry_str(slot, URI_RAW, request.unparsed_uri);
   }
 
-  void set_request_method(const ngx_http_request_t &request,
+  static void set_request_method(const ngx_http_request_t &request,
                           dns::ddwaf_obj &slot) {
     set_map_entry_str(slot, METHOD, request.method_name);
   }
 
   using ngx_str_bag =
       std::unordered_map<ngx_str_t, int, dns::ngx_str_hash, dns::ngx_str_equal>;
-  ngx_str_bag count_headers(const ngx_list_t &list) {
+  static ngx_str_bag count_headers(const ngx_list_t &list) {
     ngx_str_bag ret;
     dns::ngnix_header_iterable it{list};
     for (auto &&h : it) {
@@ -169,31 +173,27 @@ class req_serializer {
     return ret;
   }
   static std::size_t tally_headers_no_cookies(const ngx_str_bag &bag) {
-    static const ngx_str_t cookie = {.len = sizeof("cookie") - 1,
-                                     .data = (u_char *)"cookie"};
+    static const ngx_str_t cookie = dns::ngx_stringv("cookie"sv);
     if (bag.find(cookie) == bag.end()) {
       return bag.size();
-    } else {
-      return bag.size() - 1;
     }
+    return bag.size() - 1;
   }
   static std::size_t tally_resp_headers_no_cookies(const ngx_str_bag &bag) {
-    static const ngx_str_t cookie = {.len = sizeof("set-cookie") - 1,
-                                     .data = (u_char *)"set-cookie"};
+    static const ngx_str_t cookie = dns::ngx_stringv("set-cookie"sv);
     if (bag.find(cookie) == bag.end()) {
       return bag.size();
-    } else {
-      return bag.size() - 1;
     }
+    return bag.size() - 1;
   }
   using ngx_str_dobj_arr =
       std::unordered_map<ngx_str_t, dns::ddwaf_obj *, dns::ngx_str_hash,
                          dns::ngx_str_equal>;
   auto alloc_multivalue_header_arr(const ngx_str_bag &headers) {
     ngx_str_dobj_arr ret;
-    for (auto it = headers.begin(); it != headers.end(); it++) {
-      if (it->second > 1) {
-        ret[it->first] = memres_.allocate_objects<dns::ddwaf_obj>(it->second);
+    for (const auto & header : headers) {
+      if (header.second > 1) {
+        ret[header.first] = memres_.allocate_objects<dns::ddwaf_obj>(header.second);
       }
     }
     return ret;
@@ -212,19 +212,18 @@ class req_serializer {
     slot.set_key(key);
 
     ngx_str_bag header_bag = count_headers(headers);
-    std::size_t header_count =
+    std::size_t const header_count =
         std::invoke(std::forward<TallyFunc>(tally_func), header_bag);
 
     slot.make_map(header_count, memres_);
-    dns::ddwaf_obj *entries = static_cast<dns::ddwaf_obj *>(slot.array);
+    dns::ddwaf_obj *entries = reinterpret_cast<dns::ddwaf_obj *>(slot.array);
 
     ngx_str_dobj_arr multivalue_arr = alloc_multivalue_header_arr(header_bag);
     dns::ngnix_header_iterable it{headers};
-    std::size_t i = 0;
     for (auto &&h : it) {
       assert(h.lowcase_key != nullptr);  // TODO
 
-      ngx_str_t key{h.key.len, h.lowcase_key};
+      ngx_str_t const key{h.key.len, h.lowcase_key};
       auto count = header_bag[key];
 
       dns::ddwaf_obj &dobj = *entries++;
@@ -239,7 +238,7 @@ class req_serializer {
           dobj.nbEntries = 0;
           continue;
         }
-        ngx_str_t lowcase_key{h.key.len, h.lowcase_key};
+        ngx_str_t const lowcase_key{h.key.len, h.lowcase_key};
         dns::ddwaf_obj *arr = multivalue_arr[lowcase_key];
 
         dobj.type = DDWAF_OBJ_ARRAY;
@@ -248,7 +247,7 @@ class req_serializer {
 
         ddwaf_object &dobj_ae = arr[dobj.nbEntries++];
         dobj_ae.type = DDWAF_OBJ_STRING;
-        dobj_ae.stringValue = (char *)h.value.data;
+        dobj_ae.stringValue = reinterpret_cast<const char*>(h.value.data);
         dobj_ae.nbEntries = h.value.len;
       }
     }
@@ -306,8 +305,8 @@ class req_serializer {
     set_value_from_iter(iter, slot);
   }
 
-  void set_response_status(const ngx_http_request_t &request,
-                           dns::ddwaf_obj &slot) const {
+  static void set_response_status(const ngx_http_request_t &request,
+                           dns::ddwaf_obj &slot)  {
     slot.set_key(STATUS);
 
     // use the stastus line rather than the status number in order to avoid
@@ -322,7 +321,7 @@ class req_serializer {
     // find the end of numeric characters
     std::size_t e;
     for (e = 0; e < sv.length(); e++) {
-      char c = sv[e];
+      char const c = sv[e];
       if (c < '0' || c > '9') {
         break;
       }
@@ -340,14 +339,12 @@ class req_serializer {
                         RESP_HEADERS_NO_COOKIES, tally_resp_headers_no_cookies);
   }
 
-  dns::ddwaf_memres &memres_;
+  dns::ddwaf_memres &memres_; // NOLINT
 };
 
 }  // namespace
 
-namespace datadog {
-namespace nginx {
-namespace security {
+namespace datadog::nginx::security {
 
 ddwaf_object *collect_request_data(const ngx_http_request_t &request,
                                    ddwaf_memres &memres) {
@@ -360,6 +357,6 @@ ddwaf_object *collect_response_data(const ngx_http_request_t &request,
   req_serializer rs{memres};
   return rs.serialize_end(request);
 }
-}  // namespace security
-}  // namespace nginx
-}  // namespace datadog
+} // namespace datadog::nginx::security
+
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)

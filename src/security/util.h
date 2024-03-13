@@ -5,12 +5,10 @@
 #include <string_view>
 
 extern "C" {
-    #include <ngx_core.h>
+#include <ngx_core.h>
 }
 
-namespace datadog {
-namespace nginx {
-namespace security {
+namespace datadog::nginx::security {
 
 struct ngx_str_hash {
   std::size_t operator()(const ngx_str_t &str) const noexcept {
@@ -38,17 +36,15 @@ class nginx_list_iter {
   explicit nginx_list_iter(const ngx_list_t &list)
       : nginx_list_iter{list.last} {}
 
-  nginx_list_iter(ngx_list_part_t *part)
-      : part_{part},
-        elts_{static_cast<T *>(part_ ? part_->elts : nullptr)},
-        index_{0} {}
+  explicit nginx_list_iter(ngx_list_part_t *part)
+      : part_{part}, elts_{static_cast<T *>(part_ ? part_->elts : nullptr)} {}
 
   bool operator!=(const nginx_list_iter &other) const {
     return part_ != other.part_ || index_ != other.index_;
   }
 
   nginx_list_iter &operator++() {
-    if (!part_) {
+    if (part_ == nullptr) {
       return *this;
     }
 
@@ -66,9 +62,9 @@ class nginx_list_iter {
   static nginx_list_iter<T> end() { return nginx_list_iter{nullptr}; }
 
  private:
-  ngx_list_part_t *part_;
+  ngx_list_part_t *part_{};
   T *elts_;  // part_->elts, after cast
-  ngx_uint_t index_;
+  ngx_uint_t index_{};
 };
 
 class ngnix_header_iterable {
@@ -79,23 +75,22 @@ class ngnix_header_iterable {
     return nginx_list_iter<ngx_table_elt_t>{list_};
   }
 
-  nginx_list_iter<ngx_table_elt_t> end() {
+  static nginx_list_iter<ngx_table_elt_t> end() {
     return nginx_list_iter<ngx_table_elt_t>::end();
   }
 
  private:
-  const ngx_list_t &list_;
+  const ngx_list_t &list_; // NOLINT
 };
 
 inline ngx_str_t ngx_stringv(std::string_view sv) noexcept {
-  return {sv.size(),
+  return {sv.size(), // NOLINTNEXTLINE
           const_cast<u_char *>(reinterpret_cast<const u_char *>(sv.data()))};
 }
 
 inline std::string_view to_sv(const ngx_str_t &str) noexcept {
+  // NOLINTNEXTLINE
   return {reinterpret_cast<const char *>(str.data), str.len};
 }
 
-}  // namespace security
-}  // namespace nginx
-}  // namespace datadog
+} // namespace datadog::nginx::security

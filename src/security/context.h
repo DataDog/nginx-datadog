@@ -20,9 +20,7 @@ extern "C" {
 #include <ngx_http.h>
 }
 
-namespace datadog {
-namespace nginx {
-namespace security {
+namespace datadog::nginx::security {
 
 template <typename T, typename FreeFunc>
 struct freeable_resource {
@@ -31,8 +29,8 @@ struct freeable_resource {
   T resource;
   explicit freeable_resource(const T resource) : resource{resource} {}
 
-  freeable_resource(freeable_resource &&other) noexcept {
-    resource = other.resource;
+  freeable_resource(freeable_resource &&other) noexcept
+      : resource(other.resource) {
     other.resource = {};
   };
   freeable_resource &operator=(freeable_resource &&other) noexcept {
@@ -63,7 +61,7 @@ struct ddwaf_context_free_functor {
 struct owned_ddwaf_context
     : freeable_resource<ddwaf_context, ddwaf_context_free_functor> {
   using freeable_resource::freeable_resource;
-  owned_ddwaf_context(std::nullptr_t) : freeable_resource{nullptr} {}
+  explicit owned_ddwaf_context(std::nullptr_t) : freeable_resource{nullptr} {}
   owned_ddwaf_context &operator=(ddwaf_context ctx) {
     if (resource) {
       ddwaf_context_destroy(resource);
@@ -104,6 +102,4 @@ class context {
   std::unique_ptr<std::atomic<stage>> stage_;
 };
 
-}  // namespace security
-}  // namespace nginx
-}  // namespace datadog
+}  // namespace datadog::nginx::security
