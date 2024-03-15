@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ddwaf.h>
+#include <rapidjson/rapidjson.h>
 
 #include <cstring>
 #include <limits>
@@ -29,9 +30,16 @@ struct may_alias ddwaf_obj : ddwaf_object {
   }
 
   // string lifetime must be at least that of the object
-  void set_key(std::string_view sv) noexcept {
+  ddwaf_obj &set_key(std::string_view sv) noexcept {
     parameterName = sv.data();
     parameterNameLength = sv.length();
+    return *this;
+  }
+
+  ddwaf_obj &set_key(std::string_view sv, ddwaf_memres &memres) {
+    char *s = memres.allocate_string(sv.size());
+    std::memcpy(s, sv.data(), sv.size());
+    return set_key({s, sv.size()});
   }
 
   std::string_view string_val_unchecked() const noexcept {
@@ -72,11 +80,44 @@ struct may_alias ddwaf_obj : ddwaf_object {
     throw std::invalid_argument("not a numeric value");
   }
 
+  ddwaf_obj &make_bool(bool value) {
+    type = DDWAF_OBJ_BOOL;
+    boolean = value;
+    return *this;
+  }
+
+  template<typename T>
+  ddwaf_obj &make_number(T value) {
+    static_assert(std::is_arithmetic_v<T>, "T must be an arithmetic type");
+    if constexpr (std::is_floating_point_v<T>) {
+      type = DDWAF_OBJ_FLOAT;
+      f64 = value;
+    } else if constexpr (std::is_signed_v<T>) {
+      type = DDWAF_OBJ_SIGNED;
+      intValue = value;
+    } else {
+      type = DDWAF_OBJ_UNSIGNED;
+      uintValue = value;
+    }
+    return *this;
+  }
+
+  ddwaf_obj &make_null() {
+    type = DDWAF_OBJ_NULL;
+    return *this;
+  }
+
   ddwaf_str_obj &make_string(std::string_view sv) {
     type = DDWAF_OBJ_STRING;
     stringValue = const_cast<char *>(sv.data()); // NOLINT
     nbEntries = sv.length();
     return *reinterpret_cast<ddwaf_str_obj *>(this); // NOLINT
+  }
+
+  ddwaf_str_obj &make_string(std::string_view sv, ddwaf_memres &memres) {
+    char *s = memres.allocate_string(sv.size());
+    std::memcpy(s, sv.data(), sv.size());
+    return make_string({s, sv.size()});
   }
 
   ddwaf_arr_obj &make_array(ddwaf_obj *arr, nb_entries_t size) {
@@ -104,6 +145,16 @@ struct may_alias ddwaf_obj : ddwaf_object {
     nbEntries = size;
     return *reinterpret_cast<ddwaf_map_obj *>(this); // NOLINT
   }
+
+  template<typename T>
+  T& shallow_copy_from(const T& oth) {
+    static_assert(std::is_base_of<ddwaf_obj, T>::value,
+                  "T must be a subclass of ddwaf_obj");
+    if (oth.type != type) {
+      throw std::invalid_argument("shallow copy between mismatched types");
+    }
+    static_cast<ddwaf_object&>(*this) = static_cast<const ddwaf_object&>(oth);
+  }
 };
 
 struct may_alias ddwaf_str_obj : ddwaf_obj {
@@ -119,6 +170,7 @@ struct may_alias ddwaf_str_obj : ddwaf_obj {
 };
 
 struct may_alias ddwaf_arr_obj : ddwaf_obj {
+  ddwaf_arr_obj() : ddwaf_obj{} { type = DDWAF_OBJ_ARRAY; }
   // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
   ddwaf_arr_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
     if (dobj.type != DDWAF_OBJ_ARRAY) {
@@ -126,7 +178,7 @@ struct may_alias ddwaf_arr_obj : ddwaf_obj {
     }
   }
 
-  template <typename T = ddwaf_object>
+  template <typename T = ddwaf_obj>
   T &at_unchecked(nb_entries_t index) const {
     static_assert(std::is_base_of<ddwaf_obj, T>::value,
                   "T must be a subclass of ddwaf_obj");
@@ -139,6 +191,10 @@ struct may_alias ddwaf_arr_obj : ddwaf_obj {
       throw std::out_of_range("index out of range");
     }
     return at_unchecked<T>(index);
+  }
+
+  std::size_t size() const {
+    return nbEntries;
   }
 
   struct iterator {
@@ -168,13 +224,14 @@ struct may_alias ddwaf_arr_obj : ddwaf_obj {
 };
 
 struct ddwaf_map_obj : ddwaf_obj {
+  ddwaf_map_obj() : ddwaf_obj{} { type = DDWAF_OBJ_MAP; }
   explicit ddwaf_map_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
     if (dobj.type != DDWAF_OBJ_MAP) {
       throw std::invalid_argument("not a map");
     }
   }
 
-  template <typename T>
+  template <typename T = ddwaf_obj>
   T get(std::string_view key) const {
     static_assert(std::is_base_of<ddwaf_obj, T>::value,
                   "T must be a subclass of ddwaf_obj");
@@ -206,6 +263,14 @@ struct ddwaf_map_obj : ddwaf_obj {
     return *reinterpret_cast<T*>(&array[i]); // NOLINT
   }
 
+  std::size_t size() const {
+    return nbEntries;
+  }
+
+  bool empty() const {
+    return nbEntries == 0;
+  }
+
   struct iterator {
     // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
     iterator(const ddwaf_map_obj &map, nb_entries_t index = 0)
@@ -233,13 +298,153 @@ struct ddwaf_map_obj : ddwaf_obj {
 
   iterator begin() const { return {*this}; }
   iterator end() const { return {*this, nbEntries}; }
-
-  static ddwaf_map_obj empty() {
-    return {};
-  }
-
- private:
-  ddwaf_map_obj() : ddwaf_obj{} { type = DDWAF_OBJ_MAP; }
 };
 
-} // namespace datadog::nginx::security
+template<typename T = ddwaf_obj>
+class ddwaf_owned_obj {
+  ddwaf_memres memres_;
+  T obj_;
+ public:
+  ddwaf_owned_obj() = default;
+  template<typename OT>
+  ddwaf_owned_obj(ddwaf_owned_obj<OT>&& oth) : obj_{oth.get()}, memres_{std::move(oth.memres())} {
+    static_cast<ddwaf_object&>(oth.get()) = ddwaf_object{.type = DDWAF_OBJ_INVALID};
+  }
+
+  T &get() { return obj_; }
+  const T &get() const { return obj_; }
+  ddwaf_memres& memres() { return memres_; }
+};
+
+using ddwaf_owned_map = ddwaf_owned_obj<ddwaf_map_obj>;
+using ddwaf_owned_arr = ddwaf_owned_obj<ddwaf_arr_obj>;
+
+namespace {
+template <typename D>
+void json_to_obj_impl(ddwaf_memres &memres, ddwaf_obj &object, D &doc) {
+  switch (doc.GetType()) {
+    case rapidjson::kFalseType:
+      object.make_bool(false);
+      break;
+    case rapidjson::kTrueType:
+      object.make_bool(true);
+      break;
+    case rapidjson::kObjectType: {
+      auto &&obj = doc.GetObject();
+      ddwaf_map_obj &obj_map = object.make_map(obj.MemberCount(), memres);
+      size_t i = 0;
+      for (auto &kv : obj) {
+        std::string_view const key = kv.name.GetString();
+        ddwaf_obj &element = obj_map.get_entry_unchecked(i++);
+        element.set_key(key, memres);
+        json_to_object_impl(memres, element, kv.value);
+      }
+      break;
+    }
+    case rapidjson::kArrayType: {
+      auto &&arr = doc.getArray();
+      ddwaf_arr_obj &obj_arr = object.make_array(arr.Size(), memres);
+      size_t i = 0;
+      for (auto &v : arr) {
+        ddwaf_obj &element = obj_arr.at_unchecked(i++);
+        json_to_object_impl(memres, element, v);
+      }
+      break;
+    }
+    case rapidjson::kStringType: {
+      std::string_view sv{doc.GetString(), doc.GetStringLength()};
+      object.make_string(sv, memres);
+      break;
+    }
+    case rapidjson::kNumberType: {
+      if (doc.IsInt64()) {
+        object.make_number(doc.GetInt64());
+      } else if (doc.IsUint64()) {
+        object.make_number(doc.GetUint64());
+      }
+      break;
+    }
+    case rapidjson::kNullType:
+    default:
+      object.make_null();
+      break;
+  }
+}
+}
+
+template <typename D>
+ddwaf_owned_obj<ddwaf_obj> json_to_object(D &doc) { // NOLINT(misc-no-recursion)
+  ddwaf_owned_obj<ddwaf_obj> ret;
+  json_to_obj_impl(ret.memres(), ret.get(), doc);
+}
+
+// for objects created with libddwaf functions
+template<typename T>
+struct may_alias libddwaf_owned_ddwaf_obj : T {
+  static auto constexpr inline invalid =
+      ddwaf_object{.type = DDWAF_OBJ_INVALID};
+
+  libddwaf_owned_ddwaf_obj(T const &obj) : T{obj} {}
+  libddwaf_owned_ddwaf_obj(const libddwaf_owned_ddwaf_obj&) = delete;
+  libddwaf_owned_ddwaf_obj& operator=(const libddwaf_owned_ddwaf_obj&) = delete;
+  libddwaf_owned_ddwaf_obj(libddwaf_owned_ddwaf_obj&& oth) noexcept : libddwaf_owned_ddwaf_obj{{oth}} {
+    static_cast<ddwaf_object&>(*this) = invalid;
+  };
+  libddwaf_owned_ddwaf_obj &operator=(libddwaf_owned_ddwaf_obj &&oth) noexcept {
+    if (this != &oth) {
+      static_cast<ddwaf_object &>(*this) = *oth;
+      static_cast<ddwaf_object &>(*oth) = invalid;
+    }
+    return *this;
+  }
+
+  ~libddwaf_owned_ddwaf_obj() {
+    ddwaf_object_free(this);
+  }
+};
+
+namespace {
+  inline void copy(ddwaf_memres &memres, ddwaf_obj &dst, ddwaf_obj &src) {
+    switch(src.type) {
+      case DDWAF_OBJ_MAP: {
+        ddwaf_map_obj src_map{src};
+        ddwaf_map_obj &r = dst.make_map(src.nbEntries, memres);
+        size_t i = 0;
+        for (auto &&[k, v]: src_map) {
+          ddwaf_obj &new_dst = r.get_entry_unchecked(i++);
+          new_dst.set_key(k, memres);
+          copy(memres, new_dst, v);
+        }
+        break;
+      }
+      case DDWAF_OBJ_ARRAY: {
+        ddwaf_arr_obj src_arr{src};
+        ddwaf_arr_obj &r = dst.make_array(src.nbEntries, memres);
+        size_t i = 0;
+        for (auto &&elem: src_arr) {
+          ddwaf_obj &new_dst = r.at_unchecked(i++);
+          copy(memres, new_dst, elem);
+        }
+        break;
+      }
+      case DDWAF_OBJ_STRING: {
+        dst.make_string(src.string_val_unchecked(), memres);
+        break;
+      }
+      default:
+        dst.shallow_copy_from(src);
+  }
+}  // namespace
+
+template<typename T>
+ddwaf_owned_obj<T> ddwaf_obj_clone(const T obj) {
+  ddwaf_owned_obj<T> clone;
+
+  copy(clone.memres(), clone.get(), obj);
+
+  return std::move(clone);
+}
+
+}  // namespace datadog::nginx::security
+}
+

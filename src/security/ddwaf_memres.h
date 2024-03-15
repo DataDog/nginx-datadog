@@ -60,6 +60,15 @@ class ddwaf_memres {
     return p;
   }
 
+  void clear() {
+    cur_object_seg_size_ = 0;
+    cur_string_seg_size_ = 0;
+    objects_stored_ = 0;
+    strings_stored_ = 0;
+    allocs_object_.clear();
+    allocs_string_.clear();
+  }
+
  private:
   // TODO: allocate in request pool?
   void new_objects_segment(size_t num_objects) {

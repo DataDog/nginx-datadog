@@ -30,6 +30,7 @@ target_sources(nginx_datadog
         src/security/collection.cpp
         src/security/context.cpp
         src/security/library.cpp
+        src/security/waf_remote_cfg.cpp
         src/string_util.cpp
         src/tracing_library.cpp
 )
