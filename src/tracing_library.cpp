@@ -49,13 +49,13 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   }
 
   if (nginx_conf.service_name) {
-    config.defaults.service = nginx_conf.service_name->value;
+    config.service = nginx_conf.service_name->value;
   } else {
-    config.defaults.service = "nginx";
+    config.service = "nginx";
   }
 
   if (nginx_conf.environment) {
-    config.defaults.environment = nginx_conf.environment->value;
+    config.environment = nginx_conf.environment->value;
   }
 
   if (nginx_conf.agent_url) {
@@ -102,7 +102,7 @@ TracingLibrary::propagation_header_names(
   // differ from `configured_styles` due to environment variables.
   dd::TracerConfig minimal_config;
   // A non-empty service name is required.
-  minimal_config.defaults.service = "dummy";
+  minimal_config.service = "dummy";
   // Don't bother with a real collector.
   minimal_config.report_traces = false;
   // Empty `configured_styles` would mean "use the default."
