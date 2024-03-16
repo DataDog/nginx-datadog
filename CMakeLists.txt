@@ -26,7 +26,8 @@ endif()
 if(CMAKE_COMPILER_IS_GNUCXX)
   # This warning has a false positive. See
   # <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108088>.
-  add_compile_options(-Wno-error=free-nonheap-object)
+  add_compile_options(-Wno-error=free-nonheap-object -Wno-error=maybe-uninitialized)
+
 endif()
 
 # Nginx module boilerplate (code within the nginx repository)
