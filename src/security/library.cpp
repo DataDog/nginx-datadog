@@ -13,6 +13,7 @@
 #include "security/blocking.h"
 
 using namespace std::literals;
+namespace dns = datadog::nginx::security;
 
 namespace {
 
@@ -26,7 +27,7 @@ static constexpr ddwaf_config waf_config{
     .free_fn = nullptr,
 };
 
-auto read_rule_file(std::string_view filename) {
+auto read_rule_file(std::string_view filename) -> dns::ddwaf_owned_map {
   std::ifstream rule_file(filename.data(), std::ios::in);
   if (!rule_file) {
     throw std::system_error(errno, std::generic_category());
@@ -54,7 +55,7 @@ auto read_rule_file(std::string_view filename) {
     throw std::invalid_argument("invalid json rule");
   }
 
-  return datadog::nginx::security::json_to_object(document);
+  return dns::ddwaf_owned_map{dns::json_to_object(document)};
 }
 
 int ddwaf_log_level_to_nginx(DDWAF_LOG_LEVEL level) noexcept {
@@ -84,12 +85,10 @@ void ddwaf_log(DDWAF_LOG_LEVEL level, const char *function, const char *file,
 
 namespace datadog::nginx::security {
 
-waf_handle::waf_handle(ddwaf_object *ruleset) {
-  handle_ = ddwaf_init(ruleset, &waf_config, nullptr);
-  if (handle_ == nullptr) {
-    throw std::runtime_error("unknown error");
-  }
-  action_info_map_ = extract_actions(*ruleset);
+waf_handle::waf_handle(ddwaf_handle h, const ddwaf_map_obj &merged_actions) {
+  assert(h != nullptr);
+  handle_ = h;
+  action_info_map_ = extract_actions(merged_actions);
 }
 
 /*
@@ -146,7 +145,7 @@ std::atomic<bool> library::active_{true};
 void library::initialise_security_library(std::string_view file,
                                           std::string_view template_html,
                                           std::string_view template_json) {
-  ddwaf_owned_obj ruleset;
+  ddwaf_owned_map ruleset;
   try {
     ruleset = read_rule_file(file);
   } catch (const std::exception &e) {
@@ -154,7 +153,12 @@ void library::initialise_security_library(std::string_view file,
                              std::string{file} + ": " + e.what());
   }
   ddwaf_set_log_cb(ddwaf_log, DDWAF_LOG_DEBUG);
-  library::handle_ = std::make_shared<waf_handle>(&ruleset);
+  ddwaf_handle h = ddwaf_init(&ruleset.get(), &waf_config, nullptr);
+  if (h != nullptr) {
+    auto actions = ruleset.get().get_opt<ddwaf_map_obj>("actions");
+    library::handle_ =
+        std::make_shared<waf_handle>(h, actions.value_or(ddwaf_map_obj{}));
+  }
   blocking_service::initialize(template_html, template_json);
 }
 
@@ -184,12 +188,10 @@ bool library::update_ruleset(const ddwaf_map_obj &spec)
 
   auto &&actions = spec.get_opt<ddwaf_map_obj>("actions"sv);
 
-  auto *wh = new waf_handle{new_h, actions.value_or(ddwaf_map_obj::empty())};
+  auto *wh = new waf_handle{new_h, actions.value_or(ddwaf_map_obj{})};
   std::atomic_store(&handle_, std::shared_ptr<waf_handle>{wh});
   return true;
 }
-
-}  // namespace datadog::nginx::security
 
 std::vector<std::string_view> library::environment_variable_names() {
   return {// These environment variable names are taken from
@@ -199,4 +201,4 @@ std::vector<std::string_view> library::environment_variable_names() {
           "DD_APPSEC_ENABLED", "DD_APPSEC_RULES"};
 }
 
-}  // namespace datadog
+}  // namespace datadog::nginx::security

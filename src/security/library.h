@@ -27,7 +27,6 @@ class waf_handle {
       std::map<std::string /* id */, action_info, std::less<>>;
 
   waf_handle() = default;
-  explicit waf_handle(ddwaf_object *ruleset);
   waf_handle(ddwaf_handle h, const ddwaf_map_obj &merged_actions);
 
   waf_handle(const waf_handle &) = delete;

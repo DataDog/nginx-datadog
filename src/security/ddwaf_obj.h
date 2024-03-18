@@ -350,17 +350,17 @@ void json_to_obj_impl(ddwaf_memres &memres, ddwaf_obj &object, D &doc) {
         std::string_view const key = kv.name.GetString();
         ddwaf_obj &element = obj_map.get_entry_unchecked(i++);
         element.set_key(key, memres);
-        json_to_object_impl(memres, element, kv.value);
+        json_to_obj_impl(memres, element, kv.value);
       }
       break;
     }
     case rapidjson::kArrayType: {
-      auto &&arr = doc.getArray();
+      auto &&arr = doc.GetArray();
       ddwaf_arr_obj &obj_arr = object.make_array(arr.Size(), memres);
       size_t i = 0;
       for (auto &v : arr) {
         ddwaf_obj &element = obj_arr.at_unchecked(i++);
-        json_to_object_impl(memres, element, v);
+        json_to_obj_impl(memres, element, v);
       }
       break;
     }
@@ -386,9 +386,10 @@ void json_to_obj_impl(ddwaf_memres &memres, ddwaf_obj &object, D &doc) {
 }
 
 template <typename D>
-ddwaf_owned_obj<ddwaf_obj> json_to_object(D &doc) { // NOLINT(misc-no-recursion)
+ddwaf_owned_obj<ddwaf_obj> json_to_object(D &doc) {
   ddwaf_owned_obj<ddwaf_obj> ret;
   json_to_obj_impl(ret.memres(), ret.get(), doc);
+  return ret;
 }
 
 // for objects created with libddwaf functions
@@ -417,40 +418,40 @@ struct may_alias libddwaf_owned_ddwaf_obj : T {
 };
 
 namespace {
-  inline void copy(ddwaf_memres &memres, ddwaf_obj &dst, ddwaf_obj &src) {
-    switch(src.type) {
-      case DDWAF_OBJ_MAP: {
-        ddwaf_map_obj src_map{src};
-        ddwaf_map_obj &r = dst.make_map(src.nbEntries, memres);
-        size_t i = 0;
-        for (auto &&[k, v]: src_map) {
-          ddwaf_obj &new_dst = r.get_entry_unchecked(i++);
-          new_dst.set_key(k, memres);
-          copy(memres, new_dst, v);
-        }
-        break;
+inline void copy(ddwaf_memres &memres, ddwaf_obj &dst, const ddwaf_obj &src) {
+  switch (src.type) {
+    case DDWAF_OBJ_MAP: {
+      ddwaf_map_obj src_map{src};
+      ddwaf_map_obj &r = dst.make_map(src.nbEntries, memres);
+      size_t i = 0;
+      for (auto &&[k, v] : src_map) {
+        ddwaf_obj &new_dst = r.get_entry_unchecked(i++);
+        new_dst.set_key(k, memres);
+        copy(memres, new_dst, v);
       }
-      case DDWAF_OBJ_ARRAY: {
-        ddwaf_arr_obj src_arr{src};
-        ddwaf_arr_obj &r = dst.make_array(src.nbEntries, memres);
-        size_t i = 0;
-        for (auto &&elem: src_arr) {
-          ddwaf_obj &new_dst = r.at_unchecked(i++);
-          copy(memres, new_dst, elem);
-        }
-        break;
+      break;
+    }
+    case DDWAF_OBJ_ARRAY: {
+      ddwaf_arr_obj src_arr{src};
+      ddwaf_arr_obj &r = dst.make_array(src.nbEntries, memres);
+      size_t i = 0;
+      for (auto &&elem : src_arr) {
+        ddwaf_obj &new_dst = r.at_unchecked(i++);
+        copy(memres, new_dst, elem);
       }
-      case DDWAF_OBJ_STRING: {
-        dst.make_string(src.string_val_unchecked(), memres);
-        break;
-      }
-      default:
-        dst.shallow_copy_val_from(src);
+      break;
+    }
+    case DDWAF_OBJ_STRING: {
+      dst.make_string(src.string_val_unchecked(), memres);
+      break;
+    }
+    default:
+      dst.shallow_copy_val_from(src);
   }
 }  // namespace
 
-template<typename T>
-ddwaf_owned_obj<T> ddwaf_obj_clone(const T obj) {
+template <typename T>
+ddwaf_owned_obj<T> ddwaf_obj_clone(const T &obj) {
   ddwaf_owned_obj<T> clone;
 
   copy(clone.memres(), clone.get(), obj);
@@ -458,6 +459,5 @@ ddwaf_owned_obj<T> ddwaf_obj_clone(const T obj) {
   return std::move(clone);
 }
 
+}  // namespace
 }  // namespace datadog::nginx::security
-}
-
