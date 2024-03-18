@@ -147,17 +147,22 @@ struct may_alias ddwaf_obj : ddwaf_object {
   }
 
   template<typename T>
-  T& shallow_copy_from(const T& oth) {
+  T& shallow_copy_val_from(const T& oth) {
     static_assert(std::is_base_of<ddwaf_obj, T>::value,
                   "T must be a subclass of ddwaf_obj");
-    if (oth.type != type) {
-      throw std::invalid_argument("shallow copy between mismatched types");
-    }
-    static_cast<ddwaf_object&>(*this) = static_cast<const ddwaf_object&>(oth);
+
+    // does not copy the key
+    std::memcpy(
+      reinterpret_cast<char*>(this) + offsetof(ddwaf_obj, stringValue),
+      reinterpret_cast<const char*>(&oth) + offsetof(ddwaf_obj, stringValue),
+      sizeof (ddwaf_obj) - offsetof(ddwaf_obj, stringValue)
+    );
+    return reinterpret_cast<T&>(*this); // NOLINT
   }
 };
 
 struct may_alias ddwaf_str_obj : ddwaf_obj {
+  ddwaf_str_obj() : ddwaf_obj{} { type = DDWAF_OBJ_STRING; }
   explicit ddwaf_str_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
     if (dobj.type != DDWAF_OBJ_STRING) {
       throw std::invalid_argument("not a string");
@@ -193,9 +198,9 @@ struct may_alias ddwaf_arr_obj : ddwaf_obj {
     return at_unchecked<T>(index);
   }
 
-  std::size_t size() const {
-    return nbEntries;
-  }
+  std::size_t size() const { return nbEntries; }
+
+  bool empty() const { return nbEntries == 0; }
 
   struct iterator {
     // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
@@ -306,10 +311,18 @@ class ddwaf_owned_obj {
   T obj_;
  public:
   ddwaf_owned_obj() = default;
-  template<typename OT>
-  ddwaf_owned_obj(ddwaf_owned_obj<OT>&& oth) : obj_{oth.get()}, memres_{std::move(oth.memres())} {
-    static_cast<ddwaf_object&>(oth.get()) = ddwaf_object{.type = DDWAF_OBJ_INVALID};
+  template <typename OT>
+  explicit ddwaf_owned_obj(ddwaf_owned_obj<OT> &&oth)
+      : obj_{oth.get()}, memres_{std::move(oth.memres())} {
+    static_cast<ddwaf_object &>(oth.get()) =
+        ddwaf_object{.type = DDWAF_OBJ_INVALID};
   }
+  template <typename OT>
+  ddwaf_owned_obj<T> &operator=(ddwaf_owned_obj<OT> &&oth) = delete;
+  template <typename OT>
+  ddwaf_owned_obj(const ddwaf_owned_obj<OT> &) = delete;
+  template <typename OT>
+  ddwaf_owned_obj<T> &operator=(const ddwaf_owned_obj<OT> &) = delete;
 
   T &get() { return obj_; }
   const T &get() const { return obj_; }
@@ -432,7 +445,7 @@ namespace {
         break;
       }
       default:
-        dst.shallow_copy_from(src);
+        dst.shallow_copy_val_from(src);
   }
 }  // namespace
 

@@ -82,6 +82,10 @@ class library {
     active_.store(value, std::memory_order_relaxed);
   }
 
+  static bool active() noexcept {
+    return active_.load(std::memory_order_relaxed);
+  }
+
   static std::vector<std::string_view> environment_variable_names();
 
  protected:
