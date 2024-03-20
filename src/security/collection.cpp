@@ -10,6 +10,7 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "../string_util.h"
 #include "ddwaf_obj.h"
 #include "decode.h"
 #include "util.h"
@@ -19,6 +20,7 @@ extern "C" {
 }
 
 using namespace std::literals;
+using datadog::nginx::to_string_view;
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 
@@ -75,7 +77,7 @@ class req_serializer {
   static void set_map_entry_str(dns::ddwaf_obj &slot, std::string_view key,
                          const ngx_str_t &value) {
     slot.set_key(key);
-    slot.make_string(dns::to_sv(value));
+    slot.make_string(to_string_view(value));
   }
 
   void set_request_query(const ngx_http_request_t &request,
@@ -232,7 +234,7 @@ class req_serializer {
         if (h.hash == 0) {
           continue;
         }
-        dobj.make_string(dns::to_sv(h.value));
+        dobj.make_string(to_string_view(h.value));
       } else {
         if (h.hash == 0) {
           dobj.nbEntries = 0;
@@ -271,7 +273,7 @@ class req_serializer {
 
       for (auto tp = t; tp; tp = tp->next) {
         iter.add(std::make_unique<dns::query_string_iter>(
-            dns::to_sv(tp->value), memres_, ';',
+            to_string_view(tp->value), memres_, ';',
             dns::query_string_iter::trim_mode::do_trim));
       }
     } else {
@@ -292,7 +294,7 @@ class req_serializer {
 
       for (auto &&ch : cookie_headers) {
         iter.add(std::make_unique<dns::query_string_iter>(
-            dns::to_sv(ch->value), memres_, ';',
+            to_string_view(ch->value), memres_, ';',
             dns::query_string_iter::trim_mode::do_trim));
       }
     }
@@ -311,7 +313,7 @@ class req_serializer {
 
     // use the stastus line rather than the status number in order to avoid
     // having to allocate space for a string
-    std::string_view sv{dns::to_sv(request.headers_out.status_line)};
+    std::string_view sv{to_string_view(request.headers_out.status_line)};
 
     // find the first space
     while (!sv.empty() && !std::isspace(sv.front())) {

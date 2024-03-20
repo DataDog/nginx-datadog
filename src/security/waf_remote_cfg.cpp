@@ -1,6 +1,5 @@
 #include "waf_remote_cfg.h"
 
-#include <datadog/remote_config.h>
 #include <ddwaf.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
@@ -10,19 +9,20 @@
 #include <algorithm>
 #include <datadog/json_fwd.hpp>
 #include <optional>
+#include <ostream>
+#include <sstream>
 #include <stdexcept>
 #include <type_traits>
 
+#include "ddwaf_memres.h"
+#include "ddwaf_obj.h"
 #include "library.h"
-#include "security/ddwaf_memres.h"
-#include "security/ddwaf_obj.h"
 
 namespace rc = datadog::tracing::remote_config;
 namespace dns = datadog::nginx::security;
 using namespace std::literals;
 
 namespace {
-using datadog::tracing::RemoteConfigurationManager;
 
 struct DirtyStatus {
   bool rules;
@@ -202,7 +202,7 @@ class CollectedAsmData {
       //     - value: 192.168.1.1
       //       expiration: 555
       //     - ... merged from all entries
-      dns::ddwaf_obj &out = ret.at_unchecked(i);
+      dns::ddwaf_obj &out = ret.at_unchecked(i++);
 
       dns::ddwaf_map_obj &merged_map = out.make_map(3, memres);
       // id is a string_view backed by one of the data etnries
@@ -239,6 +239,7 @@ class CollectedAsmData {
       }
       assert(total_data_entries == k);
     }
+    assert(num_ids == i);
 
     return ret;
   }
@@ -360,7 +361,7 @@ class CurrentAppSecConfig {
         .shallow_copy_val_from(
             dd_config()
                 .get_opt<dns::ddwaf_str_obj>("version"sv)
-                .value_or(dns::ddwaf_str_obj{}.make_string("2.1"sv)));
+                .value_or(dns::ddwaf_str_obj{}.make_string("2.2"sv)));
 
     mo.nbEntries = i;
 
@@ -495,7 +496,8 @@ class AsmFeaturesListener : public rc::ProductListener {
 
  public:
   AsmFeaturesListener(CurrentAppSecConfig &cur_appsec_cfg)
-      : cur_appsec_cfg_{cur_appsec_cfg} {}
+      : rc::ProductListener{rc::Product::KnownProducts::ASM_FEATURES},
+        cur_appsec_cfg_{cur_appsec_cfg} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
                         const std::string &content) override {
@@ -529,7 +531,9 @@ class AsmDDListener : public rc::ProductListener {
  public:
   AsmDDListener(CurrentAppSecConfig &cur_appsec_cfg,
                 std::shared_ptr<dns::ddwaf_owned_map> default_config)
-      : cur_appsec_cfg_{cur_appsec_cfg}, default_config_{default_config} {}
+      : rc::ProductListener{rc::Product::KnownProducts::ASM_DD},
+        cur_appsec_cfg_{cur_appsec_cfg},
+        default_config_{default_config} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
                         const std::string &content) override {
@@ -567,8 +571,11 @@ class AsmDDListener : public rc::ProductListener {
 
 class AsmDataListener : public rc::ProductListener {
  public:
-  AsmDataListener(CurrentAppSecConfig &cur_appsec_cfg)
-      : cur_appsec_cfg_{cur_appsec_cfg} {}
+  AsmDataListener(CurrentAppSecConfig &cur_appsec_cfg,
+                  datadog::tracing::Logger &logger)
+      : rc::ProductListener{rc::Product::KnownProducts::ASM_DATA},
+        cur_appsec_cfg_{cur_appsec_cfg},
+        logger_{logger} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
                         const std::string &content) override {
@@ -580,12 +587,31 @@ class AsmDataListener : public rc::ProductListener {
           std::string{rapidjson::GetParseError_En(result.Code())});
     }
 
-    if (!doc.IsArray()) {
-      throw std::invalid_argument("asm_data remote config not an array");
+    if (!doc.IsObject()) {
+      throw std::invalid_argument("asm_data remote config not an object");
     }
 
-    dns::ddwaf_owned_arr new_data{dns::json_to_object(doc)};
-    cur_appsec_cfg_.asm_data_add_config(key, std::move(new_data));
+    if (doc.HasMember("rules_data")) {
+      auto &rules_data = doc["rules_data"];
+      if (!rules_data.IsArray()) {
+        throw std::invalid_argument("rules_data is not an array");
+      }
+      logger_.log_debug([&key, &rules_data](std::ostream &oss) {
+        oss << "rules_data: key(" << key.config_id() << ") "
+            << "size(" << rules_data.Size() << ")";
+      });
+
+      dns::ddwaf_owned_arr new_data{dns::json_to_object(rules_data)};
+      cur_appsec_cfg_.asm_data_add_config(key, std::move(new_data));
+    } else {
+      // no data
+      dns::ddwaf_owned_arr new_data{};
+      logger_.log_debug([&key](std::ostream &oss) {
+        oss << "rules_data: key(" << key.config_id() << ") "
+            << "empty data";
+      });
+      cur_appsec_cfg_.asm_data_add_config(key, std::move(new_data));
+    }
   }
 
   void on_config_remove(const rc::ParsedConfigKey &key) override {
@@ -596,12 +622,14 @@ class AsmDataListener : public rc::ProductListener {
 
  private:
   CurrentAppSecConfig &cur_appsec_cfg_;
+  datadog::tracing::Logger &logger_;
 };
 
 class AsmUserConfigListener : public rc::ProductListener {
  public:
   AsmUserConfigListener(CurrentAppSecConfig &cur_appsec_cfg)
-      : cur_appsec_cfg_{cur_appsec_cfg} {}
+      : rc::ProductListener{rc::Product::KnownProducts::ASM},
+        cur_appsec_cfg_{cur_appsec_cfg} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
                         const std::string &content) override {
@@ -633,66 +661,106 @@ class AsmUserConfigListener : public rc::ProductListener {
 class AppSecConfigService {
   std::shared_ptr<dns::ddwaf_owned_map> default_config_;
   CurrentAppSecConfig current_config_;
+  std::shared_ptr<datadog::tracing::Logger> logger_;
 
-public:
-  AppSecConfigService(dns::ddwaf_owned_map default_config)
+  static inline std::unique_ptr<AppSecConfigService> instance_;
+
+  AppSecConfigService(dns::ddwaf_owned_map default_config,
+                      std::shared_ptr<datadog::tracing::Logger> logger)
       : default_config_{std::make_shared<dns::ddwaf_owned_map>(
-            std::move(default_config))} {
+            std::move(default_config))},
+        logger_{std::move(logger)} {
     current_config_.set_dd_config(this->default_config_);
   }
 
-  void subscribe_to_remote_config(
-      datadog::tracing::RemoteConfigurationManager &rcm,
-      std::function<void(dns::ddwaf_map_obj)> accept_cfg_update) {
-    // TODO: only subscribe this if not explicitly activated or deactivated
-    subscribe_activation(rcm);
+public:
+ AppSecConfigService(const AppSecConfigService &) = delete;
+ AppSecConfigService &operator=(const AppSecConfigService &) = delete;
+ AppSecConfigService(AppSecConfigService &&) = delete;
+ AppSecConfigService &operator=(AppSecConfigService &&) = delete;
+ ~AppSecConfigService() = default;
 
-    // TODO: only subscribe if not given a configuration file
-    subscribe_rules_and_data(rcm);
+ static void initialize(dns::ddwaf_owned_map default_config,
+                        std::shared_ptr<datadog::tracing::Logger> logger) {
+    if (instance_) {
+      throw std::logic_error{"AppSecConfigService already initialized"};
+    }
+    instance_ = std::unique_ptr<AppSecConfigService>{
+        new AppSecConfigService{std::move(default_config), std::move(logger)}};
+ }
 
-    rcm.add_config_end_listener([this, cb=std::move(accept_cfg_update)]{
-      auto maybe_upd = current_config_.merged_update_config();
-      if (maybe_upd) {
-        cb(maybe_upd.value().get());
-      }
-    });
+ static bool has_instance() { return static_cast<bool>(instance_); }
+
+ static AppSecConfigService &instance() {
+    if (!instance_) {
+      throw std::logic_error{"AppSecConfigService not initialized"};
+    }
+    return *instance_;
+ }
+
+ void subscribe_to_remote_config(
+     datadog::tracing::DatadogAgentConfig &ddac,
+     bool accept_cfg_update,
+     bool is_subscribe_activation) {
+    if (is_subscribe_activation) {
+      subscribe_activation(ddac);
+    }
+
+    if (accept_cfg_update) {
+      subscribe_rules_and_data(ddac);
+
+      ddac.rem_cfg_end_listeners.emplace_back([this] {
+        std::optional<dns::ddwaf_owned_map> maybe_upd =
+            current_config_.merged_update_config();
+        if (maybe_upd) {
+          dns::library::update_ruleset(maybe_upd->get());
+        }
+      });
+    }
+ }
+
+ private:
+  void subscribe_activation(datadog::tracing::DatadogAgentConfig &ddac) {
+    // ASM_FEATURES
+    ddac.rem_cfg_listeners.emplace_back(
+        new AsmFeaturesListener(current_config_));
   }
 
-private:
- void subscribe_activation(RemoteConfigurationManager &rcm) {
-   rcm.add_listener(rc::Product::KnownProducts::ASM_FEATURES,
-                    std::make_unique<AsmFeaturesListener>(current_config_));
- }
+  void subscribe_rules_and_data(datadog::tracing::DatadogAgentConfig &ddac) {
+    // ASM_DD
+    ddac.rem_cfg_listeners.emplace_back(
+        new AsmDDListener(current_config_, default_config_));
 
- void subscribe_rules_and_data(RemoteConfigurationManager &rcm) {
-   rcm.add_listener(
-       rc::Product::KnownProducts::ASM_DD,
-       std::make_unique<AsmDDListener>(current_config_, default_config_));
+    // ASM_DATA
+    ddac.rem_cfg_listeners.emplace_back(
+        new AsmDataListener(current_config_, *logger_));
 
-   rcm.add_listener(rc::Product::KnownProducts::ASM_DATA,
-                    std::make_unique<AsmDataListener>(current_config_));
-
-   rcm.add_listener(rc::Product::KnownProducts::ASM,
-                    std::make_unique<AsmUserConfigListener>(current_config_));
- }
+    // ASM
+    ddac.rem_cfg_listeners.emplace_back(
+        new AsmUserConfigListener(current_config_));
+  }
 };
 
 }  // namespace
 
 namespace datadog::nginx::security {
 
+void register_default_config(ddwaf_owned_map default_config,
+                             std::shared_ptr<tracing::Logger> logger) {
+  AppSecConfigService::initialize(std::move(default_config), std::move(logger));
+}
+
 void register_with_remote_cfg(
-    datadog::tracing::RemoteConfigurationManager &rcm,
-    dns::ddwaf_owned_map default_config,
-    std::function<void(dns::ddwaf_map_obj)> accept_config_update) {
-  static bool called{};
-  static AppSecConfigService app_sec_cfg{std::move(default_config)};
-
-  if (called) {
-    throw std::logic_error{"register_with_remote_cfg called more than once"};
+  datadog::tracing::DatadogAgentConfig &ddac,
+    bool accept_cfg_update,
+    bool subscribe_activation) {
+  if (!AppSecConfigService::has_instance()) {
+    ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                  "No subscription to remote config for the WAF: no previous "
+                  "succesful initialization of the WAF");
+    return;
   }
-  called = true;
-
-  app_sec_cfg.subscribe_to_remote_config(rcm, std::move(accept_config_update));
+  AppSecConfigService::instance().subscribe_to_remote_config(
+      ddac, accept_cfg_update, subscribe_activation);
 }
 }  // namespace datadog::nginx::security

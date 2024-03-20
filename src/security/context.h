@@ -10,8 +10,9 @@
 
 #include "../dd.h"
 #include "collection.h"
-#include "security/blocking.h"
-#include "security/library.h"
+#include "blocking.h"
+#include "library.h"
+#include "util.h"
 
 extern "C" {
 #include <nginx.h>
@@ -21,31 +22,6 @@ extern "C" {
 }
 
 namespace datadog::nginx::security {
-
-template <typename T, typename FreeFunc>
-struct freeable_resource {
-  static_assert(std::is_standard_layout<T>::value, "T must be a POD type");
-
-  T resource;
-  explicit freeable_resource(const T resource) : resource{resource} {}
-
-  freeable_resource(freeable_resource &&other) noexcept
-      : resource(other.resource) {
-    other.resource = {};
-  };
-  freeable_resource &operator=(freeable_resource &&other) noexcept {
-    if (this != &other) {
-      resource = other.resource;
-      other.resource = {};
-    }
-    return *this;
-  }
-  freeable_resource(const freeable_resource &other) = delete;
-  freeable_resource &operator=(const freeable_resource &other) = delete;
-  T &operator*() { return resource; }
-
-  ~freeable_resource() { FreeFunc()(resource); }
-};
 
 struct ddwaf_result_free_functor {
   void operator()(ddwaf_result &res) { ddwaf_result_free(&res); }

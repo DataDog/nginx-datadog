@@ -33,7 +33,8 @@ struct query_string_iter {
 
   query_string_iter(const ngx_str_t &qs, ddwaf_memres &memres,
                     unsigned char separator, trim_mode trim)
-      : query_string_iter{to_sv(qs), memres, separator, trim} {}
+      : query_string_iter{datadog::nginx::to_string_view(qs), memres, separator,
+                          trim} {}
 
   void reset() noexcept { pos = 0; }
 

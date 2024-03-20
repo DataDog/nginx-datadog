@@ -18,6 +18,7 @@
 #include "dd.h"
 #include "ngx_event_scheduler.h"
 #include "ngx_logger.h"
+#include "security/waf_remote_cfg.h"
 #include "string_util.h"
 
 namespace datadog {
@@ -36,9 +37,9 @@ std::string_view or_default(std::string_view config_json) {
 }  // namespace
 
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
-    const datadog_main_conf_t &nginx_conf) {
+    const datadog_main_conf_t &nginx_conf, std::shared_ptr<dd::Logger> logger) {
   dd::TracerConfig config;
-  config.logger = std::make_shared<NgxLogger>();
+  config.logger = std::move(logger);
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
   config.integration_name = "nginx";
   config.integration_version = NGINX_VERSION;
@@ -81,6 +82,16 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   std::stable_sort(rules.begin(), rules.end(), by_depth_descending);
   for (sampling_rule_t &rule : rules) {
     config.trace_sampler.rules.push_back(std::move(rule.rule));
+  }
+
+  bool appsec_fully_disabled = nginx_conf.appsec_enabled == 0;
+  if (!appsec_fully_disabled) {
+    bool has_custom_ruleset = nginx_conf.appsec_ruleset_file.len > 0;
+    bool appsec_enabling_explicit = nginx_conf.appsec_enabled != NGX_CONF_UNSET;
+    security::register_with_remote_cfg(
+        config.agent,
+        !has_custom_ruleset,         // no custom ruleset => ruleset via rem cfg
+        !appsec_enabling_explicit);  // no explicit => control via rem cfg
   }
 
   auto final_config = dd::finalize_config(config);

@@ -1,9 +1,12 @@
 #include "ngx_http_datadog_module.h"
 
+#include <ddwaf.h>
+
 #include <cassert>
 #include <cstdlib>
 #include <exception>
 #include <iterator>
+#include <memory>
 #include <new>
 #include <string_view>
 #include <utility>
@@ -17,18 +20,18 @@
 #include "defer.h"
 #include "global_tracer.h"
 #include "log_conf.h"
+#include "ngx_logger.h"
 #include "security/library.h"
+#include "security/waf_remote_cfg.h"
 #include "string_util.h"
 #include "tracing_library.h"
 
 extern "C" {
-#include <ddwaf.h>
-
 #include <nginx.h>
+#include <ngx_conf_file.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
-#include <stdlib.h>  // ::setenv
 }
 
 // clang-format off
@@ -326,7 +329,7 @@ static ngx_command_t datadog_commands[] = {
       ngx_conf_set_flag_slot,
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(datadog_main_conf_t, appsec_enabled),
-      NULL,
+      nullptr,
     },
 
     {
@@ -335,7 +338,25 @@ static ngx_command_t datadog_commands[] = {
       ngx_conf_set_str_slot,
       NGX_HTTP_MAIN_CONF_OFFSET,
       offsetof(datadog_main_conf_t, appsec_ruleset_file),
-      NULL,
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_http_blocked_template_json"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_http_blocked_template_json),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_http_blocked_template_html"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_http_blocked_template_html),
+      nullptr,
     },
 
     ngx_null_command
@@ -507,7 +528,20 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf);
+  std::shared_ptr<dd::Logger> logger = std::make_shared<NgxLogger>();
+  try {
+    std::optional<security::ddwaf_owned_map> initial_waf_cfg =
+        security::library::initialize_security_library(*main_conf);
+    if (initial_waf_cfg) {
+      security::register_default_config(std::move(*initial_waf_cfg), logger);
+    }
+  } catch (const std::exception &e) {
+    ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                  "Initialising security library failed: %s", e.what());
+    return NGX_ERROR;
+  }
+
+  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf, logger);
   if (auto *error = maybe_tracer.if_error()) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Failed to construct tracer: [error code %d] %s",
@@ -520,17 +554,11 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     auto file_sv =
         std::string_view{reinterpret_cast<char *>(file.data), file.len};
 
-    if (file_sv.empty()) {
+    try {
+      // TODO: last 2 args should come from config
+    } catch (const std::exception &e) {
       ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                    "AppSec is enabled, but no ruleset file was specified");
-    } else {
-      try {
-        // TODO: last 2 args should come from config
-        security::library::initialise_security_library(file_sv, {}, {});
-      } catch (const std::exception &e) {
-        ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                      "Initialising security library failed: %s", e.what());
-      }
+                    "Initialising security library failed: %s", e.what());
     }
   }
 

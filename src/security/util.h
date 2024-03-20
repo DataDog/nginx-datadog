@@ -10,6 +10,32 @@ extern "C" {
 
 namespace datadog::nginx::security {
 
+template <typename T, typename FreeFunc>
+struct freeable_resource {
+  static_assert(std::is_standard_layout<T>::value, "T must be a POD type");
+
+  T resource;
+  explicit freeable_resource(const T resource) : resource{resource} {}
+
+  freeable_resource(freeable_resource &&other) noexcept
+      : resource(other.resource) {
+    other.resource = {};
+  };
+  freeable_resource &operator=(freeable_resource &&other) noexcept {
+    if (this != &other) {
+      resource = other.resource;
+      other.resource = {};
+    }
+    return *this;
+  }
+  freeable_resource(const freeable_resource &other) = delete;
+  freeable_resource &operator=(const freeable_resource &other) = delete;
+  T &operator*() { return resource; }
+  T &get() { return **this; }
+
+  ~freeable_resource() { FreeFunc()(resource); }
+};
+
 struct ngx_str_hash {
   std::size_t operator()(const ngx_str_t &str) const noexcept {
     // could use ngx_hash_key(str.data, str.len) but this way it can be inlined
@@ -86,11 +112,6 @@ class ngnix_header_iterable {
 inline ngx_str_t ngx_stringv(std::string_view sv) noexcept {
   return {sv.size(), // NOLINTNEXTLINE
           const_cast<u_char *>(reinterpret_cast<const u_char *>(sv.data()))};
-}
-
-inline std::string_view to_sv(const ngx_str_t &str) noexcept {
-  // NOLINTNEXTLINE
-  return {reinterpret_cast<const char *>(str.data), str.len};
 }
 
 } // namespace datadog::nginx::security

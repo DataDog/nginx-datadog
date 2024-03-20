@@ -11,6 +11,7 @@
 #include <string_view>
 
 #include "ddwaf_memres.h"
+#include "security/util.h"
 
 #define may_alias __attribute__((__may_alias__))
 
@@ -310,7 +311,7 @@ class ddwaf_owned_obj {
   ddwaf_memres memres_;
   T obj_;
  public:
-  ddwaf_owned_obj() = default;
+  ddwaf_owned_obj() : obj_{} {}
   template <typename OT>
   explicit ddwaf_owned_obj(ddwaf_owned_obj<OT> &&oth)
       : obj_{oth.get()}, memres_{std::move(oth.memres())} {
@@ -331,6 +332,15 @@ class ddwaf_owned_obj {
 
 using ddwaf_owned_map = ddwaf_owned_obj<ddwaf_map_obj>;
 using ddwaf_owned_arr = ddwaf_owned_obj<ddwaf_arr_obj>;
+
+struct ddwaf_object_free_functor {
+  void operator()(ddwaf_object &res) { ddwaf_object_free(&res); }
+};
+template <typename T = ddwaf_obj>
+class libddwaf_ddwaf_owned_obj
+    : public freeable_resource<T, ddwaf_object_free_functor> {
+  using freeable_resource<T, ddwaf_object_free_functor>::freeable_resource;
+};
 
 namespace {
 template <typename D>

@@ -2,6 +2,7 @@
 
 #include <ddwaf.h>
 
+#include "datadog_conf.h"
 #include "ddwaf_obj.h"
 
 #include <atomic>
@@ -59,10 +60,8 @@ class waf_handle {
 
 class library {
  public:
-  static void initialise_security_library(
-    std::string_view ruleset,
-    std::string_view template_html,
-    std::string_view template_json);
+  static std::optional<ddwaf_owned_map> initialize_security_library(
+      const datadog_main_conf_t &conf);
 
   static bool update_ruleset(const ddwaf_map_obj &spec);
   
@@ -77,9 +76,7 @@ class library {
     return std::atomic_load(&handle_);
   }
 
-  static void set_active(bool value) noexcept {
-    active_.store(value, std::memory_order_relaxed);
-  }
+  static void set_active(bool value) noexcept;
 
   static bool active() noexcept {
     return active_.load(std::memory_order_relaxed);
@@ -88,6 +85,8 @@ class library {
   static std::vector<std::string_view> environment_variable_names();
 
  protected:
+  static void set_handle(std::shared_ptr<waf_handle> handle);
+
   static std::shared_ptr<waf_handle> handle_; // NOLINT
   static std::atomic<bool> active_;
 };

@@ -119,6 +119,8 @@ struct datadog_main_conf_t {
 
   ngx_flag_t appsec_enabled{NGX_CONF_UNSET};
   ngx_str_t appsec_ruleset_file;
+  ngx_str_t appsec_http_blocked_template_json;
+  ngx_str_t appsec_http_blocked_template_html;
 };
 
 struct datadog_sample_rate_condition_t {
