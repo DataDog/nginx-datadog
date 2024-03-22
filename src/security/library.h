@@ -84,9 +84,18 @@ class library {
 
   static std::vector<std::string_view> environment_variable_names();
 
+  struct string_and_hash {
+    std::string str;
+    ngx_uint_t hash;
+  };
+  static const std::optional<string_and_hash> &custom_ip_header() {
+    return custom_ip_header_;
+  }
+
  protected:
   static void set_handle(std::shared_ptr<waf_handle> handle);
 
+  static std::optional<string_and_hash> custom_ip_header_;
   static std::shared_ptr<waf_handle> handle_; // NOLINT
   static std::atomic<bool> active_;
 };

@@ -38,6 +38,20 @@ class TestSecAddresses(case.TestCase):
         self.assertEqual(status, 200)
         return self.do_request_common()
 
+    def do_response_headers(self, endpoint):
+        status, _, _ = self.orch.send_nginx_http_request(endpoint, 80)
+        self.assertEqual(status, 200)
+        return self.do_request_common()
+
+    def do_response_code(self, endpoint, expected_code):
+        status, _, _ = self.orch.send_nginx_http_request(endpoint, 80)
+        self.assertEqual(status, expected_code)
+        return self.do_request_common()
+
+    def do_put(self, endpoint):
+        self.orch.send_nginx_http_request(endpoint, 80, method='PUT')
+        return self.do_request_common()
+
     def do_request_common(self):
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service('agent')
@@ -132,5 +146,50 @@ class TestSecAddresses(case.TestCase):
 
     def test_uri_raw(self):
         """The URI includes the query string and is not decoded"""
-        result = self.do_request_query('a=the_partial_matched+value&')
-        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], ['matched+value'])
+        result = self.do_request_query('a=the_matched+partial+value&')
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+                         '/http?a=the_matched+partial+value&')
+
+    def test_header_key(self):
+        result = self.do_request_headers({'MatcheD-key': 'value'})
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['key_path'], ['matched-key'])
+
+    def test_header_value(self):
+        result = self.do_request_headers({'key': 'matched value'})
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], 'matched value')
+
+    def test_header_multiple_values1(self):
+        result = self.do_request_headers([('key', 'matched value'), ('key', 'another value')])
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], 'matched value')
+
+    def test_header_multiple_values2(self):
+        result = self.do_request_headers([('key', 'another value'), ('key', 'matched value')])
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], 'matched value')
+
+    def test_resp_header_key(self):
+        result = self.do_response_headers('/resp_header_key')
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['key_path'], ['matched-key'])
+
+    def test_resp_header_value1(self):
+        result = self.do_response_headers('/resp_header_value1')
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], 'matched value')
+
+    def test_resp_header_value2(self):
+        result = self.do_response_headers('/resp_header_value2')
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], 'matched value')
+
+    def test_resp_header_value3(self):
+        result = self.do_response_headers('/resp_header_value3')
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], 'matched value')
+
+    def test_500(self):
+        result = self.do_response_code('/http/status/500', 500)
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], '500')
+
+    def test_502(self):
+        result = self.do_response_code('/http/status/502', 502)
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], '502')
+
+    def test_request_method(self):
+        result = self.do_put('/http')
+        self.assertEqual(result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'], 'PUT')

@@ -86,6 +86,10 @@ struct query_string_iter {
     return decode(kv.substr(0, eq_pos));
   }
 
+  bool is_delete() const {
+    return false;
+  }
+
   query_string_iter &operator++() {
     auto sep_pos = rest().find(separator);
     if (sep_pos == std::string_view::npos) {
@@ -216,8 +220,12 @@ struct qs_iter_agg {
     }
   }
 
-  std::string_view cur_key() {
+  std::string_view cur_key() const {
     return iters[cur]->cur_key();
+  }
+
+  bool is_delete() const {
+    return false;
   }
 
   void reset() noexcept {

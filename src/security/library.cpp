@@ -1,4 +1,5 @@
 #include "library.h"
+
 #include "string_util.h"
 
 extern "C" {
@@ -255,6 +256,7 @@ waf_handle::action_info_map_t waf_handle::extract_actions(
   return action_info_map;
 }
 
+std::optional<library::string_and_hash> library::custom_ip_header_;
 std::shared_ptr<waf_handle> library::handle_{nullptr};
 std::atomic<bool> library::active_{true};
 
@@ -313,6 +315,15 @@ std::optional<ddwaf_owned_map> library::initialize_security_library(
   std::string_view template_json_path{
       to_string_view(conf.appsec_http_blocked_template_json)};
   blocking_service::initialize(template_html_path, template_json_path);
+
+  if (conf.custom_client_ip_header.len > 0) {
+    std::string_view ccip_sv = to_string_view(conf.custom_client_ip_header);
+    library::string_and_hash sah{
+      std::string{ccip_sv},
+      ngx_hash_ce(ccip_sv)
+    };
+    library::custom_ip_header_ = std::move(sah);
+  }
 
   return ruleset;
 }

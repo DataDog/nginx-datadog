@@ -27,6 +27,7 @@ target_sources(nginx_datadog
         src/propagation_header_querier.cpp
         src/request_tracing.cpp
         src/security/blocking.cpp
+        src/security/client_ip.cpp
         src/security/collection.cpp
         src/security/context.cpp
         src/security/library.cpp

@@ -4,7 +4,10 @@
 #include <cstring>
 #include <string_view>
 
+#include "../string_util.h"
+
 extern "C" {
+#include <ngx_config.h>
 #include <ngx_core.h>
 }
 
@@ -56,39 +59,80 @@ struct ngx_str_equal {
   }
 };
 
+constexpr inline ngx_uint_t ngx_hash_ce(std::string_view sv) {
+    ngx_uint_t key{};
+    for (std::size_t i = 0; i < sv.length(); i++) {
+        key = ngx_hash(key, sv.at(i));
+    }
+
+    return key;
+}
+
+inline std::string_view key(const ngx_table_elt_t &header) {
+  return to_string_view(header.key);
+}
+
+inline std::string_view lc_key(const ngx_table_elt_s& header) {
+  return {reinterpret_cast<const char *>(header.lowcase_key), header.key.len};
+}
+inline bool key_equals_ci(const ngx_table_elt_s& header, std::string_view key) {
+  if (header.lowcase_key) {
+    return key == lc_key(header);
+  }
+
+  if (header.key.len != key.size()) {
+    return false;
+  }
+
+  for (std::size_t i = 0; i < header.key.len; ++i) {
+    if (std::tolower(header.key.data[i]) != key[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 template <typename T>
 class nginx_list_iter {
+  explicit nginx_list_iter(const ngx_list_part_t *part, ngx_uint_t index)
+      : part_{part},
+        elts_{static_cast<T *>(part_ ? part_->elts : nullptr)},
+        index_{index} {}
+
  public:
   explicit nginx_list_iter(const ngx_list_t &list)
-      : nginx_list_iter{list.last} {}
-
-  explicit nginx_list_iter(ngx_list_part_t *part)
-      : part_{part}, elts_{static_cast<T *>(part_ ? part_->elts : nullptr)} {}
+      : nginx_list_iter{&list.part, 0} {}
 
   bool operator!=(const nginx_list_iter &other) const {
     return part_ != other.part_ || index_ != other.index_;
   }
 
-  nginx_list_iter &operator++() {
-    if (part_ == nullptr) {
-      return *this;
-    }
+  bool operator==(const nginx_list_iter &other) const {
+    return !(*this == other);
+  }
 
+  nginx_list_iter &operator++() {
     ++index_;
-    if (index_ >= part_->nelts) {
+    while (index_ >= part_->nelts) {
+      if (part_->next == nullptr) {
+        return *this; // reached the end
+      }
+
       part_ = part_->next;
       elts_ = static_cast<T *>(part_ ? part_->elts : nullptr);
-      index_ = 0;
+      index_ = 0; // if the part is empty, we go for another iteration
     }
     return *this;
   }
 
-  T &operator*() { return elts_[index_]; }
+  T &operator*() const { return elts_[index_]; }
 
-  static nginx_list_iter<T> end() { return nginx_list_iter{nullptr}; }
+  static nginx_list_iter<T> end(const ngx_list_t &list) {
+    return nginx_list_iter{list.last, list.last ? list.last->nelts : 0};
+  }
 
  private:
-  ngx_list_part_t *part_{};
+  const ngx_list_part_t *part_;
   T *elts_;  // part_->elts, after cast
   ngx_uint_t index_{};
 };
@@ -101,8 +145,8 @@ class ngnix_header_iterable {
     return nginx_list_iter<ngx_table_elt_t>{list_};
   }
 
-  static nginx_list_iter<ngx_table_elt_t> end() {
-    return nginx_list_iter<ngx_table_elt_t>::end();
+  nginx_list_iter<ngx_table_elt_t> end() {
+    return nginx_list_iter<ngx_table_elt_t>::end(list_);
   }
 
  private:

@@ -11,11 +11,14 @@
 #include <unordered_map>
 
 #include "../string_util.h"
+#include "client_ip.h"
 #include "ddwaf_obj.h"
 #include "decode.h"
+#include "library.h"
 #include "util.h"
 
 extern "C" {
+#include <ngx_list.h>
 #include <ngx_string.h>
 }
 
@@ -44,6 +47,7 @@ class req_serializer {
       "server.request.headers.no_cookies"};
   static constexpr std::string_view COOKIES{"server.request.cookies"};
   static constexpr std::string_view STATUS{"server.response.status"};
+  static constexpr std::string_view CLIENT_IP{"http.client_ip"};
   static constexpr std::string_view RESP_HEADERS_NO_COOKIES{
       "server.response.headers.no_cookies"};
 
@@ -52,13 +56,14 @@ class req_serializer {
 
   ddwaf_object *serialize(const ngx_http_request_t &request) {
     dns::ddwaf_obj *root = memres_.allocate_objects<dns::ddwaf_obj>(1);
-    dns::ddwaf_map_obj &root_map = root->make_map(5, memres_);
+    dns::ddwaf_map_obj &root_map = root->make_map(6, memres_);
 
     set_request_query(request, root_map.get_entry_unchecked(0));
     set_request_uri_raw(request, root_map.get_entry_unchecked(1));
     set_request_method(request, root_map.get_entry_unchecked(2));
     set_request_headers_nocookies(request, root_map.get_entry_unchecked(3));
     set_request_cookie(request, root_map.get_entry_unchecked(4));
+    set_client_ip(request, root_map.get_entry_unchecked(5));
 
     return root;
   }
@@ -99,7 +104,12 @@ class req_serializer {
     // first, count the number of occurrences for each key
     std::unordered_map<std::string_view, std::size_t> keys_bag;
     for (; !it.ended(); ++it) {
-      std::string_view const key = it.cur_key();
+      std::string_view key = it.cur_key();
+      // if (it.is_delete()) { }
+      // don't reduce the count, we need to allocate space for the provisional
+      // writes (before the deletion)
+      // we could improve this by saving the pointer of the first non-deleted
+      // header per key
       keys_bag[key]++;
     }
 
@@ -131,15 +141,21 @@ class req_serializer {
 
         entry.set_key(key);
         auto &arr_val = entry.make_array(num_occurr, memres_);
-        arr_val.at_unchecked<dns::ddwaf_obj>(0).make_string(value);
-        entry.nbEntries = 1;
-
         indexed_entries.insert({key, &arr_val});
+
+        if (!it.is_delete()) {
+          arr_val.at_unchecked<dns::ddwaf_obj>(0).make_string(value);
+          entry.nbEntries = 1;
+        }
       } else {
-        // subsequence occurrence of this key
+        // subsequent occurrence of this key
         auto &arr_val = *ie->second;
-        arr_val.template at_unchecked<dns::ddwaf_obj>(arr_val.nbEntries++)
-            .make_string(value);
+        if (!it.is_delete()) {
+          arr_val.template at_unchecked<dns::ddwaf_obj>(arr_val.nbEntries++)
+              .make_string(value);
+        } else {
+          arr_val.nbEntries = 0;
+        }
       }
     }
   }
@@ -154,105 +170,98 @@ class req_serializer {
     set_map_entry_str(slot, METHOD, request.method_name);
   }
 
-  using ngx_str_bag =
-      std::unordered_map<ngx_str_t, int, dns::ngx_str_hash, dns::ngx_str_equal>;
-  static ngx_str_bag count_headers(const ngx_list_t &list) {
-    ngx_str_bag ret;
-    dns::ngnix_header_iterable it{list};
-    for (auto &&h : it) {
-      // ignore the case where h.hash == 0 (header deleted), but do not erase
-      // the key. At this point, we write the headers as we find them, even if
-      // we later delete them. We need space allocated for this purpose.
-      // If we have value1, value2, <delete>, value3, at the end we only need
-      // space for one value. However, we write value1 and value2 before finding
-      // the delete so we need space for 2 actually. Our count will actually
-      // give space for 3, but that's fine.
-      if (h.hash == 0) {
-        continue;
+  // adapt to the same iteratror format as query_string_iter
+  template<bool IsRequest>
+  struct header_key_value_iter {
+    header_key_value_iter(const ngx_list_t &list, std::string_view exclude,
+                          dns::ddwaf_memres &memres)
+        : list_{list},
+          memres_{memres},
+          exclude_{exclude},
+          it_{list},
+          end_{dns::nginx_list_iter<ngx_table_elt_t>::end(list)} {}
+
+    void reset() { it_ = decltype(it_){list_}; }
+
+    bool ended() const noexcept { return !(it_ != end_); }
+
+    header_key_value_iter &operator++() {
+      while (true) {
+        ++it_;
+        if (!(it_ != end_)) {
+          break;
+        }
+        const auto &h = *it_;
+        auto lc_key = safe_lowcase_key(h);
+        if (lc_key != exclude_) {
+          break;
+        }
+        // then it's the excluded key; continue
       }
-      ret[ngx_str_t{.len = h.key.len, .data = h.lowcase_key}] += 1;
+      return *this;
     }
-    return ret;
-  }
-  static std::size_t tally_headers_no_cookies(const ngx_str_bag &bag) {
-    static const ngx_str_t cookie = dns::ngx_stringv("cookie"sv);
-    if (bag.find(cookie) == bag.end()) {
-      return bag.size();
+
+    std::string_view cur_key() {
+      const auto &h = *it_;
+      return safe_lowcase_key(h);
     }
-    return bag.size() - 1;
-  }
-  static std::size_t tally_resp_headers_no_cookies(const ngx_str_bag &bag) {
-    static const ngx_str_t cookie = dns::ngx_stringv("set-cookie"sv);
-    if (bag.find(cookie) == bag.end()) {
-      return bag.size();
+
+    std::pair<std::string_view, std::string_view> operator*() {
+      const auto &h = *it_;
+      return {safe_lowcase_key(h), to_string_view(h.value)};
     }
-    return bag.size() - 1;
-  }
-  using ngx_str_dobj_arr =
-      std::unordered_map<ngx_str_t, dns::ddwaf_obj *, dns::ngx_str_hash,
-                         dns::ngx_str_equal>;
-  auto alloc_multivalue_header_arr(const ngx_str_bag &headers) {
-    ngx_str_dobj_arr ret;
-    for (const auto & header : headers) {
-      if (header.second > 1) {
-        ret[header.first] = memres_.allocate_objects<dns::ddwaf_obj>(header.second);
+
+    bool is_delete() const {
+      if constexpr (IsRequest) {
+        return false;
+      } else {  // response headers
+        const auto &h = *it_;
+        return h.hash == 0;
       }
     }
-    return ret;
-  }
+
+    std::string_view safe_lowcase_key(const ngx_table_elt_t &header) {
+      if constexpr (IsRequest) {
+        return dns::lc_key(header);
+      }
+
+      // impl for response headers
+      auto key = to_string_view(header.key);
+      auto it = lc_keys_.find(key);
+      if (it != lc_keys_.end()) {
+        return it->second;
+      }
+
+      auto *lc_out_buffer =
+          reinterpret_cast<u_char *>(memres_.allocate_string(header.key.len));
+      std::transform(header.key.data, header.key.data + header.key.len,
+                     lc_out_buffer, [](u_char c) {
+                       if (c >= 'A' && c <= 'Z') {
+                         return static_cast<u_char>(c + ('a' - 'A'));
+                       }
+                       return c;
+                     });
+
+      std::string_view lc_sv{reinterpret_cast<char *>(lc_out_buffer),
+                             header.key.len};
+      lc_keys_.insert({key, lc_sv});
+      return lc_sv;
+    }
+
+    const ngx_list_t &list_;
+    dns::ddwaf_memres &memres_;
+    std::string_view exclude_;
+    std::unordered_map<std::string_view, std::string_view> lc_keys_;
+    dns::nginx_list_iter<ngx_table_elt_t> it_;
+    dns::nginx_list_iter<ngx_table_elt_t> end_;
+  };
 
   void set_request_headers_nocookies(const ngx_http_request_t &request,
                                      dns::ddwaf_obj &slot) {
-    set_headers_generic(request.headers_in.headers, slot, HEADERS_NO_COOKIES,
-                        tally_headers_no_cookies);
-  }
-
-  template <typename TallyFunc>
-  void set_headers_generic(const ngx_list_t &headers,
-                           dns::ddwaf_obj &slot, std::string_view key,
-                           TallyFunc &&tally_func) {
-    slot.set_key(key);
-
-    ngx_str_bag header_bag = count_headers(headers);
-    std::size_t const header_count =
-        std::invoke(std::forward<TallyFunc>(tally_func), header_bag);
-
-    slot.make_map(header_count, memres_);
-    dns::ddwaf_obj *entries = reinterpret_cast<dns::ddwaf_obj *>(slot.array);
-
-    ngx_str_dobj_arr multivalue_arr = alloc_multivalue_header_arr(header_bag);
-    dns::ngnix_header_iterable it{headers};
-    for (auto &&h : it) {
-      assert(h.lowcase_key != nullptr);  // TODO
-
-      ngx_str_t const key{h.key.len, h.lowcase_key};
-      auto count = header_bag[key];
-
-      dns::ddwaf_obj &dobj = *entries++;
-      dobj.set_key({reinterpret_cast<char *>(h.lowcase_key), h.key.len});
-      if (count == 1) {
-        if (h.hash == 0) {
-          continue;
-        }
-        dobj.make_string(to_string_view(h.value));
-      } else {
-        if (h.hash == 0) {
-          dobj.nbEntries = 0;
-          continue;
-        }
-        ngx_str_t const lowcase_key{h.key.len, h.lowcase_key};
-        dns::ddwaf_obj *arr = multivalue_arr[lowcase_key];
-
-        dobj.type = DDWAF_OBJ_ARRAY;
-        dobj.array = arr;
-        // dobj is zeroed, so nbEntries is 0 the first time
-
-        ddwaf_object &dobj_ae = arr[dobj.nbEntries++];
-        dobj_ae.type = DDWAF_OBJ_STRING;
-        dobj_ae.stringValue = reinterpret_cast<const char*>(h.value.data);
-        dobj_ae.nbEntries = h.value.len;
-      }
-    }
+    static constexpr auto cookie = "cookie"sv;
+    slot.set_key(HEADERS_NO_COOKIES);
+    header_key_value_iter<true> it{request.headers_in.headers, cookie, memres_};
+    set_value_from_iter(it, slot);
   }
 
   template <typename Request = ngx_http_request_t>
@@ -280,13 +289,8 @@ class req_serializer {
       std::vector<const ngx_table_elt_t *> cookie_headers;
       dns::ngnix_header_iterable it{request.headers_in.headers};
       for (auto &&h : it) {
-        static constexpr std::string_view COOKIE{"cookie"};
-        if (std::string_view{reinterpret_cast<char *>(h.lowcase_key),
-                             h.key.len} != COOKIE) {
-          continue;
-        }
-        if (h.hash == 0) {
-          cookie_headers.clear();
+        static constexpr auto COOKIE{"cookie"sv};
+        if (dns::key_equals_ci(h, COOKIE)) {
           continue;
         }
         cookie_headers.push_back(&h);
@@ -307,38 +311,68 @@ class req_serializer {
     set_value_from_iter(iter, slot);
   }
 
-  static void set_response_status(const ngx_http_request_t &request,
-                           dns::ddwaf_obj &slot)  {
+  void set_client_ip(const ngx_http_request_t &request, dns::ddwaf_obj &slot) {
+    auto &&cih = dns::library::custom_ip_header();
+    std::optional<dns::ClientIp::hashed_string_view> hsh{};
+    if (cih) {
+      hsh = {cih->str, cih->hash};
+    }
+    dns::ClientIp client_ip{hsh, request};
+    std::optional<std::string> cl_ip = client_ip.resolve();
+
+    slot.set_key(CLIENT_IP);
+    if (!cl_ip) {
+      slot.make_null();
+    }
+    slot.make_string(*cl_ip, memres_); // copy
+  }
+
+  void set_response_status(const ngx_http_request_t &request,
+                           dns::ddwaf_obj &slot) {
     slot.set_key(STATUS);
 
-    // use the stastus line rather than the status number in order to avoid
-    // having to allocate space for a string
-    std::string_view sv{to_string_view(request.headers_out.status_line)};
-
-    // find the first space
-    while (!sv.empty() && !std::isspace(sv.front())) {
-      sv.remove_prefix(1);
+    // generally status_line is not set so we can't use it to avoid a string
+    // allocation. So don't bother
+    auto status = request.headers_out.status;
+    switch (status) {
+      case 200:
+        slot.make_string("200"sv);
+        return;
+      case 404:
+        slot.make_string("404"sv);
+        return;
+      case 301:
+        slot.make_string("301"sv);
+        return;
+      case 302:
+        slot.make_string("302"sv);
+        return;
+      case 303:
+        slot.make_string("303"sv);
+        return;
+      case 201:
+        slot.make_string("201"sv);
+        return;
+      default:
+        if (status < 100 || status > 599) {
+          slot.make_string("0"sv);
+          return;
+        }
+        char *s = memres_.allocate_string(3);
+        s[2] = status % 10 + '0';
+        status /= 10;
+        s[1] = status % 10 + '0';
+        s[0] = status / 10 + '0';
+        slot.make_string({s, 3});
     }
-
-    // find the end of numeric characters
-    std::size_t e;
-    for (e = 0; e < sv.length(); e++) {
-      char const c = sv[e];
-      if (c < '0' || c > '9') {
-        break;
-      }
-    }
-
-    // remove eveything in position e and following
-    sv.remove_suffix(sv.length() - e);
-
-    slot.make_string(sv);
   }
 
   void set_response_headers_no_cookies(const ngx_http_request_t &request,
                                        dns::ddwaf_obj &slot) {
-    set_headers_generic(request.headers_out.headers, slot,
-                        RESP_HEADERS_NO_COOKIES, tally_resp_headers_no_cookies);
+    static constexpr auto set_cookie = "set-cookie"sv;
+    slot.set_key(RESP_HEADERS_NO_COOKIES);
+    header_key_value_iter<false> it{request.headers_out.headers, set_cookie, memres_};
+    set_value_from_iter(it, slot);
   }
 
   dns::ddwaf_memres &memres_; // NOLINT

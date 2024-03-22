@@ -5,7 +5,12 @@
 #include <cstdlib>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <vector>
+
+extern "C" {
+#include <ngx_core.h>
+}
 
 namespace datadog::nginx::security {
 
@@ -47,15 +52,13 @@ class ddwaf_memres {
   }
 
   char *allocate_string(size_t len) {
-    // TODO: can we remove the NUL termination?
-    if (strings_stored_ + len + 1 >= cur_string_seg_size_) {
-      std::size_t const size = std::max(MIN_STR_SEG_SIZE, len + 1);
+    if (strings_stored_ + len >= cur_string_seg_size_) {
+      std::size_t const size = std::max(MIN_STR_SEG_SIZE, len);
       new_strings_segment(size);
     }
     char *p = allocs_string_.back().get() + strings_stored_;
-    p[len] = '\0';
 
-    strings_stored_ += len + 1;
+    strings_stored_ += len;
 
     return p;
   }
@@ -70,7 +73,6 @@ class ddwaf_memres {
   }
 
  private:
-  // TODO: allocate in request pool?
   void new_objects_segment(size_t num_objects) {
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     allocs_object_.emplace_back(new ddwaf_object[num_objects]);

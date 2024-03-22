@@ -359,6 +359,15 @@ static ngx_command_t datadog_commands[] = {
       nullptr,
     },
 
+    {
+      ngx_string("datadog_client_ip_header"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1, // TODO allow it more fine-grained
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, custom_client_ip_header),
+      nullptr,
+    },
+
     ngx_null_command
 };
 
@@ -453,6 +462,9 @@ static ngx_int_t datadog_master_process_post_config(
     return NGX_OK;
   }
 
+  ngx_http_next_output_header_filter = ngx_http_top_header_filter;
+  ngx_http_top_header_filter = output_header_filter;
+
   // Forward tracer-specific environment variables to worker processes.
   std::string name;
   for (const auto &env_var_name :
@@ -501,9 +513,6 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
       ngx_array_push(&core_main_config->phases[NGX_HTTP_LOG_PHASE].handlers));
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_log_request;
-
-  ngx_http_next_output_header_filter = ngx_http_top_header_filter;
-  ngx_http_top_header_filter = output_header_filter;
 
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();

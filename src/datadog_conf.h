@@ -121,6 +121,7 @@ struct datadog_main_conf_t {
   ngx_str_t appsec_ruleset_file;
   ngx_str_t appsec_http_blocked_template_json;
   ngx_str_t appsec_http_blocked_template_html;
+  ngx_str_t custom_client_ip_header;
 };
 
 struct datadog_sample_rate_condition_t {
