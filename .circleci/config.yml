@@ -68,9 +68,7 @@ jobs:
     - run: printf 'BASE_IMAGE=%s\n' '<< parameters.base-image >>' >>nginx-version-info
     - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
     - run: 
-        command: |
-          env
-          make build
+        command: make build
         environment:
           NGINX_VERSION: << parameters.nginx-version >>
     - persist_to_workspace:

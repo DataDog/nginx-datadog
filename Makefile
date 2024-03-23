@@ -5,7 +5,7 @@ MAKE_JOB_COUNT ?= $(shell nproc)
 
 .PHONY: build
 build: build-deps sources
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DNGINX_SRC_DIR=nginx -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
+	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=nginx -DBUILD_TESTING=OFF .. && cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) VERBOSE=1
 	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
 
