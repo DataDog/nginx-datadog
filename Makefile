@@ -26,7 +26,7 @@ ifndef NGINX_VERSION
 	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
 endif
 	rm -rf nginx && \
-	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $NGINX_VERSION)" && \
+	    curl -s -S -L -o nginx.tar.gz "$(bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
 		mkdir nginx && \
 		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
 		rm nginx.tar.gz
