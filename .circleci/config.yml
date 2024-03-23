@@ -68,7 +68,9 @@ jobs:
     - run: printf 'BASE_IMAGE=%s\n' '<< parameters.base-image >>' >>nginx-version-info
     - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
     - run: 
-        command: make build
+        command: |
+          env
+          make build
         environment:
           NGINX_VERSION: parameters.nginx-version
     - persist_to_workspace:
@@ -131,11 +133,7 @@ jobs:
         command: |
           pip install yapf
           update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
-    - run:
-        name: Lint
-        command: |
-          touch nginx-version-info
-          make lint
+    - run: make lint
 
   shellcheck:
     docker:
