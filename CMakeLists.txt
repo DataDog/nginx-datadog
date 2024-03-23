@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.7)
+# The C code doesn't care about the C++ version.
+# dd-trace-cpp works with C++17 or newer.
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # This build configuration combines the following other build configurations:
 # - `nginx-datadog.cmake`, the actual nginx module source in `src/`,
@@ -8,19 +12,22 @@ cmake_minimum_required(VERSION 3.7)
 
 project(ngx_http_datadog_module)
 
+if(NOT NGINX_SRC_DIR)
+  message(FATAL_ERROR "Missing nginx source directory. Use -DNGINX_SRC_DIR")
+endif()
+
 # Prefer the build mode "release with debug info" if another mode wasn't
 # specified.
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 endif()
 
-# The C code doesn't care about the C++ version.
-# dd-trace-cpp works with C++17 or newer.
-set(CMAKE_CXX_STANDARD 17)
-
-# This warning has a false positive. See
-# <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108088>.
-add_compile_options(-Wno-error=free-nonheap-object)
+# Global compiler options
+if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+  # This warning has a false positive. See
+  # <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108088>.
+  add_compile_options(-Wno-error=free-nonheap-object)
+endif()
 
 # Nginx module boilerplate (code within the nginx repository)
 include(./nginx-module.cmake)
@@ -45,4 +52,17 @@ add_dependencies(ngx_http_datadog_module
     dd_trace_cpp-objects
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects -static-libstdc++ -static-libgcc)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects)
+
+# Remove the "lib" prefix to match NGINX convention
+set_property(TARGET ngx_http_datadog_module PROPERTY PREFIX "")
+
+if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+  if(APPLE)
+    set_property(TARGET ngx_http_datadog_module PROPERTY SUFFIX ".so")
+    target_link_options(ngx_http_datadog_module PRIVATE -undefined dynamic_lookup)
+  else()
+    target_link_libraries(ngx_http_datadog_module -static-libstdc++ -static-libgcc) 
+  endif()
+endif()
+

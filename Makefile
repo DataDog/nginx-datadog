@@ -1,15 +1,12 @@
 .DELETE_ON_ERROR:
 
-# Including this file defines NGINX_VERSION.
-include nginx-version-info
-
 BUILD_DIR ?= .build
 MAKE_JOB_COUNT ?= $(shell nproc)
 
 .PHONY: build
-build: build-deps nginx/objs/Makefile sources
-	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DBUILD_TESTING=OFF --trace-expand .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
-	chmod 755 $(BUILD_DIR)/libngx_http_datadog_module.so
+build: build-deps sources
+	mkdir -p $(BUILD_DIR) && cd $(BUILD_DIR) && cmake -DNGINX_SRC_DIR=nginx -DBUILD_TESTING=OFF .. && make -j $(MAKE_JOB_COUNT) VERBOSE=1
+	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
 
 .PHONY: sources
@@ -24,22 +21,15 @@ dd-trace-cpp/.git:
 .PHONY: dd-trace-cpp-deps
 dd-trace-cpp-deps: dd-trace-cpp/.git
 
-nginx/objs/Makefile: nginx/ module/config
-	cd nginx && ./configure --add-dynamic-module=../module/ --with-compat
-
-nginx/: nginx-version-info
+nginx/:
+ifndef NGINX_VERSION
+	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
+endif
 	rm -rf nginx && \
 	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
 		mkdir nginx && \
 		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
 		rm nginx.tar.gz
-
-# In the "build" target, we use ./nginx-version-info just for the nginx version
-# (to download the appropriate sources).
-# In the "build-in-docker" target, we use ./nginx-version-info to also identify
-# the appropriate base image.
-nginx-version-info:
-	$(error The file "nginx-version-info" must be present and contain definitions for NGINX_VERSION and BASE_IMAGE")
 
 dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 

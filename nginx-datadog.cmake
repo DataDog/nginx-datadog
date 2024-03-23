@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.12)
-
 # This exposes a library of type OBJECT that contains compilation instructions
 # for all code under `src/`, i.e. the source code of the Datadog nginx module.
 

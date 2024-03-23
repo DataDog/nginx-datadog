@@ -68,13 +68,15 @@ jobs:
     - run: printf 'BASE_IMAGE=%s\n' '<< parameters.base-image >>' >>nginx-version-info
     - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
     - run: make build
+      environment:
+        NGINX_VERSION: parameters.nginx-version
     - persist_to_workspace:
         root: .
         paths:
-          - .build/libngx_http_datadog_module.so
+          - .build/ngx_http_datadog_module.so
           - nginx-version-info
     - store_artifacts:
-        path: .build/libngx_http_datadog_module.so
+        path: .build/ngx_http_datadog_module.so
         destination: ngx_http_datadog_module.so
     - store_artifacts:
         path: nginx-version-info
@@ -105,7 +107,7 @@ jobs:
         at: /tmp/workspace
     - run: mv /tmp/workspace/nginx-version-info .
     - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
-    - run: mv /tmp/workspace/.build/libngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
+    - run: mv /tmp/workspace/.build/ngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
     - setup_remote_docker:
         # Cache docker layers somewhere so that we don't have to rebuild test
         # service images every time.
