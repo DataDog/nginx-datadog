@@ -72,7 +72,7 @@ jobs:
           env
           make build
         environment:
-          NGINX_VERSION: parameters.nginx-version
+          NGINX_VERSION: << parameters.nginx-version >>
     - persist_to_workspace:
         root: .
         paths:
