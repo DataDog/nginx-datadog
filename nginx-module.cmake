@@ -35,8 +35,7 @@ target_sources(nginx_module
     ${NGINX_MODULE_FILE}
 )
 
-include_directories(
-  PUBLIC
+target_include_directories(nginx_module PUBLIC
     ${NGINX_SRC_DIR}/src/event
     ${NGINX_SRC_DIR}/src/http/modules
     ${NGINX_SRC_DIR}/src/http

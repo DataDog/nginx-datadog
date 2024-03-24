@@ -32,27 +32,46 @@ endif()
 # Nginx module boilerplate (code within the nginx repository)
 include(./nginx-module.cmake)
 
-# The actual source code of this repo
-include(./nginx-datadog.cmake)
-
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
+
 target_sources(ngx_http_datadog_module
-    PRIVATE
-        $<TARGET_OBJECTS:nginx_module>
-        $<TARGET_OBJECTS:nginx_datadog>
-        $<TARGET_OBJECTS:dd_trace_cpp-objects>
+  PRIVATE
+    src/array_util.cpp
+    src/datadog_conf.cpp
+    src/datadog_conf_handler.cpp
+    src/datadog_context.cpp
+    src/datadog_directive.cpp
+    src/datadog_handler.cpp
+    src/datadog_variable.cpp
+    src/dd.cpp
+    src/defer.cpp
+    src/global_tracer.cpp
+    src/log_conf.cpp
+    src/ngx_event_scheduler.cpp
+    src/ngx_header_reader.cpp
+    src/ngx_http_datadog_module.cpp
+    src/ngx_logger.cpp
+    src/ngx_script.cpp
+    src/propagation_header_querier.cpp
+    src/request_tracing.cpp
+    src/string_util.cpp
+    src/tracing_library.cpp
+)
+
+target_include_directories(ngx_http_datadog_module
+  PRIVATE
+    src/
 )
 
 add_dependencies(ngx_http_datadog_module
-    nginx_module
-    nginx_datadog
-    dd_trace_cpp-objects
+  nginx_module
+  dd_trace_cpp-objects
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
 
 # Remove the "lib" prefix to match NGINX convention
 set_property(TARGET ngx_http_datadog_module PROPERTY PREFIX "")
