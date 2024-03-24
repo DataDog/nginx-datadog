@@ -1,12 +1,13 @@
 .DELETE_ON_ERROR:
 
 BUILD_DIR ?= .build
+BUILD_TYPE ?= RelWithDebInfo
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 
 .PHONY: build
 build: build-deps sources
-	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(PWD)/nginx . && cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
+	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(PWD)/nginx -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) . && cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
 	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
 
