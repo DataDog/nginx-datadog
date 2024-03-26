@@ -3,7 +3,7 @@
 Datadog Nginx Tracing Module
 ============================
 This is the source for an nginx module that adds Datadog distributed tracing to
-nginx.  The module is called `ngx_http_datadog_module`.
+nginx. The module is called `ngx_http_datadog_module`.
 
 Usage
 -----
@@ -16,12 +16,19 @@ load_module modules/ngx_http_datadog_module.so;
 Tracing is automatically added to all endpoints by default.  For more
 information, see [the API documentation](doc/API.md).
 
+Compatibility
+-------------
+> [!IMPORTANT]
+> We provide support for NGINX versions up to their End Of Life, extended by one year. 
+> [Aligned with the NGINX release cycle][11], this entails support for the two most recent years of NGINX versions. 
+> If you plan to add tracing features to an older NGINX version using our module, please check out [the build section](#build) for guidance.
+
 There is one version of the module for each docker image we follow, which
 include the following:
 
 - Debian variants of [nginx's DockerHub images][3],
 - Alpine variants of [nginx's DockerHub images][3],
-- [Amazon Linux 2][10].
+- [Amazon Linux][10].
 
 Each release contains one zipped tarball per supported image above. The
 naming convention is
@@ -50,15 +57,34 @@ family of directives in nginx's configuration file, or via [environment variable
 
 Build
 -----
+Requirements:
+- C and C++ toolchain (`clang` or `gcc/g++`).
+- CMake `v3.7` or newer.
+- Architecture must be `x86_64` or `arm64`.
+
 [Makefile](Makefile) is a [GNU make][1] compatible makefile.
 
-Its default target, `build`, builds the Datadog nginx module and its
-dependencies.  The resulting nginx module is
-`.build/libngx_http_datadog_module.so`.
+The C and C++ sources are built using [CMake][4].
 
-The file `nginx-version-info` is required by the build.  See
-[nginx-version-info.example](nginx-version-info.example).
+```sh
+NGINX_VERSION=1.25.2 make build
+```
 
+The resulting nginx module is `.build/ngx_http_datadog_module.so`
+
+The build does the following:
+
+- Download a source release of nginx based on the `NGINX_VERSION` environment variable.
+- Initialize the source tree of `dd-trace-cpp` as a git submodule.
+- Build `dd-trace-cpp` and the Datadog nginx module together using
+  CMake.
+
+`make clean` deletes CMake's build directory. `make clobber` deletes
+everything done by the build.
+
+Build in Docker
+---------------
+Not everyone has a C/C++ toolchain.
 Another target, `build-in-docker`, builds the Datadog nginx module and its
 dependencies in a [Docker][2] container compatible with the DockerHub image
 specified as `BASE_IMAGE` in the `nginx-version-info` file, (e.g.
@@ -67,21 +93,7 @@ specified as `BASE_IMAGE` in the `nginx-version-info` file, (e.g.
 appropriate build image must be created first using the
 [bin/docker_build.sh](bin/docker_build.sh) script if it does not exist already.
 Once the image is built, `make build-in-docker` produces the nginx module as
-`.docker-build/libngx_http_datadog_module.so`.
-
-The C and C++ sources are built using [CMake][4].
-
-The build does the following:
-
-- Download a source release of nginx based on the `NGINX_VERSION` value
-  specified in `nginx-version-info`.
-- Configure nginx's sources for build (e.g. generates platform-specific headers).
-- Initialize the source tree of `dd-trace-cpp` as a git submodule.
-- Build `libcurl`, `dd-trace-cpp`, and the Datadog nginx module together using
-  CMake.
-
-`make clean` deletes CMake's build directory.  `make clobber` deletes
-everything done by the build.
+`.docker-build/ngx_http_datadog_module.so`.
 
 Test
 ----
@@ -101,3 +113,4 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [8]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
 [9]: https://github.com/DataDog/dd-trace-cpp/blob/main/src/datadog/environment.h
 [10]: https://hub.docker.com/_/amazonlinux
+[11]: https://www.nginx.com/blog/nginx-1-18-1-19-released/
