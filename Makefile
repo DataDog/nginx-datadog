@@ -57,7 +57,7 @@ clobber: clean
 	    nginx
 
 .PHONY: build-in-docker
-build-in-docker: sources
+build-in-docker:
 	bin/run_in_build_image.sh make BUILD_DIR=.docker-build build
 
 .PHONY: test
