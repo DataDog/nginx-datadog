@@ -173,25 +173,24 @@ std::string ddwaf_subdiagnostics_to_str(const dns::ddwaf_map_obj &top, std::stri
   auto errors = m.get_opt<dns::ddwaf_map_obj>("errors"sv);
   if (errors) {
     bool first = true;
-    for (auto &&[k, v] : *errors) {
+    for (auto &&err_kp : *errors) {
       if (!first) {
         ret += ", ";
       } else {
         first = false;
       }
 
-      dns::ddwaf_arr_obj affected_rules{v};
-      ret += k;
+      ret += err_kp.key(); // error message
       ret += " => [";
-      ret += std::reduce(affected_rules.begin(), affected_rules.end(),
-                         std::string{},
-                         [](std::string &acc, dns::ddwaf_obj const &v) {
-                           if (!acc.empty()) {
-                             acc += ", ";
-                           }
-                           acc += dns::ddwaf_str_obj{v}.value();
-                           return acc;
-                         });
+      bool first = true;
+      for (auto&&v: dns::ddwaf_arr_obj{err_kp}) {
+        if (!first) {
+          ret += ", ";
+        } else {
+          first = false;
+        }
+        ret += dns::ddwaf_str_obj{v}.value();
+      }
       ret += "]";
     }
   }
@@ -237,7 +236,8 @@ waf_handle::action_info_map_t waf_handle::extract_actions(
 
     std::map<std::string, action_info::str_or_int, std::less<>> parameters_map;
     if (parameters) {
-      for (auto &&[pkey, pvalue] : *parameters) {
+      for (auto &&pvalue : *parameters) {
+        auto pkey = pvalue.key();
         if (pvalue.type == DDWAF_OBJ_STRING) {
           action_info::str_or_int pvalue_variant{
               std::in_place_type<std::string>, pvalue.string_val_unchecked()};

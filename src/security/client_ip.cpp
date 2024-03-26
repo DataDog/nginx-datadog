@@ -1,8 +1,4 @@
 #include "client_ip.h"
-#include <ngx_config.h>
-#include <ngx_hash.h>
-#include <ngx_http_request.h>
-#include <ngx_list.h>
 
 #include <array>
 #include <string_view>
@@ -10,7 +6,11 @@
 #include "util.h"
 
 extern "C" {
-    #include <arpa/inet.h>
+#include <arpa/inet.h>
+#include <ngx_config.h>
+#include <ngx_hash.h>
+#include <ngx_http_request.h>
+#include <ngx_list.h>
 }
 
 using namespace std::literals;
@@ -74,7 +74,8 @@ std::optional<ipaddr> ipaddr::from_string(std::string_view addr_sv,
   }
 
   uint8_t *s6addr = out.u.v6.s6_addr;
-  static constexpr uint8_t ip4_mapped_prefix[12] = {[10] = 0xFF, [11] = 0xFF};
+  static constexpr uint8_t ip4_mapped_prefix[12] = {0, 0, 0, 0, 0,    0,
+                                                    0, 0, 0, 0, 0xFF, 0xFF};
   if (std::memcmp(s6addr, ip4_mapped_prefix, sizeof(ip4_mapped_prefix)) == 0) {
     // IPv4 mapped
     if (af_hint == AF_INET6) {
@@ -93,8 +94,20 @@ std::optional<ipaddr> ipaddr::from_string(std::string_view addr_sv,
 }
 
 inline constexpr auto ct_htonl(std::uint32_t n) {
-  return (((n >> 24) & 0x000000FFU) | ((n >> 8) & 0x0000FF00U) |
-          ((n << 8) & 0x00FF0000U) | ((n << 24) & 0xFF000000U));
+#if defined(__BIG_ENDIAN__) || \
+    (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+  return n;
+#else
+  return __builtin_bswap32(n);
+#endif
+}
+inline constexpr auto ct_htonll(std::uint64_t n) {
+#if defined(__BIG_ENDIAN__) || \
+    (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+  return n;
+#else
+  return __builtin_bswap64(n);
+#endif
 }
 
 bool ipaddr::is_private_v4() const {
@@ -103,24 +116,24 @@ bool ipaddr::is_private_v4() const {
     struct in_addr mask;
   } priv_ranges[] = {
       {
-          .base.s_addr = ct_htonl(0x0A000000U),  // 10.0.0.0
-          .mask.s_addr = ct_htonl(0xFF000000U),  // 255.0.0.0
+          .base = {ct_htonl(0x0A000000U)},  // 10.0.0.0
+          .mask = {ct_htonl(0xFF000000U)},  // 255.0.0.0
       },
       {
-          .base.s_addr = ct_htonl(0xAC100000U),  // 172.16.0.0
-          .mask.s_addr = ct_htonl(0xFFF00000U),  // 255.240.0.0
+          .base = {ct_htonl(0xAC100000U)},  // 172.16.0.0
+          .mask = {ct_htonl(0xFFF00000U)},  // 255.240.0.0
       },
       {
-          .base.s_addr = ct_htonl(0xC0A80000U),  // 192.168.0.0
-          .mask.s_addr = ct_htonl(0xFFFF0000U),  // 255.255.0.0
+          .base = {ct_htonl(0xC0A80000U)},  // 192.168.0.0
+          .mask = {ct_htonl(0xFFFF0000U)},  // 255.255.0.0
       },
       {
-          .base.s_addr = ct_htonl(0x7F000000U),  // 127.0.0.0
-          .mask.s_addr = ct_htonl(0xFF000000U),  // 255.0.0.0
+          .base = {ct_htonl(0x7F000000U)},  // 127.0.0.0
+          .mask = {ct_htonl(0xFF000000U)},  // 255.0.0.0
       },
       {
-          .base.s_addr = ct_htonl(0xA9FE0000U),  // 169.254.0.0
-          .mask.s_addr = ct_htonl(0xFFFF0000U),  // 255.255.0.0
+          .base = {ct_htonl(0xA9FE0000U)},  // 169.254.0.0
+          .mask = {ct_htonl(0xFFFF0000U)},  // 255.255.0.0
       },
   };
 
@@ -146,24 +159,24 @@ bool ipaddr::is_private_v6() const {
     };
   } priv_ranges[] = {
       {
-          .base.s6_addr = {[15] = 1},  // loopback
-          .mask.s6_addr = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                           0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},  // /128
+          .base_i = {0, ct_htonll(1ULL)},                           // loopback
+          .mask_i = {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}  // /128
       },
       {
-          .base.s6_addr = {0xFE, 0x80},  // link-local
-          .mask.s6_addr = {0xFF, 0xC0},  // /10
+          .base_i = {ct_htonll(0xFE80ULL << 48), 0},  // link-local
+          .mask_i = {ct_htonll(0xFFC0ULL << 48), 0}   // /10 mask
       },
       {
-          .base.s6_addr = {0xFE, 0xC0},  // site-local
-          .mask.s6_addr = {0xFF, 0xC0},  // /10
+          .base_i = {ct_htonll(0xFEC0ULL << 48), 0},  // site-local
+          .mask_i = {ct_htonll(0xFFC0ULL << 48), 0}   // /10 mask
       },
       {
-          .base.s6_addr = {0xFD},  // unique local address
-          .mask.s6_addr = {0xFF},  // /8
+          .base_i = {ct_htonll(0xFDULL << 56), 0},  // unique local address
+          .mask_i = {ct_htonll(0xFFULL << 56), 0}   // /10 mask
       },
       {
-          .base.s6_addr = {0xFC}, .mask.s6_addr = {0xFE},  // /7
+        .base_i = {ct_htonll(0xFCULL << 56), 0},
+        .mask_i = {ct_htonll(0xFEULL << 56), 0}  // /7
       },
   };
 
@@ -230,7 +243,7 @@ std::optional<ngx_table_elt_t> get_request_header(const ngx_list_t &headers,
     dns::ngnix_header_iterable it{headers};
     auto maybe_header = std::find_if(
         it.begin(), it.end(),
-        [header_name, hash](const ngx_table_elt_t &header) {
+        [header_name, hash](auto&& header) {
           return header.hash == hash && dns::key_equals_ci(header, header_name);
         });
     if (maybe_header == it.end()) {
@@ -240,9 +253,28 @@ std::optional<ngx_table_elt_t> get_request_header(const ngx_list_t &headers,
     return {*maybe_header};
 }
 
-// TODO: request header repeated in different parts?
+struct ngx_table_elt_next_t : ngx_table_elt_t {
+  ngx_table_elt_next_t(const ngx_table_elt_t &header)
+      : ngx_table_elt_t{header} {}
+
+  std::unique_ptr<ngx_table_elt_next_t> next{};
+};
 using header_index_t =
-    std::unordered_map<std::string_view /*lc*/, const ngx_table_elt_t *>;
+    std::unordered_map<std::string_view /*lc*/, ngx_table_elt_next_t>;
+
+void header_index_insert(header_index_t &index, const ngx_table_elt_t &header) {
+    auto lc_key = dns::lc_key(header);
+    auto it = index.find(lc_key);
+    if (it == index.end()) {
+        index.emplace(lc_key, header);
+    } else {
+        auto *cur = &it->second;
+        while (cur->next) {
+            cur = cur->next.get();
+        }
+        cur->next = std::make_unique<ngx_table_elt_next_t>(header);
+    }
+}
 
 header_index_t index_headers(const ngx_list_t& headers) {
     header_index_t index;
@@ -252,7 +284,7 @@ header_index_t index_headers(const ngx_list_t& headers) {
 #define CASE(header_lc_name) \
                 case dns::ngx_hash_ce(header_lc_name): \
                     if (dns::lc_key(header) == header_lc_name) { \
-                        index[header_lc_name] = &header; \
+                        header_index_insert(index, header); \
                     } \
                     continue;
             CASE("x-forwarded-for"sv)
@@ -276,9 +308,9 @@ header_index_t index_headers(const ngx_list_t& headers) {
 using extract_sv_t = extract_res (*)(std::string_view value_sv, ipaddr &);
 
 template<extract_sv_t f>
-extract_res parse_multiple(const ngx_table_elt_t& value, ipaddr &out) {
+extract_res parse_multiple(const ngx_table_elt_next_t& value, ipaddr &out) {
     ipaddr first_private{};
-    for (auto *h = &value; h; h = h->next) {
+    for (auto *h = &value; h; h = h->next.get()) {
         ipaddr out_cur_round;
         std::string_view header_v{to_string_view(h->value)};
         extract_res res = f(header_v, out_cur_round);
@@ -532,7 +564,7 @@ std::optional<std::string> ClientIp::resolve() const {
             continue;
         }
 
-        const ngx_table_elt_t header = *maybe_elem->second;
+        const ngx_table_elt_next_t &header = maybe_elem->second;
         ipaddr out;
         extract_res res = def.parse_func_(header, out);
         if (res.success) {

@@ -163,6 +163,48 @@ struct may_alias ddwaf_obj : ddwaf_object {
     );
     return reinterpret_cast<T&>(*this); // NOLINT
   }
+
+  struct iterator {
+    using difference_type = nb_entries_t;
+    using value_type = ddwaf_obj;
+    using pointer = value_type *;
+    using reference = value_type &;
+    using iterator_category = std::forward_iterator_tag;
+
+    // use reinterpret_cast because while the references are in principle
+    // convertible, the compiler doesn't know that at this point in the file
+    // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
+    iterator(const ddwaf_map_obj &map, nb_entries_t index = 0)
+        : map_or_arr_{*reinterpret_cast<const ddwaf_obj *>(&map)},
+          index_{index} {}
+
+    // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
+    iterator(const ddwaf_arr_obj &arr, nb_entries_t index = 0)
+        : map_or_arr_{*reinterpret_cast<const ddwaf_obj *>(&arr)},
+          index_{index} {}
+
+    bool operator!=(const iterator &other) const {
+      return index_ != other.index_ || &map_or_arr_ != &other.map_or_arr_;
+    }
+
+    nb_entries_t operator-(const iterator &other) const {
+      return index_ - other.index_;
+    }
+
+    iterator &operator++() {
+      index_++;
+      return *this;
+    }
+
+    value_type &operator*() const {
+      return *reinterpret_cast<ddwaf_obj *>(&map_or_arr_.array[index_]);
+    }
+
+   private:
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    const ddwaf_obj &map_or_arr_;
+    nb_entries_t index_;
+  };
 };
 
 struct may_alias ddwaf_str_obj : ddwaf_obj {
@@ -205,28 +247,6 @@ struct may_alias ddwaf_arr_obj : ddwaf_obj {
   std::size_t size() const { return nbEntries; }
 
   bool empty() const { return nbEntries == 0; }
-
-  struct iterator {
-    // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
-    iterator(const ddwaf_arr_obj &arr, nb_entries_t index = 0)
-        : arr_{arr}, index_{index} {}
-
-    bool operator!=(const iterator &other) const {
-      return index_ != other.index_ || &arr_ != &other.arr_;
-    }
-
-    iterator &operator++() {
-      index_++;
-      return *this;
-    }
-
-    ddwaf_obj operator*() const { return arr_.at<ddwaf_obj>(index_); }
-
-   private:
-   // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const ddwaf_arr_obj &arr_;
-    nb_entries_t index_;
-  };
 
   iterator begin() const { return {*this}; }
   iterator end() const { return {*this, nbEntries}; }
@@ -279,31 +299,6 @@ struct ddwaf_map_obj : ddwaf_obj {
   bool empty() const {
     return nbEntries == 0;
   }
-
-  struct iterator {
-    // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
-    iterator(const ddwaf_map_obj &map, nb_entries_t index = 0)
-        : map_{map}, index_{index} {}
-
-    bool operator!=(const iterator &other) const {
-      return index_ != other.index_ || &map_ != &other.map_;
-    }
-
-    iterator &operator++() {
-      index_++;
-      return *this;
-    }
-
-    std::pair<std::string_view, ddwaf_obj> operator*() const {
-      ddwaf_obj const dobj{map_.array[index_]};
-      return {dobj.key(), dobj};
-    }
-
-   private:
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const ddwaf_map_obj &map_;
-    nb_entries_t index_;
-  };
 
   iterator begin() const { return {*this}; }
   iterator end() const { return {*this, nbEntries}; }
@@ -437,10 +432,10 @@ inline void copy(ddwaf_memres &memres, ddwaf_obj &dst, const ddwaf_obj &src) {
       ddwaf_map_obj src_map{src};
       ddwaf_map_obj &r = dst.make_map(src.nbEntries, memres);
       size_t i = 0;
-      for (auto &&[k, v] : src_map) {
+      for (auto &&obj : src_map) {
         ddwaf_obj &new_dst = r.get_entry_unchecked(i++);
-        new_dst.set_key(k, memres);
-        copy(memres, new_dst, v);
+        new_dst.set_key(obj.key(), memres);
+        copy(memres, new_dst, obj);
       }
       break;
     }

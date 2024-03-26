@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>

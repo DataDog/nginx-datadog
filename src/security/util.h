@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <string_view>
 
 #include "../string_util.h"
@@ -72,10 +73,10 @@ inline std::string_view key(const ngx_table_elt_t &header) {
   return to_string_view(header.key);
 }
 
-inline std::string_view lc_key(const ngx_table_elt_s& header) {
+inline std::string_view lc_key(const ngx_table_elt_t& header) {
   return {reinterpret_cast<const char *>(header.lowcase_key), header.key.len};
 }
-inline bool key_equals_ci(const ngx_table_elt_s& header, std::string_view key) {
+inline bool key_equals_ci(const ngx_table_elt_t& header, std::string_view key) {
   if (header.lowcase_key) {
     return key == lc_key(header);
   }
@@ -100,6 +101,12 @@ class nginx_list_iter {
         index_{index} {}
 
  public:
+  using difference_type = void;
+  using value_type = T;
+  using pointer = T *;
+  using reference = T &;
+  using iterator_category = std::forward_iterator_tag;
+
   explicit nginx_list_iter(const ngx_list_t &list)
       : nginx_list_iter{&list.part, 0} {}
 

@@ -178,8 +178,7 @@ class CollectedAsmData {
         std::unordered_map<std::string_view, std::vector<dns::ddwaf_map_obj>>{};
 
     for (auto &&[key, owned_arr] : data_) {
-      for (dns::ddwaf_obj &&data_entry_obj :
-           dns::ddwaf_arr_obj{owned_arr.get()}) {
+      for (auto &&data_entry_obj : dns::ddwaf_arr_obj{owned_arr.get()}) {
         // data_entry is a map with id, type, and data
         dns::ddwaf_map_obj data_entry{data_entry_obj};
         std::string_view id =
@@ -500,7 +499,8 @@ class AsmFeaturesListener : public rc::ProductListener {
         cur_appsec_cfg_{cur_appsec_cfg} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
-                        const std::string &content) override {
+                        const std::string &content,
+                        std::vector<dd::ConfigMetadata> &) override {
     if (key.config_id() != "asm_features_activation"sv) {
       return;
     }
@@ -515,8 +515,9 @@ class AsmFeaturesListener : public rc::ProductListener {
     dns::library::set_active(new_state);
   }
 
-  void on_config_remove(const rc::ParsedConfigKey &key) override{
-    return on_config_update(key, std::string{"{}"});
+  void on_config_remove(const rc::ParsedConfigKey &key,
+                        std::vector<dd::ConfigMetadata>& config_md) override{
+    return on_config_update(key, std::string{"{}"}, config_md);
   };
 
   rc::CapabilitiesSet capabilities() const override {
@@ -536,7 +537,8 @@ class AsmDDListener : public rc::ProductListener {
         default_config_{default_config} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
-                        const std::string &content) override {
+                        const std::string &content,
+                        std::vector<dd::ConfigMetadata> &) override {
     // convert content to rapidjson::Document:
     rapidjson::Document doc;
     rapidjson::ParseResult result = doc.Parse(content.c_str(), content.size());
@@ -552,7 +554,8 @@ class AsmDDListener : public rc::ProductListener {
     cur_appsec_cfg_.set_dd_config(std::move(new_config));
   }
 
-  void on_config_remove(const rc::ParsedConfigKey &key) override {
+  void on_config_remove(const rc::ParsedConfigKey &key,
+                        std::vector<dd::ConfigMetadata> &) override {
     cur_appsec_cfg_.set_dd_config(default_config_);
   }
 
@@ -578,7 +581,8 @@ class AsmDataListener : public rc::ProductListener {
         logger_{logger} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
-                        const std::string &content) override {
+                        const std::string &content,
+                        std::vector<dd::ConfigMetadata>&) override {
     rapidjson::Document doc;
     rapidjson::ParseResult result = doc.Parse(content.c_str(), content.size());
     if (!result) {
@@ -614,7 +618,8 @@ class AsmDataListener : public rc::ProductListener {
     }
   }
 
-  void on_config_remove(const rc::ParsedConfigKey &key) override {
+  void on_config_remove(const rc::ParsedConfigKey &key,
+                        std::vector<dd::ConfigMetadata> &) override {
     cur_appsec_cfg_.asm_data_remove_config(key);
   }
 
@@ -632,7 +637,8 @@ class AsmUserConfigListener : public rc::ProductListener {
         cur_appsec_cfg_{cur_appsec_cfg} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
-                        const std::string &content) override {
+                        const std::string &content,
+                        std::vector<dd::ConfigMetadata>&) override {
 
     rapidjson::Document doc;
     rapidjson::ParseResult result = doc.Parse(content.c_str(), content.size());
@@ -646,7 +652,8 @@ class AsmUserConfigListener : public rc::ProductListener {
     cur_appsec_cfg_.user_config_add_config(std::move(new_config));
   }
 
-  void on_config_remove(const rc::ParsedConfigKey &key) override {
+  void on_config_remove(const rc::ParsedConfigKey &key,
+                        std::vector<dd::ConfigMetadata>&) override {
     cur_appsec_cfg_.user_config_remove_config(key);
   }
 
