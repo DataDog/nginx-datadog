@@ -7,9 +7,10 @@ nginx. The module is called `ngx_http_datadog_module`.
 
 Usage
 -----
-Download a gzipped tarball from a recent release, extract it to wherever nginx
-looks for modules (e.g. `/usr/lib/nginx/modules/`) and add the following line
-to the top of the main nginx configuration (e.g.  `/etc/nginx/nginx.conf`):
+1. Download a gzipped tarball from a [recent release][12], extract it to wherever nginx
+looks for modules (e.g. `/usr/lib/nginx/modules/`).
+2. Add the following line to the top of the main nginx configuration (e.g.  `/etc/nginx/nginx.conf`):
+
 ```nginx
 load_module modules/ngx_http_datadog_module.so;
 ```
@@ -20,27 +21,28 @@ Compatibility
 -------------
 > [!IMPORTANT]
 > We provide support for NGINX versions up to their End Of Life, extended by one year. 
-> [Aligned with the NGINX release cycle][11], this entails support for the two most recent years of NGINX versions. 
+> [Aligned with the NGINX release cycle][11], this entails support for the four most recent NGINX versions.
 >
 > If you plan to add tracing features to an older NGINX version using our module, please check out [the build section](#build) for guidance.
 
 There is one version of the module for each docker image we follow, which
 include the following:
 
-- Debian variants of [nginx's DockerHub images][3],
-- Alpine variants of [nginx's DockerHub images][3],
+- Debian variants of [nginx's DockerHub images][3].
+- Alpine variants of [nginx's DockerHub images][3].
 - [Amazon Linux][10].
 
-Each release contains one zipped tarball per supported image above. The
-naming convention is
-`<base image with underscores>-<arch>-ngx_http_datadog_module.so.tgz`,
-e.g. `nginx_1.23.1-alpine-amd64-ngx_http_datadog_module.so.tgz` or
-`amazonlinux_2.0.20230119.1-arm64-ngx_http_datadog_module.so.tgz`.
+Each release contains one zipped tarball per supported image above.
+The zipped tarball contains a single file, `ngx_http_datadog_module.so`, which is the Datadog tracing nginx module.
+
+The naming convention is `<base image with underscores>-<arch>-ngx_http_datadog_module.so.tgz`.
 
 Supported architectures (`<arch>`) are `amd64` and `arm64`.
 
-The zipped tarball contains a single file, `ngx_http_datadog_module.so`, which
-is the Datadog tracing nginx module.
+Examples:
+- `nginx_1.23.1-alpine-amd64-ngx_http_datadog_module.so.tgz` corresponds to NGINX version 1.23.1 docker image, running on Alpine, and designed for the amd64 architecture.
+- `amazonlinux_2.0.20230119.1-arm64-ngx_http_datadog_module.so.tgz` refers to Amazon Linux version 2.0.20230119.1 docker image, designed for the arm64 architecture.
+
 
 Default Behavior
 ----------------
@@ -62,8 +64,6 @@ Requirements:
 - C and C++ toolchain (`clang` or `gcc/g++`).
 - CMake `v3.7` or newer.
 - Architecture must be `x86_64` or `arm64`.
-
-[Makefile](Makefile) is a [GNU make][1] compatible makefile.
 
 For enhanced usability, we provide a [GNU make][1] compatible [Makefile](Makefile).
 
@@ -119,3 +119,4 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [9]: https://github.com/DataDog/dd-trace-cpp/blob/main/src/datadog/environment.h
 [10]: https://hub.docker.com/_/amazonlinux
 [11]: https://www.nginx.com/blog/nginx-1-18-1-19-released/
+[12]: https://github.com/DataDog/nginx-datadog/releases
