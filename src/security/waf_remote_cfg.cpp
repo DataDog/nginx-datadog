@@ -253,7 +253,7 @@ class CurrentAppSecConfig {
  public:
   void set_dd_config(std::shared_ptr<dns::ddwaf_owned_map> new_config) {
     static const rc::ParsedConfigKey KEY_BUNDLED_RULE_DATA{
-        "no_org/NONE/none/bundled_rule_data"};
+        "datadog/0/NONE/none/bundled_rule_data"};
 
     assert(new_config);
 

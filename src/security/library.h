@@ -28,7 +28,7 @@ class waf_handle {
       std::map<std::string /* id */, action_info, std::less<>>;
 
   waf_handle() = default;
-  waf_handle(ddwaf_handle h, const ddwaf_map_obj &merged_actions);
+  waf_handle(ddwaf_handle h, const ddwaf_arr_obj &merged_actions);
 
   waf_handle(const waf_handle &) = delete;
   waf_handle &operator=(const waf_handle &) = delete;
@@ -45,7 +45,7 @@ class waf_handle {
   const action_info_map_t &action_info_map() const { return action_info_map_; }
 
  private:
-  static action_info_map_t extract_actions(const ddwaf_object &ruleset);
+  static action_info_map_t extract_actions(const ddwaf_arr_obj &actions);
 
   ddwaf_handle handle_{nullptr};
   action_info_map_t action_info_map_;

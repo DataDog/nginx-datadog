@@ -562,13 +562,6 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     auto &file = main_conf->appsec_ruleset_file;
     auto file_sv =
         std::string_view{reinterpret_cast<char *>(file.data), file.len};
-
-    try {
-      // TODO: last 2 args should come from config
-    } catch (const std::exception &e) {
-      ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
-                    "Initialising security library failed: %s", e.what());
-    }
   }
 
   reset_global_tracer(std::move(*maybe_tracer));

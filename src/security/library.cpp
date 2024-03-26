@@ -201,7 +201,7 @@ std::string ddwaf_subdiagnostics_to_str(const dns::ddwaf_map_obj &top, std::stri
 
 namespace datadog::nginx::security {
 
-waf_handle::waf_handle(ddwaf_handle h, const ddwaf_map_obj &merged_actions) {
+waf_handle::waf_handle(ddwaf_handle h, const ddwaf_arr_obj &merged_actions) {
   assert(h != nullptr);
   handle_ = h;
   action_info_map_ = extract_actions(merged_actions);
@@ -216,15 +216,13 @@ waf_handle::waf_handle(ddwaf_handle h, const ddwaf_map_obj &merged_actions) {
  * }
  */
 waf_handle::action_info_map_t waf_handle::extract_actions(
-    const ddwaf_object &ruleset) {
-  ddwaf_map_obj const root{ruleset};
-  std::optional<ddwaf_arr_obj> actions = root.get_opt<ddwaf_arr_obj>("actions");
-  if (!actions) {
+    const ddwaf_arr_obj &merged_actions) {
+  if (merged_actions.empty()) {
     return default_actions();
   }
 
   action_info_map_t action_info_map{default_actions()};
-  for (auto &&v : *actions) {
+  for (auto &&v : merged_actions) {
     ddwaf_map_obj const action_spec{v};
 
     std::string_view id =
@@ -305,9 +303,9 @@ std::optional<ddwaf_owned_map> library::initialize_security_library(
   ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0, "ddwaf_init loaded %uz rules",
                 num_loaded_rules);
 
-  auto actions = ruleset.get().get_opt<ddwaf_map_obj>("actions");
+  auto actions = ruleset.get().get_opt<ddwaf_arr_obj>("actions");
   library::handle_ =
-      std::make_shared<waf_handle>(h, actions.value_or(ddwaf_map_obj{}));
+      std::make_shared<waf_handle>(h, actions.value_or(ddwaf_arr_obj{}));
   library::set_active(conf.appsec_enabled == 1);
 
   std::string_view template_html_path{
