@@ -21,6 +21,7 @@ Compatibility
 > [!IMPORTANT]
 > We provide support for NGINX versions up to their End Of Life, extended by one year. 
 > [Aligned with the NGINX release cycle][11], this entails support for the two most recent years of NGINX versions. 
+>
 > If you plan to add tracing features to an older NGINX version using our module, please check out [the build section](#build) for guidance.
 
 There is one version of the module for each docker image we follow, which
