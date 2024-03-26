@@ -65,15 +65,15 @@ Requirements:
 
 [Makefile](Makefile) is a [GNU make][1] compatible makefile.
 
-The C and C++ sources are built using [CMake][4].
+For enhanced usability, we provide a [GNU make][1] compatible [Makefile](Makefile).
 
-```sh
+```shell
 NGINX_VERSION=1.25.2 make build
 ```
 
 The resulting nginx module is `.build/ngx_http_datadog_module.so`
 
-The build does the following:
+The `build` target does the following:
 
 - Download a source release of nginx based on the `NGINX_VERSION` environment variable.
 - Initialize the source tree of `dd-trace-cpp` as a git submodule.
@@ -85,13 +85,17 @@ everything done by the build.
 
 Build in Docker
 ---------------
-Not everyone has a C/C++ toolchain.
-Another target, `build-in-docker`, builds the Datadog nginx module and its
+```shell
+make build-in-docker
+```
+
+`build-in-docker` target, builds the Datadog nginx module and its
 dependencies in a [Docker][2] container compatible with the DockerHub image
 specified as `BASE_IMAGE` in the `nginx-version-info` file, (e.g.
 `nginx:1.19.1-alpine`) and with the nginx source version specified as
-`NGINX_VERSION` in the `nginx-version-info` file (e.g. `1.19.1`).  The
-appropriate build image must be created first using the
+`NGINX_VERSION` in the `nginx-version-info` file (e.g. `1.19.1`).
+
+The appropriate build image must be created first using the
 [bin/docker_build.sh](bin/docker_build.sh) script if it does not exist already.
 Once the image is built, `make build-in-docker` produces the nginx module as
 `.docker-build/ngx_http_datadog_module.so`.
