@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.7)
+# The C code doesn't care about the C++ version.
+# dd-trace-cpp works with C++17 or newer.
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # This build configuration combines the following other build configurations:
 # - `nginx-datadog.cmake`, the actual nginx module source in `src/`,
@@ -8,41 +12,76 @@ cmake_minimum_required(VERSION 3.7)
 
 project(ngx_http_datadog_module)
 
+if(NOT NGINX_SRC_DIR)
+  message(FATAL_ERROR "Missing NGINX source directory. Use -DNGINX_SRC_DIR")
+endif()
+
 # Prefer the build mode "release with debug info" if another mode wasn't
 # specified.
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 endif()
 
-# The C code doesn't care about the C++ version.
-# dd-trace-cpp works with C++17 or newer.
-set(CMAKE_CXX_STANDARD 17)
-
-# This warning has a false positive. See
-# <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108088>.
-add_compile_options(-Wno-error=free-nonheap-object)
+# Global compiler options
+if(CMAKE_COMPILER_IS_GNUCXX)
+  # This warning has a false positive. See
+  # <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108088>.
+  add_compile_options(-Wno-error=free-nonheap-object)
+endif()
 
 # Nginx module boilerplate (code within the nginx repository)
 include(./nginx-module.cmake)
-
-# The actual source code of this repo
-include(./nginx-datadog.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
+
 target_sources(ngx_http_datadog_module
-    PRIVATE
-        $<TARGET_OBJECTS:nginx_module>
-        $<TARGET_OBJECTS:nginx_datadog>
-        $<TARGET_OBJECTS:dd_trace_cpp-objects>
+  PRIVATE
+    src/array_util.cpp
+    src/datadog_conf.cpp
+    src/datadog_conf_handler.cpp
+    src/datadog_context.cpp
+    src/datadog_directive.cpp
+    src/datadog_handler.cpp
+    src/datadog_variable.cpp
+    src/dd.cpp
+    src/defer.cpp
+    src/global_tracer.cpp
+    src/log_conf.cpp
+    src/ngx_event_scheduler.cpp
+    src/ngx_header_reader.cpp
+    src/ngx_http_datadog_module.cpp
+    src/ngx_logger.cpp
+    src/ngx_script.cpp
+    src/propagation_header_querier.cpp
+    src/request_tracing.cpp
+    src/string_util.cpp
+    src/tracing_library.cpp
+)
+
+target_include_directories(ngx_http_datadog_module
+  PRIVATE
+    src/
 )
 
 add_dependencies(ngx_http_datadog_module
-    nginx_module
-    nginx_datadog
-    dd_trace_cpp-objects
+  nginx_module
+  dd_trace_cpp-objects
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects -static-libstdc++ -static-libgcc)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
+
+# Remove the "lib" prefix to match NGINX convention
+set_property(TARGET ngx_http_datadog_module PROPERTY PREFIX "")
+
+if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+  if(APPLE)
+    set_property(TARGET ngx_http_datadog_module PROPERTY SUFFIX ".so")
+    target_link_options(ngx_http_datadog_module PRIVATE -undefined dynamic_lookup)
+  else()
+    target_link_libraries(ngx_http_datadog_module -static-libstdc++ -static-libgcc) 
+  endif()
+endif()
+

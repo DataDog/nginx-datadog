@@ -1,6 +1,12 @@
 #!/bin/sh
 
 repo=$(dirname "$0")/..
+if ! [ -f "$repo/nginx-version-info" ]; then
+  >&2 echo "Missing required ${repo}/nginx-version-info.
+Rename ${repo}/nginx-version-info.example to get started."
+  exit 1
+fi
+
 # shellcheck disable=SC1091
 . "$repo/nginx-version-info"
 base_image_without_colons=$(echo "$BASE_IMAGE" | tr ':' '_')
@@ -21,6 +27,7 @@ fi
 docker run \
     $interactive_flags \
     --rm \
+    --env NGINX_VERSION=${NGINX_VERSION} \
     --mount "type=bind,source=$(pwd),destination=/mnt/repo" \
     "$BUILD_IMAGE" \
     "$@"
