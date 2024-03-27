@@ -13,7 +13,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 project(ngx_http_datadog_module)
 
 if(NOT NGINX_SRC_DIR)
-  message(FATAL_ERROR "Missing nginx source directory. Use -DNGINX_SRC_DIR")
+  message(FATAL_ERROR "Missing NGINX source directory. Use -DNGINX_SRC_DIR")
 endif()
 
 # Prefer the build mode "release with debug info" if another mode wasn't
@@ -23,7 +23,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # Global compiler options
-if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+if(CMAKE_COMPILER_IS_GNUCXX)
   # This warning has a false positive. See
   # <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108088>.
   add_compile_options(-Wno-error=free-nonheap-object)
