@@ -1,9 +1,12 @@
 #include "ngx_http_datadog_module.h"
 
+#include <ddwaf.h>
+
 #include <cassert>
 #include <cstdlib>
 #include <exception>
 #include <iterator>
+#include <memory>
 #include <new>
 #include <string_view>
 #include <utility>
@@ -17,15 +20,18 @@
 #include "defer.h"
 #include "global_tracer.h"
 #include "log_conf.h"
+#include "ngx_logger.h"
+#include "security/library.h"
+#include "security/waf_remote_cfg.h"
 #include "string_util.h"
 #include "tracing_library.h"
 
 extern "C" {
 #include <nginx.h>
+#include <ngx_conf_file.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
-#include <stdlib.h>  // ::setenv
 }
 
 // clang-format off
@@ -308,6 +314,87 @@ static ngx_command_t datadog_commands[] = {
       0,
       NULL },
 
+    {
+      ngx_string("datadog_waf_thread_pool_name"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+      waf_thread_pool_name,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(datadog_loc_conf_t, waf_thread_pool_name),
+      NULL
+    },
+
+    {
+      ngx_string("datadog_appsec_enabled"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_enabled),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_ruleset_file"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_ruleset_file),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_http_blocked_template_json"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_http_blocked_template_json),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_http_blocked_template_html"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_http_blocked_template_html),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_client_ip_header"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1, // TODO allow it more fine-grained
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, custom_client_ip_header),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_waf_timeout"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_msec_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_waf_timeout_ms),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_obfuscation_key_regex"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_obfuscation_key_regex),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_obfuscation_value_regex"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_obfuscation_value_regex),
+      nullptr,
+    },
+
     ngx_null_command
 };
 
@@ -402,10 +489,21 @@ static ngx_int_t datadog_master_process_post_config(
     return NGX_OK;
   }
 
+  ngx_http_next_output_header_filter = ngx_http_top_header_filter;
+  ngx_http_top_header_filter = output_header_filter;
+
   // Forward tracer-specific environment variables to worker processes.
   std::string name;
   for (const auto &env_var_name :
        TracingLibrary::environment_variable_names()) {
+    name = env_var_name;
+    if (const char *value = std::getenv(name.c_str())) {
+      main_conf->environment_variables.push_back(
+          environment_variable_t{.name = name, .value = value});
+    }
+  }
+
+  for (const auto &env_var_name : security::library::environment_variable_names()) {
     name = env_var_name;
     if (const char *value = std::getenv(name.c_str())) {
       main_conf->environment_variables.push_back(
@@ -432,6 +530,11 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
       &core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_enter_block;
+
+  handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
+      &core_main_config->phases[NGX_HTTP_ACCESS_PHASE].handlers));
+  if (handler == nullptr) return NGX_ERROR;
+  *handler = on_access;
 
   handler = static_cast<ngx_http_handler_pt *>(
       ngx_array_push(&core_main_config->phases[NGX_HTTP_LOG_PHASE].handlers));
@@ -461,12 +564,31 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf);
+  std::shared_ptr<dd::Logger> logger = std::make_shared<NgxLogger>();
+  try {
+    std::optional<security::ddwaf_owned_map> initial_waf_cfg =
+        security::library::initialize_security_library(*main_conf);
+    if (initial_waf_cfg) {
+      security::register_default_config(std::move(*initial_waf_cfg), logger);
+    }
+  } catch (const std::exception &e) {
+    ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                  "Initialising security library failed: %s", e.what());
+    return NGX_ERROR;
+  }
+
+  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf, logger);
   if (auto *error = maybe_tracer.if_error()) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Failed to construct tracer: [error code %d] %s",
                   int(error->code), error->message.c_str());
     return NGX_ERROR;
+  }
+
+  if (main_conf->appsec_enabled) {
+    auto &file = main_conf->appsec_ruleset_file;
+    auto file_sv =
+        std::string_view{reinterpret_cast<char *>(file.data), file.len};
   }
 
   reset_global_tracer(std::move(*maybe_tracer));
@@ -786,6 +908,12 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
   conf->sampling_delegation_directive = prev->sampling_delegation_directive;
   conf->allow_sampling_delegation_in_subrequests_directive =
       prev->allow_sampling_delegation_in_subrequests_directive;
+
+  ngx_conf_merge_str_value(conf->waf_thread_pool_name,
+                           prev->waf_thread_pool_name, "");
+  if (conf->waf_pool == nullptr) {
+    conf->waf_pool = prev->waf_pool;
+  }
 
   return NGX_CONF_OK;
 }

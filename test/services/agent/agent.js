@@ -5,32 +5,54 @@ const http = require('http');
 const msgpack = require('massagepack');
 const process = require('process');
 
-function handleTraceSegments(segments) {
+const requestListener = (() => {
+  function handleTraceSegments(segments) {
     console.log(msgpack.encodeJSON(segments));
-}
-
-const requestListener = function (request, response) {
-  if (!request.url.endsWith('/traces')) {
-    // The agent also supports telemetry endpoints.
-    // We serve the [...]/traces endpoints only.
-    response.writeHead(404);
-    response.end();
-    return;
   }
 
-  let body = [];
-  request.on('data', chunk => {
-    // console.log('Received a chunk of data.');
-    body.push(chunk);
-  }).on('end', () => {
-    // console.log('Received end of request.');
-    body = Buffer.concat(body);
-    const trace_segments = msgpack.decode(body);
-    handleTraceSegments(trace_segments);
-    response.writeHead(200);
-    response.end(JSON.stringify({}));
-  });
-};
+  let next_rem_cfg_resp = undefined;
+
+  return (request, response) => {
+    if (request.url.endsWith('/traces')) {
+      let body = [];
+      request.on('data', chunk => {
+        // console.log('Received a chunk of data.');
+        body.push(chunk);
+      }).on('end', () => {
+        // console.log('Received end of request.');
+        body = Buffer.concat(body);
+        const trace_segments = msgpack.decode(body);
+        handleTraceSegments(trace_segments);
+        response.writeHead(200);
+        response.end(JSON.stringify({}));
+      });
+    } else if (request.url == '/v0.7/config') {
+      response.writeHead(200);
+      if (next_rem_cfg_resp === undefined) {
+        response.end(JSON.stringify({}));
+      } else {
+        response.end(next_rem_cfg_resp);
+        next_rem_cfg_resp = undefined;
+      }
+    } else if (request.url === '/save_rem_cfg_resp') {
+        let body = [];
+        request.on('data', chunk => {
+            body.push(chunk);
+        }).on('end', () => {
+            body = Buffer.concat(body);
+            next_rem_cfg_resp = body;
+            response.writeHead(200);
+            response.end();
+        });
+    } else {
+      // The agent also supports telemetry endpoints.
+      // But we don't servet those here.
+      response.writeHead(404);
+      response.end();
+      return;
+    }
+  };
+})();
 
 const port = 8126;
 console.log(`node.js web server (agent) is running on port ${port}`);

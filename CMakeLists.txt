@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.7)
 # dd-trace-cpp works with C++17 or newer.
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+cmake_policy(SET CMP0068 NEW)
+cmake_policy(SET CMP0135 NEW)
 
 # This build configuration combines the following other build configurations:
 # - `nginx-datadog.cmake`, the actual nginx module source in `src/`,
@@ -33,6 +35,10 @@ endif()
 include(./nginx-module.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
+include(./libddwaf.cmake)
+find_package(libddwaf REQUIRED)
+include_directories(rapidjson/include)
+
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
@@ -57,6 +63,13 @@ target_sources(ngx_http_datadog_module
     src/ngx_script.cpp
     src/propagation_header_querier.cpp
     src/request_tracing.cpp
+    src/security/blocking.cpp
+    src/security/client_ip.cpp
+    src/security/collection.cpp
+    src/security/context.cpp
+    src/security/ddwaf_obj.cpp
+    src/security/library.cpp
+    src/security/waf_remote_cfg.cpp
     src/string_util.cpp
     src/tracing_library.cpp
 )
@@ -66,12 +79,7 @@ target_include_directories(ngx_http_datadog_module
     src/
 )
 
-add_dependencies(ngx_http_datadog_module
-  nginx_module
-  dd_trace_cpp-objects
-)
-
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module libddwaf_shared)
 
 # Remove the "lib" prefix to match NGINX convention
 set_property(TARGET ngx_http_datadog_module PROPERTY PREFIX "")
@@ -85,3 +93,14 @@ if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   endif()
 endif()
 
+get_target_property(libddwaf_target_path libddwaf_shared LOCATION)
+get_filename_component(libddwaf_target_dir ${libddwaf_target_path}  DIRECTORY)
+if(APPLE)
+    set(RPATH_VAL "@loader_path" "${libddwaf_target_dir}")
+else()
+    set(RPATH_VAL "$ORIGIN" "${libddwaf_target_dir}")
+endif()
+set_target_properties(ngx_http_datadog_module PROPERTIES
+    INSTALL_RPATH_USE_LINK_PATH false
+    BUILD_WITH_INSTALL_RPATH true
+    INSTALL_RPATH "${RPATH_VAL}")
