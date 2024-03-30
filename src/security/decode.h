@@ -42,9 +42,7 @@ struct query_string_iter {
     return pos != other.pos;
   }
 
-  bool ended() const noexcept {
-    return pos == qs.length();
-  }
+  bool ended() const noexcept { return pos == qs.length(); }
 
   // this may return empty keys and/or values, e.g. ?a=&=v&
   std::pair<std::string_view, std::string_view> operator*() {
@@ -86,9 +84,7 @@ struct query_string_iter {
     return decode(kv.substr(0, eq_pos));
   }
 
-  bool is_delete() const {
-    return false;
-  }
+  bool is_delete() const { return false; }
 
   query_string_iter &operator++() {
     auto sep_pos = rest().find(separator);
@@ -220,13 +216,9 @@ struct qs_iter_agg {
     }
   }
 
-  std::string_view cur_key() const {
-    return iters[cur]->cur_key();
-  }
+  std::string_view cur_key() const { return iters[cur]->cur_key(); }
 
-  bool is_delete() const {
-    return false;
-  }
+  bool is_delete() const { return false; }
 
   void reset() noexcept {
     for (size_t i = 0; i < iters.size(); i++) {
@@ -238,9 +230,7 @@ struct qs_iter_agg {
     }
   }
 
-  bool ended() const noexcept {
-    return cur >= iters.size();
-  }
+  bool ended() const noexcept { return cur >= iters.size(); }
 
   std::pair<std::string_view, std::string_view> operator*() {
     return *(*iters[cur]);

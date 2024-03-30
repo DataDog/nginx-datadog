@@ -36,7 +36,6 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
                        &traces_[0].active_span());
 }
 
-
 bool DatadogContext::on_main_req_access(ngx_http_request_t *request) {
   if (!sec_ctx_) {
     return false;
@@ -47,7 +46,8 @@ bool DatadogContext::on_main_req_access(ngx_http_request_t *request) {
   return sec_ctx_->on_request_start(*request, span);
 }
 
-ngx_int_t DatadogContext::main_output_header_filter(ngx_http_request_t *request) {
+ngx_int_t DatadogContext::main_output_header_filter(
+    ngx_http_request_t *request) {
   if (!sec_ctx_) {
     return ngx_http_next_output_header_filter(request);
   }

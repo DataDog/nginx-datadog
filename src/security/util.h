@@ -63,22 +63,22 @@ struct ngx_str_equal {
 };
 
 constexpr inline ngx_uint_t ngx_hash_ce(std::string_view sv) {
-    ngx_uint_t key{};
-    for (std::size_t i = 0; i < sv.length(); i++) {
-        key = ngx_hash(key, sv.at(i));
-    }
+  ngx_uint_t key{};
+  for (std::size_t i = 0; i < sv.length(); i++) {
+    key = ngx_hash(key, sv.at(i));
+  }
 
-    return key;
+  return key;
 }
 
 inline std::string_view key(const ngx_table_elt_t &header) {
   return to_string_view(header.key);
 }
 
-inline std::string_view lc_key(const ngx_table_elt_t& header) {
+inline std::string_view lc_key(const ngx_table_elt_t &header) {
   return {reinterpret_cast<const char *>(header.lowcase_key), header.key.len};
 }
-inline bool key_equals_ci(const ngx_table_elt_t& header, std::string_view key) {
+inline bool key_equals_ci(const ngx_table_elt_t &header, std::string_view key) {
   if (header.lowcase_key) {
     return key == lc_key(header);
   }
@@ -124,12 +124,12 @@ class nginx_list_iter {
     ++index_;
     while (index_ >= part_->nelts) {
       if (part_->next == nullptr) {
-        return *this; // reached the end
+        return *this;  // reached the end
       }
 
       part_ = part_->next;
       elts_ = static_cast<T *>(part_ ? part_->elts : nullptr);
-      index_ = 0; // if the part is empty, we go for another iteration
+      index_ = 0;  // if the part is empty, we go for another iteration
     }
     return *this;
   }
@@ -159,12 +159,12 @@ class ngnix_header_iterable {
   }
 
  private:
-  const ngx_list_t &list_; // NOLINT
+  const ngx_list_t &list_;  // NOLINT
 };
 
 inline ngx_str_t ngx_stringv(std::string_view sv) noexcept {
-  return {sv.size(), // NOLINTNEXTLINE
+  return {sv.size(),  // NOLINTNEXTLINE
           const_cast<u_char *>(reinterpret_cast<const u_char *>(sv.data()))};
 }
 
-} // namespace datadog::nginx::security
+}  // namespace datadog::nginx::security

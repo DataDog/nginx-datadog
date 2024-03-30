@@ -41,9 +41,7 @@ struct DirtyStatus {
             exclusions || oth.exclusions};
   }
 
-  DirtyStatus &operator |=(DirtyStatus oth) {
-    return (*this = *this | oth);
-  }
+  DirtyStatus &operator|=(DirtyStatus oth) { return (*this = *this | oth); }
 
   static DirtyStatus allDirty() { return {true, true, true, true, true, true}; }
 
@@ -175,7 +173,8 @@ class CollectedAsmData {
   dnsec::ddwaf_arr_obj merged_data(dnsec::ddwaf_memres &memres) const {
     // first we need to group all the data by id
     auto grouped_entries =
-        std::unordered_map<std::string_view, std::vector<dnsec::ddwaf_map_obj>>{};
+        std::unordered_map<std::string_view,
+                           std::vector<dnsec::ddwaf_map_obj>>{};
 
     for (auto &&[key, owned_arr] : data_) {
       for (auto &&data_entry_obj : dnsec::ddwaf_arr_obj{owned_arr.get()}) {
@@ -211,7 +210,8 @@ class CollectedAsmData {
       std::string_view first_type =
           vec.at(0).get<dnsec::ddwaf_str_obj>("type"sv).value();
       for (std::size_t j = 1; j < vec.size(); ++j) {
-        if (vec.at(j).get<dnsec::ddwaf_str_obj>("type"sv).value() != first_type) {
+        if (vec.at(j).get<dnsec::ddwaf_str_obj>("type"sv).value() !=
+            first_type) {
           throw std::invalid_argument(
               "type is not the same for all data entries with id=" +
               std::string{id});
@@ -264,7 +264,8 @@ class CurrentAppSecConfig {
     std::optional<dnsec::ddwaf_arr_obj> rules_data =
         dd_config().get_opt<dnsec::ddwaf_arr_obj>("rules_data"sv);
     if (rules_data) {
-      dnsec::ddwaf_owned_arr rules_data_copy = dnsec::ddwaf_obj_clone(*rules_data);
+      dnsec::ddwaf_owned_arr rules_data_copy =
+          dnsec::ddwaf_obj_clone(*rules_data);
       asm_data_.add_config(KEY_BUNDLED_RULE_DATA, std::move(rules_data_copy));
     }
 
@@ -306,9 +307,10 @@ class CurrentAppSecConfig {
     if (dirty_status_.rules) {
       mo.get_entry_unchecked(i++)
           .set_key("metadata"sv)
-          .shallow_copy_val_from(dd_config()
-                                     .get_opt<dnsec::ddwaf_map_obj>("metadata"sv)
-                                     .value_or(dnsec::ddwaf_map_obj{}));
+          .shallow_copy_val_from(
+              dd_config()
+                  .get_opt<dnsec::ddwaf_map_obj>("metadata"sv)
+                  .value_or(dnsec::ddwaf_map_obj{}));
       mo.get_entry_unchecked(i++).set_key("rules"sv).shallow_copy_val_from(
           dd_config().get_opt<dnsec::ddwaf_arr_obj>("rules"sv).value_or(
               dnsec::ddwaf_arr_obj{}));
@@ -320,9 +322,10 @@ class CurrentAppSecConfig {
                   .value_or(dnsec::ddwaf_arr_obj{}));
       mo.get_entry_unchecked(i++)
           .set_key("scannners"sv)
-          .shallow_copy_val_from(dd_config()
-                                     .get_opt<dnsec::ddwaf_arr_obj>("scanners"sv)
-                                     .value_or(dnsec::ddwaf_arr_obj{}));
+          .shallow_copy_val_from(
+              dd_config()
+                  .get_opt<dnsec::ddwaf_arr_obj>("scanners"sv)
+                  .value_or(dnsec::ddwaf_arr_obj{}));
     }
 
     if (dirty_status_.custom_rules) {
@@ -516,7 +519,7 @@ class AsmFeaturesListener : public rc::ProductListener {
   }
 
   void on_config_remove(const rc::ParsedConfigKey &key,
-                        std::vector<dd::ConfigMetadata>& config_md) override{
+                        std::vector<dd::ConfigMetadata> &config_md) override {
     return on_config_update(key, std::string{"{}"}, config_md);
   };
 
@@ -561,9 +564,9 @@ class AsmDDListener : public rc::ProductListener {
 
   rc::CapabilitiesSet capabilities() const override {
     return {
-      rc::Capability::ASM_DD_RULES,
-      rc::Capability::ASM_IP_BLOCKING,
-      rc::Capability::ASM_REQUEST_BLOCKING,
+        rc::Capability::ASM_DD_RULES,
+        rc::Capability::ASM_IP_BLOCKING,
+        rc::Capability::ASM_REQUEST_BLOCKING,
     };
   };
 
@@ -582,7 +585,7 @@ class AsmDataListener : public rc::ProductListener {
 
   void on_config_update(const rc::ParsedConfigKey &key,
                         const std::string &content,
-                        std::vector<dd::ConfigMetadata>&) override {
+                        std::vector<dd::ConfigMetadata> &) override {
     rapidjson::Document doc;
     rapidjson::ParseResult result = doc.Parse(content.c_str(), content.size());
     if (!result) {
@@ -638,8 +641,7 @@ class AsmUserConfigListener : public rc::ProductListener {
 
   void on_config_update(const rc::ParsedConfigKey &key,
                         const std::string &content,
-                        std::vector<dd::ConfigMetadata>&) override {
-
+                        std::vector<dd::ConfigMetadata> &) override {
     rapidjson::Document doc;
     rapidjson::ParseResult result = doc.Parse(content.c_str(), content.size());
     if (!result) {
@@ -653,7 +655,7 @@ class AsmUserConfigListener : public rc::ProductListener {
   }
 
   void on_config_remove(const rc::ParsedConfigKey &key,
-                        std::vector<dd::ConfigMetadata>&) override {
+                        std::vector<dd::ConfigMetadata> &) override {
     cur_appsec_cfg_.user_config_remove_config(key);
   }
 
@@ -680,35 +682,34 @@ class AppSecConfigService {
     current_config_.set_dd_config(this->default_config_);
   }
 
-public:
- AppSecConfigService(const AppSecConfigService &) = delete;
- AppSecConfigService &operator=(const AppSecConfigService &) = delete;
- AppSecConfigService(AppSecConfigService &&) = delete;
- AppSecConfigService &operator=(AppSecConfigService &&) = delete;
- ~AppSecConfigService() = default;
+ public:
+  AppSecConfigService(const AppSecConfigService &) = delete;
+  AppSecConfigService &operator=(const AppSecConfigService &) = delete;
+  AppSecConfigService(AppSecConfigService &&) = delete;
+  AppSecConfigService &operator=(AppSecConfigService &&) = delete;
+  ~AppSecConfigService() = default;
 
- static void initialize(dnsec::ddwaf_owned_map default_config,
-                        std::shared_ptr<datadog::tracing::Logger> logger) {
+  static void initialize(dnsec::ddwaf_owned_map default_config,
+                         std::shared_ptr<datadog::tracing::Logger> logger) {
     if (instance_) {
       throw std::logic_error{"AppSecConfigService already initialized"};
     }
     instance_ = std::unique_ptr<AppSecConfigService>{
         new AppSecConfigService{std::move(default_config), std::move(logger)}};
- }
+  }
 
- static bool has_instance() { return static_cast<bool>(instance_); }
+  static bool has_instance() { return static_cast<bool>(instance_); }
 
- static AppSecConfigService &instance() {
+  static AppSecConfigService &instance() {
     if (!instance_) {
       throw std::logic_error{"AppSecConfigService not initialized"};
     }
     return *instance_;
- }
+  }
 
- void subscribe_to_remote_config(
-     datadog::tracing::DatadogAgentConfig &ddac,
-     bool accept_cfg_update,
-     bool is_subscribe_activation) {
+  void subscribe_to_remote_config(datadog::tracing::DatadogAgentConfig &ddac,
+                                  bool accept_cfg_update,
+                                  bool is_subscribe_activation) {
     if (is_subscribe_activation) {
       subscribe_activation(ddac);
     }
@@ -727,7 +728,7 @@ public:
         }
       });
     }
- }
+  }
 
  private:
   void subscribe_activation(datadog::tracing::DatadogAgentConfig &ddac) {
@@ -760,10 +761,9 @@ void register_default_config(ddwaf_owned_map default_config,
   AppSecConfigService::initialize(std::move(default_config), std::move(logger));
 }
 
-void register_with_remote_cfg(
-  datadog::tracing::DatadogAgentConfig &ddac,
-    bool accept_cfg_update,
-    bool subscribe_activation) {
+void register_with_remote_cfg(datadog::tracing::DatadogAgentConfig &ddac,
+                              bool accept_cfg_update,
+                              bool subscribe_activation) {
   if (!AppSecConfigService::has_instance()) {
     ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                   "No subscription to remote config for the WAF: no previous "

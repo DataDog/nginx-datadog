@@ -86,7 +86,8 @@ auto read_rule_file(std::string_view filename) -> dnsec::ddwaf_owned_map {
   return parse_rule_json(buffer);
 }
 
-dnsec::ddwaf_owned_map read_ruleset(std::optional<std::string_view> ruleset_file) {
+dnsec::ddwaf_owned_map read_ruleset(
+    std::optional<std::string_view> ruleset_file) {
   dnsec::ddwaf_owned_map ruleset;
   if (ruleset_file) {
     try {
@@ -277,10 +278,9 @@ waf_handle::action_info_map_t waf_handle::extract_actions(
   return action_info_map;
 }
 
-
 class FinalizedConfigSettings {
-  static constexpr ngx_uint_t default_waf_timeout_usec = 1000000; // 100 ms
-public:
+  static constexpr ngx_uint_t default_waf_timeout_usec = 1000000;  // 100 ms
+ public:
   enum class enable_status : std::uint8_t {
     enabled,
     disabled,
@@ -296,9 +296,7 @@ public:
 
   enable_status enable_status() const noexcept { return enable_status_; }
 
-  auto ruleset_file() const {
-    return non_empty_or_nullopt(ruleset_file_);
-  }
+  auto ruleset_file() const { return non_empty_or_nullopt(ruleset_file_); }
 
   std::optional<hashed_string_view> custom_ip_header() const {
     if (custom_ip_header_.empty()) {
@@ -381,7 +379,6 @@ FinalizedConfigSettings::FinalizedConfigSettings(
                                                   : enable_status::disabled;
   }
 
-
   if (ngx_conf.appsec_ruleset_file.len > 0) {
     ruleset_file_ = to_string_view(ngx_conf.appsec_ruleset_file);
   } else {
@@ -416,7 +413,7 @@ FinalizedConfigSettings::FinalizedConfigSettings(
   if (ngx_conf.appsec_waf_timeout_ms == 0 ||
       ngx_conf.appsec_waf_timeout_ms == NGX_CONF_UNSET_MSEC) {
     waf_timeout_usec_ = get_env_unsigned(evs, "DD_APPSEC_WAF_TIMEOUT"sv)
-                       .value_or(default_waf_timeout_usec);
+                            .value_or(default_waf_timeout_usec);
   } else {
     waf_timeout_usec_ = ngx_conf.appsec_waf_timeout_ms * 1000;
   }
@@ -502,11 +499,11 @@ std::unique_ptr<FinalizedConfigSettings> library::config_settings_;
 
 std::optional<ddwaf_owned_map> library::initialize_security_library(
     const datadog_main_conf_t &ngx_conf) {
-
   config_settings_ = std::make_unique<FinalizedConfigSettings>(ngx_conf);
   const FinalizedConfigSettings &conf = *config_settings_;  // just an alias;
 
-  if (conf.enable_status() == FinalizedConfigSettings::enable_status::disabled) {
+  if (conf.enable_status() ==
+      FinalizedConfigSettings::enable_status::disabled) {
     ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                   "datadog security library is explicitly disabled");
     return std::nullopt;

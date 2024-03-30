@@ -53,7 +53,8 @@ void NgxLogger::log_debug(std::string_view message) {
   const ngx_str_t ngx_message = to_ngx_str(message);
 
   std::lock_guard<std::mutex> lock(mutex_);
-  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0, "datadog: %V", &ngx_message);
+  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0, "datadog: %V",
+                 &ngx_message);
 }
 
 }  // namespace nginx

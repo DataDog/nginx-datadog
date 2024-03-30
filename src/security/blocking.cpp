@@ -176,7 +176,7 @@ struct block_resp {
     }
 
     static std::string_view trim(std::string_view sv) {
-      while (std::isspace(sv.front())) { 
+      while (std::isspace(sv.front())) {
         sv.remove_prefix(1);
       }
       while (std::isspace(sv.back())) {
@@ -388,7 +388,7 @@ std::string blocking_service::load_template(std::string_view path) {
 }
 
 void blocking_service::push_header(ngx_http_request_t &req,
-                                   std::string_view name, // NOLINT
+                                   std::string_view name,  // NOLINT
                                    std::string_view value) {
   ngx_table_elt_t *header =
       static_cast<ngx_table_elt_t *>(ngx_list_push(&req.headers_out.headers));
@@ -400,6 +400,6 @@ void blocking_service::push_header(ngx_http_request_t &req,
   header->value = ngx_stringv(value);
 }
 
-} // namespace datadog::nginx::security 
+}  // namespace datadog::nginx::security
 
 // NOLINTEND(cppcoreguidelines-pro-type-cstyle-cast)

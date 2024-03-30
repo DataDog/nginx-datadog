@@ -80,7 +80,7 @@ class req_serializer {
 
  private:
   static void set_map_entry_str(dnsec::ddwaf_obj &slot, std::string_view key,
-                         const ngx_str_t &value) {
+                                const ngx_str_t &value) {
     slot.set_key(key);
     slot.make_string(to_string_view(value));
   }
@@ -95,7 +95,7 @@ class req_serializer {
     }
 
     dnsec::query_string_iter it{query, memres_, '&',
-                              dnsec::query_string_iter::trim_mode::no_trim};
+                                dnsec::query_string_iter::trim_mode::no_trim};
     set_value_from_iter(it, slot);
   }
 
@@ -121,7 +121,8 @@ class req_serializer {
 
     // fill the map entries
     // map that saves the ddwaf_object for keys that occurr more than once
-    std::unordered_map<std::string_view, dnsec::ddwaf_arr_obj *> indexed_entries;
+    std::unordered_map<std::string_view, dnsec::ddwaf_arr_obj *>
+        indexed_entries;
     for (it.reset(); !it.ended(); ++it) {
       auto [key, value] = *it;
       std::size_t const num_occurr = keys_bag[key];
@@ -161,17 +162,17 @@ class req_serializer {
   }
 
   static void set_request_uri_raw(const ngx_http_request_t &request,
-                           dnsec::ddwaf_obj &slot) {
+                                  dnsec::ddwaf_obj &slot) {
     set_map_entry_str(slot, URI_RAW, request.unparsed_uri);
   }
 
   static void set_request_method(const ngx_http_request_t &request,
-                          dnsec::ddwaf_obj &slot) {
+                                 dnsec::ddwaf_obj &slot) {
     set_map_entry_str(slot, METHOD, request.method_name);
   }
 
   // adapt to the same iteratror format as query_string_iter
-  template<bool IsRequest>
+  template <bool IsRequest>
   struct header_key_value_iter {
     header_key_value_iter(const ngx_list_t &list, std::string_view exclude,
                           dnsec::ddwaf_memres &memres)
@@ -311,7 +312,8 @@ class req_serializer {
     set_value_from_iter(iter, slot);
   }
 
-  void set_client_ip(const ngx_http_request_t &request, dnsec::ddwaf_obj &slot) {
+  void set_client_ip(const ngx_http_request_t &request,
+                     dnsec::ddwaf_obj &slot) {
     auto &&cih = dnsec::library::custom_ip_header();
     std::optional<dnsec::ClientIp::hashed_string_view> hsh{};
     if (cih) {
@@ -324,7 +326,7 @@ class req_serializer {
     if (!cl_ip) {
       slot.make_null();
     }
-    slot.make_string(*cl_ip, memres_); // copy
+    slot.make_string(*cl_ip, memres_);  // copy
   }
 
   void set_response_status(const ngx_http_request_t &request,
@@ -371,11 +373,12 @@ class req_serializer {
                                        dnsec::ddwaf_obj &slot) {
     static constexpr auto set_cookie = "set-cookie"sv;
     slot.set_key(RESP_HEADERS_NO_COOKIES);
-    header_key_value_iter<false> it{request.headers_out.headers, set_cookie, memres_};
+    header_key_value_iter<false> it{request.headers_out.headers, set_cookie,
+                                    memres_};
     set_value_from_iter(it, slot);
   }
 
-  dnsec::ddwaf_memres &memres_; // NOLINT
+  dnsec::ddwaf_memres &memres_;  // NOLINT
 };
 
 }  // namespace
@@ -393,6 +396,6 @@ ddwaf_object *collect_response_data(const ngx_http_request_t &request,
   req_serializer rs{memres};
   return rs.serialize_end(request);
 }
-} // namespace datadog::nginx::security
+}  // namespace datadog::nginx::security
 
 // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)

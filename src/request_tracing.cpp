@@ -4,11 +4,11 @@
 #include <datadog/span.h>
 #include <datadog/span_config.h>
 #include <datadog/trace_segment.h>
+#include <ddwaf.h>
 
 #include <cassert>
 #include <chrono>
 #include <ctime>
-#include <ddwaf.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>

@@ -1,9 +1,10 @@
 #pragma once
 
 #include <ddwaf.h>
+
 #include <algorithm>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -48,7 +49,7 @@ class ddwaf_memres {
 
     objects_stored_ += num_objects;
     // keep braces, some code depends on this being zero-initialized:
-    return new (p) T[num_objects]{}; // NOLINT(cppcoreguidelines-owning-memory)
+    return new (p) T[num_objects]{};  // NOLINT(cppcoreguidelines-owning-memory)
   }
 
   char *allocate_string(size_t len) {

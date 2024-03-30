@@ -5,6 +5,7 @@ extern "C" {
 #include <ngx_http.h>
 }
 #include <datadog/span.h>
+
 #include <optional>
 #include <string>
 #include <string_view>
@@ -12,9 +13,6 @@ extern "C" {
 namespace datadog::nginx::security {
 class ClientIp {
  public:
- // XXX: use and move to library
-  static std::string normalize_configured_header(std::string_view config);
-
   struct hashed_string_view {
     std::string_view sv;
     ngx_uint_t hash;

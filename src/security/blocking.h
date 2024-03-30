@@ -1,8 +1,8 @@
 #pragma once
 
+#include <fstream>
 #include <memory>
 #include <optional>
-#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
@@ -54,4 +54,4 @@ class blocking_service {
   std::string custom_templ_json;
 };
 
-} // namespace datadog::nginx::security
+}  // namespace datadog::nginx::security

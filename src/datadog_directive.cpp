@@ -1036,7 +1036,7 @@ char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
                            void *conf) noexcept {
   datadog_loc_conf_t *loc_conf = static_cast<datadog_loc_conf_t *>(conf);
   auto *value = static_cast<ngx_str_t *>(cf->args->elts);
-  value++; // 1st is the command name
+  value++;  // 1st is the command name
 
   ngx_thread_pool_t *t = ngx_thread_pool_add(cf, value);
   loc_conf->waf_pool = t;

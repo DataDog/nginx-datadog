@@ -45,7 +45,7 @@ class library {
  protected:
   static void set_handle(std::shared_ptr<waf_handle> handle);
 
-  static std::shared_ptr<waf_handle> handle_; // NOLINT
+  static std::shared_ptr<waf_handle> handle_;  // NOLINT
   static std::atomic<bool> active_;
   static std::unique_ptr<FinalizedConfigSettings> config_settings_;
 };
@@ -97,4 +97,4 @@ class waf_handle {
   static action_info_map_t default_actions();
 };
 
-} // namespace datadog::nginx::security 
+}  // namespace datadog::nginx::security

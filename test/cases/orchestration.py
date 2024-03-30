@@ -309,7 +309,6 @@ def curl(url, headers, stderr=None, method='GET'):
                 yield '--header'
                 yield f'{name}: {value}'
 
-
     # "curljson.sh" is a script that lives in the "client" docker compose
     # service.  It's a wrapper around "curl" that outputs a JSON object of
     # information on the first line, and outputs a JSON string of the response
@@ -320,7 +319,8 @@ def curl(url, headers, stderr=None, method='GET'):
     # "-T" means "don't allocate a TTY".  This prevents `jq` from outputting in
     # color.
     command = docker_compose_command('exec', '-T', '--', 'client',
-                                     'curljson.sh', f'-X{method}', *header_args(), url)
+                                     'curljson.sh', f'-X{method}',
+                                     *header_args(), url)
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             stderr=stderr,
@@ -452,7 +452,10 @@ class Orchestration:
         """
         url = f'http://nginx:{port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
-        fields, headers, body = curl(url, headers, stderr=self.verbose, method=method)
+        fields, headers, body = curl(url,
+                                     headers,
+                                     stderr=self.verbose,
+                                     method=method)
         return (fields['response_code'], headers, body)
 
     def send_nginx_grpc_request(self, symbol, port=1337):

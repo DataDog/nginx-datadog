@@ -185,7 +185,6 @@ context::context(std::shared_ptr<waf_handle> handle)
   stage_->store(stage::start, std::memory_order_release);
 }
 
-
 std::unique_ptr<context> context::maybe_create() {
   std::shared_ptr<waf_handle> handle = library::get_handle();
   if (!handle) {
@@ -196,21 +195,21 @@ std::unique_ptr<context> context::maybe_create() {
 
 template <typename Self>
 class pol_task_ctx {
-  pol_task_ctx(ngx_http_request_t &req, context& ctx, dd::Span &span)
+  pol_task_ctx(ngx_http_request_t &req, context &ctx, dd::Span &span)
       : req_{req}, ctx_{ctx}, span_{span} {}
 
  public:
   // the returned reference is request pool allocated and must have its
   // destructor explicitly called if not submitted
   template <typename... Args>
-  static Self &create(ngx_http_request_t &req, context& ctx, dd::Span &span,
+  static Self &create(ngx_http_request_t &req, context &ctx, dd::Span &span,
                       Args &&...extra_args) {
     ngx_thread_task_t *task = ngx_thread_task_alloc(req.pool, sizeof(Self));
     if (!task) {
       throw std::runtime_error{"failed to allocate task"};
     }
 
-   // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     auto *task_ctx =
         new (task->ctx) Self{req, ctx, span, std::forward<Args>(extra_args)...};
     task->handler = &pol_task_ctx::handler;
@@ -263,13 +262,13 @@ class pol_task_ctx {
   // define in subclasses
   // void complete() noexcept {}
 
-private:
- friend Self;
- ngx_http_request_t &req_;
- context &ctx_;
- dd::Span &span_;
- std::optional<block_spec> block_spec_;
- std::atomic<bool> ran_on_thread{false};
+ private:
+  friend Self;
+  ngx_http_request_t &req_;
+  context &ctx_;
+  dd::Span &span_;
+  std::optional<block_spec> block_spec_;
+  std::atomic<bool> ran_on_thread{false};
 };
 
 class pol_1st_waf_ctx : public pol_task_ctx<pol_1st_waf_ctx> {
