@@ -173,17 +173,25 @@ dd::SpanData &get_span_data(dd::Span &s) {
 
 namespace datadog::nginx::security {
 
-context::context() : stage_{new std::atomic<stage>{}} {
-  std::shared_ptr<waf_handle> handle = library::get_handle();
-  if (!handle) {
+context::context(std::shared_ptr<waf_handle> handle)
+    : waf_handle_{std::move(handle)}, stage_{new std::atomic<stage>{}} {
+  if (!waf_handle_) {
     return;
   }
 
-  ddwaf_handle ddwaf_h = handle->get();
+  ddwaf_handle ddwaf_h = waf_handle_->get();
   ctx_ = ddwaf_context_init(ddwaf_h);
-  waf_handle_ = std::move(handle);
 
   stage_->store(stage::start, std::memory_order_release);
+}
+
+
+std::unique_ptr<context> context::maybe_create() {
+  std::shared_ptr<waf_handle> handle = library::get_handle();
+  if (!handle) {
+    return {};
+  }
+  return std::unique_ptr<context>{new context{std::move(handle)}};
 }
 
 template <typename Self>
@@ -192,6 +200,8 @@ class pol_task_ctx {
       : req_{req}, ctx_{ctx}, span_{span} {}
 
  public:
+  // the returned reference is request pool allocated and must have its
+  // destructor explicitly called if not submitted
   template <typename... Args>
   static Self &create(ngx_http_request_t &req, context& ctx, dd::Span &span,
                       Args &&...extra_args) {
@@ -200,7 +210,7 @@ class pol_task_ctx {
       throw std::runtime_error{"failed to allocate task"};
     }
 
- // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+   // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     auto *task_ctx =
         new (task->ctx) Self{req, ctx, span, std::forward<Args>(extra_args)...};
     task->handler = &pol_task_ctx::handler;
@@ -209,6 +219,7 @@ class pol_task_ctx {
 
     return *task_ctx;
   }
+
   ngx_thread_task_t &get_task() noexcept {
     // ngx_thread_task_alloc allocates space for the context right after the
     // ngx_thread_task_t structure
@@ -303,6 +314,8 @@ bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
     return false;
   }
   if (stage_->load(std::memory_order_acquire) != stage::start) {
+    ngx_log_error(NGX_LOG_ERR, request.connection->log, 0,
+                  "WAF context is not in the start stage");
     return false;
   }
 

@@ -5,9 +5,11 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "datadog/span.h"
 #include "datadog_handler.h"
 #include "dd.h"
 #include "ngx_http_datadog_module.h"
+#include "security/context.h"
 #include "string_util.h"
 
 namespace datadog {
@@ -15,7 +17,8 @@ namespace nginx {
 
 DatadogContext::DatadogContext(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
-                               datadog_loc_conf_t *loc_conf) {
+                               datadog_loc_conf_t *loc_conf)
+    : sec_ctx_{security::context::maybe_create()} {
   traces_.emplace_back(request, core_loc_conf, loc_conf);
 }
 
@@ -33,6 +36,32 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
                        &traces_[0].active_span());
 }
 
+
+bool DatadogContext::on_main_req_access(ngx_http_request_t *request) {
+  if (!sec_ctx_) {
+    return false;
+  }
+
+  // there should only one trace at this point
+  dd::Span &span = single_trace().active_span();
+  return sec_ctx_->on_request_start(*request, span);
+}
+
+ngx_int_t DatadogContext::main_output_header_filter(ngx_http_request_t *request) {
+  if (!sec_ctx_) {
+    return ngx_http_next_output_header_filter(request);
+  }
+
+  auto *trace = find_trace(request);
+  if (trace == nullptr) {
+    throw std::runtime_error{
+        "main_output_header_filter: could not find request trace"};
+  }
+
+  dd::Span &span = trace->active_span();
+  return sec_ctx_->output_header_filter(*request, span);
+}
+
 void DatadogContext::on_log_request(ngx_http_request_t *request) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
@@ -40,15 +69,6 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
         "on_log_request failed: could not find request trace"};
   }
   trace->on_log_request();
-}
-
-ngx_int_t DatadogContext::output_header_filter(ngx_http_request_t &request) {
-  auto trace = find_trace(&request);
-  if (trace == nullptr) {
-    throw std::runtime_error{
-        "on_log_request failed: could not find request trace"};
-  }
-  return trace->output_header_filter();
 }
 
 ngx_str_t DatadogContext::lookup_propagation_header_variable_value(

@@ -8,6 +8,7 @@
 #include "datadog_conf.h"
 #include "propagation_header_querier.h"
 #include "request_tracing.h"
+#include "security/context.h"
 
 extern "C" {
 #include <nginx.h>
@@ -29,6 +30,10 @@ class DatadogContext {
                        ngx_http_core_loc_conf_t* core_loc_conf,
                        datadog_loc_conf_t* loc_conf);
 
+  bool on_main_req_access(ngx_http_request_t *request);
+
+  ngx_int_t main_output_header_filter(ngx_http_request_t *request);
+
   void on_log_request(ngx_http_request_t* request);
 
   ngx_int_t output_header_filter(ngx_http_request_t& request);
@@ -46,6 +51,7 @@ class DatadogContext {
 
  private:
   std::vector<RequestTracing> traces_;
+  std::unique_ptr<security::context> sec_ctx_;
 
   RequestTracing* find_trace(ngx_http_request_t* request);
 

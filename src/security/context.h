@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 
@@ -48,8 +49,10 @@ struct owned_ddwaf_context
 };
 
 class context {
+  context(std::shared_ptr<waf_handle> waf_handle);
  public:
-  context();
+  // returns a new context or an empty unique_ptr if the waf is not active
+  static std::unique_ptr<context> maybe_create();
 
   bool on_request_start(ngx_http_request_t &request, dd::Span &span) noexcept;
   ngx_int_t output_header_filter(
@@ -66,12 +69,13 @@ class context {
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
   ngx_int_t do_output_header_filter(ngx_http_request_t &request, dd::Span &span);
 
+  std::shared_ptr<waf_handle> waf_handle_;
   std::vector<owned_ddwaf_result> results_;
   owned_ddwaf_context ctx_{nullptr};
-  std::shared_ptr<waf_handle> waf_handle_;
   ddwaf_memres memres_;
 
   enum class stage {
+    disabled,
     start,
     after_begin_waf,
     after_begin_waf_block, // in this case we won't run the waf at the end

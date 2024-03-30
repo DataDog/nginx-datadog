@@ -290,7 +290,7 @@ class req_serializer {
       dns::ngnix_header_iterable it{request.headers_in.headers};
       for (auto &&h : it) {
         static constexpr auto COOKIE{"cookie"sv};
-        if (dns::key_equals_ci(h, COOKIE)) {
+        if (!dns::key_equals_ci(h, COOKIE)) {
           continue;
         }
         cookie_headers.push_back(&h);

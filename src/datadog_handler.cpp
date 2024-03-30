@@ -67,7 +67,7 @@ ngx_int_t on_access(ngx_http_request_t *request) noexcept try {
   if (context == nullptr) {
     return NGX_DECLINED;
   }
-  bool suspend = context->single_trace().on_main_request_start();
+  bool suspend = context->on_main_req_access(request);
   if (suspend) {
     return NGX_AGAIN;
   }
@@ -94,13 +94,17 @@ ngx_int_t on_log_request(ngx_http_request_t *request) noexcept {
 
 ngx_http_output_header_filter_pt ngx_http_next_output_header_filter;
 ngx_int_t output_header_filter(ngx_http_request_t *request) noexcept {
-  auto *context = get_datadog_context(request);
+  if (request != request->main) {
+    return ngx_http_next_output_header_filter(request);
+  }
+
+  DatadogContext *context = get_datadog_context(request);
   if (!context) {
     return ngx_http_next_output_header_filter(request);
   }
 
   try {
-    return context->output_header_filter(*request);
+    return context->main_output_header_filter(request);
   } catch (const std::exception &e) {
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                   "Datadog instrumentation failed for request %p: %s", request,
