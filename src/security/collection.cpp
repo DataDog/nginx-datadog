@@ -29,7 +29,7 @@ using datadog::nginx::to_string_view;
 
 namespace {
 
-namespace dns = datadog::nginx::security;
+namespace dnsec = datadog::nginx::security;
 
 template <typename T, typename = std::void_t<>>
 struct has_cookie : std::false_type {};
@@ -52,11 +52,11 @@ class req_serializer {
       "server.response.headers.no_cookies"};
 
  public:
-  explicit req_serializer(dns::ddwaf_memres &memres) : memres_{memres} {}
+  explicit req_serializer(dnsec::ddwaf_memres &memres) : memres_{memres} {}
 
   ddwaf_object *serialize(const ngx_http_request_t &request) {
-    dns::ddwaf_obj *root = memres_.allocate_objects<dns::ddwaf_obj>(1);
-    dns::ddwaf_map_obj &root_map = root->make_map(6, memres_);
+    dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
+    dnsec::ddwaf_map_obj &root_map = root->make_map(6, memres_);
 
     set_request_query(request, root_map.get_entry_unchecked(0));
     set_request_uri_raw(request, root_map.get_entry_unchecked(1));
@@ -69,8 +69,8 @@ class req_serializer {
   }
 
   ddwaf_object *serialize_end(const ngx_http_request_t &request) {
-    dns::ddwaf_obj *root = memres_.allocate_objects<dns::ddwaf_obj>(1);
-    dns::ddwaf_map_obj &root_map = root->make_map(2, memres_);
+    dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
+    dnsec::ddwaf_map_obj &root_map = root->make_map(2, memres_);
 
     set_response_status(request, root_map.get_entry_unchecked(0));
     set_response_headers_no_cookies(request, root_map.get_entry_unchecked(1));
@@ -79,14 +79,14 @@ class req_serializer {
   }
 
  private:
-  static void set_map_entry_str(dns::ddwaf_obj &slot, std::string_view key,
+  static void set_map_entry_str(dnsec::ddwaf_obj &slot, std::string_view key,
                          const ngx_str_t &value) {
     slot.set_key(key);
     slot.make_string(to_string_view(value));
   }
 
   void set_request_query(const ngx_http_request_t &request,
-                         dns::ddwaf_obj &slot) {
+                         dnsec::ddwaf_obj &slot) {
     slot.set_key(QUERY);
     const ngx_str_t &query = request.args;
     if (query.len == 0) {
@@ -94,13 +94,13 @@ class req_serializer {
       return;
     }
 
-    dns::query_string_iter it{query, memres_, '&',
-                              dns::query_string_iter::trim_mode::no_trim};
+    dnsec::query_string_iter it{query, memres_, '&',
+                              dnsec::query_string_iter::trim_mode::no_trim};
     set_value_from_iter(it, slot);
   }
 
   template <typename Iter>
-  void set_value_from_iter(Iter &it, dns::ddwaf_obj &slot) {
+  void set_value_from_iter(Iter &it, dnsec::ddwaf_obj &slot) {
     // first, count the number of occurrences for each key
     std::unordered_map<std::string_view, std::size_t> keys_bag;
     for (; !it.ended(); ++it) {
@@ -114,21 +114,21 @@ class req_serializer {
     }
 
     // we now know the number of keys; allocate map entries
-    dns::ddwaf_obj *entries =
-        memres_.allocate_objects<dns::ddwaf_obj>(keys_bag.size());
+    dnsec::ddwaf_obj *entries =
+        memres_.allocate_objects<dnsec::ddwaf_obj>(keys_bag.size());
     slot.make_map(entries, keys_bag.size());
-    dns::ddwaf_obj *next_free_entry = entries;
+    dnsec::ddwaf_obj *next_free_entry = entries;
 
     // fill the map entries
     // map that saves the ddwaf_object for keys that occurr more than once
-    std::unordered_map<std::string_view, dns::ddwaf_arr_obj *> indexed_entries;
+    std::unordered_map<std::string_view, dnsec::ddwaf_arr_obj *> indexed_entries;
     for (it.reset(); !it.ended(); ++it) {
       auto [key, value] = *it;
       std::size_t const num_occurr = keys_bag[key];
 
       // common scenario: only 1 occurrence of the key
       if (num_occurr == 1) {
-        dns::ddwaf_obj &entry = *next_free_entry++;
+        dnsec::ddwaf_obj &entry = *next_free_entry++;
         entry.set_key(key);
         entry.make_string(value);
         continue;
@@ -137,21 +137,21 @@ class req_serializer {
       auto ie = indexed_entries.find(key);
       if (ie == indexed_entries.end()) {
         // first occurrence of this key
-        dns::ddwaf_obj &entry = *next_free_entry++;
+        dnsec::ddwaf_obj &entry = *next_free_entry++;
 
         entry.set_key(key);
         auto &arr_val = entry.make_array(num_occurr, memres_);
         indexed_entries.insert({key, &arr_val});
 
         if (!it.is_delete()) {
-          arr_val.at_unchecked<dns::ddwaf_obj>(0).make_string(value);
+          arr_val.at_unchecked<dnsec::ddwaf_obj>(0).make_string(value);
           entry.nbEntries = 1;
         }
       } else {
         // subsequent occurrence of this key
         auto &arr_val = *ie->second;
         if (!it.is_delete()) {
-          arr_val.template at_unchecked<dns::ddwaf_obj>(arr_val.nbEntries++)
+          arr_val.template at_unchecked<dnsec::ddwaf_obj>(arr_val.nbEntries++)
               .make_string(value);
         } else {
           arr_val.nbEntries = 0;
@@ -161,12 +161,12 @@ class req_serializer {
   }
 
   static void set_request_uri_raw(const ngx_http_request_t &request,
-                           dns::ddwaf_obj &slot) {
+                           dnsec::ddwaf_obj &slot) {
     set_map_entry_str(slot, URI_RAW, request.unparsed_uri);
   }
 
   static void set_request_method(const ngx_http_request_t &request,
-                          dns::ddwaf_obj &slot) {
+                          dnsec::ddwaf_obj &slot) {
     set_map_entry_str(slot, METHOD, request.method_name);
   }
 
@@ -174,12 +174,12 @@ class req_serializer {
   template<bool IsRequest>
   struct header_key_value_iter {
     header_key_value_iter(const ngx_list_t &list, std::string_view exclude,
-                          dns::ddwaf_memres &memres)
+                          dnsec::ddwaf_memres &memres)
         : list_{list},
           memres_{memres},
           exclude_{exclude},
           it_{list},
-          end_{dns::nginx_list_iter<ngx_table_elt_t>::end(list)} {}
+          end_{dnsec::nginx_list_iter<ngx_table_elt_t>::end(list)} {}
 
     void reset() { it_ = decltype(it_){list_}; }
 
@@ -222,7 +222,7 @@ class req_serializer {
 
     std::string_view safe_lowcase_key(const ngx_table_elt_t &header) {
       if constexpr (IsRequest) {
-        return dns::lc_key(header);
+        return dnsec::lc_key(header);
       }
 
       // impl for response headers
@@ -249,15 +249,15 @@ class req_serializer {
     }
 
     const ngx_list_t &list_;
-    dns::ddwaf_memres &memres_;
+    dnsec::ddwaf_memres &memres_;
     std::string_view exclude_;
     std::unordered_map<std::string_view, std::string_view> lc_keys_;
-    dns::nginx_list_iter<ngx_table_elt_t> it_;
-    dns::nginx_list_iter<ngx_table_elt_t> end_;
+    dnsec::nginx_list_iter<ngx_table_elt_t> it_;
+    dnsec::nginx_list_iter<ngx_table_elt_t> end_;
   };
 
   void set_request_headers_nocookies(const ngx_http_request_t &request,
-                                     dns::ddwaf_obj &slot) {
+                                     dnsec::ddwaf_obj &slot) {
     static constexpr auto cookie = "cookie"sv;
     slot.set_key(HEADERS_NO_COOKIES);
     header_key_value_iter<true> it{request.headers_in.headers, cookie, memres_};
@@ -265,10 +265,10 @@ class req_serializer {
   }
 
   template <typename Request = ngx_http_request_t>
-  void set_request_cookie(const Request &request, dns::ddwaf_obj &slot) {
+  void set_request_cookie(const Request &request, dnsec::ddwaf_obj &slot) {
     slot.set_key(COOKIES);
 
-    dns::qs_iter_agg iter{};
+    dnsec::qs_iter_agg iter{};
 
     if constexpr (headers_in_has_cookie_v) {
       auto *t = request.headers_in.cookie;
@@ -281,25 +281,25 @@ class req_serializer {
       iter.iters.reserve(count);
 
       for (auto tp = t; tp; tp = tp->next) {
-        iter.add(std::make_unique<dns::query_string_iter>(
+        iter.add(std::make_unique<dnsec::query_string_iter>(
             to_string_view(tp->value), memres_, ';',
-            dns::query_string_iter::trim_mode::do_trim));
+            dnsec::query_string_iter::trim_mode::do_trim));
       }
     } else {
       std::vector<const ngx_table_elt_t *> cookie_headers;
-      dns::ngnix_header_iterable it{request.headers_in.headers};
+      dnsec::ngnix_header_iterable it{request.headers_in.headers};
       for (auto &&h : it) {
         static constexpr auto COOKIE{"cookie"sv};
-        if (!dns::key_equals_ci(h, COOKIE)) {
+        if (!dnsec::key_equals_ci(h, COOKIE)) {
           continue;
         }
         cookie_headers.push_back(&h);
       }
 
       for (auto &&ch : cookie_headers) {
-        iter.add(std::make_unique<dns::query_string_iter>(
+        iter.add(std::make_unique<dnsec::query_string_iter>(
             to_string_view(ch->value), memres_, ';',
-            dns::query_string_iter::trim_mode::do_trim));
+            dnsec::query_string_iter::trim_mode::do_trim));
       }
     }
 
@@ -311,13 +311,13 @@ class req_serializer {
     set_value_from_iter(iter, slot);
   }
 
-  void set_client_ip(const ngx_http_request_t &request, dns::ddwaf_obj &slot) {
-    auto &&cih = dns::library::custom_ip_header();
-    std::optional<dns::ClientIp::hashed_string_view> hsh{};
+  void set_client_ip(const ngx_http_request_t &request, dnsec::ddwaf_obj &slot) {
+    auto &&cih = dnsec::library::custom_ip_header();
+    std::optional<dnsec::ClientIp::hashed_string_view> hsh{};
     if (cih) {
       hsh = {cih->str, cih->hash};
     }
-    dns::ClientIp client_ip{hsh, request};
+    dnsec::ClientIp client_ip{hsh, request};
     std::optional<std::string> cl_ip = client_ip.resolve();
 
     slot.set_key(CLIENT_IP);
@@ -328,7 +328,7 @@ class req_serializer {
   }
 
   void set_response_status(const ngx_http_request_t &request,
-                           dns::ddwaf_obj &slot) {
+                           dnsec::ddwaf_obj &slot) {
     slot.set_key(STATUS);
 
     // generally status_line is not set so we can't use it to avoid a string
@@ -368,14 +368,14 @@ class req_serializer {
   }
 
   void set_response_headers_no_cookies(const ngx_http_request_t &request,
-                                       dns::ddwaf_obj &slot) {
+                                       dnsec::ddwaf_obj &slot) {
     static constexpr auto set_cookie = "set-cookie"sv;
     slot.set_key(RESP_HEADERS_NO_COOKIES);
     header_key_value_iter<false> it{request.headers_out.headers, set_cookie, memres_};
     set_value_from_iter(it, slot);
   }
 
-  dns::ddwaf_memres &memres_; // NOLINT
+  dnsec::ddwaf_memres &memres_; // NOLINT
 };
 
 }  // namespace

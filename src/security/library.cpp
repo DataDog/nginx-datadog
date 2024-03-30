@@ -32,7 +32,7 @@ INCBIN(char, RecommendedJson, "recommended.json");
 }
 
 using namespace std::literals;
-namespace dns = datadog::nginx::security;
+namespace dnsec = datadog::nginx::security;
 
 namespace {
 
@@ -46,7 +46,7 @@ static constexpr ddwaf_config base_waf_config{
     .free_fn = nullptr,
 };
 
-auto parse_rule_json(std::string_view json) -> dns::ddwaf_owned_map {
+auto parse_rule_json(std::string_view json) -> dnsec::ddwaf_owned_map {
   rapidjson::Document document;
   rapidjson::ParseResult const result =
       document.Parse(json.data(), json.size());
@@ -58,10 +58,10 @@ auto parse_rule_json(std::string_view json) -> dns::ddwaf_owned_map {
     throw std::invalid_argument("invalid json rule (not a json object)");
   }
 
-  return dns::ddwaf_owned_map{dns::json_to_object(document)};
+  return dnsec::ddwaf_owned_map{dnsec::json_to_object(document)};
 }
 
-auto read_rule_file(std::string_view filename) -> dns::ddwaf_owned_map {
+auto read_rule_file(std::string_view filename) -> dnsec::ddwaf_owned_map {
   std::ifstream rule_file(filename.data(), std::ios::in);
   if (!rule_file) {
     throw std::system_error(errno, std::generic_category());
@@ -86,8 +86,8 @@ auto read_rule_file(std::string_view filename) -> dns::ddwaf_owned_map {
   return parse_rule_json(buffer);
 }
 
-dns::ddwaf_owned_map read_ruleset(std::optional<std::string_view> ruleset_file) {
-  dns::ddwaf_owned_map ruleset;
+dnsec::ddwaf_owned_map read_ruleset(std::optional<std::string_view> ruleset_file) {
+  dnsec::ddwaf_owned_map ruleset;
   if (ruleset_file) {
     try {
       ruleset = read_rule_file(*ruleset_file);
@@ -149,15 +149,15 @@ void ddwaf_log(DDWAF_LOG_LEVEL level, const char *function, const char *file,
                unsigned line, const char *message,
                uint64_t message_len) noexcept {
   int const log_level = ddwaf_log_level_to_nginx(level);
-  ngx_str_t const message_ngxs = dns::ngx_stringv(
+  ngx_str_t const message_ngxs = dnsec::ngx_stringv(
       std::string_view{message, static_cast<std::size_t>(message_len)});
   ngx_log_error(log_level, ngx_cycle->log, 0, "ddwaf: %V at %s on %s:%d",
                 &message_ngxs, function, file, line);
 }
 
-std::string ddwaf_subdiagnostics_to_str(const dns::ddwaf_map_obj &,
+std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &,
                                         std::string_view);
-std::string ddwaf_diagnostics_to_str(const dns::ddwaf_map_obj &top) {
+std::string ddwaf_diagnostics_to_str(const dnsec::ddwaf_map_obj &top) {
   std::string ret;
   ret += ddwaf_subdiagnostics_to_str(top, "rules"sv);
   ret += "; ";
@@ -170,19 +170,19 @@ std::string ddwaf_diagnostics_to_str(const dns::ddwaf_map_obj &top) {
   return ret;
 }
 
-std::string ddwaf_subdiagnostics_to_str(const dns::ddwaf_map_obj &top,
+std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &top,
                                         std::string_view key) {
-  auto maybe_rm = top.get_opt<dns::ddwaf_map_obj>(key);
+  auto maybe_rm = top.get_opt<dnsec::ddwaf_map_obj>(key);
   if (!maybe_rm) {
     return "no diagnostics for " + std::string{key};
   }
 
-  dns::ddwaf_map_obj &m = *maybe_rm;
-  std::size_t loaded_count = m.get_opt<dns::ddwaf_arr_obj>("loaded"sv)
-                                 .value_or(dns::ddwaf_arr_obj{})
+  dnsec::ddwaf_map_obj &m = *maybe_rm;
+  std::size_t loaded_count = m.get_opt<dnsec::ddwaf_arr_obj>("loaded"sv)
+                                 .value_or(dnsec::ddwaf_arr_obj{})
                                  .size();
-  std::size_t failed_count = m.get_opt<dns::ddwaf_arr_obj>("failed"sv)
-                                 .value_or(dns::ddwaf_arr_obj{})
+  std::size_t failed_count = m.get_opt<dnsec::ddwaf_arr_obj>("failed"sv)
+                                 .value_or(dnsec::ddwaf_arr_obj{})
                                  .size();
 
   std::string ret{key};
@@ -192,7 +192,7 @@ std::string ddwaf_subdiagnostics_to_str(const dns::ddwaf_map_obj &top,
   ret += std::to_string(failed_count);
   ret += ") errors(";
 
-  auto errors = m.get_opt<dns::ddwaf_map_obj>("errors"sv);
+  auto errors = m.get_opt<dnsec::ddwaf_map_obj>("errors"sv);
   if (errors) {
     bool first = true;
     for (auto &&err_kp : *errors) {
@@ -205,13 +205,13 @@ std::string ddwaf_subdiagnostics_to_str(const dns::ddwaf_map_obj &top,
       ret += err_kp.key();  // error message
       ret += " => [";
       bool first = true;
-      for (auto &&v : dns::ddwaf_arr_obj{err_kp}) {
+      for (auto &&v : dnsec::ddwaf_arr_obj{err_kp}) {
         if (!first) {
           ret += ", ";
         } else {
           first = false;
         }
-        ret += dns::ddwaf_str_obj{v}.value();
+        ret += dnsec::ddwaf_str_obj{v}.value();
       }
       ret += "]";
     }
@@ -534,10 +534,10 @@ std::optional<ddwaf_owned_map> library::initialize_security_library(
   }
 
   std::size_t num_loaded_rules = diag.get()
-                                     .get_opt<dns::ddwaf_map_obj>("rules")
-                                     .value_or(dns::ddwaf_map_obj{})
-                                     .get_opt<dns::ddwaf_arr_obj>("loaded"sv)
-                                     .value_or(dns::ddwaf_arr_obj{})
+                                     .get_opt<dnsec::ddwaf_map_obj>("rules")
+                                     .value_or(dnsec::ddwaf_map_obj{})
+                                     .get_opt<dnsec::ddwaf_arr_obj>("loaded"sv)
+                                     .value_or(dnsec::ddwaf_arr_obj{})
                                      .size();
   ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0, "ddwaf_init loaded %uz rules",
                 num_loaded_rules);

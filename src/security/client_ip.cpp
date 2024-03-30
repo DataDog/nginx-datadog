@@ -14,7 +14,7 @@ extern "C" {
 }
 
 using namespace std::literals;
-namespace dns = datadog::nginx::security;
+namespace dnsec = datadog::nginx::security;
 using datadog::nginx::to_string_view;
 
 namespace {
@@ -222,7 +222,7 @@ class header_proc_def {
 
   constexpr header_proc_def(std::string_view key, extract_func_t parse_func)
       : lc_key_{key},
-        lc_key_hash_{dns::ngx_hash_ce(key)},
+        lc_key_hash_{dnsec::ngx_hash_ce(key)},
         parse_func_{parse_func} {}
 
   std::string_view lc_key_;
@@ -253,10 +253,10 @@ static constexpr auto priority_header_arr = std::array<header_proc_def, 10>{
 std::optional<ngx_table_elt_t> get_request_header(const ngx_list_t &headers,
                                                   std::string_view header_name,
                                                   ngx_uint_t hash) {
-  dns::ngnix_header_iterable it{headers};
+  dnsec::ngnix_header_iterable it{headers};
   auto maybe_header =
       std::find_if(it.begin(), it.end(), [header_name, hash](auto &&header) {
-        return header.hash == hash && dns::key_equals_ci(header, header_name);
+        return header.hash == hash && dnsec::key_equals_ci(header, header_name);
       });
   if (maybe_header == it.end()) {
     return std::nullopt;
@@ -269,7 +269,7 @@ using header_index_t =
     std::unordered_map<std::string_view /*lc*/, ngx_table_elt_next_t>;
 
 void header_index_insert(header_index_t &index, const ngx_table_elt_t &header) {
-  auto lc_key = dns::lc_key(header);
+  auto lc_key = dnsec::lc_key(header);
   auto it = index.find(lc_key);
   if (it == index.end()) {
     index.emplace(lc_key, header);
@@ -284,14 +284,14 @@ void header_index_insert(header_index_t &index, const ngx_table_elt_t &header) {
 
 header_index_t index_headers(const ngx_list_t &headers) {
   header_index_t index;
-  dns::ngnix_header_iterable it{headers};
+  dnsec::ngnix_header_iterable it{headers};
   for (const ngx_table_elt_t &header : it) {
     switch (header.hash) {
-#define CASE(header_lc_name)                     \
-  case dns::ngx_hash_ce(header_lc_name):         \
-    if (dns::lc_key(header) == header_lc_name) { \
-      header_index_insert(index, header);        \
-    }                                            \
+#define CASE(header_lc_name)                       \
+  case dnsec::ngx_hash_ce(header_lc_name):         \
+    if (dnsec::lc_key(header) == header_lc_name) { \
+      header_index_insert(index, header);          \
+    }                                              \
     continue;
       CASE("x-forwarded-for"sv)
       CASE("x-real-ip"sv)

@@ -44,7 +44,7 @@ using namespace std::literals;
 
 namespace {
 
-namespace dns = datadog::nginx::security;
+namespace dnsec = datadog::nginx::security;
 
 class JsonWriter : public rapidjson::Writer<rapidjson::StringBuffer> {
   using rapidjson::Writer<rapidjson::StringBuffer>::Writer;
@@ -59,7 +59,7 @@ void ddwaf_object_to_json(JsonWriter &w, const ddwaf_object &dobj);
 
 void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
                   dd::SpanData &span,
-                  std::vector<dns::owned_ddwaf_result> &results) {
+                  std::vector<dnsec::owned_ddwaf_result> &results) {
   static constexpr std::string_view APPSEC_EVENT{"appsec.event"};
   static constexpr std::string_view APPSEC_JSON{"_dd.appsec.json"};
 
@@ -90,7 +90,7 @@ void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
 
   std::string_view const json{buffer.GetString(), buffer.GetLength()};
 
-  ngx_str_t json_ns{dns::ngx_stringv(json)};
+  ngx_str_t json_ns{dnsec::ngx_stringv(json)};
   ngx_log_error(NGX_LOG_WARN, req.connection->log, 0, "appsec event: %V",
                 &json_ns);
 

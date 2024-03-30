@@ -17,7 +17,7 @@ using namespace std::literals;
 
 namespace {
 
-namespace dns = datadog::nginx::security;
+namespace dnsec = datadog::nginx::security;
 
 struct block_resp {
   enum class ct {
@@ -33,7 +33,7 @@ struct block_resp {
   block_resp(int status, enum ct ct, std::string_view location) noexcept
       : status{status}, ct{ct}, location{location} {}
 
-  static block_resp calculate_for(const dns::block_spec &spec,
+  static block_resp calculate_for(const dnsec::block_spec &spec,
                                   const ngx_http_request_t &req) noexcept {
     int status;
     enum ct ct;
@@ -41,16 +41,16 @@ struct block_resp {
     status = spec.status;
 
     switch (spec.ct) {
-      case dns::block_spec::ct::AUTO:
+      case dnsec::block_spec::ct::AUTO:
         ct = determine_ct(req);
         break;
-      case dns::block_spec::ct::HTML:
+      case dnsec::block_spec::ct::HTML:
         ct = ct::HTML;
         break;
-      case dns::block_spec::ct::JSON:
+      case dnsec::block_spec::ct::JSON:
         ct = ct::JSON;
         break;
-      case dns::block_spec::ct::NONE:
+      case dnsec::block_spec::ct::NONE:
         ct = ct::NONE;
         break;
     }
