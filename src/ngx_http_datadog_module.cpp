@@ -481,7 +481,7 @@ static ngx_int_t datadog_master_process_post_config(
   // configuration.  This means that the nginx configuration did not use the
   // `datadog` directive, and did not use any overridden directives, such as
   // `proxy_pass`.
-  const auto main_conf = static_cast<datadog_main_conf_t *>(
+  auto *const main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
 
   if (main_conf == nullptr) {
@@ -493,22 +493,19 @@ static ngx_int_t datadog_master_process_post_config(
   ngx_http_top_header_filter = output_header_filter;
 
   // Forward tracer-specific environment variables to worker processes.
-  std::string name;
-  for (const auto &env_var_name :
+  auto push_to_main_conf = [main_conf](const std::string &env_var_name) {
+    if (const char *value = std::getenv(env_var_name.c_str())) {
+      main_conf->environment_variables.push_back(environment_variable_t{
+          .name = std::move(env_var_name), .value = value});
+    }
+  };
+  for (const std::string_view &env_var_name :
        TracingLibrary::environment_variable_names()) {
-    name = env_var_name;
-    if (const char *value = std::getenv(name.c_str())) {
-      main_conf->environment_variables.push_back(
-          environment_variable_t{.name = name, .value = value});
-    }
+    push_to_main_conf(std::string{env_var_name});
   }
-
-  for (const auto &env_var_name : security::library::environment_variable_names()) {
-    name = env_var_name;
-    if (const char *value = std::getenv(name.c_str())) {
-      main_conf->environment_variables.push_back(
-          environment_variable_t{.name = name, .value = value});
-    }
+  for (const std::string_view &env_var_name :
+       security::library::environment_variable_names()) {
+    push_to_main_conf(std::string{env_var_name});
   }
 
   return NGX_OK;
