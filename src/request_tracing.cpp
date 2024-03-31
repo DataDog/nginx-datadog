@@ -4,7 +4,6 @@
 #include <datadog/span.h>
 #include <datadog/span_config.h>
 #include <datadog/trace_segment.h>
-#include <ddwaf.h>
 
 #include <cassert>
 #include <chrono>
@@ -20,7 +19,6 @@
 #include "global_tracer.h"
 #include "ngx_header_reader.h"
 #include "ngx_http_datadog_module.h"
-#include "security/context.h"
 #include "string_util.h"
 #include "tracing_library.h"
 

@@ -1,7 +1,5 @@
 #include "ngx_http_datadog_module.h"
 
-#include <ddwaf.h>
-
 #include <cassert>
 #include <cstdlib>
 #include <exception>
@@ -21,8 +19,10 @@
 #include "global_tracer.h"
 #include "log_conf.h"
 #include "ngx_logger.h"
+#ifdef WITH_WAF
 #include "security/library.h"
 #include "security/waf_remote_cfg.h"
+#endif
 #include "string_util.h"
 #include "tracing_library.h"
 
@@ -314,6 +314,7 @@ static ngx_command_t datadog_commands[] = {
       0,
       NULL },
 
+#ifdef WITH_WAF
     {
       ngx_string("datadog_waf_thread_pool_name"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -394,6 +395,7 @@ static ngx_command_t datadog_commands[] = {
       offsetof(datadog_main_conf_t, appsec_obfuscation_value_regex),
       nullptr,
     },
+#endif
 
     ngx_null_command
 };
@@ -489,8 +491,10 @@ static ngx_int_t datadog_master_process_post_config(
     return NGX_OK;
   }
 
+#ifdef WITH_WAF
   ngx_http_next_output_header_filter = ngx_http_top_header_filter;
   ngx_http_top_header_filter = output_header_filter;
+#endif
 
   // Forward tracer-specific environment variables to worker processes.
   auto push_to_main_conf = [main_conf](const std::string &env_var_name) {
@@ -503,10 +507,12 @@ static ngx_int_t datadog_master_process_post_config(
        TracingLibrary::environment_variable_names()) {
     push_to_main_conf(std::string{env_var_name});
   }
+#ifdef WITH_WAF
   for (const std::string_view &env_var_name :
        security::Library::environment_variable_names()) {
     push_to_main_conf(std::string{env_var_name});
   }
+#endif
 
   return NGX_OK;
 }
@@ -528,10 +534,12 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_enter_block;
 
+#ifdef WITH_WAF
   handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
       &core_main_config->phases[NGX_HTTP_ACCESS_PHASE].handlers));
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_access;
+#endif
 
   handler = static_cast<ngx_http_handler_pt *>(
       ngx_array_push(&core_main_config->phases[NGX_HTTP_LOG_PHASE].handlers));
@@ -562,6 +570,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   }
 
   std::shared_ptr<dd::Logger> logger = std::make_shared<NgxLogger>();
+#ifdef WITH_WAF
   try {
     std::optional<security::ddwaf_owned_map> initial_waf_cfg =
         security::Library::initialize_security_library(*main_conf);
@@ -573,6 +582,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
                   "Initialising security library failed: %s", e.what());
     return NGX_ERROR;
   }
+#endif
 
   auto maybe_tracer = TracingLibrary::make_tracer(*main_conf, logger);
   if (auto *error = maybe_tracer.if_error()) {
@@ -906,11 +916,13 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
   conf->allow_sampling_delegation_in_subrequests_directive =
       prev->allow_sampling_delegation_in_subrequests_directive;
 
+#ifdef WITH_WAF
   ngx_conf_merge_str_value(conf->waf_thread_pool_name,
                            prev->waf_thread_pool_name, "");
   if (conf->waf_pool == nullptr) {
     conf->waf_pool = prev->waf_pool;
   }
+#endif
 
   return NGX_CONF_OK;
 }

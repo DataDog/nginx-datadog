@@ -9,7 +9,6 @@
 
 #include "datadog_conf.h"
 #include "propagation_header_querier.h"
-#include "security/context.h"
 
 extern "C" {
 #include <nginx.h>

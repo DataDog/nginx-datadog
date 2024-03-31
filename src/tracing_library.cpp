@@ -18,7 +18,9 @@
 #include "dd.h"
 #include "ngx_event_scheduler.h"
 #include "ngx_logger.h"
+#ifdef WITH_WAF
 #include "security/waf_remote_cfg.h"
+#endif
 #include "string_util.h"
 
 namespace datadog {
@@ -84,6 +86,7 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
     config.trace_sampler.rules.push_back(std::move(rule.rule));
   }
 
+#ifdef WITH_WAF
   bool appsec_fully_disabled = nginx_conf.appsec_enabled == 0;
   if (!appsec_fully_disabled) {
     bool has_custom_ruleset = nginx_conf.appsec_ruleset_file.len > 0;
@@ -93,6 +96,7 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
         !has_custom_ruleset,         // no custom ruleset => ruleset via rem cfg
         !appsec_enabling_explicit);  // no explicit => control via rem cfg
   }
+#endif
 
   auto final_config = dd::finalize_config(config);
   if (!final_config) {

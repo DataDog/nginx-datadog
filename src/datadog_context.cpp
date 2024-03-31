@@ -9,7 +9,9 @@
 #include "datadog_handler.h"
 #include "dd.h"
 #include "ngx_http_datadog_module.h"
+#ifdef WITH_WAF
 #include "security/context.h"
+#endif
 #include "string_util.h"
 
 namespace datadog {
@@ -18,7 +20,10 @@ namespace nginx {
 DatadogContext::DatadogContext(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
                                datadog_loc_conf_t *loc_conf)
-    : sec_ctx_{security::Context::maybe_create()} {
+#ifdef WITH_WAF
+    : sec_ctx_{security::Context::maybe_create()}
+#endif
+{
   traces_.emplace_back(request, core_loc_conf, loc_conf);
 }
 
@@ -36,6 +41,7 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
                        &traces_[0].active_span());
 }
 
+#ifdef WITH_WAF
 bool DatadogContext::on_main_req_access(ngx_http_request_t *request) {
   if (!sec_ctx_) {
     return false;
@@ -45,7 +51,9 @@ bool DatadogContext::on_main_req_access(ngx_http_request_t *request) {
   dd::Span &span = single_trace().active_span();
   return sec_ctx_->on_request_start(*request, span);
 }
+#endif
 
+#ifdef WITH_WAF
 ngx_int_t DatadogContext::main_output_header_filter(
     ngx_http_request_t *request) {
   if (!sec_ctx_) {
@@ -61,6 +69,7 @@ ngx_int_t DatadogContext::main_output_header_filter(
   dd::Span &span = trace->active_span();
   return sec_ctx_->output_header_filter(*request, span);
 }
+#endif
 
 void DatadogContext::on_log_request(ngx_http_request_t *request) {
   auto trace = find_trace(request);

@@ -98,8 +98,10 @@ char *hijack_add_header(ngx_conf_t *cf, ngx_command_t *command,
 char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept;
 
+#ifdef WITH_WAF
 char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
                            void *conf) noexcept;
+#endif
 
 }  // namespace nginx
 }  // namespace datadog

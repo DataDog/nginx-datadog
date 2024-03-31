@@ -14,6 +14,8 @@ cmake_policy(SET CMP0135 NEW)
 
 project(ngx_http_datadog_module)
 
+option(WITH_WAF "Build with libddwaf" ON)
+
 if(NOT NGINX_SRC_DIR)
   message(FATAL_ERROR "Missing NGINX source directory. Use -DNGINX_SRC_DIR")
 endif()
@@ -35,10 +37,12 @@ endif()
 include(./nginx-module.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
+
+if(WITH_WAF)
 include(./libddwaf.cmake)
 find_package(libddwaf REQUIRED)
 include_directories(rapidjson/include)
-
+endif()
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
@@ -63,23 +67,32 @@ target_sources(ngx_http_datadog_module
     src/ngx_script.cpp
     src/propagation_header_querier.cpp
     src/request_tracing.cpp
-    src/security/blocking.cpp
-    src/security/client_ip.cpp
-    src/security/collection.cpp
-    src/security/context.cpp
-    src/security/ddwaf_obj.cpp
-    src/security/library.cpp
-    src/security/waf_remote_cfg.cpp
     src/string_util.cpp
     src/tracing_library.cpp
 )
+if(WITH_WAF)
+    target_sources(ngx_http_datadog_module
+        PRIVATE
+        src/security/blocking.cpp
+        src/security/client_ip.cpp
+        src/security/collection.cpp
+        src/security/context.cpp
+        src/security/ddwaf_obj.cpp
+        src/security/library.cpp
+        src/security/waf_remote_cfg.cpp)
+    target_compile_definitions(ngx_http_datadog_module PRIVATE WITH_WAF)
+endif()
+
 
 target_include_directories(ngx_http_datadog_module
   PRIVATE
     src/
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module libddwaf_shared)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
+if(WITH_WAF)
+    target_link_libraries(ngx_http_datadog_module libddwaf_shared)
+endif()
 
 # Remove the "lib" prefix to match NGINX convention
 set_property(TARGET ngx_http_datadog_module PROPERTY PREFIX "")
@@ -89,10 +102,11 @@ if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
     set_property(TARGET ngx_http_datadog_module PROPERTY SUFFIX ".so")
     target_link_options(ngx_http_datadog_module PRIVATE -undefined dynamic_lookup)
   else()
-    target_link_libraries(ngx_http_datadog_module -static-libstdc++ -static-libgcc) 
+    target_link_libraries(ngx_http_datadog_module -static-libstdc++ -static-libgcc)
   endif()
 endif()
 
+if(WITH_WAF)
 get_target_property(libddwaf_target_path libddwaf_shared LOCATION)
 get_filename_component(libddwaf_target_dir ${libddwaf_target_path}  DIRECTORY)
 if(APPLE)
@@ -104,3 +118,4 @@ set_target_properties(ngx_http_datadog_module PROPERTIES
     INSTALL_RPATH_USE_LINK_PATH false
     BUILD_WITH_INSTALL_RPATH true
     INSTALL_RPATH "${RPATH_VAL}")
+endif()

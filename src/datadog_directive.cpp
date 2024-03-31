@@ -1032,6 +1032,7 @@ char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
+#ifdef WITH_WAF
 char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
                            void *conf) noexcept {
   datadog_loc_conf_t *loc_conf = static_cast<datadog_loc_conf_t *>(conf);
@@ -1043,6 +1044,7 @@ char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
 
   return NGX_CONF_OK;
 }
+#endif
 
 }  // namespace nginx
 }  // namespace datadog
