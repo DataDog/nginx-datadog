@@ -34,8 +34,9 @@ struct BlockResponse {
                 std::string_view location) noexcept
       : status{status}, ct{ct}, location{location} {}
 
-  static BlockResponse calculate_for(const dnsec::BlockSpecification &spec,
-                                     const ngx_http_request_t &req) noexcept {
+  static BlockResponse resolve_content_type(
+      const dnsec::BlockSpecification &spec,
+      const ngx_http_request_t &req) noexcept {
     int status;
     enum ContentType ct;
 
@@ -305,7 +306,7 @@ void BlockingService::initialize(std::optional<std::string_view> templ_html,
 }
 
 void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
-  BlockResponse const resp = BlockResponse::calculate_for(spec, req);
+  BlockResponse const resp = BlockResponse::resolve_content_type(spec, req);
   ngx_str_t *templ{};
   if (resp.ct == BlockResponse::ContentType::HTML) {
     templ = &templ_html_;
