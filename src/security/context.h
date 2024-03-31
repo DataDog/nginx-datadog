@@ -24,22 +24,22 @@ extern "C" {
 
 namespace datadog::nginx::security {
 
-struct ddwaf_result_free_functor {
+struct DdwafResultFreeFunctor {
   void operator()(ddwaf_result &res) { ddwaf_result_free(&res); }
 };
-struct owned_ddwaf_result
-    : freeable_resource<ddwaf_result, ddwaf_result_free_functor> {
-  using freeable_resource::freeable_resource;
+struct OwnedDdwafResult
+    : FreeableResource<ddwaf_result, DdwafResultFreeFunctor> {
+  using FreeableResource::FreeableResource;
 };
 
-struct ddwaf_context_free_functor {
+struct DdwafContextFreeFunctor {
   void operator()(ddwaf_context ctx) { ddwaf_context_destroy(ctx); }
 };
-struct owned_ddwaf_context
-    : freeable_resource<ddwaf_context, ddwaf_context_free_functor> {
-  using freeable_resource::freeable_resource;
-  explicit owned_ddwaf_context(std::nullptr_t) : freeable_resource{nullptr} {}
-  owned_ddwaf_context &operator=(ddwaf_context ctx) {
+struct OwnedDdwafContext
+    : FreeableResource<ddwaf_context, DdwafContextFreeFunctor> {
+  using FreeableResource::FreeableResource;
+  explicit OwnedDdwafContext(std::nullptr_t) : FreeableResource{nullptr} {}
+  OwnedDdwafContext &operator=(ddwaf_context ctx) {
     if (resource) {
       ddwaf_context_destroy(resource);
     }
@@ -48,39 +48,39 @@ struct owned_ddwaf_context
   }
 };
 
-class context {
-  context(std::shared_ptr<waf_handle> waf_handle);
+class Context {
+  Context(std::shared_ptr<WafHandle> waf_handle);
 
  public:
   // returns a new context or an empty unique_ptr if the waf is not active
-  static std::unique_ptr<context> maybe_create();
+  static std::unique_ptr<Context> maybe_create();
 
   bool on_request_start(ngx_http_request_t &request, dd::Span &span) noexcept;
   ngx_int_t output_header_filter(ngx_http_request_t &request,
                                  dd::Span &span) noexcept;
 
   // runs on a separate thread; returns whether it blocked
-  std::optional<block_spec> run_waf_start(ngx_http_request_t &request,
-                                          dd::Span &span);
-  std::optional<block_spec> run_waf_end(ngx_http_request_t &request,
-                                        dd::Span &span);
+  std::optional<BlockSpecification> run_waf_start(ngx_http_request_t &request,
+                                                  dd::Span &span);
+  std::optional<BlockSpecification> run_waf_end(ngx_http_request_t &request,
+                                                dd::Span &span);
 
  private:
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
   ngx_int_t do_output_header_filter(ngx_http_request_t &request,
                                     dd::Span &span);
 
-  std::shared_ptr<waf_handle> waf_handle_;
-  std::vector<owned_ddwaf_result> results_;
-  owned_ddwaf_context ctx_{nullptr};
-  ddwaf_memres memres_;
+  std::shared_ptr<WafHandle> waf_handle_;
+  std::vector<OwnedDdwafResult> results_;
+  OwnedDdwafContext ctx_{nullptr};
+  DdwafMemres memres_;
 
   enum class stage {
-    disabled,
-    start,
-    after_begin_waf,
-    after_begin_waf_block,  // in this case we won't run the waf at the end
-    after_report
+    DISABLED,
+    START,
+    AFTER_BEGIN_WAF,
+    AFTER_BEGIN_WAF_BLOCK,  // in this case we won't run the waf at the end
+    AFTER_REPORT,
   };
   std::unique_ptr<std::atomic<stage>> stage_;
 };

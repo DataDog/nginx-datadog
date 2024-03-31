@@ -13,32 +13,30 @@ extern "C" {
 #include "ddwaf_memres.h"
 #include "util.h"
 
-namespace datadog {
-namespace nginx {
-namespace security {
+namespace datadog::nginx::security {
 
 using namespace std::literals;
 
-struct query_string_iter {
+struct QueryStringIter {
   enum class trim_mode { no_trim, do_trim } trim;
   std::string_view qs;
   std::size_t pos{0};
-  ddwaf_memres &memres;
+  DdwafMemres &memres;
   std::unordered_set<std::string_view> interned_strings;
   unsigned char separator;
 
-  query_string_iter(std::string_view qs, ddwaf_memres &memres,
-                    unsigned char separator, trim_mode trim)
+  QueryStringIter(std::string_view qs, DdwafMemres &memres,
+                  unsigned char separator, trim_mode trim)
       : qs{qs}, memres{memres}, separator{separator}, trim{trim} {}
 
-  query_string_iter(const ngx_str_t &qs, ddwaf_memres &memres,
-                    unsigned char separator, trim_mode trim)
-      : query_string_iter{datadog::nginx::to_string_view(qs), memres, separator,
-                          trim} {}
+  QueryStringIter(const ngx_str_t &qs, DdwafMemres &memres,
+                  unsigned char separator, trim_mode trim)
+      : QueryStringIter{datadog::nginx::to_string_view(qs), memres, separator,
+                        trim} {}
 
   void reset() noexcept { pos = 0; }
 
-  bool operator!=(const query_string_iter &other) const noexcept {
+  bool operator!=(const QueryStringIter &other) const noexcept {
     return pos != other.pos;
   }
 
@@ -86,7 +84,7 @@ struct query_string_iter {
 
   bool is_delete() const { return false; }
 
-  query_string_iter &operator++() {
+  QueryStringIter &operator++() {
     auto sep_pos = rest().find(separator);
     if (sep_pos == std::string_view::npos) {
       pos = qs.length();
@@ -204,10 +202,10 @@ struct query_string_iter {
 };
 
 struct qs_iter_agg {
-  std::vector<std::unique_ptr<query_string_iter>> iters;
+  std::vector<std::unique_ptr<QueryStringIter>> iters;
   std::size_t cur{0};
 
-  void add(std::unique_ptr<query_string_iter> iter) {
+  void add(std::unique_ptr<QueryStringIter> iter) {
     iters.push_back(std::move(iter));
     if (cur == iters.size()) {
       if (iters[cur]->ended()) {
@@ -245,6 +243,4 @@ struct qs_iter_agg {
     return *this;
   }
 };
-}  // namespace security
-}  // namespace nginx
-}  // namespace datadog
+}  // namespace datadog::nginx::security

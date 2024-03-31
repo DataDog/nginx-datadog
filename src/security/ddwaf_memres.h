@@ -15,17 +15,17 @@ extern "C" {
 
 namespace datadog::nginx::security {
 
-class ddwaf_memres {
-  static inline constexpr std::size_t MIN_OBJ_SEG_SIZE = 20;
-  static inline constexpr std::size_t MIN_STR_SEG_SIZE = 512;
+class DdwafMemres {
+  static inline constexpr std::size_t kMinObjSegSize = 20;
+  static inline constexpr std::size_t kMinStrSegSize = 512;
 
  public:
-  ddwaf_memres() = default;
-  ddwaf_memres(const ddwaf_memres &) = delete;
-  ddwaf_memres &operator=(const ddwaf_memres &) = delete;
-  ddwaf_memres(ddwaf_memres &&) = default;
-  ddwaf_memres &operator=(ddwaf_memres &&) = default;
-  ~ddwaf_memres() = default;
+  DdwafMemres() = default;
+  DdwafMemres(const DdwafMemres &) = delete;
+  DdwafMemres &operator=(const DdwafMemres &) = delete;
+  DdwafMemres(DdwafMemres &&) = default;
+  DdwafMemres &operator=(DdwafMemres &&) = default;
+  ~DdwafMemres() = default;
 
   template <typename T = ddwaf_object>
   T *allocate_objects(std::size_t num_objects) {
@@ -42,7 +42,7 @@ class ddwaf_memres {
     }
 
     if (objects_stored_ + num_objects >= cur_object_seg_size_) {
-      std::size_t const size = std::max(MIN_OBJ_SEG_SIZE, num_objects);
+      std::size_t const size = std::max(kMinObjSegSize, num_objects);
       new_objects_segment(size);
     }
     auto *p = allocs_object_.back().get() + (objects_stored_);
@@ -54,7 +54,7 @@ class ddwaf_memres {
 
   char *allocate_string(size_t len) {
     if (strings_stored_ + len >= cur_string_seg_size_) {
-      std::size_t const size = std::max(MIN_STR_SEG_SIZE, len);
+      std::size_t const size = std::max(kMinStrSegSize, len);
       new_strings_segment(size);
     }
     char *p = allocs_string_.back().get() + strings_stored_;

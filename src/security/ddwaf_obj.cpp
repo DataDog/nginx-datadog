@@ -3,7 +3,7 @@
 namespace datadog::nginx::security {
 namespace impl {
 template <typename D>
-void json_to_obj_impl(ddwaf_memres &memres, ddwaf_obj &object, const D &doc) {
+void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc) {
   switch (doc.GetType()) {
     case rapidjson::kFalseType:
       object.make_bool(false);
@@ -53,7 +53,7 @@ void json_to_obj_impl(ddwaf_memres &memres, ddwaf_obj &object, const D &doc) {
   }
 }
 
-void deep_copy(ddwaf_memres &memres, ddwaf_obj &dst, const ddwaf_obj &src) {
+void deep_copy(DdwafMemres &memres, ddwaf_obj &dst, const ddwaf_obj &src) {
   switch (src.type) {
     case DDWAF_OBJ_MAP: {
       ddwaf_map_obj src_map{src};

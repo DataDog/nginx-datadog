@@ -19,94 +19,96 @@ namespace {
 
 namespace dnsec = datadog::nginx::security;
 
-struct block_resp {
-  enum class ct {
+struct BlockResponse {
+  enum class ContentType {
     HTML,
     JSON,
     NONE,
   };
 
   int status;
-  ct ct;
+  ContentType ct;
   std::string_view location;
 
-  block_resp(int status, enum ct ct, std::string_view location) noexcept
+  BlockResponse(int status, enum ContentType ct,
+                std::string_view location) noexcept
       : status{status}, ct{ct}, location{location} {}
 
-  static block_resp calculate_for(const dnsec::block_spec &spec,
-                                  const ngx_http_request_t &req) noexcept {
+  static BlockResponse calculate_for(const dnsec::BlockSpecification &spec,
+                                     const ngx_http_request_t &req) noexcept {
     int status;
-    enum ct ct;
+    enum ContentType ct;
 
     status = spec.status;
 
     switch (spec.ct) {
-      case dnsec::block_spec::ct::AUTO:
+      case dnsec::BlockSpecification::ContentType::AUTO:
         ct = determine_ct(req);
         break;
-      case dnsec::block_spec::ct::HTML:
-        ct = ct::HTML;
+      case dnsec::BlockSpecification::ContentType::HTML:
+        ct = ContentType::HTML;
         break;
-      case dnsec::block_spec::ct::JSON:
-        ct = ct::JSON;
+      case dnsec::BlockSpecification::ContentType::JSON:
+        ct = ContentType::JSON;
         break;
-      case dnsec::block_spec::ct::NONE:
-        ct = ct::NONE;
+      case dnsec::BlockSpecification::ContentType::NONE:
+        ct = ContentType::NONE;
         break;
     }
 
     return {status, ct, spec.location};
   }
 
-  static ngx_str_t content_type_header(enum block_resp::ct ct) {
+  static ngx_str_t content_type_header(enum BlockResponse::ContentType ct) {
     switch (ct) {
-      case ct::HTML:
+      case ContentType::HTML:
         return ngx_string("text/html;charset=utf-8");
-      case ct::JSON:
+      case ContentType::JSON:
         return ngx_string("application/json");
       default:
         return ngx_string("");
     }
   }
 
-  struct accept_entry {
+  struct AcceptEntry {
     std::string_view type;
     std::string_view subtype;
     double qvalue{};
 
-    enum class specificity {
-      none,
-      asterisk,  // */*
-      partial,   // type/*
-      full       // type/subtype
+    enum class Specificity {
+      NONE,
+      ASTERISK,  // */*
+      PARTIAL,   // type/*
+      FULL       // type/subtype
     };
 
-    static bool is_more_specific(specificity a, specificity b) {
-      using underlying_t = std::underlying_type_t<specificity>;
+    static bool first_is_more_specific(Specificity a, Specificity b) {
+      // NOLINTNEXTLINE(readability-identifier-naming)
+      using underlying_t = std::underlying_type_t<Specificity>;
       return static_cast<underlying_t>(a) > static_cast<underlying_t>(b);
     }
   };
 
-  struct accept_entry_iter {
+  struct AcceptEntryIter {
     ngx_str_t header;
     std::size_t pos;
     std::size_t pos_end{};
 
-    explicit accept_entry_iter(const ngx_str_t &header, std::size_t pos = 0)
+    explicit AcceptEntryIter(const ngx_str_t &header, std::size_t pos = 0)
         : header{header}, pos{pos} {
       find_end();
     }
 
-    static accept_entry_iter end() {
-      return accept_entry_iter{ngx_str_t{0, nullptr}, 0};
+    static AcceptEntryIter end() {
+      return AcceptEntryIter{ngx_str_t{0, nullptr}, 0};
     }
 
-    bool operator!=(const accept_entry_iter &other) const {
+    bool operator!=(const AcceptEntryIter &other) const {
       return pos != other.pos || header.data != other.header.data ||
              header.len != other.header.len;
     }
 
-    accept_entry_iter &operator++() noexcept {
+    AcceptEntryIter &operator++() noexcept {
       if (pos_end == header.len) {
         *this = end();
         return *this;
@@ -117,8 +119,8 @@ struct block_resp {
       return *this;
     }
 
-    accept_entry operator*() noexcept {
-      accept_entry entry;
+    AcceptEntry operator*() noexcept {
+      AcceptEntry entry;
       entry.qvalue = 1.0;
 
       auto sv{part_sv()};
@@ -186,56 +188,56 @@ struct block_resp {
     }
   };
 
-  static enum ct determine_ct(const ngx_http_request_t &req) {
+  static enum ContentType determine_ct(const ngx_http_request_t &req) {
     if (req.headers_in.accept == nullptr) {
-      return ct::JSON;
+      return ContentType::JSON;
     }
 
-    accept_entry_iter it{req.headers_in.accept->value};
+    AcceptEntryIter it{req.headers_in.accept->value};
 
-    using specificity = accept_entry::specificity;
-    specificity json_spec{};
-    specificity html_spec{};
+    using Specif = AcceptEntry::Specificity;
+    Specif json_spec{};
+    Specif html_spec{};
     double json_qvalue = 0.0;
     size_t json_pos = 0;
     double html_qvalue = 0.0;
     size_t html_pos = 0;
 
-    for (size_t pos = 0; it != accept_entry_iter::end(); ++it, ++pos) {
-      accept_entry const ae = *it;
+    for (size_t pos = 0; it != AcceptEntryIter::end(); ++it, ++pos) {
+      AcceptEntry const ae = *it;
 
       if (ae.type == "*" && ae.subtype == "*") {
-        if (accept_entry::is_more_specific(specificity::asterisk, json_spec)) {
-          json_spec = specificity::asterisk;
+        if (AcceptEntry::first_is_more_specific(Specif::ASTERISK, json_spec)) {
+          json_spec = Specif::ASTERISK;
           json_qvalue = ae.qvalue;
           json_pos = pos;
         }
-        if (accept_entry::is_more_specific(specificity::asterisk, html_spec)) {
-          html_spec = specificity::asterisk;
+        if (AcceptEntry::first_is_more_specific(Specif::ASTERISK, html_spec)) {
+          html_spec = Specif::ASTERISK;
           html_qvalue = ae.qvalue;
           html_pos = pos;
         }
       } else if (ae.type == "text" && ae.subtype == "*") {
-        if (accept_entry::is_more_specific(specificity::partial, html_spec)) {
-          html_spec = specificity::partial;
+        if (AcceptEntry::first_is_more_specific(Specif::PARTIAL, html_spec)) {
+          html_spec = Specif::PARTIAL;
           html_qvalue = ae.qvalue;
           html_pos = pos;
         }
       } else if (ae.type == "text" && ae.subtype == "html") {
-        if (accept_entry::is_more_specific(specificity::full, html_spec)) {
-          html_spec = specificity::full;
+        if (AcceptEntry::first_is_more_specific(Specif::FULL, html_spec)) {
+          html_spec = Specif::FULL;
           html_qvalue = ae.qvalue;
           html_pos = pos;
         }
       } else if (ae.type == "application" && ae.subtype == "*") {
-        if (accept_entry::is_more_specific(specificity::partial, json_spec)) {
-          json_spec = specificity::partial;
+        if (AcceptEntry::first_is_more_specific(Specif::PARTIAL, json_spec)) {
+          json_spec = Specif::PARTIAL;
           json_qvalue = ae.qvalue;
           json_pos = pos;
         }
       } else if (ae.type == "application" && ae.subtype == "json") {
-        if (accept_entry::is_more_specific(specificity::full, json_spec)) {
-          json_spec = specificity::full;
+        if (AcceptEntry::first_is_more_specific(Specif::FULL, json_spec)) {
+          json_spec = Specif::FULL;
           json_qvalue = ae.qvalue;
           json_pos = pos;
         }
@@ -243,19 +245,19 @@ struct block_resp {
     }
 
     if (html_qvalue > json_qvalue) {
-      return ct::HTML;
+      return ContentType::HTML;
     }
     if (json_qvalue > html_qvalue) {
-      return ct::JSON;
+      return ContentType::JSON;
     }  // equal: what comes first has priority
     if (html_pos < json_pos) {
-      return ct::HTML;
+      return ContentType::HTML;
     }
-    return ct::JSON;
+    return ContentType::JSON;
   }
 };
 
-const std::string_view default_template_html{
+const std::string_view kDefaultTemplateHtml{
     "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta "
     "name=\"viewport\" "
     "content=\"width=device-width,initial-scale=1\"><title>You've been "
@@ -282,7 +284,7 @@ const std::string_view default_template_html{
     "application-security-monitoring/\" "
     "target=\"_blank\">Datadog</a></p></footer></body></html>"sv};
 
-const std::string_view default_template_json{
+const std::string_view kDefaultTemplateJson{
     "{\"errors\": [{\"title\": \"You've been blocked\", \"detail\": \"Sorry, "
     "you cannot access this page. Please contact the customer service team. "
     "Security provided by Datadog.\"}]}"sv};
@@ -291,24 +293,24 @@ const std::string_view default_template_json{
 namespace datadog::nginx::security {
 
 // NOLINTNEXTLINE
-std::unique_ptr<blocking_service> blocking_service::instance;
+std::unique_ptr<BlockingService> BlockingService::instance;
 
-void blocking_service::initialize(std::optional<std::string_view> templ_html,
-                                  std::optional<std::string_view> templ_json) {
+void BlockingService::initialize(std::optional<std::string_view> templ_html,
+                                 std::optional<std::string_view> templ_json) {
   if (instance) {
     throw std::runtime_error("Blocking service already initialized");
   }
-  instance = std::unique_ptr<blocking_service>(
-      new blocking_service(templ_html, templ_json));
+  instance = std::unique_ptr<BlockingService>(
+      new BlockingService(templ_html, templ_json));
 }
 
-void blocking_service::block(block_spec spec, ngx_http_request_t &req) {
-  block_resp const resp = block_resp::calculate_for(spec, req);
+void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
+  BlockResponse const resp = BlockResponse::calculate_for(spec, req);
   ngx_str_t *templ{};
-  if (resp.ct == block_resp::ct::HTML) {
-    templ = &templ_html;
-  } else if (resp.ct == block_resp::ct::JSON) {
-    templ = &templ_json;
+  if (resp.ct == BlockResponse::ContentType::HTML) {
+    templ = &templ_html_;
+  } else if (resp.ct == BlockResponse::ContentType::JSON) {
+    templ = &templ_json_;
   } else {
     req.header_only = 1;
   }
@@ -318,7 +320,7 @@ void blocking_service::block(block_spec spec, ngx_http_request_t &req) {
   // TODO: clear all current headers?
 
   req.headers_out.status = resp.status;
-  req.headers_out.content_type = block_resp::content_type_header(resp.ct);
+  req.headers_out.content_type = BlockResponse::content_type_header(resp.ct);
   req.headers_out.content_type_len = req.headers_out.content_type.len;
 
   if (!resp.location.empty()) {
@@ -356,40 +358,40 @@ void blocking_service::block(block_spec spec, ngx_http_request_t &req) {
   ngx_http_finalize_request(&req, NGX_DONE);
 }
 
-blocking_service::blocking_service(
+BlockingService::BlockingService(
     std::optional<std::string_view> templ_html_path,
     std::optional<std::string_view> templ_json_path) {
   if (!templ_html_path) {
-    templ_html = ngx_stringv(default_template_html);
+    templ_html_ = ngx_stringv(kDefaultTemplateHtml);
   } else {
-    custom_templ_html = load_template(*templ_html_path);
-    templ_html = ngx_stringv(custom_templ_html);
+    custom_templ_html_ = load_template(*templ_html_path);
+    templ_html_ = ngx_stringv(custom_templ_html_);
   }
 
   if (!templ_json_path) {
-    templ_json = ngx_stringv(default_template_json);
+    templ_json_ = ngx_stringv(kDefaultTemplateJson);
   } else {
-    custom_templ_json = load_template(*templ_json_path);
-    templ_json = ngx_stringv(custom_templ_json);
+    custom_templ_json_ = load_template(*templ_json_path);
+    templ_json_ = ngx_stringv(custom_templ_json_);
   }
 }
 
-std::string blocking_service::load_template(std::string_view path) {
-  std::ifstream const fileStream(std::string{path}, std::ios::binary);
-  if (!fileStream) {
+std::string BlockingService::load_template(std::string_view path) {
+  std::ifstream const file_stream(std::string{path}, std::ios::binary);
+  if (!file_stream) {
     std::string err{"Failed to open file: "};
     err += path;
     throw std::runtime_error(err);
   }
 
   std::ostringstream s;
-  s << fileStream.rdbuf();
+  s << file_stream.rdbuf();
   return s.str();
 }
 
-void blocking_service::push_header(ngx_http_request_t &req,
-                                   std::string_view name,  // NOLINT
-                                   std::string_view value) {
+void BlockingService::push_header(ngx_http_request_t &req,
+                                  std::string_view name,  // NOLINT
+                                  std::string_view value) {
   ngx_table_elt_t *header =
       static_cast<ngx_table_elt_t *>(ngx_list_push(&req.headers_out.headers));
   if (!header) {

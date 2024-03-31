@@ -36,7 +36,7 @@ namespace dnsec = datadog::nginx::security;
 
 namespace {
 
-static constexpr ddwaf_config base_waf_config{
+static constexpr ddwaf_config kBaseWafConfig{
     .limits =
         {
             .max_container_size = 150,
@@ -224,8 +224,7 @@ std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &top,
 
 namespace datadog::nginx::security {
 
-waf_handle::waf_handle(owned_ddwaf_handle h,
-                       const ddwaf_arr_obj &merged_actions) {
+WafHandle::WafHandle(OwnedDdwafHandle h, const ddwaf_arr_obj &merged_actions) {
   assert(h.resource != nullptr);
   handle_ = std::move(h);
   action_info_map_ = extract_actions(merged_actions);
@@ -239,7 +238,7 @@ waf_handle::waf_handle(owned_ddwaf_handle h,
  *   ]
  * }
  */
-waf_handle::action_info_map_t waf_handle::extract_actions(
+WafHandle::action_info_map_t WafHandle::extract_actions(
     const ddwaf_arr_obj &merged_actions) {
   if (merged_actions.empty()) {
     return default_actions();
@@ -256,35 +255,35 @@ waf_handle::action_info_map_t waf_handle::extract_actions(
     std::optional<ddwaf_map_obj> parameters =
         action_spec.get_opt<ddwaf_map_obj>("parameters");
 
-    std::map<std::string, action_info::str_or_int, std::less<>> parameters_map;
+    std::map<std::string, ActionInfo::StrOrInt, std::less<>> parameters_map;
     if (parameters) {
       for (auto &&pvalue : *parameters) {
         auto pkey = pvalue.key();
         if (pvalue.type == DDWAF_OBJ_STRING) {
-          action_info::str_or_int pvalue_variant{
-              std::in_place_type<std::string>, pvalue.string_val_unchecked()};
+          ActionInfo::StrOrInt pvalue_variant{std::in_place_type<std::string>,
+                                              pvalue.string_val_unchecked()};
           parameters_map.emplace(pkey, std::move(pvalue_variant));
         } else if (pvalue.is_numeric()) {
-          action_info::str_or_int pvalue_variant{
+          ActionInfo::StrOrInt pvalue_variant{
               std::in_place_type<int>, pvalue.numeric_val_unchecked<int>()};
           parameters_map.emplace(pkey, std::move(pvalue_variant));
         }
       }
     }
     action_info_map.emplace(
-        id, action_info{std::string{type}, std::move(parameters_map)});
+        id, ActionInfo{std::string{type}, std::move(parameters_map)});
   }
 
   return action_info_map;
 }
 
 class FinalizedConfigSettings {
-  static constexpr ngx_uint_t default_waf_timeout_usec = 1000000;  // 100 ms
+  static constexpr ngx_uint_t kDefaultWafTimeoutUsec = 1000000;  // 100 ms
  public:
   enum class enable_status : std::uint8_t {
-    enabled,
-    disabled,
-    unspecified,
+    ENABLED,
+    DISABLED,
+    UNSPECIFIED,
   };
 
   FinalizedConfigSettings(const datadog_main_conf_t &ngx_conf);
@@ -298,7 +297,7 @@ class FinalizedConfigSettings {
 
   auto ruleset_file() const { return non_empty_or_nullopt(ruleset_file_); }
 
-  std::optional<hashed_string_view> custom_ip_header() const {
+  std::optional<HashedStringView> custom_ip_header() const {
     if (custom_ip_header_.empty()) {
       return std::nullopt;
     }
@@ -324,6 +323,7 @@ class FinalizedConfigSettings {
   };
 
  private:
+  // NOLINTNEXTLINE(readability-identifier-naming)
   using ev_t = std::vector<environment_variable_t>;
 
   // clang-format off
@@ -369,14 +369,14 @@ FinalizedConfigSettings::FinalizedConfigSettings(
   if (ngx_conf.appsec_enabled == NGX_CONF_UNSET) {
     auto maybe_enabled = get_env_bool(evs, "DD_APPSEC_ENABLED"sv);
     if (!maybe_enabled.has_value()) {
-      enable_status_ = enable_status::unspecified;
+      enable_status_ = enable_status::UNSPECIFIED;
     } else {
       enable_status_ =
-          *maybe_enabled ? enable_status::enabled : enable_status::disabled;
+          *maybe_enabled ? enable_status::ENABLED : enable_status::DISABLED;
     }
   } else {
-    enable_status_ = ngx_conf.appsec_enabled == 1 ? enable_status::enabled
-                                                  : enable_status::disabled;
+    enable_status_ = ngx_conf.appsec_enabled == 1 ? enable_status::ENABLED
+                                                  : enable_status::DISABLED;
   }
 
   if (ngx_conf.appsec_ruleset_file.len > 0) {
@@ -413,7 +413,7 @@ FinalizedConfigSettings::FinalizedConfigSettings(
   if (ngx_conf.appsec_waf_timeout_ms == 0 ||
       ngx_conf.appsec_waf_timeout_ms == NGX_CONF_UNSET_MSEC) {
     waf_timeout_usec_ = get_env_unsigned(evs, "DD_APPSEC_WAF_TIMEOUT"sv)
-                            .value_or(default_waf_timeout_usec);
+                            .value_or(kDefaultWafTimeoutUsec);
   } else {
     waf_timeout_usec_ = ngx_conf.appsec_waf_timeout_ms * 1000;
   }
@@ -493,17 +493,17 @@ std::string FinalizedConfigSettings::normalize_configured_header(
   return result;
 }
 
-std::shared_ptr<waf_handle> library::handle_{nullptr};
-std::atomic<bool> library::active_{true};
-std::unique_ptr<FinalizedConfigSettings> library::config_settings_;
+std::shared_ptr<WafHandle> Library::handle_{nullptr};
+std::atomic<bool> Library::active_{true};
+std::unique_ptr<FinalizedConfigSettings> Library::config_settings_;
 
-std::optional<ddwaf_owned_map> library::initialize_security_library(
+std::optional<ddwaf_owned_map> Library::initialize_security_library(
     const datadog_main_conf_t &ngx_conf) {
   config_settings_ = std::make_unique<FinalizedConfigSettings>(ngx_conf);
   const FinalizedConfigSettings &conf = *config_settings_;  // just an alias;
 
   if (conf.enable_status() ==
-      FinalizedConfigSettings::enable_status::disabled) {
+      FinalizedConfigSettings::enable_status::DISABLED) {
     ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                   "datadog security library is explicitly disabled");
     return std::nullopt;
@@ -512,7 +512,7 @@ std::optional<ddwaf_owned_map> library::initialize_security_library(
   ddwaf_set_log_cb(ddwaf_log,
                    ngx_log_level_to_ddwaf(ngx_cycle->log->log_level));
 
-  ddwaf_config waf_config = base_waf_config;
+  ddwaf_config waf_config = kBaseWafConfig;
   waf_config.obfuscator.key_regex = conf.obfuscation_key_regex()
                                         ? conf.obfuscation_key_regex()->data()
                                         : nullptr;
@@ -523,8 +523,8 @@ std::optional<ddwaf_owned_map> library::initialize_security_library(
 
   ddwaf_owned_map ruleset = read_ruleset(conf.ruleset_file());
   libddwaf_ddwaf_owned_obj<ddwaf_map_obj> diag{{}};
-  owned_ddwaf_handle h =
-      owned_ddwaf_handle{ddwaf_init(&ruleset.get(), &waf_config, &diag.get())};
+  OwnedDdwafHandle h =
+      OwnedDdwafHandle{ddwaf_init(&ruleset.get(), &waf_config, &diag.get())};
   if (!h.get()) {
     throw std::runtime_error{"call to ddwaf_init failed:" +
                              ddwaf_diagnostics_to_str(diag.get())};
@@ -542,45 +542,44 @@ std::optional<ddwaf_owned_map> library::initialize_security_library(
   std::optional<ddwaf_arr_obj> actions =
       ruleset.get().get_opt<ddwaf_arr_obj>("actions");
 
-  library::handle_ = std::make_shared<waf_handle>(
+  Library::handle_ = std::make_shared<WafHandle>(
       std::move(h), actions.value_or(ddwaf_arr_obj{}));
 
-  blocking_service::initialize(conf.blocked_template_html(),
-                               conf.blocked_template_json());
+  BlockingService::initialize(conf.blocked_template_html(),
+                              conf.blocked_template_json());
 
-  library::set_active(conf.enable_status() ==
-                      FinalizedConfigSettings::enable_status::enabled);
+  Library::set_active(conf.enable_status() ==
+                      FinalizedConfigSettings::enable_status::ENABLED);
 
   return ruleset;
 }
 
-void library::set_active(bool value) noexcept {
+void Library::set_active(bool value) noexcept {
   active_.store(value, std::memory_order_relaxed);
   ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                 "datadog security library made %s",
                 value ? "active" : "inactive");
 }
 
-bool library::active() noexcept {
+bool Library::active() noexcept {
   return active_.load(std::memory_order_relaxed);
 }
 
-void library::set_handle(std::shared_ptr<waf_handle> handle) {
+void Library::set_handle(std::shared_ptr<WafHandle> handle) {
   std::atomic_store(&handle_, handle);
   ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0, "WAF configuration updated");
 }
 
-bool library::update_ruleset(const ddwaf_map_obj &spec,
+bool Library::update_ruleset(const ddwaf_map_obj &spec,
                              std::optional<ddwaf_arr_obj> new_merged_actions) {
-  std::shared_ptr<waf_handle> cur_h{get_handle_uncond()};
+  std::shared_ptr<WafHandle> cur_h{get_handle_uncond()};
 
   if (!cur_h) {
     throw std::runtime_error{"no handle to update"};
   }
 
   libddwaf_ddwaf_owned_obj<ddwaf_map_obj> diag{{}};
-  auto new_h =
-      owned_ddwaf_handle{ddwaf_update(cur_h->get(), &spec, &diag.get())};
+  auto new_h = OwnedDdwafHandle{ddwaf_update(cur_h->get(), &spec, &diag.get())};
   if (!new_h.get()) {
     throw std::runtime_error{"call to ddwaf_update failed:" +
                              ddwaf_diagnostics_to_str(diag.get())};
@@ -593,47 +592,46 @@ bool library::update_ruleset(const ddwaf_map_obj &spec,
                   "ddwaf_update succeeded: %V", &str);
   }
 
-  std::shared_ptr<waf_handle> handle;
+  std::shared_ptr<WafHandle> handle;
   if (new_merged_actions) {
-    handle =
-        std::make_shared<waf_handle>(std::move(new_h), *new_merged_actions);
+    handle = std::make_shared<WafHandle>(std::move(new_h), *new_merged_actions);
   } else {
-    auto cur_map_copy = library::get_handle_uncond()->action_info_map();
+    auto cur_map_copy = Library::get_handle_uncond()->action_info_map();
     handle =
-        std::make_shared<waf_handle>(std::move(new_h), std::move(cur_map_copy));
+        std::make_shared<WafHandle>(std::move(new_h), std::move(cur_map_copy));
   }
 
   set_handle(std::move(handle));
   return true;
 }
 
-std::shared_ptr<waf_handle> library::get_handle() {
+std::shared_ptr<WafHandle> Library::get_handle() {
   if (active_.load(std::memory_order_relaxed)) {
     return get_handle_uncond();
   }
   return {};
 }
 
-std::shared_ptr<waf_handle> library::get_handle_uncond() {
-  return std::atomic_load(&library::handle_);
+std::shared_ptr<WafHandle> Library::get_handle_uncond() {
+  return std::atomic_load(&Library::handle_);
 }
 
-waf_handle::action_info_map_t waf_handle::default_actions() {
+WafHandle::action_info_map_t WafHandle::default_actions() {
   return {
       {"block",
        {"block_request",
         {{"status_code", 403}, {"type", "auto"}, {"grpc_status_code", 10}}}}};
 }
 
-std::optional<hashed_string_view> library::custom_ip_header() {
+std::optional<HashedStringView> Library::custom_ip_header() {
   return config_settings_->custom_ip_header();
 }
 
-std::uint64_t library::waf_timeout() {
+std::uint64_t Library::waf_timeout() {
   return static_cast<std::uint64_t>(config_settings_->waf_timeout());
 }
 
-std::vector<std::string_view> library::environment_variable_names() {
+std::vector<std::string_view> Library::environment_variable_names() {
   return {"DD_APPSEC_ENABLED"sv,
           "DD_APPSEC_RULES"sv,
           "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON"sv,

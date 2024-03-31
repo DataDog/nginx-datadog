@@ -15,18 +15,18 @@ extern "C" {
 namespace datadog::nginx::security {
 
 template <typename T, typename FreeFunc>
-struct freeable_resource {
+struct FreeableResource {
   static_assert(std::is_standard_layout<T>::value, "T must be a POD type");
 
   T resource;
-  freeable_resource() = delete;
-  explicit freeable_resource(const T resource) : resource{resource} {}
+  FreeableResource() = delete;
+  explicit FreeableResource(const T resource) : resource{resource} {}
 
-  freeable_resource(freeable_resource &&other) noexcept
+  FreeableResource(FreeableResource &&other) noexcept
       : resource{other.resource} {
     other.resource = {};
   };
-  freeable_resource &operator=(freeable_resource &&other) noexcept {
+  FreeableResource &operator=(FreeableResource &&other) noexcept {
     if (this != &other) {
       FreeFunc()(resource);
       resource = other.resource;
@@ -34,15 +34,15 @@ struct freeable_resource {
     }
     return *this;
   }
-  freeable_resource(const freeable_resource &other) = delete;
-  freeable_resource &operator=(const freeable_resource &other) = delete;
+  FreeableResource(const FreeableResource &other) = delete;
+  FreeableResource &operator=(const FreeableResource &other) = delete;
   T &operator*() { return resource; }
   T &get() { return **this; }
 
-  ~freeable_resource() { FreeFunc()(resource); }
+  ~FreeableResource() { FreeFunc()(resource); }
 };
 
-struct ngx_str_hash {
+struct NgxStrHash {
   std::size_t operator()(const ngx_str_t &str) const noexcept {
     // could use ngx_hash_key(str.data, str.len) but this way it can be inlined
     std::size_t hash = 5381;
@@ -53,7 +53,7 @@ struct ngx_str_hash {
   }
 };
 
-struct ngx_str_equal {
+struct NgxStrEqual {
   bool operator()(const ngx_str_t &lhs, const ngx_str_t &rhs) const {
     if (lhs.len != rhs.len) {
       return false;
@@ -96,8 +96,8 @@ inline bool key_equals_ci(const ngx_table_elt_t &header, std::string_view key) {
 }
 
 template <typename T>
-class nginx_list_iter {
-  explicit nginx_list_iter(const ngx_list_part_t *part, ngx_uint_t index)
+class NginxListIter {
+  explicit NginxListIter(const ngx_list_part_t *part, ngx_uint_t index)
       : part_{part},
         elts_{static_cast<T *>(part_ ? part_->elts : nullptr)},
         index_{index} {}
@@ -109,18 +109,18 @@ class nginx_list_iter {
   using reference = T &;
   using iterator_category = std::forward_iterator_tag;
 
-  explicit nginx_list_iter(const ngx_list_t &list)
-      : nginx_list_iter{&list.part, 0} {}
+  explicit NginxListIter(const ngx_list_t &list)
+      : NginxListIter{&list.part, 0} {}
 
-  bool operator!=(const nginx_list_iter &other) const {
+  bool operator!=(const NginxListIter &other) const {
     return part_ != other.part_ || index_ != other.index_;
   }
 
-  bool operator==(const nginx_list_iter &other) const {
+  bool operator==(const NginxListIter &other) const {
     return !(*this == other);
   }
 
-  nginx_list_iter &operator++() {
+  NginxListIter &operator++() {
     ++index_;
     while (index_ >= part_->nelts) {
       if (part_->next == nullptr) {
@@ -136,8 +136,8 @@ class nginx_list_iter {
 
   T &operator*() const { return elts_[index_]; }
 
-  static nginx_list_iter<T> end(const ngx_list_t &list) {
-    return nginx_list_iter{list.last, list.last ? list.last->nelts : 0};
+  static NginxListIter<T> end(const ngx_list_t &list) {
+    return NginxListIter{list.last, list.last ? list.last->nelts : 0};
   }
 
  private:
@@ -146,16 +146,16 @@ class nginx_list_iter {
   ngx_uint_t index_{};
 };
 
-class ngnix_header_iterable {
+class NgnixHeaderIterable {
  public:
-  explicit ngnix_header_iterable(const ngx_list_t &list) : list_{list} {}
+  explicit NgnixHeaderIterable(const ngx_list_t &list) : list_{list} {}
 
-  nginx_list_iter<ngx_table_elt_t> begin() {
-    return nginx_list_iter<ngx_table_elt_t>{list_};
+  NginxListIter<ngx_table_elt_t> begin() {
+    return NginxListIter<ngx_table_elt_t>{list_};
   }
 
-  nginx_list_iter<ngx_table_elt_t> end() {
-    return nginx_list_iter<ngx_table_elt_t>::end(list_);
+  NginxListIter<ngx_table_elt_t> end() {
+    return NginxListIter<ngx_table_elt_t>::end(list_);
   }
 
  private:

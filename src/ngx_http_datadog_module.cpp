@@ -504,7 +504,7 @@ static ngx_int_t datadog_master_process_post_config(
     push_to_main_conf(std::string{env_var_name});
   }
   for (const std::string_view &env_var_name :
-       security::library::environment_variable_names()) {
+       security::Library::environment_variable_names()) {
     push_to_main_conf(std::string{env_var_name});
   }
 
@@ -564,7 +564,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   std::shared_ptr<dd::Logger> logger = std::make_shared<NgxLogger>();
   try {
     std::optional<security::ddwaf_owned_map> initial_waf_cfg =
-        security::library::initialize_security_library(*main_conf);
+        security::Library::initialize_security_library(*main_conf);
     if (initial_waf_cfg) {
       security::register_default_config(std::move(*initial_waf_cfg), logger);
     }

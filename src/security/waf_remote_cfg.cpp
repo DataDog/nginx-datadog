@@ -43,7 +43,9 @@ struct DirtyStatus {
 
   DirtyStatus &operator|=(DirtyStatus oth) { return (*this = *this | oth); }
 
-  static DirtyStatus allDirty() { return {true, true, true, true, true, true}; }
+  static DirtyStatus all_dirty() {
+    return {true, true, true, true, true, true};
+  }
 
   bool is_any_dirty() const {
     return rules || custom_rules || rules_override || actions || data ||
@@ -170,7 +172,7 @@ class CollectedAsmData {
 
   // returns [{id: "...", type: "...", data: [{...}, ...]}]
   // by merging the data value from all entries with the same id
-  dnsec::ddwaf_arr_obj merged_data(dnsec::ddwaf_memres &memres) const {
+  dnsec::ddwaf_arr_obj merged_data(dnsec::DdwafMemres &memres) const {
     // first we need to group all the data by id
     auto grouped_entries =
         std::unordered_map<std::string_view,
@@ -252,21 +254,21 @@ class CurrentAppSecConfig {
 
  public:
   void set_dd_config(std::shared_ptr<dnsec::ddwaf_owned_map> new_config) {
-    static const rc::ParsedConfigKey KEY_BUNDLED_RULE_DATA{
+    static const rc::ParsedConfigKey key_bundled_rule_data{
         "datadog/0/NONE/none/bundled_rule_data"};
 
     assert(new_config);
 
     dd_config_ = std::move(new_config);
 
-    asm_data_.remove_config(KEY_BUNDLED_RULE_DATA);
+    asm_data_.remove_config(key_bundled_rule_data);
 
     std::optional<dnsec::ddwaf_arr_obj> rules_data =
         dd_config().get_opt<dnsec::ddwaf_arr_obj>("rules_data"sv);
     if (rules_data) {
       dnsec::ddwaf_owned_arr rules_data_copy =
           dnsec::ddwaf_obj_clone(*rules_data);
-      asm_data_.add_config(KEY_BUNDLED_RULE_DATA, std::move(rules_data_copy));
+      asm_data_.add_config(key_bundled_rule_data, std::move(rules_data_copy));
     }
 
     dirty_status_.rules = true;
@@ -375,7 +377,7 @@ class CurrentAppSecConfig {
  private:
   const dnsec::ddwaf_map_obj &dd_config() { return dd_config_.get()->get(); }
 
-  dnsec::ddwaf_arr_obj get_merged_custom_rules(dnsec::ddwaf_memres &memres) {
+  dnsec::ddwaf_arr_obj get_merged_custom_rules(dnsec::DdwafMemres &memres) {
     std::vector<dnsec::ddwaf_arr_obj> arr_of_maps(user_configs_.size());
     for (auto &&uc : user_configs_) {
       arr_of_maps.push_back(uc.custom_rules());
@@ -384,7 +386,7 @@ class CurrentAppSecConfig {
     return merge_maps_by_id_keep_latest(arr_of_maps, memres);
   }
 
-  dnsec::ddwaf_arr_obj get_merged_exclusions(dnsec::ddwaf_memres &memres) {
+  dnsec::ddwaf_arr_obj get_merged_exclusions(dnsec::DdwafMemres &memres) {
     std::vector<dnsec::ddwaf_arr_obj> arr_of_maps(user_configs_.size() + 1);
 
     dnsec::ddwaf_arr_obj dd_rules_exclusions =
@@ -401,7 +403,7 @@ class CurrentAppSecConfig {
   }
 
   // does not include default actions
-  dnsec::ddwaf_arr_obj get_merged_actions(dnsec::ddwaf_memres &memres) {
+  dnsec::ddwaf_arr_obj get_merged_actions(dnsec::DdwafMemres &memres) {
     std::vector<dnsec::ddwaf_arr_obj> arr_of_maps(user_configs_.size() + 1);
 
     dnsec::ddwaf_arr_obj dd_actions =
@@ -417,7 +419,7 @@ class CurrentAppSecConfig {
     return merge_maps_by_id_keep_latest(arr_of_maps, memres);
   }
 
-  dnsec::ddwaf_arr_obj get_merged_rule_overrides(dnsec::ddwaf_memres &memres) {
+  dnsec::ddwaf_arr_obj get_merged_rule_overrides(dnsec::DdwafMemres &memres) {
     std::vector<dnsec::ddwaf_arr_obj> arr_of_maps(user_configs_.size() + 1);
 
     dnsec::ddwaf_arr_obj dd_rules_override =
@@ -451,7 +453,7 @@ class CurrentAppSecConfig {
 
   dnsec::ddwaf_arr_obj merge_maps_by_id_keep_latest(
       const std::vector<dnsec::ddwaf_arr_obj> &arr_of_maps,
-      dnsec::ddwaf_memres &memres) {
+      dnsec::DdwafMemres &memres) {
     std::unordered_map<std::string_view /*id*/, dnsec::ddwaf_map_obj> merged{};
 
     for (const dnsec::ddwaf_arr_obj &arr : arr_of_maps) {
@@ -510,12 +512,12 @@ class AsmFeaturesListener : public rc::ProductListener {
 
     AppSecFeatures features{content};
     bool new_state = features.asm_enabled();
-    bool old_state = dnsec::library::active();
+    bool old_state = dnsec::Library::active();
     if (new_state == old_state) {
       return;
     }
 
-    dnsec::library::set_active(new_state);
+    dnsec::Library::set_active(new_state);
   }
 
   void on_config_remove(const rc::ParsedConfigKey &key,
@@ -672,7 +674,7 @@ class AppSecConfigService {
   CurrentAppSecConfig current_config_;
   std::shared_ptr<datadog::tracing::Logger> logger_;
 
-  static inline std::unique_ptr<AppSecConfigService> instance_;
+  static inline std::unique_ptr<AppSecConfigService> instance_;  // NOLINT
 
   AppSecConfigService(dnsec::ddwaf_owned_map default_config,
                       std::shared_ptr<datadog::tracing::Logger> logger)
@@ -724,7 +726,7 @@ class AppSecConfigService {
           auto &&upd = *maybe_upd;
           auto maybe_new_merge_actions =
               upd.get().get_opt<dnsec::ddwaf_arr_obj>("actions"sv);
-          dnsec::library::update_ruleset(upd.get(), maybe_new_merge_actions);
+          dnsec::Library::update_ruleset(upd.get(), maybe_new_merge_actions);
         }
       });
     }

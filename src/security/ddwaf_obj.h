@@ -20,8 +20,9 @@ struct __attribute__((__may_alias__)) ddwaf_str_obj;
 struct __attribute__((__may_alias__)) ddwaf_arr_obj;
 struct __attribute__((__may_alias__)) ddwaf_map_obj;
 
+// NOLINTNEXTLINE(readability-identifier-naming)
 struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
-  using nb_entries_t = decltype(nbEntries);
+  using nb_entries_t = decltype(nbEntries);  // NOLINT
   ddwaf_obj() : ddwaf_object{} {}
   explicit ddwaf_obj(const ddwaf_object &dobj) : ddwaf_object{dobj} {}
 
@@ -36,7 +37,7 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
     return *this;
   }
 
-  ddwaf_obj &set_key(std::string_view sv, ddwaf_memres &memres) {
+  ddwaf_obj &set_key(std::string_view sv, DdwafMemres &memres) {
     char *s = memres.allocate_string(sv.size());
     std::memcpy(s, sv.data(), sv.size());
     return set_key({s, sv.size()});
@@ -114,7 +115,7 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
     return *reinterpret_cast<ddwaf_str_obj *>(this);  // NOLINT
   }
 
-  ddwaf_str_obj &make_string(std::string_view sv, ddwaf_memres &memres) {
+  ddwaf_str_obj &make_string(std::string_view sv, DdwafMemres &memres) {
     char *s = memres.allocate_string(sv.size());
     std::memcpy(s, sv.data(), sv.size());
     return make_string({s, sv.size()});
@@ -129,7 +130,7 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
     nbEntries = size;
     return *reinterpret_cast<ddwaf_arr_obj *>(this);  // NOLINT
   }
-  ddwaf_arr_obj &make_array(nb_entries_t size, ddwaf_memres &memres) {
+  ddwaf_arr_obj &make_array(nb_entries_t size, DdwafMemres &memres) {
     type = DDWAF_OBJ_ARRAY;
     array = memres.allocate_objects(size);
     nbEntries = size;
@@ -142,7 +143,7 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
     nbEntries = size;
     return *reinterpret_cast<ddwaf_map_obj *>(this);  // NOLINT
   }
-  ddwaf_map_obj &make_map(nb_entries_t size, ddwaf_memres &memres) {
+  ddwaf_map_obj &make_map(nb_entries_t size, DdwafMemres &memres) {
     type = DDWAF_OBJ_MAP;
     array = memres.allocate_objects(size);
     nbEntries = size;
@@ -162,34 +163,34 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
     return reinterpret_cast<T &>(*this);  // NOLINT
   }
 
-  struct iterator {
-    using difference_type = nb_entries_t;
-    using value_type = ddwaf_obj;
-    using pointer = value_type *;
-    using reference = value_type &;
-    using iterator_category = std::forward_iterator_tag;
+  struct Iterator {
+    using difference_type = nb_entries_t;                 // NOLINT
+    using value_type = ddwaf_obj;                         // NOLINT
+    using pointer = value_type *;                         // NOLINT
+    using reference = value_type &;                       // NOLINT
+    using iterator_category = std::forward_iterator_tag;  // NOLINT
 
     // use reinterpret_cast because while the references are in principle
     // convertible, the compiler doesn't know that at this point in the file
     // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
-    iterator(const ddwaf_map_obj &map, nb_entries_t index = 0)
+    Iterator(const ddwaf_map_obj &map, nb_entries_t index = 0)
         : map_or_arr_{*reinterpret_cast<const ddwaf_obj *>(&map)},
           index_{index} {}
 
     // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
-    iterator(const ddwaf_arr_obj &arr, nb_entries_t index = 0)
+    Iterator(const ddwaf_arr_obj &arr, nb_entries_t index = 0)
         : map_or_arr_{*reinterpret_cast<const ddwaf_obj *>(&arr)},
           index_{index} {}
 
-    bool operator!=(const iterator &other) const {
+    bool operator!=(const Iterator &other) const {
       return index_ != other.index_ || &map_or_arr_ != &other.map_or_arr_;
     }
 
-    nb_entries_t operator-(const iterator &other) const {
+    nb_entries_t operator-(const Iterator &other) const {
       return index_ - other.index_;
     }
 
-    iterator &operator++() {
+    Iterator &operator++() {
       index_++;
       return *this;
     }
@@ -205,6 +206,7 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
   };
 };
 
+// NOLINTNEXTLINE(readability-identifier-naming)
 struct __attribute__((__may_alias__)) ddwaf_str_obj : ddwaf_obj {
   ddwaf_str_obj() : ddwaf_obj{} { type = DDWAF_OBJ_STRING; }
   explicit ddwaf_str_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
@@ -246,8 +248,8 @@ struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {
 
   bool empty() const { return nbEntries == 0; }
 
-  iterator begin() const { return {*this}; }
-  iterator end() const { return {*this, nbEntries}; }
+  Iterator begin() const { return {*this}; }
+  Iterator end() const { return {*this, nbEntries}; }
 };
 
 struct ddwaf_map_obj : ddwaf_obj {
@@ -294,13 +296,13 @@ struct ddwaf_map_obj : ddwaf_obj {
 
   bool empty() const { return nbEntries == 0; }
 
-  iterator begin() const { return {*this}; }
-  iterator end() const { return {*this, nbEntries}; }
+  Iterator begin() const { return {*this}; }
+  Iterator end() const { return {*this, nbEntries}; }
 };
 
 template <typename T = ddwaf_obj>
-class ddwaf_owned_obj {
-  ddwaf_memres memres_;
+class ddwaf_owned_obj {  // NOLINT(readability-identifier-naming)
+  DdwafMemres memres_;
   T obj_;
 
  public:
@@ -320,19 +322,19 @@ class ddwaf_owned_obj {
 
   T &get() { return obj_; }
   const T &get() const { return obj_; }
-  ddwaf_memres &memres() { return memres_; }
+  DdwafMemres &memres() { return memres_; }
 };
 
-using ddwaf_owned_map = ddwaf_owned_obj<ddwaf_map_obj>;
-using ddwaf_owned_arr = ddwaf_owned_obj<ddwaf_arr_obj>;
+using ddwaf_owned_map = ddwaf_owned_obj<ddwaf_map_obj>;  // NOLINT
+using ddwaf_owned_arr = ddwaf_owned_obj<ddwaf_arr_obj>;  // NOLINT
 
-struct ddwaf_object_free_functor {
+struct DdwafObjectFreeFunctor {
   void operator()(ddwaf_object &res) { ddwaf_object_free(&res); }
 };
 template <typename T = ddwaf_obj>
-class libddwaf_ddwaf_owned_obj
-    : public freeable_resource<T, ddwaf_object_free_functor> {
-  using freeable_resource<T, ddwaf_object_free_functor>::freeable_resource;
+class libddwaf_ddwaf_owned_obj  // NOLINT(readability-identifier-naming)
+    : public FreeableResource<T, DdwafObjectFreeFunctor> {
+  using FreeableResource<T, DdwafObjectFreeFunctor>::FreeableResource;
 };
 
 ddwaf_owned_obj<ddwaf_obj> json_to_object(
@@ -340,8 +342,9 @@ ddwaf_owned_obj<ddwaf_obj> json_to_object(
 
 // for objects created with libddwaf functions
 template <typename T>
+// NOLINTNEXTLINE(readability-identifier-naming)
 struct __attribute__((__may_alias__)) libddwaf_owned_ddwaf_obj : T {
-  static auto constexpr inline invalid =
+  static auto constexpr inline kInvalid =
       ddwaf_object{.type = DDWAF_OBJ_INVALID};
 
   libddwaf_owned_ddwaf_obj(T const &obj) : T{obj} {}
@@ -350,12 +353,12 @@ struct __attribute__((__may_alias__)) libddwaf_owned_ddwaf_obj : T {
       delete;
   libddwaf_owned_ddwaf_obj(libddwaf_owned_ddwaf_obj &&oth) noexcept
       : libddwaf_owned_ddwaf_obj{{oth}} {
-    static_cast<ddwaf_object &>(*this) = invalid;
+    static_cast<ddwaf_object &>(*this) = kInvalid;
   };
   libddwaf_owned_ddwaf_obj &operator=(libddwaf_owned_ddwaf_obj &&oth) noexcept {
     if (this != &oth) {
       static_cast<ddwaf_object &>(*this) = *oth;
-      static_cast<ddwaf_object &>(*oth) = invalid;
+      static_cast<ddwaf_object &>(*oth) = kInvalid;
     }
     return *this;
   }
@@ -364,7 +367,7 @@ struct __attribute__((__may_alias__)) libddwaf_owned_ddwaf_obj : T {
 };
 
 namespace impl {
-void deep_copy(ddwaf_memres &memres, ddwaf_obj &dst, const ddwaf_obj &src);
+void deep_copy(DdwafMemres &memres, ddwaf_obj &dst, const ddwaf_obj &src);
 }  // namespace impl
 
 template <typename T>

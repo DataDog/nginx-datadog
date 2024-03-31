@@ -51,7 +51,7 @@ class DatadogContext {
 
  private:
   std::vector<RequestTracing> traces_;
-  std::unique_ptr<security::context> sec_ctx_;
+  std::unique_ptr<security::Context> sec_ctx_;
 
   RequestTracing* find_trace(ngx_http_request_t* request);
 

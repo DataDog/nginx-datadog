@@ -18,7 +18,7 @@ namespace nginx {
 DatadogContext::DatadogContext(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
                                datadog_loc_conf_t *loc_conf)
-    : sec_ctx_{security::context::maybe_create()} {
+    : sec_ctx_{security::Context::maybe_create()} {
   traces_.emplace_back(request, core_loc_conf, loc_conf);
 }
 

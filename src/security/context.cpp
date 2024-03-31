@@ -50,6 +50,7 @@ class JsonWriter : public rapidjson::Writer<rapidjson::StringBuffer> {
   using rapidjson::Writer<rapidjson::StringBuffer>::Writer;
 
  public:
+  // NOLINTNEXTLINE(readability-identifier-naming)
   bool ConstLiteralKey(std::string_view sv) {
     return String(sv.data(), sv.length(), false);
   }
@@ -59,16 +60,16 @@ void ddwaf_object_to_json(JsonWriter &w, const ddwaf_object &dobj);
 
 void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
                   dd::SpanData &span,
-                  std::vector<dnsec::owned_ddwaf_result> &results) {
-  static constexpr std::string_view APPSEC_EVENT{"appsec.event"};
-  static constexpr std::string_view APPSEC_JSON{"_dd.appsec.json"};
+                  std::vector<dnsec::OwnedDdwafResult> &results) {
+  static constexpr std::string_view appsec_event{"appsec.event"};
+  static constexpr std::string_view appsec_json{"_dd.appsec.json"};
 
   if (results.empty()) {
     return;
   }
 
   seg.override_sampling_priority(2);  // USER-KEEP
-  span.tags[std::string{APPSEC_EVENT}] = "true";
+  span.tags[std::string{appsec_event}] = "true";
 
   rapidjson::StringBuffer buffer;
   JsonWriter w(buffer);
@@ -94,7 +95,7 @@ void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
   ngx_log_error(NGX_LOG_WARN, req.connection->log, 0, "appsec event: %V",
                 &json_ns);
 
-  span.tags[std::string{APPSEC_JSON}] = json;
+  span.tags[std::string{appsec_json}] = json;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
@@ -173,7 +174,7 @@ dd::SpanData &get_span_data(dd::Span &s) {
 
 namespace datadog::nginx::security {
 
-context::context(std::shared_ptr<waf_handle> handle)
+Context::Context(std::shared_ptr<WafHandle> handle)
     : waf_handle_{std::move(handle)}, stage_{new std::atomic<stage>{}} {
   if (!waf_handle_) {
     return;
@@ -182,27 +183,27 @@ context::context(std::shared_ptr<waf_handle> handle)
   ddwaf_handle ddwaf_h = waf_handle_->get();
   ctx_ = ddwaf_context_init(ddwaf_h);
 
-  stage_->store(stage::start, std::memory_order_release);
+  stage_->store(stage::START, std::memory_order_release);
 }
 
-std::unique_ptr<context> context::maybe_create() {
-  std::shared_ptr<waf_handle> handle = library::get_handle();
+std::unique_ptr<Context> Context::maybe_create() {
+  std::shared_ptr<WafHandle> handle = Library::get_handle();
   if (!handle) {
     return {};
   }
-  return std::unique_ptr<context>{new context{std::move(handle)}};
+  return std::unique_ptr<Context>{new Context{std::move(handle)}};
 }
 
 template <typename Self>
-class pol_task_ctx {
-  pol_task_ctx(ngx_http_request_t &req, context &ctx, dd::Span &span)
+class PolTaskCtx {
+  PolTaskCtx(ngx_http_request_t &req, Context &ctx, dd::Span &span)
       : req_{req}, ctx_{ctx}, span_{span} {}
 
  public:
   // the returned reference is request pool allocated and must have its
   // destructor explicitly called if not submitted
   template <typename... Args>
-  static Self &create(ngx_http_request_t &req, context &ctx, dd::Span &span,
+  static Self &create(ngx_http_request_t &req, Context &ctx, dd::Span &span,
                       Args &&...extra_args) {
     ngx_thread_task_t *task = ngx_thread_task_alloc(req.pool, sizeof(Self));
     if (!task) {
@@ -212,8 +213,8 @@ class pol_task_ctx {
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     auto *task_ctx =
         new (task->ctx) Self{req, ctx, span, std::forward<Args>(extra_args)...};
-    task->handler = &pol_task_ctx::handler;
-    task->event.handler = &pol_task_ctx::completion_handler;
+    task->handler = &PolTaskCtx::handler;
+    task->event.handler = &PolTaskCtx::completion_handler;
     task->event.data = task_ctx;
 
     return *task_ctx;
@@ -241,7 +242,7 @@ class pol_task_ctx {
       block_spec_ = static_cast<Self *>(this)->do_handle(*log);
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "after task main: %p", &req_);
-      ran_on_thread.store(true, std::memory_order_release);
+      ran_on_thread_.store(true, std::memory_order_release);
     } catch (std::exception &e) {
       ngx_log_error(NGX_LOG_ERR, log, 0, "task failed: %s", e.what());
     } catch (...) {
@@ -256,7 +257,7 @@ class pol_task_ctx {
   static void completion_handler(ngx_event_t *evt) noexcept {
     auto *self = static_cast<Self *>(evt->data);
     self->complete();
-    self->~pol_task_ctx();
+    self->~PolTaskCtx();
   }
 
   // define in subclasses
@@ -265,25 +266,25 @@ class pol_task_ctx {
  private:
   friend Self;
   ngx_http_request_t &req_;
-  context &ctx_;
+  Context &ctx_;
   dd::Span &span_;
-  std::optional<block_spec> block_spec_;
-  std::atomic<bool> ran_on_thread{false};
+  std::optional<BlockSpecification> block_spec_;
+  std::atomic<bool> ran_on_thread_{false};
 };
 
-class pol_1st_waf_ctx : public pol_task_ctx<pol_1st_waf_ctx> {
-  using pol_task_ctx::pol_task_ctx;
+class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
+  using PolTaskCtx::PolTaskCtx;
 
-  std::optional<block_spec> do_handle(ngx_log_t &log) {
+  std::optional<BlockSpecification> do_handle(ngx_log_t &log) {
     return ctx_.run_waf_start(req_, span_);
   }
 
   void complete() noexcept {
-    bool const ran = ran_on_thread.load(std::memory_order_acquire);
+    bool const ran = ran_on_thread_.load(std::memory_order_acquire);
     if (ran && block_spec_) {
       span_.set_tag("appsec.blocked"sv, "true"sv);
 
-      auto *service = blocking_service::get_instance();
+      auto *service = BlockingService::get_instance();
       assert(service != nullptr);
       try {
         service->block(*block_spec_, req_);
@@ -298,21 +299,21 @@ class pol_1st_waf_ctx : public pol_task_ctx<pol_1st_waf_ctx> {
     }
   }
 
-  friend pol_task_ctx;
+  friend PolTaskCtx;
 };
 
-bool context::on_request_start(ngx_http_request_t &request,
+bool Context::on_request_start(ngx_http_request_t &request,
                                dd::Span &span) noexcept {
   return catch_exceptions("on_request_start"sv, request, [&]() {
-    return context::do_on_request_start(request, span);
+    return Context::do_on_request_start(request, span);
   });
 }
 
-bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
+bool Context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
   if (ctx_.resource == nullptr) {
     return false;
   }
-  if (stage_->load(std::memory_order_acquire) != stage::start) {
+  if (stage_->load(std::memory_order_acquire) != stage::START) {
     ngx_log_error(NGX_LOG_ERR, request.connection->log, 0,
                   "WAF context is not in the start stage");
     return false;
@@ -325,13 +326,13 @@ bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
     return false;
   }
 
-  auto &task_ctx = pol_1st_waf_ctx::create(request, *this, span);
+  auto &task_ctx = Pol1stWafCtx::create(request, *this, span);
 
   if (ngx_thread_task_post(conf->waf_pool, &task_ctx.get_task()) != NGX_OK) {
     // log error
     ngx_log_error(NGX_LOG_ERR, request.connection->log, 0,
                   "failed to post waf task");
-    task_ctx.~pol_1st_waf_ctx();
+    task_ctx.~Pol1stWafCtx();
     return false;
   }
 
@@ -342,12 +343,12 @@ bool context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
 
 namespace {
 template <typename Map>
-int getOrDefaultInt(const Map &m, std::string_view k, int def) {
+int get_or_default_int(const Map &m, std::string_view k, int def) {
   auto it = m.find(k);
   if (it == m.end()) {
     return def;
   }
-  const action_info::str_or_int &v{it->second};
+  const ActionInfo::StrOrInt &v{it->second};
   if (std::holds_alternative<int>(v)) {
     return std::get<int>(v);
   }
@@ -369,39 +370,42 @@ std::string_view getOrDefaultString(const Map &m, std::string_view k,
   if (it == m.end()) {
     return def;
   }
-  const action_info::str_or_int &v{it->second};
+  const ActionInfo::StrOrInt &v{it->second};
   if (std::holds_alternative<std::string>(v)) {
     return {std::get<std::string>(v)};
   }
   return def;
 }
 
-block_spec create_block_request_action(const action_info &ai) {
+BlockSpecification create_block_request_action(const ActionInfo &ai) {
   static constexpr int default_status = 403;
-  enum block_spec::ct ct{block_spec::ct::AUTO};
-  int status = getOrDefaultInt(ai.parameters, "status_code"sv, default_status);
+  enum BlockSpecification::ContentType ct{
+      BlockSpecification::ContentType::AUTO};
+  int status =
+      get_or_default_int(ai.parameters, "status_code"sv, default_status);
   if (status < 100 || status > 599) {
     status = default_status;
   }
   std::string_view const ct_sv =
       getOrDefaultString(ai.parameters, "type"sv, "auto"sv);
   if (ct_sv == "auto"sv) {
-    ct = block_spec::ct::AUTO;
+    ct = BlockSpecification::ContentType::AUTO;
   } else if (ct_sv == "html"sv) {
-    ct = block_spec::ct::HTML;
+    ct = BlockSpecification::ContentType::HTML;
   } else if (ct_sv == "json"sv) {
-    ct = block_spec::ct::JSON;
+    ct = BlockSpecification::ContentType::JSON;
   } else if (ct_sv == "none"sv) {
-    ct = block_spec::ct::NONE;
+    ct = BlockSpecification::ContentType::NONE;
   }
 
-  return block_spec{status, ct};
+  return BlockSpecification{status, ct};
 }
 
-std::optional<block_spec> create_redirect_request_action(
-    const action_info &ai) {
+std::optional<BlockSpecification> create_redirect_request_action(
+    const ActionInfo &ai) {
   static constexpr int default_status = 303;
-  int status = getOrDefaultInt(ai.parameters, "status_code"sv, default_status);
+  int status =
+      get_or_default_int(ai.parameters, "status_code"sv, default_status);
   if (status < 300 || status > 399) {
     status = default_status;
   }
@@ -410,14 +414,15 @@ std::optional<block_spec> create_redirect_request_action(
       getOrDefaultString(ai.parameters, "location"sv, ""sv);
   if (loc == ""sv) {
     // this is mandated by spec, strange as it might be
-    return {{403, block_spec::ct::AUTO}};
+    return {{403, BlockSpecification::ContentType::AUTO}};
   }
 
-  return {block_spec{status, block_spec::ct::NONE, loc}};
+  return {
+      BlockSpecification{status, BlockSpecification::ContentType::NONE, loc}};
 }
 
-std::optional<block_spec> resolve_block_spec(
-    const waf_handle::action_info_map_t &aim, const ddwaf_arr_obj &actions_arr,
+std::optional<BlockSpecification> resolve_block_spec(
+    const WafHandle::action_info_map_t &aim, const ddwaf_arr_obj &actions_arr,
     ngx_log_t &log) {
   for (auto &&id_obj : actions_arr) {
     if (id_obj.type != DDWAF_OBJ_STRING) {
@@ -433,7 +438,7 @@ std::optional<block_spec> resolve_block_spec(
       continue;
     }
 
-    const action_info &ai = it->second;
+    const ActionInfo &ai = it->second;
     if (ai.type == "block_request"sv) {
       return {create_block_request_action(ai)};
     }
@@ -455,10 +460,10 @@ std::optional<block_spec> resolve_block_spec(
 }
 }  // namespace
 
-std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req,
-                                                 dd::Span &span) {
+std::optional<BlockSpecification> Context::run_waf_start(
+    ngx_http_request_t &req, dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
-  if (st != stage::start) {
+  if (st != stage::START) {
     return std::nullopt;
   }
 
@@ -470,60 +475,60 @@ std::optional<block_spec> context::run_waf_start(ngx_http_request_t &req,
 
   ddwaf_result result;
   auto code =
-      ddwaf_run(ctx_.resource, data, nullptr, &result, library::waf_timeout());
+      ddwaf_run(ctx_.resource, data, nullptr, &result, Library::waf_timeout());
   if (code == DDWAF_MATCH) {
     results_.emplace_back(result);
   } else {
     ddwaf_result_free(&result);
   }
 
-  std::optional<block_spec> block_spec;
+  std::optional<BlockSpecification> block_spec;
   ddwaf_arr_obj actions_arr{result.actions};
   if (code == DDWAF_MATCH && actions_arr.nbEntries > 0) {
-    const waf_handle::action_info_map_t &aim = waf_handle_->action_info_map();
+    const WafHandle::action_info_map_t &aim = waf_handle_->action_info_map();
     block_spec = resolve_block_spec(aim, actions_arr, *req.connection->log);
   }
 
   if (block_spec) {
-    stage_->store(stage::after_begin_waf_block, std::memory_order_release);
+    stage_->store(stage::AFTER_BEGIN_WAF_BLOCK, std::memory_order_release);
   } else {
-    stage_->store(stage::after_begin_waf, std::memory_order_release);
+    stage_->store(stage::AFTER_BEGIN_WAF, std::memory_order_release);
   }
 
   return block_spec;
 }
 
-ngx_int_t context::output_header_filter(ngx_http_request_t &request,
+ngx_int_t Context::output_header_filter(ngx_http_request_t &request,
                                         dd::Span &span) noexcept {
   return catch_exceptions(
       "output_header_filter"sv, request,
-      [&]() { return context::do_output_header_filter(request, span); },
+      [&]() { return Context::do_output_header_filter(request, span); },
       static_cast<ngx_int_t>(NGX_ERROR));
 }
 
-class pol_final_waf_ctx : public pol_task_ctx<pol_final_waf_ctx> {
-  using pol_task_ctx::pol_task_ctx;
+class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
+  using PolTaskCtx::PolTaskCtx;
 
-  std::optional<block_spec> do_handle(ngx_log_t &log) {
+  std::optional<BlockSpecification> do_handle(ngx_log_t &log) {
     return ctx_.run_waf_end(req_, span_);
   }
 
   void complete() noexcept {
-    ran_on_thread.load(std::memory_order_acquire);
+    ran_on_thread_.load(std::memory_order_acquire);
     ngx_http_finalize_request(&req_, NGX_DONE);
   }
 
-  friend pol_task_ctx;
+  friend PolTaskCtx;
 };
 
-ngx_int_t context::do_output_header_filter(ngx_http_request_t &request,
+ngx_int_t Context::do_output_header_filter(ngx_http_request_t &request,
                                            dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
-  if (st != stage::after_begin_waf) {
+  if (st != stage::AFTER_BEGIN_WAF) {
     return ngx_http_next_output_header_filter(&request);
   }
 
-  pol_final_waf_ctx &task_ctx = pol_final_waf_ctx::create(request, *this, span);
+  PolFinalWafCtx &task_ctx = PolFinalWafCtx::create(request, *this, span);
 
   auto *conf = static_cast<datadog_loc_conf_t *>(
       ngx_http_get_module_loc_conf(&request, ngx_http_datadog_module));
@@ -535,7 +540,7 @@ ngx_int_t context::do_output_header_filter(ngx_http_request_t &request,
     // log error
     ngx_log_error(NGX_LOG_ERR, request.connection->log, 0,
                   "failed to post waf task");
-    task_ctx.~pol_final_waf_ctx();
+    task_ctx.~PolFinalWafCtx();
     return NGX_ERROR;
   }
 
@@ -561,13 +566,13 @@ ngx_int_t context::do_output_header_filter(ngx_http_request_t &request,
   return ngx_http_next_output_header_filter(&request);
 }
 
-std::optional<block_spec> context::run_waf_end(ngx_http_request_t &request,
-                                               dd::Span &span) {
+std::optional<BlockSpecification> Context::run_waf_end(
+    ngx_http_request_t &request, dd::Span &span) {
   ddwaf_object *resp_data = collect_response_data(request, memres_);
 
   ddwaf_result result;
   DDWAF_RET_CODE const code = ddwaf_run(ctx_.resource, resp_data, nullptr,
-                                        &result, library::waf_timeout());
+                                        &result, Library::waf_timeout());
   if (code == DDWAF_MATCH) {
     results_.emplace_back(result);
   } else {
@@ -580,7 +585,7 @@ std::optional<block_spec> context::run_waf_end(ngx_http_request_t &request,
     results_.clear();
   }
 
-  stage_->store(stage::after_report, std::memory_order_release);
+  stage_->store(stage::AFTER_REPORT, std::memory_order_release);
 
   return std::nullopt;  // we don't support blocking in the final waf run
 }
