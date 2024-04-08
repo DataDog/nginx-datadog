@@ -249,10 +249,7 @@ struct datadog_loc_conf_t {
   conf_directive_source_location_t
       allow_sampling_delegation_in_subrequests_directive;
 
-#ifdef WITH_WAF
-  ngx_str_t waf_thread_pool_name;
-  ngx_thread_pool_t *waf_pool;
-#endif
+  ngx_thread_pool_t *waf_pool{nullptr};
 };
 
 }  // namespace nginx

@@ -320,7 +320,7 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
       waf_thread_pool_name,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, waf_thread_pool_name),
+      offsetof(datadog_loc_conf_t, waf_pool),
       NULL
     },
 
@@ -917,8 +917,6 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
       prev->allow_sampling_delegation_in_subrequests_directive;
 
 #ifdef WITH_WAF
-  ngx_conf_merge_str_value(conf->waf_thread_pool_name,
-                           prev->waf_thread_pool_name, "");
   if (conf->waf_pool == nullptr) {
     conf->waf_pool = prev->waf_pool;
   }

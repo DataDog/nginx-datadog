@@ -323,6 +323,9 @@ bool Context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
       ngx_http_get_module_loc_conf(&request, ngx_http_datadog_module));
 
   if (conf->waf_pool == nullptr) {
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                  "no waf pool name defined for this location (uri: %V)",
+                  &request.uri);
     return false;
   }
 
