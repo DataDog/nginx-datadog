@@ -9,17 +9,12 @@ BUILD_TYPE ?= RelWithDebInfo
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-    LIB_SUFFIX = .dylib
-else
-    LIB_SUFFIX = .so
-endif
 
 .PHONY: build
 build: build-deps nginx-version-info sources
         # -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(PWD)/nginx -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_VERSION=$(NGINX_VERSION) -DBUILD_TESTING=OFF . && cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
-	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module$(LIB_SUFFIX)
+	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
 
 .PHONY: sources

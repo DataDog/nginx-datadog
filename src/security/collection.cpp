@@ -314,12 +314,7 @@ class ReqSerializer {
 
   void set_client_ip(const ngx_http_request_t &request,
                      dnsec::ddwaf_obj &slot) {
-    auto &&cih = dnsec::Library::custom_ip_header();
-    std::optional<dnsec::ClientIp::HashedStringView> hsh{};
-    if (cih) {
-      hsh = {cih->str, cih->hash};
-    }
-    dnsec::ClientIp client_ip{hsh, request};
+    dnsec::ClientIp client_ip{dnsec::Library::custom_ip_header(), request};
     std::optional<std::string> cl_ip = client_ip.resolve();
 
     slot.set_key(kClientIp);

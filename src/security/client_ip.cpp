@@ -518,14 +518,14 @@ std::optional<IpAddr> parse_ip_address_maybe_port_pair(
 
 namespace datadog::nginx::security {
 
-ClientIp::ClientIp(std::optional<ClientIp::HashedStringView> configured_header,
+ClientIp::ClientIp(std::optional<HashedStringView> configured_header,
                    const ngx_http_request_t &request)
     : configured_header_{configured_header}, request_{request} {}
 
 std::optional<std::string> ClientIp::resolve() const {
   if (configured_header_) {
     std::optional<ngx_table_elt_t> maybe_header =
-        get_request_header(request_.headers_in.headers, configured_header_->sv,
+        get_request_header(request_.headers_in.headers, configured_header_->str,
                            configured_header_->hash);
 
     if (!maybe_header) {

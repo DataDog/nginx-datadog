@@ -507,6 +507,24 @@ class Orchestration:
                 return log_lines
             log_lines.append(line)
 
+    def wait_for_log_message(self, service, regex, timeout_secs=1):
+        """Wait for a log message to appear in the logs of a service.
+
+        Poll the log queue of the specified `service` until a log line matches
+        the specified `regex`.  Return the log line.  Raise an `Exception` if
+        the `timeout_secs` elapses before the log line appears.
+        """
+        deadline = time.monotonic() + timeout_secs
+        q = self.logs[service]
+        while True:
+            if time.monotonic() > deadline:
+                raise Exception(
+                    f'Timeout of {timeout_secs} seconds exceeded while waiting for log message matching {regex}.'
+                )
+            line = q.get()
+            if re.search(regex, line):
+                return line
+
     def sync_nginx_access_log(self):
         """Send a sync request to nginx and wait until the corresponding access
         log line appears in the output of nginx.  Return the interim log lines

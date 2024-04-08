@@ -10,14 +10,11 @@ extern "C" {
 #include <string>
 #include <string_view>
 
+#include "library.h"
+
 namespace datadog::nginx::security {
 class ClientIp {
  public:
-  struct HashedStringView {
-    std::string_view sv;
-    ngx_uint_t hash;
-  };
-
   ClientIp(std::optional<HashedStringView> configured_header,
            const ngx_http_request_t &request);
 

@@ -36,6 +36,10 @@ namespace dnsec = datadog::nginx::security;
 
 namespace {
 
+static constexpr auto kDefaultKeyRegex =
+    "(?i)(p(ass)?w(or)?d|pass(_?phrase)?|secret|(api_?|private_?|public_?)key)|"
+    "token|consumer_?(id|key|secret)|sign(ed|ature)|bearer|authorization"sv;
+
 static constexpr ddwaf_config kBaseWafConfig{
     .limits =
         {
@@ -43,6 +47,10 @@ static constexpr ddwaf_config kBaseWafConfig{
             .max_container_depth = 10,
             .max_string_length = 4096,
         },
+    .obfuscator = {
+      .key_regex = kDefaultKeyRegex.data(),
+      .value_regex = nullptr,
+    },
     .free_fn = nullptr,
 };
 
@@ -513,13 +521,14 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
                    ngx_log_level_to_ddwaf(ngx_cycle->log->log_level));
 
   ddwaf_config waf_config = kBaseWafConfig;
-  waf_config.obfuscator.key_regex = conf.obfuscation_key_regex()
-                                        ? conf.obfuscation_key_regex()->data()
-                                        : nullptr;
-  waf_config.obfuscator.value_regex =
-      conf.appsec_obfuscation_value_regex()
-          ? conf.appsec_obfuscation_value_regex()->data()
-          : nullptr;
+  if (conf.obfuscation_key_regex()) {
+    waf_config.obfuscator.key_regex = conf.obfuscation_key_regex()->data();
+  }
+
+  if (conf.appsec_obfuscation_value_regex()) {
+    waf_config.obfuscator.value_regex =
+        conf.appsec_obfuscation_value_regex()->data();
+  }
 
   ddwaf_owned_map ruleset = read_ruleset(conf.ruleset_file());
   libddwaf_ddwaf_owned_obj<ddwaf_map_obj> diag{{}};

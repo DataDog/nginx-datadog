@@ -103,11 +103,13 @@ class NginxListIter {
         index_{index} {}
 
  public:
+  // NOLINTBEGIN(readability-identifier-naming)
   using difference_type = void;
   using value_type = T;
   using pointer = T *;
   using reference = T &;
   using iterator_category = std::forward_iterator_tag;
+  // NOLINTEND(readability-identifier-naming)
 
   explicit NginxListIter(const ngx_list_t &list)
       : NginxListIter{&list.part, 0} {}
@@ -117,7 +119,7 @@ class NginxListIter {
   }
 
   bool operator==(const NginxListIter &other) const {
-    return !(*this == other);
+    return !(*this != other);
   }
 
   NginxListIter &operator++() {

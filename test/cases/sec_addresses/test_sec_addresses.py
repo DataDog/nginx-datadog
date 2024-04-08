@@ -424,3 +424,12 @@ class TestSecAddresses(case.TestCase):
         self.assertEqual(
             result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
             '1.2.3.4')
+
+    def test_obfuscation_default(self):
+        result = self.do_request_query('password=matched+value')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            '<Redacted>')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['highlight'][0],
+            '<Redacted>')
