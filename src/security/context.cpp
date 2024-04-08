@@ -140,10 +140,13 @@ void ddwaf_object_to_json(JsonWriter &w, const ddwaf_object &dobj) {
   }
 }
 
-template <typename Callable,
-          typename Ret = decltype(std::declval<Callable>()())>
+template <
+    typename Callable, typename Ret = decltype(std::declval<Callable>()()),
+    typename DefType =  // can't have void arguments. Have a dummy parameter for
+                        // this case to avoid having to write a specialization
+    std::conditional_t<std::is_same_v<Ret, void>, std::nullptr_t, Ret>>
 auto catch_exceptions(std::string_view name, const ngx_http_request_t &req,
-                      Callable &&f, Ret err_ret = {}) noexcept {
+                      Callable &&f, DefType err_ret = {}) noexcept -> Ret {
   try {
     return std::invoke(std::forward<Callable>(f));
   } catch (const std::exception &e) {
@@ -501,11 +504,12 @@ std::optional<BlockSpecification> Context::run_waf_start(
   return block_spec;
 }
 
-ngx_int_t Context::output_header_filter(ngx_http_request_t &request,
-                                        dd::Span &span) noexcept {
+ngx_int_t Context::output_body_filter(ngx_http_request_t &request,
+                                      ngx_chain_t *chain,
+                                      dd::Span &span) noexcept {
   return catch_exceptions(
-      "output_header_filter"sv, request,
-      [&]() { return Context::do_output_header_filter(request, span); },
+      "output_body_filter"sv, request,
+      [&]() { return Context::do_output_body_filter(request, chain, span); },
       static_cast<ngx_int_t>(NGX_ERROR));
 }
 
@@ -524,11 +528,11 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
   friend PolTaskCtx;
 };
 
-ngx_int_t Context::do_output_header_filter(ngx_http_request_t &request,
-                                           dd::Span &span) {
+ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
+                                         ngx_chain_t *chain, dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
   if (st != stage::AFTER_BEGIN_WAF) {
-    return ngx_http_next_output_header_filter(&request);
+    return ngx_http_next_output_body_filter(&request, chain);
   }
 
   PolFinalWafCtx &task_ctx = PolFinalWafCtx::create(request, *this, span);
@@ -538,6 +542,8 @@ ngx_int_t Context::do_output_header_filter(ngx_http_request_t &request,
 
   // so the request isn't freed after the filter
   request.count++;
+
+  stage_->store(stage::BEFORE_RUN_WAF_END, std::memory_order_release);
 
   if (ngx_thread_task_post(conf->waf_pool, &task_ctx.get_task()) != NGX_OK) {
     // log error
@@ -566,11 +572,16 @@ ngx_int_t Context::do_output_header_filter(ngx_http_request_t &request,
 
   ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
                 "posted waf end task");
-  return ngx_http_next_output_header_filter(&request);
+  return ngx_http_next_output_body_filter(&request, chain);
 }
 
 std::optional<BlockSpecification> Context::run_waf_end(
     ngx_http_request_t &request, dd::Span &span) {
+  auto st = stage_->load(std::memory_order_acquire);
+  if (st != stage::BEFORE_RUN_WAF_END) {
+    return std::nullopt;
+  }
+
   ddwaf_object *resp_data = collect_response_data(request, memres_);
 
   ddwaf_result result;

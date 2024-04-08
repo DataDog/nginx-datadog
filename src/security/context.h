@@ -56,8 +56,8 @@ class Context {
   static std::unique_ptr<Context> maybe_create();
 
   bool on_request_start(ngx_http_request_t &request, dd::Span &span) noexcept;
-  ngx_int_t output_header_filter(ngx_http_request_t &request,
-                                 dd::Span &span) noexcept;
+  ngx_int_t output_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
+                               dd::Span &span) noexcept;
 
   // runs on a separate thread; returns whether it blocked
   std::optional<BlockSpecification> run_waf_start(ngx_http_request_t &request,
@@ -67,8 +67,8 @@ class Context {
 
  private:
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
-  ngx_int_t do_output_header_filter(ngx_http_request_t &request,
-                                    dd::Span &span);
+  ngx_int_t do_output_body_filter(ngx_http_request_t &request,
+                                  ngx_chain_t *chain, dd::Span &span);
 
   std::shared_ptr<WafHandle> waf_handle_;
   std::vector<OwnedDdwafResult> results_;
@@ -80,6 +80,7 @@ class Context {
     START,
     AFTER_BEGIN_WAF,
     AFTER_BEGIN_WAF_BLOCK,  // in this case we won't run the waf at the end
+    BEFORE_RUN_WAF_END,
     AFTER_REPORT,
   };
   std::unique_ptr<std::atomic<stage>> stage_;

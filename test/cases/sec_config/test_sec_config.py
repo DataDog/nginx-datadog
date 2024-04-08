@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from .. import case
@@ -10,6 +11,25 @@ class TestSecConfig(case.TestCase):
         status, log_lines = self.orch.nginx_replace_config(
             conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
+
+    @staticmethod
+    def safe_json_loads(line):
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            return None
+
+    def get_appsec_data(self):
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        entries = [entry for entry in (TestSecConfig.safe_json_loads(line) for line in log_lines) if entry is not None]
+        # find _dd.appsec.json in one of the spans of the traces
+        for entry in entries:
+            for trace in entry:
+                for span in trace:
+                    if span.get('meta', {}).get('_dd.appsec.json'):
+                        return json.loads(span['meta']['_dd.appsec.json'])
+        self.failureException('No _dd.appsec.json found in traces')
 
     def test_custom_templates(self):
         templ_json_path = Path(__file__).parent / './conf/templ.json'
@@ -78,4 +98,28 @@ class TestSecConfig(case.TestCase):
         headers = {'User-Agent': 'dd-test-scanner-log-block'}
         status, _, _ = self.orch.send_nginx_http_request('/unmonitored/index.html', 80, headers)
         self.assertEqual(status, 200)
+
+    def test_custom_obfuscation(self):
+        waf_path = Path(__file__).parent / './conf/waf.json'
+        waf_text = waf_path.read_text()
+        self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
+
+        self.apply_config('custom_obfuscation')
+
+        # Redaction by key
+        # datadog_appsec_obfuscation_key_regex my.special.key;
+        status, _, _ = self.orch.send_nginx_http_request('/http/?my_special_key=matched+value', 80)
+        appsec_data = self.get_appsec_data()
+        self.assertEqual(
+            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            '<Redacted>')
+
+        # Redaction by value
+        # datadog_appsec_obfuscation_value_regex \Az.*;
+        status, _, _ = self.orch.send_nginx_http_request('/http/?the+key=z_matched+value', 80)
+        appsec_data = self.get_appsec_data()
+        self.assertEqual(
+            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            '<Redacted>')
+
 

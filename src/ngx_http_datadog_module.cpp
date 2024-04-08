@@ -492,8 +492,8 @@ static ngx_int_t datadog_master_process_post_config(
   }
 
 #ifdef WITH_WAF
-  ngx_http_next_output_header_filter = ngx_http_top_header_filter;
-  ngx_http_top_header_filter = output_header_filter;
+  ngx_http_next_output_body_filter = ngx_http_top_body_filter;
+  ngx_http_top_body_filter = output_body_filter;
 #endif
 
   // Forward tracer-specific environment variables to worker processes.

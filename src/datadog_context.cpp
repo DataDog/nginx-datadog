@@ -54,20 +54,20 @@ bool DatadogContext::on_main_req_access(ngx_http_request_t *request) {
 #endif
 
 #ifdef WITH_WAF
-ngx_int_t DatadogContext::main_output_header_filter(
-    ngx_http_request_t *request) {
+ngx_int_t DatadogContext::main_output_body_filter(ngx_http_request_t *request,
+                                                  ngx_chain_t *chain) {
   if (!sec_ctx_) {
-    return ngx_http_next_output_header_filter(request);
+    return ngx_http_next_output_body_filter(request, chain);
   }
 
   auto *trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
-        "main_output_header_filter: could not find request trace"};
+        "main_output_bodyf_filter: could not find request trace"};
   }
 
   dd::Span &span = trace->active_span();
-  return sec_ctx_->output_header_filter(*request, span);
+  return sec_ctx_->output_body_filter(*request, chain, span);
 }
 #endif
 
