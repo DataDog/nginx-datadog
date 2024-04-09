@@ -297,7 +297,7 @@ def docker_compose_services():
     return result.stdout.split()
 
 
-def curl(url, headers, stderr=None, method='GET'):
+def curl(url, headers, stderr=None, method='GET', body=None):
 
     def header_args():
         if isinstance(headers, dict):
@@ -316,12 +316,19 @@ def curl(url, headers, stderr=None, method='GET'):
     # the "--write-out" option in curl's manual for more information on the
     # properties of the JSON object.
 
+    if body is None:
+        body_args = []
+    else:
+        # read data from stdin
+        body_args = ['--data-binary', '@-']
+
     # "-T" means "don't allocate a TTY".  This prevents `jq` from outputting in
     # color.
     command = docker_compose_command('exec', '-T', '--', 'client',
                                      'curljson.sh', f'-X{method}',
-                                     *header_args(), url)
+                                     *header_args(), *body_args, url)
     result = subprocess.run(command,
+                            input=body if body is not None else '',
                             stdout=subprocess.PIPE,
                             stderr=stderr,
                             env=child_env(),
@@ -457,6 +464,16 @@ class Orchestration:
                                      stderr=self.verbose,
                                      method=method)
         return (fields['response_code'], headers, body)
+
+    def setup_remote_config_payload(self, payload):
+        """Sets up the next remote config response"""
+        url = f'http://agent:8126/save_rem_cfg_resp'
+        print('posting', url, file=self.verbose, flush=True)
+        fields, headers, body = curl(url, {},
+                                     body=payload,
+                                     stderr=self.verbose,
+                                     method='POST')
+        return fields['response_code'], headers, body
 
     def send_nginx_grpc_request(self, symbol, port=1337):
         """Send an empty gRPC request to the nginx endpoint at "/", where

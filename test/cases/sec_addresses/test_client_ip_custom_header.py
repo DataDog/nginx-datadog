@@ -3,6 +3,7 @@ from pathlib import Path
 
 from .. import case
 
+
 class TestSecAddresses(case.TestCase):
     config_setup_done = False
 
@@ -14,7 +15,8 @@ class TestSecAddresses(case.TestCase):
             waf_text = waf_path.read_text()
             self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
 
-            conf_path = Path(__file__).parent / './conf/http_custom_header.conf'
+            conf_path = Path(
+                __file__).parent / './conf/http_custom_header.conf'
             conf_text = conf_path.read_text()
             status, log_lines = self.orch.nginx_replace_config(
                 conf_text, conf_path.name)
@@ -44,8 +46,8 @@ class TestSecAddresses(case.TestCase):
 
         appsec_data = self.get_appsec_data()
         self.assertEqual(
-            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
-            '1.2.3.4')
+            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]
+            ['value'], '1.2.3.4')
 
     def test_ipv4_from_custom_header_for_variant(self):
         headers = {'My-Header-IP': 'for=1.2.3.4'}
@@ -54,8 +56,8 @@ class TestSecAddresses(case.TestCase):
 
         appsec_data = self.get_appsec_data()
         self.assertEqual(
-            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
-            '1.2.3.4')
+            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]
+            ['value'], '1.2.3.4')
 
     def test_ipv4_from_custom_header_port_variant(self):
         headers = {'My-Header-IP': '1.2.3.4:1234'}
@@ -64,8 +66,8 @@ class TestSecAddresses(case.TestCase):
 
         appsec_data = self.get_appsec_data()
         self.assertEqual(
-            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
-            '1.2.3.4')
+            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]
+            ['value'], '1.2.3.4')
 
     def test_ipv6_from_custom_header(self):
         headers = {'My-Header-IP': 'fe80:00::1'}
@@ -74,8 +76,8 @@ class TestSecAddresses(case.TestCase):
 
         appsec_data = self.get_appsec_data()
         self.assertEqual(
-            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
-            'fe80::1')
+            appsec_data['triggers'][0]['rule_matches'][0]['parameters'][0]
+            ['value'], 'fe80::1')
 
     def test_other_headers_are_ignored(self):
         headers = {'x-real-ip': 'fe80:00::1'}

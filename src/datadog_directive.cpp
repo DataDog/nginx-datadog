@@ -1052,7 +1052,7 @@ char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
         "the name so it points to an existing thread pool or create a thread "
         "pool with such a name (using the 'thread_pool' directive)",
         value);
-    return static_cast<char*>(NGX_CONF_ERROR);
+    return static_cast<char *>(NGX_CONF_ERROR);
   }
 
   loc_conf->waf_pool = tp;

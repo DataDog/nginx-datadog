@@ -431,5 +431,5 @@ class TestSecAddresses(case.TestCase):
             result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
             '<Redacted>')
         self.assertEqual(
-            result['triggers'][0]['rule_matches'][0]['parameters'][0]['highlight'][0],
-            '<Redacted>')
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]
+            ['highlight'][0], '<Redacted>')

@@ -47,10 +47,11 @@ static constexpr ddwaf_config kBaseWafConfig{
             .max_container_depth = 10,
             .max_string_length = 4096,
         },
-    .obfuscator = {
-      .key_regex = kDefaultKeyRegex.data(),
-      .value_regex = nullptr,
-    },
+    .obfuscator =
+        {
+            .key_regex = kDefaultKeyRegex.data(),
+            .value_regex = nullptr,
+        },
     .free_fn = nullptr,
 };
 
