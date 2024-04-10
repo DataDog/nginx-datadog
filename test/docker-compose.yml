@@ -1,4 +1,3 @@
-version: "3.2"
 services:
 
   # `nginx` is the service that loads the Datadog module and is sent requests

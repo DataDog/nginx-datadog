@@ -117,6 +117,7 @@ struct datadog_main_conf_t {
   //  directive is not added more than once.
   bool is_sampling_delegation_response_header_added;
 
+#ifdef WITH_WAF
   // DD_APPSEC_ENABLED
   ngx_flag_t appsec_enabled{NGX_CONF_UNSET};
 
@@ -149,6 +150,7 @@ struct datadog_main_conf_t {
   // DD_TRACE_CLIENT_IP_ENABLED (client ip without appsec)
   // DD_APPSEC_WAF_METRICS
   // DD_APPSEC_REPORT_TIMEOUT
+#endif
 };
 
 struct datadog_sample_rate_condition_t {
