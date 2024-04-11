@@ -28,7 +28,7 @@ extern "C" {
 }
 
 extern "C" {
-INCBIN(char, RecommendedJson, "recommended.json");
+INCBIN(char, RecommendedJson, "security/recommended.json");
 }
 
 using namespace std::literals;
