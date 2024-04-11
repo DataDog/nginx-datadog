@@ -27,13 +27,15 @@ class TestCase(unittest.TestCase):
     def setUpClass(cls):
         super(TestCase, cls).setUpClass()
         waf_value = os.environ.get('WAF', 'OFF')
-        cls.should_skip = waf_value == 'OFF' or waf_value == 'FALSE' or waf_value == '0' or waf_value == 'N' or \
-                          waf_value == 'n' or waf_value == 'No' or waf_value == 'NO' or waf_value == ''
+        cls.waf_disabled = waf_value == 'OFF' or waf_value == 'FALSE' or waf_value == '0' or waf_value == 'N' or \
+                           waf_value == 'n' or waf_value == 'No' or waf_value == 'NO' or waf_value == ''
+
+    def requires_waf(self):
+        if self.waf_disabled:
+            self.skipTest("WAF is disabled")
 
     def setUp(self):
         context = self.orch_context = orchestration.singleton()
-        if self.should_skip:
-            self.skipTest("WAF is disabled")
         self.orch = context.__enter__()
         self.begin = time.monotonic()
 

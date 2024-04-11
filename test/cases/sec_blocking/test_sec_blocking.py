@@ -10,6 +10,7 @@ class TestSecBlocking(case.TestCase):
 
     def setUp(self):
         super().setUp()
+        self.requires_waf()
         # avoid reconfiguration (cuts time almost in half)
         if not TestSecBlocking.config_setup_done:
             waf_path = Path(__file__).parent / './conf/waf.json'

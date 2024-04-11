@@ -6,6 +6,10 @@ from .. import case
 
 class TestSecConfig(case.TestCase):
 
+    def setUp(self):
+        super().setUp()
+        self.requires_waf()
+
     def apply_config(self, conf_name):
         conf_path = Path(__file__).parent / f'./conf/http_{conf_name}.conf'
         conf_text = conf_path.read_text()

@@ -12,6 +12,7 @@ class TestSecRemoteConfig(case.TestCase):
 
     def setUp(self):
         super().setUp()
+        self.requires_waf()
         conf_path = Path(__file__).parent / f'./conf/http_default.conf'
         conf_text = conf_path.read_text()
         status, log_lines = self.orch.nginx_replace_config(

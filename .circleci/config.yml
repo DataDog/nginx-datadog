@@ -105,6 +105,7 @@ jobs:
     environment:
       # See https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
+      WAF: "ON"
     steps:
     - checkout
     - attach_workspace:
