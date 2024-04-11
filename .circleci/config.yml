@@ -62,6 +62,7 @@ jobs:
       # see:
       # https://circleci.com/docs/2.0/configuration-reference/
       MAKE_JOB_COUNT: 8
+      WAF: "ON"
     steps:
     - checkout
     - run: printf 'NGINX_VERSION=%s\n' << parameters.nginx-version >> >>nginx-version-info
@@ -76,6 +77,7 @@ jobs:
         root: .
         paths:
           - .build/ngx_http_datadog_module.so
+          - .build/_deps/libddwaf-src/lib/libddwaf.so
           - nginx-version-info
     - store_artifacts:
         path: .build/ngx_http_datadog_module.so
@@ -110,6 +112,7 @@ jobs:
     - run: mv /tmp/workspace/nginx-version-info .
     - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
     - run: mv /tmp/workspace/.build/ngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
+    - run: mv /tmp/workspace/.build/_deps/libddwaf-src/lib/libddwaf.so test/services/nginx/libddwaf.so
     - setup_remote_docker:
         # Cache docker layers somewhere so that we don't have to rebuild test
         # service images every time.
