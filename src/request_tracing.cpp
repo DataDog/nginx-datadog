@@ -14,7 +14,6 @@
 #include <utility>
 
 #include "array_util.h"
-#include "datadog_handler.h"
 #include "dd.h"
 #include "global_tracer.h"
 #include "ngx_header_reader.h"
@@ -296,7 +295,6 @@ void RequestTracing::on_exit_block(
 
 void RequestTracing::on_log_request() {
   auto finish_timestamp = std::chrono::steady_clock::now();
-
   on_exit_block(finish_timestamp);
 
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
