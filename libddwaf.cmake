@@ -2,6 +2,14 @@ set(LIBDDWAF_VERSION 1.16.0)
 if(DEFINED LIBDDWAF_CUSTOM_DIR)
     set(libddwaf_DIR ${LIBDDWAF_CUSTOM_DIR}/share/cmake/libddwaf)
 else()
+    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "")
+        # CMAKE_SYSTEM_PROCESSOR is populated with uname -p
+        # Something this prints "unknown"
+        execute_process(
+            COMMAND uname -m
+            OUTPUT_VARIABLE CMAKE_SYSTEM_PROCESSOR
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif()
     if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         if(CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64)
             set(LIBDDWAF_VARIANT x86_64-linux-musl)
