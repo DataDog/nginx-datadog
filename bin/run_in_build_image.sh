@@ -28,6 +28,7 @@ docker run \
     $interactive_flags \
     --rm \
     --env NGINX_VERSION=${NGINX_VERSION} \
+    --env WAF=${WAF} \
     --mount "type=bind,source=$(pwd),destination=/mnt/repo" \
     "$BUILD_IMAGE" \
     "$@"

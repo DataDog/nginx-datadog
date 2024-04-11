@@ -231,8 +231,8 @@ struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {
 
   template <typename T = ddwaf_obj>
   T &at_unchecked(nb_entries_t index) const {
-    static_assert(std::is_base_of<ddwaf_obj, T>::value,
-                  "T must be a subclass of ddwaf_obj");
+    static_assert(std::is_base_of<ddwaf_object, T>::value,
+                  "T must be a subclass of ddwaf_object");
     return *reinterpret_cast<T *>(&array[index]);  // NOLINT
   }
 
@@ -376,6 +376,6 @@ ddwaf_owned_obj<T> ddwaf_obj_clone(const T &obj) {
 
   impl::deep_copy(clone.memres(), clone.get(), obj);
 
-  return std::move(clone);
+  return clone;
 }
 }  // namespace datadog::nginx::security

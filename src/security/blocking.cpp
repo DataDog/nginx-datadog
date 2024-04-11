@@ -49,11 +49,12 @@ struct BlockResponse {
       case dnsec::BlockSpecification::ContentType::HTML:
         ct = ContentType::HTML;
         break;
-      case dnsec::BlockSpecification::ContentType::JSON:
-        ct = ContentType::JSON;
-        break;
       case dnsec::BlockSpecification::ContentType::NONE:
         ct = ContentType::NONE;
+        break;
+      case dnsec::BlockSpecification::ContentType::JSON:
+      default:
+        ct = ContentType::JSON;
         break;
     }
 

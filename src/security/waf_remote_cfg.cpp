@@ -234,7 +234,7 @@ class CollectedAsmData {
       std::size_t k = 0;
       for (dnsec::ddwaf_map_obj &obj : vec) {
         dnsec::ddwaf_arr_obj cur_data = obj.get<dnsec::ddwaf_arr_obj>("data"sv);
-        std::memcpy(&merged_data.at_unchecked(k), cur_data.array,
+        std::memcpy(&merged_data.at_unchecked<ddwaf_object>(k), cur_data.array,
                     cur_data.size() * sizeof(dnsec::ddwaf_obj));
         k += cur_data.size();
       }

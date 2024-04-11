@@ -5,11 +5,12 @@ BUILD_TYPE ?= RelWithDebInfo
 WAF ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
+NGINX_SRC_DIR ?= $(PWD)/nginx
 
 .PHONY: build
 build: build-deps sources
 	# -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
-	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(PWD)/nginx -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) . \
+	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(NGINX_SRC_DIR) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) . \
 		&& cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
 	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
@@ -60,8 +61,13 @@ clobber: clean
 	    nginx
 
 .PHONY: build-in-docker
+# docker build cannot use nginx already checked out because it likely was
+# configured already on the host
 build-in-docker:
-	bin/run_in_build_image.sh make BUILD_DIR=.docker-build build
+ifndef NGINX_VERSION
+	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
+endif
+	bin/run_in_build_image.sh make NGINX_SRC_DIR= BUILD_DIR=.docker-build build
 
 .PHONY: test
 test: build-in-docker

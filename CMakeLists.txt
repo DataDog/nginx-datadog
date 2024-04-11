@@ -85,7 +85,8 @@ if(NGINX_DATADOG_ASM_ENABLED)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(ngx_http_datadog_module PRIVATE -Wall -pedantic -Werror)
+  target_compile_options(ngx_http_datadog_module PRIVATE -Wall -pedantic -Werror
+    -Wno-c++20-extensions)
 endif()
 
 

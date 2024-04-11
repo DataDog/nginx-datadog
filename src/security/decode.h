@@ -141,7 +141,7 @@ struct QueryStringIter {
           break;
         case state::percent1:
           if (std::isxdigit(*r)) {
-            unsigned result;
+            unsigned result{};
             // can't fail
             std::from_chars(reinterpret_cast<const char *>(r - 1),
                             reinterpret_cast<const char *>(r + 1), result, 16);
