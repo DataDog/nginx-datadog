@@ -83,7 +83,7 @@ auto read_rule_file(std::string_view filename) -> dnsec::ddwaf_owned_map {
   rule_file.seekg(0, std::ios::beg);
 
   auto buffer_size = buffer.size();
-  if (buffer_size > static_cast<typeof(buffer_size)>(
+  if (buffer_size > static_cast<decltype(buffer_size)>(
                         std::numeric_limits<std::streamsize>::max())) {
     throw std::runtime_error{"rule file is too large"};
   }

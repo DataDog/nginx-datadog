@@ -499,9 +499,8 @@ class AsmFeaturesListener : public rc::ProductListener {
   };
 
  public:
-  AsmFeaturesListener(CurrentAppSecConfig &cur_appsec_cfg)
-      : rc::ProductListener{rc::Product::KnownProducts::ASM_FEATURES},
-        cur_appsec_cfg_{cur_appsec_cfg} {}
+  AsmFeaturesListener()
+      : rc::ProductListener{rc::Product::KnownProducts::ASM_FEATURES} {}
 
   void on_config_update(const rc::ParsedConfigKey &key,
                         const std::string &content,
@@ -528,9 +527,6 @@ class AsmFeaturesListener : public rc::ProductListener {
   rc::CapabilitiesSet capabilities() const override {
     return rc::Capability::ASM_ACTIVATION;
   };
-
- private:
-  CurrentAppSecConfig &cur_appsec_cfg_;
 };
 
 class AsmDDListener : public rc::ProductListener {
@@ -735,8 +731,7 @@ class AppSecConfigService {
  private:
   void subscribe_activation(datadog::tracing::DatadogAgentConfig &ddac) {
     // ASM_FEATURES
-    ddac.rem_cfg_listeners.emplace_back(
-        new AsmFeaturesListener(current_config_));
+    ddac.rem_cfg_listeners.emplace_back(new AsmFeaturesListener());
   }
 
   void subscribe_rules_and_data(datadog::tracing::DatadogAgentConfig &ddac) {

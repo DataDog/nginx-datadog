@@ -302,8 +302,8 @@ struct ddwaf_map_obj : ddwaf_obj {
 
 template <typename T = ddwaf_obj>
 class ddwaf_owned_obj {  // NOLINT(readability-identifier-naming)
-  DdwafMemres memres_;
   T obj_;
+  DdwafMemres memres_;
 
  public:
   ddwaf_owned_obj() : obj_{} {}

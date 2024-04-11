@@ -27,7 +27,7 @@ struct QueryStringIter {
 
   QueryStringIter(std::string_view qs, DdwafMemres &memres,
                   unsigned char separator, trim_mode trim)
-      : qs{qs}, memres{memres}, separator{separator}, trim{trim} {}
+      : trim{trim}, qs{qs}, memres{memres}, separator{separator} {}
 
   QueryStringIter(const ngx_str_t &qs, DdwafMemres &memres,
                   unsigned char separator, trim_mode trim)

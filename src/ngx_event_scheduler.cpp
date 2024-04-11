@@ -24,7 +24,7 @@ extern "C" void handle_event(ngx_event_t *ev) {
 
 NgxEventScheduler::Event::Event(std::function<void()> callback,
                                 std::chrono::steady_clock::duration interval)
-    : callback(callback), interval(interval), event() {
+    : interval(interval), callback(callback), event() {
   event.data = this;
   event.log = ngx_cycle->log;
   event.handler = &handle_event;

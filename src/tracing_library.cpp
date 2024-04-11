@@ -25,18 +25,6 @@
 
 namespace datadog {
 namespace nginx {
-namespace {
-
-const std::string_view DEFAULT_CONFIG = R"json({"service": "nginx"})json";
-
-std::string_view or_default(std::string_view config_json) {
-  if (config_json.empty()) {
-    return DEFAULT_CONFIG;
-  }
-  return config_json;
-}
-
-}  // namespace
 
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
     const datadog_main_conf_t &nginx_conf, std::shared_ptr<dd::Logger> logger) {

@@ -448,7 +448,7 @@ static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
   ngx_core_conf_t *ccf =
       (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
-  ngx_str_t *value, *var;
+  ngx_str_t *var;
   ngx_uint_t i;
 
   var = (ngx_str_t *)ngx_array_push(&ccf->env);
@@ -592,12 +592,6 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_ERROR;
   }
 
-  if (main_conf->appsec_enabled) {
-    auto &file = main_conf->appsec_ruleset_file;
-    auto file_sv =
-        std::string_view{reinterpret_cast<char *>(file.data), file.len};
-  }
-
   reset_global_tracer(std::move(*maybe_tracer));
   return NGX_OK;
 } catch (const std::exception &e) {
@@ -717,16 +711,6 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
     return nullptr;  // error
   }
   return main_conf;
-}
-
-static void examine_conf_args(ngx_conf_t *conf) noexcept {
-  if (conf->args == nullptr) {
-    return;
-  }
-
-  if (conf->args->nelts >= 1) {
-    const auto str = static_cast<const ngx_str_t *>(conf->args->elts);
-  }
 }
 
 static bool is_server_block_begin(const ngx_conf_t *conf) {

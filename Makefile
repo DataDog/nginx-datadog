@@ -1,24 +1,21 @@
 .DELETE_ON_ERROR:
 
-ifndef NGINX_VERSION
-	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
-endif
-
 BUILD_DIR ?= .build
 BUILD_TYPE ?= RelWithDebInfo
+WAF ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
-UNAME_S := $(shell uname -s)
 
 .PHONY: build
-build: build-deps nginx-version-info sources
-        # -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
-	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(PWD)/nginx -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_VERSION=$(NGINX_VERSION) -DBUILD_TESTING=OFF . && cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
+build: build-deps sources
+	# -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
+	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(PWD)/nginx -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) . \
+		&& cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
 	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
 
 .PHONY: sources
-sources: dd-trace-cpp/.git
+sources: dd-trace-cpp/.git nginx/
 
 .PHONY: build-deps
 build-deps: sources dd-trace-cpp-deps
@@ -28,6 +25,16 @@ dd-trace-cpp/.git:
 
 .PHONY: dd-trace-cpp-deps
 dd-trace-cpp-deps: dd-trace-cpp/.git
+
+nginx/:
+ifndef NGINX_VERSION
+	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
+endif
+	rm -rf nginx && \
+	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
+		mkdir nginx && \
+		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
+		rm nginx.tar.gz
 
 dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 

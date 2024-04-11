@@ -203,8 +203,8 @@ struct ExtractResult {
   static inline ExtractResult failure() { return {false}; }
 
   bool operator==(const ExtractResult &other) {
-    return success && other.success && is_private == other.is_private ||
-           !success && !other.success;
+    return (success && other.success && is_private == other.is_private) ||
+           (!success && !other.success);
   }
 };
 

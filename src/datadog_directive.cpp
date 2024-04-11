@@ -71,11 +71,6 @@ char *hijack_pass_directive(char *(*inject_propagation_commands)(
   return static_cast<char *>(NGX_CONF_ERROR);
 }
 
-// An empty configuration instructs the member functions of `TracingLibrary` to
-// substitute a default configuration instead of interpreting the string as a
-// JSON encoded configuration.
-const std::string_view TRACER_CONF_DEFAULT;
-
 // Mark the place in the specified `conf` (at the current `command`) where
 // the Datadog tracer's propagation styles were decided. This might happen
 // explicitly when the `datadog_propagation_styles` configuration directive is
