@@ -47,7 +47,7 @@ class TestSecBlocking(case.TestCase):
         self.assertEqual(headers['content-type'], 'application/json')
         self.assertRegex(body, r'"title": "You\'ve been blocked')
 
-        traces = [json.loads(line) for line in log_lines]
+        traces = [json.loads(line) for line in log_lines if line.startswith('[[{')]
 
         def predicate(x):
             return x[0][0]['meta'].get('appsec.blocked') == 'true'

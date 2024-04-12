@@ -463,7 +463,7 @@ class Orchestration:
                                      headers,
                                      stderr=self.verbose,
                                      method=method)
-        return (fields['response_code'], headers, body)
+        return fields['response_code'], headers, body
 
     def setup_remote_config_payload(self, payload):
         """Sets up the next remote config response"""

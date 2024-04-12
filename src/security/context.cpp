@@ -78,9 +78,8 @@ void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
 
   w.StartArray();
   for (auto &&result : results) {
-    auto &&events = (*result).events;
-    for (std::size_t i = 0; i < events.nbEntries; i++) {
-      auto &&evt = events.array[i];
+    auto events = dnsec::ddwaf_arr_obj{(*result).events};
+    for (auto &&evt : events) {
       ddwaf_object_to_json(w, evt);
     }
   }
@@ -522,6 +521,11 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
 
   void complete() noexcept {
     ran_on_thread_.load(std::memory_order_acquire);
+    // It's probably not necessary, but do this report here on the main thread
+    // rather than at the end of run_waf_end, just in case the main thread
+    // somehow concurrently with run_waf_end writes span data on this span of
+    // the main request (say, as a result of processing some subrequest)
+    ctx_.report_matches(req_, span_);
     ngx_http_finalize_request(&req_, NGX_DONE);
   }
 
@@ -550,6 +554,10 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
     ngx_log_error(NGX_LOG_ERR, request.connection->log, 0,
                   "failed to post waf task");
     task_ctx.~PolFinalWafCtx();
+
+    // we're not having an opportunity in the future
+    report_matches(request, span);
+
     return NGX_ERROR;
   }
 
@@ -593,15 +601,19 @@ std::optional<BlockSpecification> Context::run_waf_end(
     ddwaf_result_free(&result);
   }
 
-  if (!results_.empty()) {
-    auto &span_data = get_span_data(span);
-    report_match(request, span.trace_segment(), span_data, results_);
-    results_.clear();
-  }
-
-  stage_->store(stage::AFTER_REPORT, std::memory_order_release);
+  stage_->store(stage::AFTER_RUN_WAF_END, std::memory_order_release);
 
   return std::nullopt;  // we don't support blocking in the final waf run
+}
+
+void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
+  if (results_.empty()) {
+    return;
+  }
+
+  auto &span_data = get_span_data(span);
+  report_match(request, span.trace_segment(), span_data, results_);
+  results_.clear();
 }
 
 }  // namespace datadog::nginx::security

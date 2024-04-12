@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from .. import case
+from .. import case, formats
 
 
 class TestSecConfig(case.TestCase):
@@ -17,18 +17,11 @@ class TestSecConfig(case.TestCase):
             conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
-    @staticmethod
-    def safe_json_loads(line):
-        try:
-            return json.loads(line)
-        except json.JSONDecodeError:
-            return None
-
     def get_appsec_data(self):
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service('agent')
         entries = [
-            entry for entry in (TestSecConfig.safe_json_loads(line)
+            entry for entry in (formats.parse_trace(line)
                                 for line in log_lines) if entry is not None
         ]
         # find _dd.appsec.json in one of the spans of the traces

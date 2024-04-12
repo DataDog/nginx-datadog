@@ -59,6 +59,8 @@ class Context {
   ngx_int_t output_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
                                dd::Span &span) noexcept;
 
+  void report_matches(ngx_http_request_t &request, dd::Span &span);
+
   // runs on a separate thread; returns whether it blocked
   std::optional<BlockSpecification> run_waf_start(ngx_http_request_t &request,
                                                   dd::Span &span);
@@ -81,7 +83,7 @@ class Context {
     AFTER_BEGIN_WAF,
     AFTER_BEGIN_WAF_BLOCK,  // in this case we won't run the waf at the end
     BEFORE_RUN_WAF_END,
-    AFTER_REPORT,
+    AFTER_RUN_WAF_END,
   };
   std::unique_ptr<std::atomic<stage>> stage_;
 };

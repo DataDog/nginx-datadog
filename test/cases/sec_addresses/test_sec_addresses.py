@@ -54,9 +54,9 @@ class TestSecAddresses(case.TestCase):
         return self.do_request_common()
 
     def do_request_common(self):
-        self.orch.reload_nginx()
+        self.orch.reload_nginx()  # waits for workers to finish; force traces to be sent
         log_lines = self.orch.sync_service('agent')
-        entries = [json.loads(line) for line in log_lines]
+        entries = [json.loads(line) for line in log_lines if line.startswith('[[{')]
         # find _dd.appsec.json in one of the spans of the traces
         for entry in entries:
             for trace in entry:
