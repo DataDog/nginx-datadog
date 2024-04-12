@@ -538,9 +538,12 @@ class Orchestration:
                 raise Exception(
                     f'Timeout of {timeout_secs} seconds exceeded while waiting for log message matching {regex}.'
                 )
-            line = q.get()
-            if re.search(regex, line):
-                return line
+            try:
+                line = q.get_nowait()
+                if re.search(regex, line):
+                    return line
+            except queue.Empty:
+                pass
 
     def sync_nginx_access_log(self):
         """Send a sync request to nginx and wait until the corresponding access
