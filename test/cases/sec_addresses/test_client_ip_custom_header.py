@@ -31,7 +31,9 @@ class TestSecAddresses(case.TestCase):
     def get_appsec_data(self):
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service('agent')
-        entries = [json.loads(line) for line in log_lines if line.startswith('[[{')]
+        entries = [
+            json.loads(line) for line in log_lines if line.startswith('[[{')
+        ]
         # find _dd.appsec.json in one of the spans of the traces
         for entry in entries:
             for trace in entry:
