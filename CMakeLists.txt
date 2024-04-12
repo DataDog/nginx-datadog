@@ -86,7 +86,7 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(ngx_http_datadog_module PRIVATE -Wall -Werror
-    -Wno-c++20-extensions)
+    -Wno-c++20-extensions -Wno-error=maybe-uninitialized)
 endif()
 
 
