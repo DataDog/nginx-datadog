@@ -4,14 +4,17 @@ from pathlib import Path
 from .. import case
 
 
-class TestSecAddresses(case.TestCase):
+class TestClientIpCustomHeader(case.TestCase):
     config_setup_done = False
 
     def setUp(self):
         super().setUp()
         self.requires_waf()
+        if self.waf_disabled:
+            return
+
         # avoid reconfiguration (cuts time almost in half)
-        if not TestSecAddresses.config_setup_done:
+        if not TestClientIpCustomHeader.config_setup_done:
             waf_path = Path(__file__).parent / './conf/waf.json'
             waf_text = waf_path.read_text()
             self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
@@ -23,7 +26,7 @@ class TestSecAddresses(case.TestCase):
                 conf_text, conf_path.name)
             self.assertEqual(0, status, log_lines)
 
-            TestSecAddresses.config_setup_done = True
+            TestClientIpCustomHeader.config_setup_done = True
 
         # Consume any previous logging from the agent.
         self.orch.sync_service('agent')

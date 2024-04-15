@@ -578,6 +578,9 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
       security::register_default_config(std::move(*initial_waf_cfg), logger);
     }
   } catch (const std::exception &e) {
+    if (cycle->log->log_level < NGX_LOG_ERR) {
+      std::terminate();
+    }
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Initialising security library failed: %s", e.what());
     return NGX_ERROR;
