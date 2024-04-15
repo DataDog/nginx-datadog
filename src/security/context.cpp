@@ -2,6 +2,7 @@
 
 #include <ngx_core.h>
 #include <ngx_http_core_module.h>
+#include <ngx_log.h>
 
 #include <atomic>
 #include <charconv>
@@ -59,17 +60,14 @@ class JsonWriter : public rapidjson::Writer<rapidjson::StringBuffer> {
 void ddwaf_object_to_json(JsonWriter &w, const ddwaf_object &dobj);
 
 void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
-                  dd::SpanData &span,
+                  dd::Span &span,
                   std::vector<dnsec::OwnedDdwafResult> &results) {
-  static constexpr std::string_view appsec_event{"appsec.event"};
-  static constexpr std::string_view appsec_json{"_dd.appsec.json"};
-
   if (results.empty()) {
     return;
   }
 
   seg.override_sampling_priority(2);  // USER-KEEP
-  span.tags[std::string{appsec_event}] = "true";
+  span.set_tag("appsec.event"sv, "true");
 
   rapidjson::StringBuffer buffer;
   JsonWriter w(buffer);
@@ -91,10 +89,10 @@ void report_match(const ngx_http_request_t &req, dd::TraceSegment &seg,
   std::string_view const json{buffer.GetString(), buffer.GetLength()};
 
   ngx_str_t json_ns{dnsec::ngx_stringv(json)};
-  ngx_log_error(NGX_LOG_WARN, req.connection->log, 0, "appsec event: %V",
+  ngx_log_error(NGX_LOG_NOTICE, req.connection->log, 0, "appsec event: %V",
                 &json_ns);
 
-  span.tags[std::string{appsec_json}] = json;
+  span.set_tag("_dd.appsec.json"sv, json);
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
@@ -160,17 +158,6 @@ auto catch_exceptions(std::string_view name, const ngx_http_request_t &req,
   if constexpr (!std::is_same_v<Ret, void>) {
     return err_ret;
   }
-}
-
-dd::SpanData &get_span_data(dd::Span &s) {
-  auto *p =  // NOLINTNEXTLINE
-      reinterpret_cast<char *>(&s) + sizeof(std::shared_ptr<dd::TraceSegment>);
-  dd::SpanData *span_data;
-  std::memcpy(&span_data, p, sizeof(span_data));
-  if (span_data == nullptr) {
-    throw std::runtime_error("get_span_data failed: could not find span data");
-  }
-  return *span_data;
 }
 }  // namespace
 
@@ -472,9 +459,7 @@ std::optional<BlockSpecification> Context::run_waf_start(
     return std::nullopt;
   }
 
-  dd::SpanData &span_data = get_span_data(span);
-
-  span_data.numeric_tags.insert_or_assign("_dd.appsec.enabled", 1.0);
+  span.set_metric("_dd.appsec.enabled"sv, 1.0);
 
   ddwaf_object *data = collect_request_data(req, memres_);
 
@@ -611,8 +596,7 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
     return;
   }
 
-  auto &span_data = get_span_data(span);
-  report_match(request, span.trace_segment(), span_data, results_);
+  report_match(request, span.trace_segment(), span, results_);
   results_.clear();
 }
 
