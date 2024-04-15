@@ -107,7 +107,9 @@ class AppSecUserConfig {
       throw std::invalid_argument("user config json not a map");
     }
 
-    dnsec::ddwaf_owned_obj oo = dnsec::json_to_object(json);
+    dnsec::ddwaf_owned_obj oo =
+        dnsec::json_to_object(json, dnsec::kConfigMaxDepth);
+
     return AppSecUserConfig{key, dnsec::ddwaf_owned_map{std::move(oo)}};
   }
 };
@@ -206,7 +208,7 @@ class CollectedAsmData {
 
       dnsec::ddwaf_map_obj &merged_map = out.make_map(3, memres);
       // id is a string_view backed by one of the data etnries
-      merged_map.get_entry_unchecked(0).set_key("id"sv).make_string(id);
+      merged_map.at_unchecked(0).set_key("id"sv).make_string(id);
 
       // check if the type is always the same for this id
       std::string_view first_type =
@@ -219,7 +221,7 @@ class CollectedAsmData {
               std::string{id});
         }
       }
-      merged_map.get_entry_unchecked(1).set_key("type"sv).make_string(
+      merged_map.at_unchecked(1).set_key("type"sv).make_string(
           first_type);
 
       // finally, the merged "data" key
@@ -228,7 +230,7 @@ class CollectedAsmData {
         total_data_entries += obj.get<dnsec::ddwaf_arr_obj>("data"sv).size();
       }
       dnsec::ddwaf_arr_obj &merged_data =
-          merged_map.get_entry_unchecked(2).set_key("data"sv).make_array(
+          merged_map.at_unchecked(2).set_key("data"sv).make_array(
               total_data_entries, memres);
 
       std::size_t k = 0;
@@ -307,22 +309,22 @@ class CurrentAppSecConfig {
         ret.get().make_map(10, ret.memres());  // up to 10 entries
     dnsec::ddwaf_obj::nb_entries_t i = 0;
     if (dirty_status_.rules) {
-      mo.get_entry_unchecked(i++)
+      mo.at_unchecked(i++)
           .set_key("metadata"sv)
           .shallow_copy_val_from(
               dd_config()
                   .get_opt<dnsec::ddwaf_map_obj>("metadata"sv)
                   .value_or(dnsec::ddwaf_map_obj{}));
-      mo.get_entry_unchecked(i++).set_key("rules"sv).shallow_copy_val_from(
+      mo.at_unchecked(i++).set_key("rules"sv).shallow_copy_val_from(
           dd_config().get_opt<dnsec::ddwaf_arr_obj>("rules"sv).value_or(
               dnsec::ddwaf_arr_obj{}));
-      mo.get_entry_unchecked(i++)
+      mo.at_unchecked(i++)
           .set_key("processors"sv)
           .shallow_copy_val_from(
               dd_config()
                   .get_opt<dnsec::ddwaf_arr_obj>("processors"sv)
                   .value_or(dnsec::ddwaf_arr_obj{}));
-      mo.get_entry_unchecked(i++)
+      mo.at_unchecked(i++)
           .set_key("scannners"sv)
           .shallow_copy_val_from(
               dd_config()
@@ -331,36 +333,36 @@ class CurrentAppSecConfig {
     }
 
     if (dirty_status_.custom_rules) {
-      mo.get_entry_unchecked(i++)
+      mo.at_unchecked(i++)
           .set_key("custom_rules"sv)
           .shallow_copy_val_from(get_merged_custom_rules(ret.memres()));
     }
 
     if (dirty_status_.exclusions || dirty_status_.rules) {
-      mo.get_entry_unchecked(i++)
+      mo.at_unchecked(i++)
           .set_key("exclusions"sv)
           .shallow_copy_val_from(get_merged_exclusions(ret.memres()));
     }
 
     if (dirty_status_.rules_override || dirty_status_.rules) {
-      mo.get_entry_unchecked(i++)
+      mo.at_unchecked(i++)
           .set_key("rules_override"sv)
           .shallow_copy_val_from(get_merged_rule_overrides(ret.memres()));
     }
 
     if (dirty_status_.data || dirty_status_.rules) {
-      mo.get_entry_unchecked(i++)
+      mo.at_unchecked(i++)
           .set_key("rules_data"sv)
           .shallow_copy_val_from(asm_data_.merged_data(ret.memres()));
     }
 
     if (dirty_status_.actions || dirty_status_.actions) {
-      mo.get_entry_unchecked(i++)
+      mo.at_unchecked(i++)
           .set_key("actions"sv)
           .shallow_copy_val_from(get_merged_actions(ret.memres()));
     }
 
-    mo.get_entry_unchecked(i++)
+    mo.at_unchecked(i++)
         .set_key("version"sv)
         .shallow_copy_val_from(
             dd_config()
@@ -550,7 +552,8 @@ class AsmDDListener : public rc::ProductListener {
     }
 
     std::shared_ptr<dnsec::ddwaf_owned_map> new_config =
-        std::make_shared<dnsec::ddwaf_owned_map>(dnsec::json_to_object(doc));
+        std::make_shared<dnsec::ddwaf_owned_map>(
+            dnsec::json_to_object(doc, dnsec::kConfigMaxDepth));
 
     cur_appsec_cfg_.set_dd_config(std::move(new_config));
   }
@@ -606,7 +609,8 @@ class AsmDataListener : public rc::ProductListener {
             << "size(" << rules_data.Size() << ")";
       });
 
-      dnsec::ddwaf_owned_arr new_data{dnsec::json_to_object(rules_data)};
+      dnsec::ddwaf_owned_arr new_data{
+          dnsec::json_to_object(rules_data, dnsec::kConfigMaxDepth)};
       cur_appsec_cfg_.asm_data_add_config(key, std::move(new_data));
     } else {
       // no data

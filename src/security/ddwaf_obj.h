@@ -27,7 +27,7 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
   explicit ddwaf_obj(const ddwaf_object &dobj) : ddwaf_object{dobj} {}
 
   std::string_view key() const noexcept {
-    return std::string_view{parameterName, parameterNameLength};
+    return {parameterName, parameterNameLength};
   }
 
   // string lifetime must be at least that of the object
@@ -44,7 +44,7 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
   }
 
   std::string_view string_val_unchecked() const noexcept {
-    return std::string_view{stringValue, nbEntries};
+    return {stringValue, nbEntries};
   }
 
   bool is_numeric() const noexcept {
@@ -216,7 +216,7 @@ struct __attribute__((__may_alias__)) ddwaf_str_obj : ddwaf_obj {
   }
 
   std::string_view value() const {
-    return std::string_view{stringValue, nbEntries};
+    return {stringValue, nbEntries};
   }
 };
 
@@ -244,7 +244,7 @@ struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {
     return at_unchecked<T>(index);
   }
 
-  std::size_t size() const { return nbEntries; }
+  nb_entries_t size() const { return nbEntries; }
 
   bool empty() const { return nbEntries == 0; }
 
@@ -286,7 +286,7 @@ struct ddwaf_map_obj : ddwaf_obj {
   }
 
   template <typename T = ddwaf_obj>
-  T &get_entry_unchecked(std::size_t i) {
+  T &at_unchecked(std::size_t i) {
     static_assert(std::is_base_of_v<ddwaf_obj, T>,
                   "T must be a subclass of ddwaf_obj");
     return *reinterpret_cast<T *>(&array[i]);  // NOLINT
@@ -338,7 +338,7 @@ class libddwaf_ddwaf_owned_obj  // NOLINT(readability-identifier-naming)
 };
 
 ddwaf_owned_obj<ddwaf_obj> json_to_object(
-    const rapidjson::GenericValue<rapidjson::UTF8<>> &doc);
+    const rapidjson::GenericValue<rapidjson::UTF8<>> &doc, int max_depth);
 
 // for objects created with libddwaf functions
 template <typename T>

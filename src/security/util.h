@@ -55,10 +55,7 @@ struct NgxStrHash {
 
 struct NgxStrEqual {
   bool operator()(const ngx_str_t &lhs, const ngx_str_t &rhs) const {
-    if (lhs.len != rhs.len) {
-      return false;
-    }
-    return std::memcmp(lhs.data, rhs.data, lhs.len) == 0;
+    return lhs.len == rhs.len && std::memcmp(lhs.data, rhs.data, lhs.len) == 0;
   }
 };
 
@@ -79,6 +76,14 @@ inline std::string_view lc_key(const ngx_table_elt_t &header) {
   return {reinterpret_cast<const char *>(header.lowcase_key), header.key.len};
 }
 inline bool key_equals_ci(const ngx_table_elt_t &header, std::string_view key) {
+#if NGX_DEBUG
+  for (std::size_t i = 0; i < key.length(); i++) {
+    if (std::tolower(key[i]) != key[i]) {
+      throw new std::invalid_argument("key must be lowercase");
+    }
+  }
+#endif
+
   if (header.lowcase_key) {
     return key == lc_key(header);
   }

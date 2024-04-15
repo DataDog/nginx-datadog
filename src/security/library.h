@@ -12,6 +12,8 @@
 
 namespace datadog::nginx::security {
 
+inline constexpr auto kConfigMaxDepth = 25;
+
 class WafHandle;
 class FinalizedConfigSettings;
 

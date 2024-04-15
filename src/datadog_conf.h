@@ -135,6 +135,8 @@ struct datadog_main_conf_t {
 
   // DD_APPSEC_WAF_TIMEOUT (default: 0.1 s), in microseconds
   // The default value is not set to 100 to detect when the value is unset
+  // When specified in nginx configuration, follows the usual pattern for such
+  // settings in nginx (e.g. 100ms)
   ngx_msec_t appsec_waf_timeout_ms{NGX_CONF_UNSET_MSEC};
 
   // DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP
@@ -251,7 +253,9 @@ struct datadog_loc_conf_t {
   conf_directive_source_location_t
       allow_sampling_delegation_in_subrequests_directive;
 
+#ifdef WITH_WAF
   ngx_thread_pool_t *waf_pool{nullptr};
+#endif
 };
 
 }  // namespace nginx

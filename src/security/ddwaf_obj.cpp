@@ -1,9 +1,14 @@
 #include "ddwaf_obj.h"
+#include <stdexcept>
 
 namespace datadog::nginx::security {
 namespace impl {
 template <typename D>
-void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc) {
+void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc, int max_depth) {
+  if (max_depth == 0) {
+    throw std::runtime_error("Max depth reached while parsing JSON");
+  }
+
   switch (doc.GetType()) {
     case rapidjson::kFalseType:
       object.make_bool(false);
@@ -17,9 +22,9 @@ void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc) {
       size_t i = 0;
       for (auto &kv : obj) {
         std::string_view const key = kv.name.GetString();
-        ddwaf_obj &element = obj_map.get_entry_unchecked(i++);
+        ddwaf_obj &element = obj_map.at_unchecked(i++);
         element.set_key(key, memres);
-        json_to_obj_impl(memres, element, kv.value);
+        json_to_obj_impl(memres, element, kv.value, max_depth - 1);
       }
       break;
     }
@@ -29,7 +34,7 @@ void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc) {
       size_t i = 0;
       for (auto &v : arr) {
         ddwaf_obj &element = obj_arr.at_unchecked(i++);
-        json_to_obj_impl(memres, element, v);
+        json_to_obj_impl(memres, element, v, max_depth - 1);
       }
       break;
     }
@@ -41,8 +46,17 @@ void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc) {
     case rapidjson::kNumberType: {
       if (doc.IsInt64()) {
         object.make_number(doc.GetInt64());
+      } else if (doc.IsInt()) {
+        object.make_number(doc.GetInt());
       } else if (doc.IsUint64()) {
         object.make_number(doc.GetUint64());
+      } else if (doc.IsUint()) {
+        object.make_number(doc.GetUint());
+      } else if (doc.IsDouble()) {
+        object.make_number(doc.GetDouble());
+      } else {
+        // should not happen
+        throw std::runtime_error("Unknown number type");
       }
       break;
     }
@@ -60,7 +74,7 @@ void deep_copy(DdwafMemres &memres, ddwaf_obj &dst, const ddwaf_obj &src) {
       ddwaf_map_obj &r = dst.make_map(src.nbEntries, memres);
       size_t i = 0;
       for (auto &&obj : src_map) {
-        ddwaf_obj &new_dst = r.get_entry_unchecked(i++);
+        ddwaf_obj &new_dst = r.at_unchecked(i++);
         new_dst.set_key(obj.key(), memres);
         deep_copy(memres, new_dst, obj);
       }
@@ -87,9 +101,9 @@ void deep_copy(DdwafMemres &memres, ddwaf_obj &dst, const ddwaf_obj &src) {
 }  // namespace impl
 
 ddwaf_owned_obj<ddwaf_obj> json_to_object(
-    const rapidjson::GenericValue<rapidjson::UTF8<>> &doc) {
+    const rapidjson::GenericValue<rapidjson::UTF8<>> &doc, int max_depth) {
   ddwaf_owned_obj<ddwaf_obj> ret;
-  impl::json_to_obj_impl(ret.memres(), ret.get(), doc);
+  impl::json_to_obj_impl(ret.memres(), ret.get(), doc, max_depth);
   return ret;
 }
 }  // namespace datadog::nginx::security

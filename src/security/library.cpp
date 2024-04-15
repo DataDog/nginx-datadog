@@ -67,7 +67,8 @@ auto parse_rule_json(std::string_view json) -> dnsec::ddwaf_owned_map {
     throw std::invalid_argument("invalid json rule (not a json object)");
   }
 
-  return dnsec::ddwaf_owned_map{dnsec::json_to_object(document)};
+  return dnsec::ddwaf_owned_map{
+      dnsec::json_to_object(document, dnsec::kConfigMaxDepth)};
 }
 
 auto read_rule_file(std::string_view filename) -> dnsec::ddwaf_owned_map {

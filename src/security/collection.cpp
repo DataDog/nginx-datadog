@@ -58,12 +58,12 @@ class ReqSerializer {
     dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
     dnsec::ddwaf_map_obj &root_map = root->make_map(6, memres_);
 
-    set_request_query(request, root_map.get_entry_unchecked(0));
-    set_request_uri_raw(request, root_map.get_entry_unchecked(1));
-    set_request_method(request, root_map.get_entry_unchecked(2));
-    set_request_headers_nocookies(request, root_map.get_entry_unchecked(3));
-    set_request_cookie(request, root_map.get_entry_unchecked(4));
-    set_client_ip(request, root_map.get_entry_unchecked(5));
+    set_request_query(request, root_map.at_unchecked(0));
+    set_request_uri_raw(request, root_map.at_unchecked(1));
+    set_request_method(request, root_map.at_unchecked(2));
+    set_request_headers_nocookies(request, root_map.at_unchecked(3));
+    set_request_cookie(request, root_map.at_unchecked(4));
+    set_client_ip(request, root_map.at_unchecked(5));
 
     return root;
   }
@@ -72,8 +72,8 @@ class ReqSerializer {
     dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
     dnsec::ddwaf_map_obj &root_map = root->make_map(2, memres_);
 
-    set_response_status(request, root_map.get_entry_unchecked(0));
-    set_response_headers_no_cookies(request, root_map.get_entry_unchecked(1));
+    set_response_status(request, root_map.at_unchecked(0));
+    set_response_headers_no_cookies(request, root_map.at_unchecked(1));
 
     return root;
   }

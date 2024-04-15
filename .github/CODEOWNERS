@@ -1,2 +1,2 @@
 * @DataDog/apm-proxy
-src/security/ @DataDog/asm-libddwaf
+src/security/ @DataDog/asm-cpp
