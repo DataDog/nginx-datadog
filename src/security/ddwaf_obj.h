@@ -215,9 +215,7 @@ struct __attribute__((__may_alias__)) ddwaf_str_obj : ddwaf_obj {
     }
   }
 
-  std::string_view value() const {
-    return {stringValue, nbEntries};
-  }
+  std::string_view value() const { return {stringValue, nbEntries}; }
 };
 
 struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {

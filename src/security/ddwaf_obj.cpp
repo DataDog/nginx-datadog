@@ -1,10 +1,12 @@
 #include "ddwaf_obj.h"
+
 #include <stdexcept>
 
 namespace datadog::nginx::security {
 namespace impl {
 template <typename D>
-void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc, int max_depth) {
+void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc,
+                      int max_depth) {
   if (max_depth == 0) {
     throw std::runtime_error("Max depth reached while parsing JSON");
   }

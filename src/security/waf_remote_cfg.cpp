@@ -221,8 +221,7 @@ class CollectedAsmData {
               std::string{id});
         }
       }
-      merged_map.at_unchecked(1).set_key("type"sv).make_string(
-          first_type);
+      merged_map.at_unchecked(1).set_key("type"sv).make_string(first_type);
 
       // finally, the merged "data" key
       std::size_t total_data_entries = 0;
