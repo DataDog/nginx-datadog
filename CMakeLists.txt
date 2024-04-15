@@ -32,6 +32,10 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   # This warning has a false positive. See
   # <https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108088>.
   add_compile_options(-Wno-error=free-nonheap-object)
+
+  # Looks like a false positive. Doesn't like a constructor taking
+  # std::optional = nullopt and moving it to a null optional
+  add_compile_options(-Wno-error=maybe-uninitialized)
 endif()
 
 # Nginx module boilerplate (code within the nginx repository)
@@ -86,7 +90,7 @@ endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(ngx_http_datadog_module PRIVATE -Wall -Werror
-    -Wno-c++20-extensions -Wno-error=maybe-uninitialized)
+    -Wno-c++20-extensions )
 endif()
 
 
