@@ -1,6 +1,3 @@
 [submodule "dd-trace-cpp"]
 	path = dd-trace-cpp
 	url = ../dd-trace-cpp.git
-[submodule "rapidjson"]
-	path = rapidjson
-	url = git@github.com:Tencent/rapidjson.git
