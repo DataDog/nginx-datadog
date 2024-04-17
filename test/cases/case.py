@@ -30,11 +30,11 @@ class TestCase(unittest.TestCase):
         cls.waf_disabled = waf_value == 'OFF' or waf_value == 'FALSE' or waf_value == '0' or waf_value == 'N' or \
                            waf_value == 'n' or waf_value == 'No' or waf_value == 'NO' or waf_value == ''
 
-    def requires_waf(self):
-        if self.waf_disabled:
+    def setUp(self):
+        if type(self).waf_disabled and hasattr(
+                type(self), 'requires_waf') and type(self).requires_waf:
             self.skipTest("WAF is disabled")
 
-    def setUp(self):
         context = self.orch_context = orchestration.singleton()
         self.orch = context.__enter__()
         self.begin = time.monotonic()

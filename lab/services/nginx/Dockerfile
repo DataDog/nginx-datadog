@@ -16,7 +16,7 @@ RUN /tmp/install_tools.sh
 
 ARG NGINX_MODULES_PATH
 RUN mkdir -p ${NGINX_MODULES_PATH}
-COPY ngx_http_datadog_module.so libddwaf.so ${NGINX_MODULES_PATH}
+COPY ngx_http_datadog_module.so ${NGINX_MODULES_PATH}
 
 ENTRYPOINT ["nginx"]
 CMD ["-g", "daemon off;"]

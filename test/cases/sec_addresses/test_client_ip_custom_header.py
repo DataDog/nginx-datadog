@@ -6,10 +6,10 @@ from .. import case
 
 class TestClientIpCustomHeader(case.TestCase):
     config_setup_done = False
+    requires_waf = True
 
     def setUp(self):
         super().setUp()
-        self.requires_waf()
         if self.waf_disabled:
             return
 

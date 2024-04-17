@@ -1,3 +1,6 @@
 [submodule "dd-trace-cpp"]
 	path = dd-trace-cpp
 	url = ../dd-trace-cpp.git
+[submodule "libddwaf"]
+	path = libddwaf
+	url = git@github.com:DataDog/libddwaf.git

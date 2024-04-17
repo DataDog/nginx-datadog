@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.24)
 # The C code doesn't care about the C++ version.
 # dd-trace-cpp works with C++17 or newer.
 set(CMAKE_CXX_STANDARD 17)
@@ -20,6 +20,10 @@ set(NGINX_VERSION "" CACHE STRING "The nginx version")
 if (NGINX_SRC_DIR STREQUAL "" AND NGINX_VERSION STREQUAL "")
   message(FATAL_ERROR "Set NGINX_SRC_DIR or, alternatively NGINX_VERSION")
 endif()
+option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
+
+# Make curl link against a static zlib
+set(ZLIB_USE_STATIC_LIBS ON)
 
 # Prefer the build mode "release with debug info" if another mode wasn't
 # specified.
@@ -38,17 +42,21 @@ if(CMAKE_COMPILER_IS_GNUCXX)
   add_compile_options(-Wno-error=maybe-uninitialized)
 endif()
 
+# save frame pointers to make it more profiler friendly
+add_compile_options(-fno-omit-frame-pointer)
+
 # Nginx module boilerplate (code within the nginx repository)
 include(./nginx-module.cmake)
-
-include(./rapidjson.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
 if(NGINX_DATADOG_ASM_ENABLED)
-  include(./libddwaf.cmake)
-  find_package(libddwaf REQUIRED)
-  include_directories(rapidjson/include)
+  include(./rapidjson.cmake)
+  # we need neither but libddwaf requires one enabled
+  set(LIBDDWAF_BUILD_STATIC ON)
+  set(LIBDDWAF_BUILD_SHARED OFF)
+  set(LIBDDWAF_TESTING OFF)
+  add_subdirectory(./libddwaf EXCLUDE_FROM_ALL)
 endif()
 
 # The shared library (nginx module) that we are building.
@@ -65,6 +73,7 @@ target_sources(ngx_http_datadog_module
     src/datadog_variable.cpp
     src/dd.cpp
     src/defer.cpp
+    src/glibc_compat.c
     src/global_tracer.cpp
     src/log_conf.cpp
     src/ngx_event_scheduler.cpp
@@ -101,9 +110,9 @@ target_include_directories(ngx_http_datadog_module
     src/
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module rapidjson)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
 if(NGINX_DATADOG_ASM_ENABLED)
-  target_link_libraries(ngx_http_datadog_module libddwaf_shared)
+  target_link_libraries(ngx_http_datadog_module rapidjson libddwaf_objects)
 endif()
 
 # Remove the "lib" prefix to match NGINX convention
@@ -118,18 +127,18 @@ if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   endif()
 endif()
 
-if(NGINX_DATADOG_ASM_ENABLED)
-  get_target_property(libddwaf_target_path libddwaf_shared LOCATION)
-  get_filename_component(libddwaf_target_dir ${libddwaf_target_path}  DIRECTORY)
-  if(APPLE)
-    set(RPATH_VAL "@loader_path" "${libddwaf_target_dir}")
-  else()
-    set(RPATH_VAL "$ORIGIN" "${libddwaf_target_dir}")
-  endif()
-  set_target_properties(ngx_http_datadog_module PROPERTIES
-    INSTALL_RPATH_USE_LINK_PATH false
-    BUILD_WITH_INSTALL_RPATH true
-    INSTALL_RPATH "${RPATH_VAL}")
+set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/nginx_module.ld)
+set_target_properties(ngx_http_datadog_module PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT})
+target_link_options(ngx_http_datadog_module PRIVATE "-Wl,--version-script=${LINKER_SCRIPT}")
+
+if(NGINX_PATCH_AWAY_LIBC)
+  include(./patchelf.cmake)
+  patch_away_libc(ngx_http_datadog_module)
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  include(./split_debug_info.cmake)
+  split_debug_info(ngx_http_datadog_module)
 endif()
 
 # vim: et ts=2 sw=2:

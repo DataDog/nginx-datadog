@@ -11,13 +11,17 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
-COPY bin/install_build_tooling.sh \
-    bin/install_build_tooling_apt.sh \
-    bin/install_build_tooling_apk.sh \
-    bin/install_build_tooling_yum.sh\
-     /tmp/
+COPY bin/install_build_tooling.sh    \
+	bin/install_build_tooling_apt.sh \
+	bin/install_build_tooling_apk.sh \
+	bin/install_build_tooling_yum.sh \
+	/tmp/
 
 RUN /tmp/install_build_tooling.sh
+
+ENV CMAKE_C_COMPILER=/opt/llvm/bin/clang
+ENV CMAKE_CXX_COMPILER=/opt/llvm/bin/clang++
+ENV CMAKE_CXX_FLAGS=-stdlib=libc++
 
 RUN mkdir -p /mnt/repo
 WORKDIR /mnt/repo

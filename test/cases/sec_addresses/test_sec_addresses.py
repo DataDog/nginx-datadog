@@ -7,10 +7,10 @@ from pathlib import Path
 
 class TestSecAddresses(case.TestCase):
     config_setup_done = False
+    requires_waf = True
 
     def setUp(self):
         super().setUp()
-        self.requires_waf()
         # avoid reconfiguration (cuts time almost in half)
         if not TestSecAddresses.config_setup_done:
             waf_path = Path(__file__).parent / './conf/waf.json'

@@ -6,6 +6,9 @@ WAF ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 NGINX_SRC_DIR ?= $(PWD)/nginx
+ARCH ?= $(shell arch)
+
+SHELL := /bin/bash
 
 .PHONY: build
 build: build-deps sources
@@ -53,7 +56,8 @@ lint: .clang-format
 clean:
 	rm -rf \
 		.build \
-		.docker-build
+		.docker-build \
+		.musl-build
 
 .PHONY: clobber
 clobber: clean
@@ -69,20 +73,62 @@ ifndef NGINX_VERSION
 endif
 	bin/run_in_build_image.sh make NGINX_SRC_DIR= BUILD_DIR=.docker-build build
 
+DOCKER_PLATFORM := linux/$(ARCH)
+ifeq ($(DOCKER_PLATFORM),linux/x86_64)
+	DOCKER_PLATFORM := linux/amd64
+endif
+ifeq ($(DOCKER_PLATFORM),linux/aarch64)
+	DOCKER_PLATFORM := linux/arm64
+endif
+
+# For testing changes to the build image
+.PHONY: build-musl-toolchain
+build-musl-toolchain:
+	docker build --progress=plain --platform $(DOCKER_PLATFORM) --build-arg ARCH=$(ARCH) -t gustavolopes557/nginx_musl_toolchain build_env
+
+.PHONY: build-push-musl-toolchain
+build-push-musl-toolchain:
+	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t gustavolopes557/nginx_musl_toolchain-amd64 build_env
+	docker push gustavolopes557/nginx_musl_toolchain-amd64
+	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t gustavolopes557/nginx_musl_toolchain-arm64 build_env
+	docker push gustavolopes557/nginx_musl_toolchain-arm64
+	#docker manifest create gustavolopes557/nginx_musl_toolchain \
+		gustavolopes557/nginx_musl_toolchain-amd64 \
+		gustavolopes557/nginx_musl_toolchain-arm64
+	#docker manifest push gustavolopes557/nginx_musl_toolchain
+
+.PHONY: build-musl
+build-musl:
+	docker run --rm \
+		--platform $(DOCKER_PLATFORM) \
+		--env NGINX_VERSION=$(NGINX_VERSION) \
+		--env WAF=$(WAF) \
+		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		gustavolopes557/nginx_musl_toolchain \
+		make -C /mnt/repo build-musl-aux
+
+# this is what's run inside the container nginx_musl_toolchain
+.PHONY: build-musl-aux
+build-musl-aux:
+	cmake -B .musl-build \
+		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
+		-DNGINX_PATCH_AWAY_LIBC=ON \
+		-DNGINX_VERSION="$(NGINX_VERSION)" \
+		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
+		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
+
+
 .PHONY: test
 test: build-in-docker
 	cp .docker-build/ngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
-	cp .docker-build/_deps/libddwaf-src/lib/libddwaf.so test/services/nginx/
 	test/bin/run $(TEST_ARGS)
 
 .PHONY: test-parallel
 test-parallel: build-in-docker
 	cp .docker-build/ngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
-	cp .docker-build/_deps/libddwaf-src/lib/libddwaf.so test/services/nginx/
 	test/bin/run_parallel $(TEST_ARGS)
 
 .PHONY: lab
 lab: build-in-docker
 	cp .docker-build/ngx_http_datadog_module.so lab/services/nginx/ngx_http_datadog_module.so
-	cp .docker-build/_deps/libddwaf-src/lib/libddwaf.so test/services/nginx/
 	lab/bin/run $(TEST_ARGS)
