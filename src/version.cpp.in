@@ -19,5 +19,8 @@ const char datadog_version_nginx[] = "[nginx version " NGINX_VERSION "]";
 #ifdef WITH_WAF
 extern const char *datadog_version_waf_rules;
 const char *datadog_version_waf_rules = "[waf_rules version @RULES_VERSION@]";
+
+extern const char *datadog_version_libddwaf;
+const char *datadog_version_libddwaf = "[libddwaf version @LIBDDWAF_VERSION@]";
 #endif
 }

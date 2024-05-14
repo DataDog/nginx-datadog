@@ -51,6 +51,7 @@ include(./nginx-module.cmake)
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
 set(RULES_VERSION "")
+set(LIBDDWAF_VERSION "")
 if(NGINX_DATADOG_ASM_ENABLED)
   include(./rapidjson.cmake)
   # we need neither but libddwaf requires one enabled
@@ -66,6 +67,7 @@ if(NGINX_DATADOG_ASM_ENABLED)
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     OUTPUT_VARIABLE RULES_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE)
+  file(READ ./libddwaf/version LIBDDWAF_VERSION)
 endif()
 
 configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
