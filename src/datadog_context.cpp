@@ -5,8 +5,13 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "datadog/span.h"
+#include "datadog_handler.h"
 #include "dd.h"
 #include "ngx_http_datadog_module.h"
+#ifdef WITH_WAF
+#include "security/context.h"
+#endif
 #include "string_util.h"
 
 namespace datadog {
@@ -14,7 +19,11 @@ namespace nginx {
 
 DatadogContext::DatadogContext(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
-                               datadog_loc_conf_t *loc_conf) {
+                               datadog_loc_conf_t *loc_conf)
+#ifdef WITH_WAF
+    : sec_ctx_{security::Context::maybe_create()}
+#endif
+{
   traces_.emplace_back(request, core_loc_conf, loc_conf);
 }
 
@@ -32,6 +41,36 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
                        &traces_[0].active_span());
 }
 
+#ifdef WITH_WAF
+bool DatadogContext::on_main_req_access(ngx_http_request_t *request) {
+  if (!sec_ctx_) {
+    return false;
+  }
+
+  // there should only one trace at this point
+  dd::Span &span = single_trace().active_span();
+  return sec_ctx_->on_request_start(*request, span);
+}
+#endif
+
+#ifdef WITH_WAF
+ngx_int_t DatadogContext::main_output_body_filter(ngx_http_request_t *request,
+                                                  ngx_chain_t *chain) {
+  if (!sec_ctx_) {
+    return ngx_http_next_output_body_filter(request, chain);
+  }
+
+  auto *trace = find_trace(request);
+  if (trace == nullptr) {
+    throw std::runtime_error{
+        "main_output_body_filter: could not find request trace"};
+  }
+
+  dd::Span &span = trace->active_span();
+  return sec_ctx_->output_body_filter(*request, chain, span);
+}
+#endif
+
 void DatadogContext::on_log_request(ngx_http_request_t *request) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
@@ -39,6 +78,12 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
         "on_log_request failed: could not find request trace"};
   }
   trace->on_log_request();
+
+#ifdef WITH_WAF
+  if (sec_ctx_ && request == request->main) {
+    sec_ctx_->on_main_log_request(*request, trace->active_span());
+  }
+#endif
 }
 
 ngx_str_t DatadogContext::lookup_propagation_header_variable_value(
@@ -81,6 +126,13 @@ RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {
     return &*found;
   }
   return nullptr;
+}
+
+RequestTracing &DatadogContext::single_trace() {
+  if (traces_.size() != 1) {
+    throw std::runtime_error{"Expected there to be exactly one trace"};
+  }
+  return traces_[0];
 }
 
 const RequestTracing *DatadogContext::find_trace(

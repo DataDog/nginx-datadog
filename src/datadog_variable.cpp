@@ -322,6 +322,7 @@ static ngx_int_t expand_auth_request_hook(
 
   ngx_str_t response_header_value =
       context->lookup_sampling_delegation_response_variable_value(request);
+  (void)response_header_value;  // XXX: value not used
   return NGX_OK;
 } catch (const std::exception& error) {
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,

@@ -23,7 +23,18 @@ class TestCase(unittest.TestCase):
         # "Diff is 1893 characters long. Set self.maxDiff to None to see it."
         self.maxDiff = None
 
+    @classmethod
+    def setUpClass(cls):
+        super(TestCase, cls).setUpClass()
+        waf_value = os.environ.get('WAF', 'OFF')
+        cls.waf_disabled = waf_value == 'OFF' or waf_value == 'FALSE' or waf_value == '0' or waf_value == 'N' or \
+                           waf_value == 'n' or waf_value == 'No' or waf_value == 'NO' or waf_value == ''
+
     def setUp(self):
+        if type(self).waf_disabled and hasattr(
+                type(self), 'requires_waf') and type(self).requires_waf:
+            self.skipTest("WAF is disabled")
+
         context = self.orch_context = orchestration.singleton()
         self.orch = context.__enter__()
         self.begin = time.monotonic()

@@ -4,7 +4,7 @@
 # build arifacts
 *.so
 /.build
-/.docker-build
+/.musl-build
 
 # text editor noise
 .*.sw?

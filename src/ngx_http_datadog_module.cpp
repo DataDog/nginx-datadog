@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <exception>
 #include <iterator>
+#include <memory>
 #include <new>
 #include <string_view>
 #include <utility>
@@ -17,15 +18,19 @@
 #include "defer.h"
 #include "global_tracer.h"
 #include "log_conf.h"
+#include "ngx_logger.h"
+#ifdef WITH_WAF
+#include "security/library.h"
+#endif
 #include "string_util.h"
 #include "tracing_library.h"
 
 extern "C" {
 #include <nginx.h>
+#include <ngx_conf_file.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
-#include <stdlib.h>  // ::setenv
 }
 
 // clang-format off
@@ -308,6 +313,89 @@ static ngx_command_t datadog_commands[] = {
       0,
       NULL },
 
+#ifdef WITH_WAF
+    {
+      ngx_string("datadog_waf_thread_pool_name"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+      waf_thread_pool_name,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(datadog_loc_conf_t, waf_pool),
+      NULL
+    },
+
+    {
+      ngx_string("datadog_appsec_enabled"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_enabled),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_ruleset_file"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_ruleset_file),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_http_blocked_template_json"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_http_blocked_template_json),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_http_blocked_template_html"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_http_blocked_template_html),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_client_ip_header"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1, // TODO allow it more fine-grained
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, custom_client_ip_header),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_waf_timeout"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_msec_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_waf_timeout_ms),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_obfuscation_key_regex"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_obfuscation_key_regex),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_obfuscation_value_regex"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_obfuscation_value_regex),
+      nullptr,
+    },
+#endif
+
     ngx_null_command
 };
 
@@ -359,7 +447,7 @@ static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
   ngx_core_conf_t *ccf =
       (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
-  ngx_str_t *value, *var;
+  ngx_str_t *var;
   ngx_uint_t i;
 
   var = (ngx_str_t *)ngx_array_push(&ccf->env);
@@ -394,7 +482,7 @@ static ngx_int_t datadog_master_process_post_config(
   // configuration.  This means that the nginx configuration did not use the
   // `datadog` directive, and did not use any overridden directives, such as
   // `proxy_pass`.
-  const auto main_conf = static_cast<datadog_main_conf_t *>(
+  auto *const main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
 
   if (main_conf == nullptr) {
@@ -402,16 +490,28 @@ static ngx_int_t datadog_master_process_post_config(
     return NGX_OK;
   }
 
+#ifdef WITH_WAF
+  ngx_http_next_output_body_filter = ngx_http_top_body_filter;
+  ngx_http_top_body_filter = output_body_filter;
+#endif
+
   // Forward tracer-specific environment variables to worker processes.
-  std::string name;
-  for (const auto &env_var_name :
-       TracingLibrary::environment_variable_names()) {
-    name = env_var_name;
-    if (const char *value = std::getenv(name.c_str())) {
+  auto push_to_main_conf = [main_conf](std::string env_var_name) {
+    if (const char *value = std::getenv(env_var_name.c_str())) {
       main_conf->environment_variables.push_back(
-          environment_variable_t{.name = name, .value = value});
+          environment_variable_t{.name = env_var_name, .value = value});
     }
+  };
+  for (const std::string_view &env_var_name :
+       TracingLibrary::environment_variable_names()) {
+    push_to_main_conf(std::string{env_var_name});
   }
+#ifdef WITH_WAF
+  for (const std::string_view &env_var_name :
+       security::Library::environment_variable_names()) {
+    push_to_main_conf(std::string{env_var_name});
+  }
+#endif
 
   return NGX_OK;
 }
@@ -432,6 +532,13 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
       &core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
   if (handler == nullptr) return NGX_ERROR;
   *handler = on_enter_block;
+
+#ifdef WITH_WAF
+  handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
+      &core_main_config->phases[NGX_HTTP_ACCESS_PHASE].handlers));
+  if (handler == nullptr) return NGX_ERROR;
+  *handler = on_access;
+#endif
 
   handler = static_cast<ngx_http_handler_pt *>(
       ngx_array_push(&core_main_config->phases[NGX_HTTP_LOG_PHASE].handlers));
@@ -461,7 +568,18 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf);
+  std::shared_ptr<dd::Logger> logger = std::make_shared<NgxLogger>();
+#ifdef WITH_WAF
+  try {
+    security::Library::initialize_security_library(*main_conf);
+  } catch (const std::exception &e) {
+    ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
+                  "Initialising security library failed: %s", e.what());
+    return NGX_ERROR;
+  }
+#endif
+
+  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf, logger);
   if (auto *error = maybe_tracer.if_error()) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Failed to construct tracer: [error code %d] %s",
@@ -588,16 +706,6 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
     return nullptr;  // error
   }
   return main_conf;
-}
-
-static void examine_conf_args(ngx_conf_t *conf) noexcept {
-  if (conf->args == nullptr) {
-    return;
-  }
-
-  if (conf->args->nelts >= 1) {
-    const auto str = static_cast<const ngx_str_t *>(conf->args->elts);
-  }
 }
 
 static bool is_server_block_begin(const ngx_conf_t *conf) {
@@ -786,6 +894,12 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
   conf->sampling_delegation_directive = prev->sampling_delegation_directive;
   conf->allow_sampling_delegation_in_subrequests_directive =
       prev->allow_sampling_delegation_in_subrequests_directive;
+
+#ifdef WITH_WAF
+  if (conf->waf_pool == nullptr) {
+    conf->waf_pool = prev->waf_pool;
+  }
+#endif
 
   return NGX_CONF_OK;
 }

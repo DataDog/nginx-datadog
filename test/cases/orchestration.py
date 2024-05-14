@@ -297,12 +297,17 @@ def docker_compose_services():
     return result.stdout.split()
 
 
-def curl(url, headers, stderr=None):
+def curl(url, headers, stderr=None, method='GET', body=None):
 
     def header_args():
-        for name, value in headers.items():
-            yield '--header'
-            yield f'{name}: {value}'
+        if isinstance(headers, dict):
+            for name, value in headers.items():
+                yield '--header'
+                yield f'{name}: {value}'
+        else:
+            for name, value in headers:
+                yield '--header'
+                yield f'{name}: {value}'
 
     # "curljson.sh" is a script that lives in the "client" docker compose
     # service.  It's a wrapper around "curl" that outputs a JSON object of
@@ -311,11 +316,19 @@ def curl(url, headers, stderr=None):
     # the "--write-out" option in curl's manual for more information on the
     # properties of the JSON object.
 
+    if body is None:
+        body_args = []
+    else:
+        # read data from stdin
+        body_args = ['--data-binary', '@-']
+
     # "-T" means "don't allocate a TTY".  This prevents `jq` from outputting in
     # color.
     command = docker_compose_command('exec', '-T', '--', 'client',
-                                     'curljson.sh', *header_args(), url)
+                                     'curljson.sh', f'-X{method}',
+                                     *header_args(), *body_args, url)
     result = subprocess.run(command,
+                            input=body if body is not None else '',
                             stdout=subprocess.PIPE,
                             stderr=stderr,
                             env=child_env(),
@@ -440,14 +453,33 @@ class Orchestration:
 
         self.verbose.close()
 
-    def send_nginx_http_request(self, path, port=80, headers={}):
+    def send_nginx_http_request(self,
+                                path,
+                                port=80,
+                                headers={},
+                                method='GET',
+                                req_body=None):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
         url = f'http://nginx:{port}{path}'
         print('fetching', url, file=self.verbose, flush=True)
-        fields, headers, body = curl(url, headers, stderr=self.verbose)
-        return (fields['response_code'], headers, body)
+        fields, headers, body = curl(url,
+                                     headers,
+                                     body=req_body,
+                                     stderr=self.verbose,
+                                     method=method)
+        return fields['response_code'], headers, body
+
+    def setup_remote_config_payload(self, payload):
+        """Sets up the next remote config response"""
+        url = f'http://agent:8126/save_rem_cfg_resp'
+        print('posting', url, file=self.verbose, flush=True)
+        fields, headers, body = curl(url, {},
+                                     body=payload,
+                                     stderr=self.verbose,
+                                     method='POST')
+        return fields['response_code'], headers, body
 
     def send_nginx_grpc_request(self, symbol, port=1337):
         """Send an empty gRPC request to the nginx endpoint at "/", where
@@ -498,6 +530,42 @@ class Orchestration:
                 return log_lines
             log_lines.append(line)
 
+    def wait_for_log_message(self, service, regex, timeout_secs=1):
+        """Wait for a log message to appear in the logs of a service.
+
+        Poll the log queue of the specified `service` until a log line matches
+        the specified `regex`.  Return the log line.  Raise an `Exception` if
+        the `timeout_secs` elapses before the log line appears.
+        """
+        deadline = time.monotonic() + timeout_secs
+        q = self.logs[service]
+        while True:
+            if time.monotonic() > deadline:
+                raise Exception(
+                    f'Timeout of {timeout_secs} seconds exceeded while waiting for log message matching {regex}.'
+                )
+            try:
+                line = q.get_nowait()
+                if re.search(regex, line):
+                    return line
+            except queue.Empty:
+                pass
+
+    def find_first_appsec_report(self):
+        self.reload_nginx(
+        )  # waits for workers to finish; force traces to be sent
+        log_lines = self.sync_service('agent')
+        entries = [
+            json.loads(line) for line in log_lines if line.startswith('[[{')
+        ]
+        # find _dd.appsec.json in one of the spans of the traces
+        for entry in entries:
+            for trace in entry:
+                for span in trace:
+                    if span.get('meta', {}).get('_dd.appsec.json'):
+                        return json.loads(span['meta']['_dd.appsec.json'])
+        return None
+
     def sync_nginx_access_log(self):
         """Send a sync request to nginx and wait until the corresponding access
         log line appears in the output of nginx.  Return the interim log lines
@@ -537,6 +605,7 @@ class Orchestration:
 dir=$(mktemp -d)
 file="$dir/{file_name}"
 cat >"$file" <<'END_CONFIG'
+error_log stderr notice;
 {nginx_conf_text}
 END_CONFIG
 nginx -t -c "$file"
@@ -615,6 +684,7 @@ exit "$rcode"
 
         script = f"""
 >{nginx_conf_path} cat <<'END_CONF'
+error_log stderr notice;
 {nginx_conf_text}
 END_CONF
 """
@@ -632,6 +702,26 @@ END_CONF
 
         self.reload_nginx()
         return status, log_lines
+
+    def nginx_replace_file(self, file, content):
+        """Replaces the contents of an arbitrary file in the nginx container."""
+
+        script = f"""
+>{file} cat <<'END_CONF'
+{content}
+END_CONF
+"""
+        # "-T" means "don't allocate a TTY".  This is necessary to avoid the
+        # error "the input device is not a TTY".
+        command = docker_compose_command('exec', '-T', '--', 'nginx',
+                                         '/bin/sh')
+        subprocess.run(command,
+                       input=script,
+                       stdout=self.verbose,
+                       stderr=self.verbose,
+                       env=child_env(),
+                       check=True,
+                       encoding='utf8')
 
     @contextlib.contextmanager
     def custom_nginx(self, nginx_conf, extra_env=None, healthcheck_port=None):
@@ -676,7 +766,7 @@ END_CONF
         # Let the caller play with the child process, and when they're done,
         # send SIGQUIT to the child process and wait for it to terminate.
         pid_path = temp_dir + '/nginx.pid'
-        conf_preamble = f'daemon off; pid "{pid_path}"; error_log stderr;'
+        conf_preamble = f'daemon off; pid "{pid_path}"; error_log stderr notice;'
         env_args = []
         if extra_env is not None:
             for key, value in extra_env.items():

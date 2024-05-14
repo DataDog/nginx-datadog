@@ -1,0 +1,41 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "1.2.6"
+  },
+  "rules": [
+    {
+      "id": "match_values",
+      "name": "Match values",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.query"
+              },
+              {
+                "address": "server.request.cookies"
+              },
+              {
+                "address": "server.request.headers.no_cookies"
+              },
+              {
+                "address": "server.response.headers.no_cookies"
+              }
+            ],
+            "regex": "^(?:%(?:a)?)?matched value(?:%(?:a)?)?$$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [
+        "values_only"
+      ]
+    }
+  ]
+}

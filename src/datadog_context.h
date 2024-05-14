@@ -8,6 +8,9 @@
 #include "datadog_conf.h"
 #include "propagation_header_querier.h"
 #include "request_tracing.h"
+#ifdef WITH_WAF
+#include "security/context.h"
+#endif
 
 extern "C" {
 #include <nginx.h>
@@ -29,6 +32,13 @@ class DatadogContext {
                        ngx_http_core_loc_conf_t* core_loc_conf,
                        datadog_loc_conf_t* loc_conf);
 
+#ifdef WITH_WAF
+  bool on_main_req_access(ngx_http_request_t* request);
+
+  ngx_int_t main_output_body_filter(ngx_http_request_t* request,
+                                    ngx_chain_t* chain);
+#endif
+
   void on_log_request(ngx_http_request_t* request);
 
   ngx_str_t lookup_propagation_header_variable_value(
@@ -40,8 +50,13 @@ class DatadogContext {
   ngx_str_t lookup_sampling_delegation_response_variable_value(
       ngx_http_request_t* request);
 
+  RequestTracing& single_trace();
+
  private:
   std::vector<RequestTracing> traces_;
+#ifdef WITH_WAF
+  std::unique_ptr<security::Context> sec_ctx_;
+#endif
 
   RequestTracing* find_trace(ngx_http_request_t* request);
 

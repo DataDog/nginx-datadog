@@ -9,16 +9,15 @@ extern "C" {
 #include <ngx_log.h>
 }
 
-namespace datadog {
-namespace nginx {
+namespace datadog::nginx {
 
-void NgxLogger::log_error(const dd::Logger::LogFunc& write) {
+void NgxLogger::log_error(const LogFunc& write) {
   std::ostringstream stream;
   write(stream);
   log_error(stream.str());
 }
 
-void NgxLogger::log_startup(const dd::Logger::LogFunc& write) {
+void NgxLogger::log_startup(const LogFunc& write) {
   std::ostringstream stream;
   write(stream);
   stream << '\n';
@@ -42,6 +41,4 @@ void NgxLogger::log_error(std::string_view message) {
   std::lock_guard<std::mutex> lock(mutex_);
   ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "datadog: %V", &ngx_message);
 }
-
-}  // namespace nginx
-}  // namespace datadog
+}  // namespace datadog::nginx

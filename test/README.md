@@ -6,6 +6,10 @@ under test, and other services reverse proxied by nginx.
 
 See the readme file in [cases/](cases/) for usage information.
 
+The docker image of the tests is controlled by `nginx-version-info`. The `WAF`
+environment variable controls whether the tests related to AppSec are run (value
+`ON`) or skipped (otherwise).
+
 Files
 -----
 - [bin/](bin/) contains scripts for running and developing the tests.  Notably,

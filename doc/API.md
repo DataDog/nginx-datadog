@@ -342,6 +342,117 @@ Note that in addition to this directive, the nginx configuration must also
 contain the `log_subrequest on;` directive in order for tracing to be enabled
 for subrequests.
 
+### `datadog_appsec_enabled` (AppSec builds)
+
+- **syntax** `datadog_appsec_enabled [on|off]`
+- **default**: `off`
+- **context**: `main`
+
+Controls whether AppSec can be used in requests (provided that the request is
+mapped to a thread pool).
+
+A basic but full example of a configuration file that enables AppSec is:
+
+```nginx
+thread_pool waf_thread_pool threads=2 max_queue=16;
+
+load_module /path/to/ngx_http_datadog_module.so;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    datadog_agent_url http://agent:8126;
+    datadog_appsec_enabled on;
+    datadog_waf_thread_pool_name waf_thread_pool;
+
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://backend:8080;
+        }
+    }
+}
+```
+
+### `datadog_waf_thread_pool_name` (AppSec builds)
+
+- **syntax** `datadog_waf_thread_pool_name <pool name>`
+- **default**: (undefined)
+- **context**: `main`, `server`, `location`
+
+AppSec runs its core logic in a separate thread in order to avoid blocking the
+main thread as much as possible. This directive controls the thread pool where
+the task is dispatched to. The thread pool must have been defined with the nginx
+[`thread_pool`][3] directive. If a request is not mapped to any thread pool,
+AppSec checks will not run.
+
+### `datadog_appsec_ruleset_file` (AppSec builds)
+
+- **syntax** `datadog_appsec_ruleset_file <path to json rules file>`
+- **default**: (undefined: embedded rules are run)
+- **context**: `main`
+
+Allows replacing the embedded rules file with a custom one.
+
+### `datadog_appsec_http_blocked_template_json` (AppSec builds)
+
+- **syntax** `datadog_appsec_http_blocked_template_json <path to json file>`
+- **default**: (undefined: default response is sent)
+- **context**: `main`
+
+When AppSec blocks a request, this directive controls the response the server
+will send, provided that content negotiation results in a json response.
+
+### `datadog_appsec_http_blocked_template_html` (AppSec builds)
+
+- **syntax** `datadog_appsec_http_blocked_template_html <path to html file>`
+- **default**: (undefined: default response is sent)
+- **context**: `main`
+
+When AppSec blocks a request, this directive controls the response the server
+will send, provided that content negotiation results in an html response.
+
+### `datadog_client_ip_header` (AppSec builds)
+
+- **syntax** `datadog_client_ip_header <name of header with IP address>`
+- **default**: (undefined: a predefined set of headers are checked, plus the
+  peer address)
+- **context**: `main`
+
+Controls which header is used to determine the real client IP address. The value
+may contain uppercase and underscore characters; these are normalized to their
+lowercase counterparts and the dash character, respectively.
+
+It is recommended that this header be set in order to avoid IP address spoofing.
+
+### `datadog_appsec_waf_timeout` (AppSec builds)
+
+- **syntax** `datadog_appsec_waf_timeout <int><unit>`
+- **default**: 100ms
+- **context**: `main`
+
+The approximate maximum execution time for each WAF run. The run will exit early
+should this limit be exceeded.
+
+### `datadog_appsec_obfuscation_key_regex` (AppSec builds)
+
+- **syntax** `datadog_appsec_obfuscation_key_regex <regular expression>`
+- **default**: `(?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?)key)|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)|bearer|authorization`
+- **context**: `main`
+
+Values associated with a key matching this regular expression will be redacted.
+
+### `datadog_appsec_obfuscation_value_regex` (AppSec builds)
+
+- **syntax** `datadog_appsec_obfuscation_key_regex <regular expression>`
+- **default**: (undefined)
+- **context**: `main`
+
+Values matching this regular expression will be redacted.
+
+
 Variables
 ---------
 Nginx defines [variables][2] that may appear in various contexts in the nginx
@@ -445,3 +556,4 @@ module.
 This is an implementation detail of the module and should not be used.
 
 [2]: https://nginx.org/en/docs/varindex.html
+[3]: https://nginx.org/en/docs/ngx_core_module.html#thread_pool

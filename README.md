@@ -7,41 +7,45 @@ nginx. The module is called `ngx_http_datadog_module`.
 
 Usage
 -----
-1. Download a gzipped tarball from a [recent release][12], extract it to wherever nginx
-looks for modules (e.g. `/usr/lib/nginx/modules/`).
-2. Add the following line to the top of the main nginx configuration (e.g.  `/etc/nginx/nginx.conf`):
+1. Download a gzipped tarball from a [recent release][12], extract it to
+   wherever nginx looks for modules (e.g. `/usr/lib/nginx/modules/`).
+2. Add the following line to the top of the main nginx configuration (e.g.
+   `/etc/nginx/nginx.conf`):
 
 ```nginx
 load_module modules/ngx_http_datadog_module.so;
 ```
+
 Tracing is automatically added to all endpoints by default.  For more
 information, see [the API documentation](doc/API.md).
 
 Compatibility
 -------------
 > [!IMPORTANT]
-> We provide support for NGINX versions up to their End Of Life, extended by one year. 
-> [Aligned with the NGINX release cycle][11], this entails support for the four most recent NGINX versions.
+> We provide support for NGINX versions up to their End Of Life, extended by one
+> year.  [Aligned with the NGINX release cycle][11], this entails support for
+> the four most recent NGINX versions.
 >
-> If you plan to add tracing features to an older NGINX version using our module, please check out [the build section](#build) for guidance.
+> If you plan to add tracing features to an older NGINX version using our
+> module, please check out [the build section](#build) for guidance.
 
-There is one version of the module for each docker image we follow, which
-include the following:
+There are two tarballs (the actual executable module and, separately, the debug
+symbols) per each combination of: 1) nginx version, 2) architecture, 3) whether
+AppSec is built in or not.  The main tarball contains a single file,
+`ngx_http_datadog_module.so`, which is the Datadog nginx module.
 
-- Debian variants of [nginx's DockerHub images][3].
-- Alpine variants of [nginx's DockerHub images][3].
-- [Amazon Linux][10].
+The naming convention is:
 
-Each release contains one zipped tarball per supported image above.
-The zipped tarball contains a single file, `ngx_http_datadog_module.so`, which is the Datadog tracing nginx module.
+* `ngx_http_datadog_module-<arch>-<version>.so.tgz` for builds without appsec
+  support and
+* `ngx_http_datadog_module-appsec-<arch>-<version>.so.tgz` for builds with
+  appsec support.
 
-The naming convention is `<base image with underscores>-<arch>-ngx_http_datadog_module.so.tgz`.
+> [!IMPORTANT]
+> The AppSec variants require nginx to have been built with `--threads` (thread
+> support).
 
 Supported architectures (`<arch>`) are `amd64` and `arm64`.
-
-Examples:
-- `nginx_1.23.1-alpine-amd64-ngx_http_datadog_module.so.tgz` corresponds to NGINX version 1.23.1 docker image, running on Alpine, and designed for the amd64 architecture.
-- `amazonlinux_2.0.20230119.1-arm64-ngx_http_datadog_module.so.tgz` refers to Amazon Linux version 2.0.20230119.1 docker image, designed for the arm64 architecture.
 
 
 Default Behavior
@@ -55,14 +59,28 @@ default tracing behavior to nginx:
     - Resource name is `"$request_method $uri"`, e.g. "GET /api/book/0-345-24223-8/title".
     - Includes multiple `http.*` [tags][8].
 
-Custom configuration can be specified via the [datadog_*](doc/API.md)
-family of directives in nginx's configuration file, or via [environment variables][9].
+Custom configuration can be specified via the [datadog\_*](doc/API.md) family of
+directives in nginx's configuration file, or via [environment variables][9].
+
+Enabling AppSec
+---------------
+
+To enable AppSec, besides using the correct binary (the relase artifact with
+"-appsec") in the name, it's necessary to edit the nginx configuration:
+
+* Set `datadog_appsec_enabled yes;`.
+* Define one (or more thread pools).
+* Choose which thread pool AppSec will use, either on a global or a per-location
+  basis.
+
+For more information, see [the documentation](doc/API.md).
 
 Build
 -----
 Requirements:
-- C and C++ toolchain (`clang` or `gcc/g++`).
-- CMake `v3.7` or newer.
+- Recent C and C++ toolchain (`clang` or `gcc/g++`) (must support at least some
+  C++20 features).
+- CMake `v3.24` or newer.
 - Architecture must be `x86_64` or `arm64`.
 
 For enhanced usability, we provide a [GNU make][1] compatible [Makefile](Makefile).
@@ -71,11 +89,18 @@ For enhanced usability, we provide a [GNU make][1] compatible [Makefile](Makefil
 NGINX_VERSION=1.25.2 make build
 ```
 
-The resulting nginx module is `.build/ngx_http_datadog_module.so`
+You can set the environment variable `WAF` to `ON` to build an AppSec-supporting
+module:
+
+```shell
+WAF=ON NGINX_VERSION=1.25.2 make build
+```
+
+The resulting nginx module is `.build/ngx\_http\_datadog\_module.so`
 
 The `build` target does the following:
 
-- Download a source release of nginx based on the `NGINX_VERSION` environment variable.
+- Download a source release of nginx based on the `NGINX\_VERSION` environment variable.
 - Initialize the source tree of `dd-trace-cpp` as a git submodule.
 - Build `dd-trace-cpp` and the Datadog nginx module together using
   CMake.
@@ -86,19 +111,12 @@ everything done by the build.
 Build in Docker
 ---------------
 ```shell
-make build-in-docker
+make build-musl
 ```
 
-`build-in-docker` target, builds the Datadog nginx module and its
-dependencies in a [Docker][2] container compatible with the DockerHub image
-specified as `BASE_IMAGE` in the `nginx-version-info` file, (e.g.
-`nginx:1.19.1-alpine`) and with the nginx source version specified as
-`NGINX_VERSION` in the `nginx-version-info` file (e.g. `1.19.1`).
-
-The appropriate build image must be created first using the
-[bin/docker_build.sh](bin/docker_build.sh) script if it does not exist already.
-Once the image is built, `make build-in-docker` produces the nginx module as
-`.docker-build/ngx_http_datadog_module.so`.
+The `build-musl` target builds against musl and libc++ a glibc-compatible
+module. The Dockerfile for the docker image used in the process can be found in
+[build_env/Dockerfile](./build_env/Dockerfile).
 
 Test
 ----
@@ -120,3 +138,5 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [10]: https://hub.docker.com/_/amazonlinux
 [11]: https://www.nginx.com/blog/nginx-1-18-1-19-released/
 [12]: https://github.com/DataDog/nginx-datadog/releases
+
+<!-- vim: set tw=80: -->
