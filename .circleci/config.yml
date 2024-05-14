@@ -37,6 +37,14 @@ jobs:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
     - run:
+        name: Verify versions (release tag only)
+        command: |
+          if [[ $CIRCLE_TAG =~ ^v ]]; then
+            bin/verify_version.sh "$(echo \"$CIRCLE_TAG\" | tr -d v)"
+          else
+            echo "Not a release"
+          fi
+    - run:
         command: 'make build-musl'
         environment:
           BUILD_TYPE: RelWithDebInfo
