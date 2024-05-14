@@ -12,7 +12,7 @@ cmake_policy(SET CMP0135 NEW)
 #   nginx's `configure` script,
 # - `dd-trace-cpp/CMakeLists.txt`, the Datadog tracing library.
 
-project(ngx_http_datadog_module)
+project(ngx_http_datadog_module VERSION 1.2.0)
 
 option(NGINX_DATADOG_ASM_ENABLED "Build with libddwaf" ON)
 set(NGINX_SRC_DIR "" CACHE PATH "The path to a directory with nginx sources")
@@ -50,6 +50,7 @@ include(./nginx-module.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
+set(RULES_VERSION "")
 if(NGINX_DATADOG_ASM_ENABLED)
   include(./rapidjson.cmake)
   # we need neither but libddwaf requires one enabled
@@ -58,7 +59,16 @@ if(NGINX_DATADOG_ASM_ENABLED)
   set(LIBDDWAF_TESTING OFF)
   set(LIBDDWAF_ENABLE_LTO OFF)
   add_subdirectory(./libddwaf EXCLUDE_FROM_ALL)
+
+  execute_process(
+    COMMAND grep rules_version src/security/recommended.json
+    COMMAND sed "s/.*\"\\([0-9.]\\+\\)\".*/\\1/"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE RULES_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
+
+configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
@@ -86,6 +96,7 @@ target_sources(ngx_http_datadog_module
     src/request_tracing.cpp
     src/string_util.cpp
     src/tracing_library.cpp
+    ${CMAKE_BINARY_DIR}/version.cpp
 )
 if(NGINX_DATADOG_ASM_ENABLED)
   target_sources(ngx_http_datadog_module
