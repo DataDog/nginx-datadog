@@ -1,11 +1,11 @@
+---
 version: 2.1
-
 release_tag_only: &release_tag_only
   filters:
     tags:
-      only: /^v[0-9]+\.[0-9]+\.[0-9]+/
+      only: "/^v[0-9]+\\.[0-9]+\\.[0-9]+/"
     branches:
-      ignore: /.*/
+      ignore: "/.*/"
 
 executors:
   docker-amd64:
@@ -13,117 +13,126 @@ executors:
       image:
         type: string
     docker:
-      - image: << parameters.image >>
+    - image: "<< parameters.image >>"
     resource_class: xlarge
   docker-arm64:
     parameters:
       image:
         type: string
     docker:
-      - image: << parameters.image >>
+    - image: "<< parameters.image >>"
     resource_class: arm.xlarge
 
 jobs:
-  build:
+  build_amd64:
     parameters:
-      # `build-image` is the docker image, with tag, in which the module will
-      # be built. It's of the form
-      # "datadog/docker-library:nginx-datadog-build-$base_image_without_colons".
-      build-image:
+      nginx-version:
         type: string
-      # `base-image` is the docker image on which the build-image is based.
-      # This parameter is extracted from nginx-version-info by the release
-      # script, so that it knows how to name the built shared object.
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        command: 'make build-musl'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          NGINX_VERSION: "<< parameters.nginx-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".musl-build/ngx_http_datadog_module.so"
+          - ".musl-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    machine:
+      image: ubuntu-2204:current
+    resource_class: xlarge
+    environment:
+      ARCH: x86_64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      NGINX_VERSION: "<< parameters.nginx-version >>"
+  build_arm64:
+    parameters:
+      nginx-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        command: 'make build-musl'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          NGINX_VERSION: "<< parameters.nginx-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".musl-build/ngx_http_datadog_module.so"
+          - ".musl-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    - store_artifacts:
+        path: nginx-version-info
+        destination: nginx-version-info
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.xlarge
+    environment:
+      ARCH: aarch64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      NGINX_VERSION: "<< parameters.nginx-version >>"
+  test:
+    parameters:
       base-image:
         type: string
-        default: ""
-      # `nginx-version` is the release version of the nginx source code to
-      # include in the built module. It's of the form
-      # "$major.$minor.$patch".
+        default: ''
       nginx-version:
         type: string
       arch:
         type: string
-        default: "amd64"
+      waf:
+        type: string
     executor:
       name: docker-<< parameters.arch >>
-      image: << parameters.build-image >>
-    environment:
-      # The `resource_class` implies a memory limit and supposedly a CPU count
-      # limit.  However, either there is no actual CPU count limit, or the
-      # limit cannot be determined from within the running job.
-      # Instead, the number of CPUs on the host machine is all we can see.
-      # This means that a command like `make --jobs=$(nproc)` is likely to run
-      # out of memory, because while the `resource_class` says it has 2 CPUs,
-      # `nproc` will report something like 36.  `make` will then spawn a bunch
-      # of processes, and the job will run out of memory.
-      # So, here we hard-code the number of CPUs supposedly offered by the
-      # `resource_class`.  For information about the `resource_class` values,
-      # see:
-      # https://circleci.com/docs/2.0/configuration-reference/
-      MAKE_JOB_COUNT: 8
-    steps:
-    - checkout
-    - run: printf 'NGINX_VERSION=%s\n' << parameters.nginx-version >> >>nginx-version-info
-    - run: printf 'BASE_IMAGE=%s\n' '<< parameters.base-image >>' >>nginx-version-info
-    - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
-    - run: 
-        command: make build
-        environment:
-          BUILD_TYPE: Release
-          NGINX_VERSION: << parameters.nginx-version >>
-    - persist_to_workspace:
-        root: .
-        paths:
-          - .build/ngx_http_datadog_module.so
-          - nginx-version-info
-    - store_artifacts:
-        path: .build/ngx_http_datadog_module.so
-        destination: ngx_http_datadog_module.so
-    - store_artifacts:
-        path: nginx-version-info
-        destination: nginx-version-info
-
-  test:
-    parameters:
-      # `base-image` is the docker image on top of which the test image will be
-      # built. This determines the particular nginx under test.
-      base-image:
-        type: string
-        default: ""
-      arch:
-        type: string
-        default: "amd64"
-    executor:
-      name: docker-<< parameters.arch >>
-      # "cimg" means "convenience image."  Helpful images provided by CircleCI.
-      # This one contains Python, docker-compose, and a bunch of other things.
-      # See https://circleci.com/docs/circleci-images
       image: cimg/python:3.10.13
     environment:
-      # See https://github.com/containers/podman/issues/13889
+      # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
+      WAF: "<< parameters.waf >>"
     steps:
     - checkout
     - attach_workspace:
-        at: /tmp/workspace
-    - run: mv /tmp/workspace/nginx-version-info .
-    - run: printf 'ARCH=%s\n' '<< parameters.arch >>' >>nginx-version-info
-    - run: mv /tmp/workspace/.build/ngx_http_datadog_module.so test/services/nginx/ngx_http_datadog_module.so
+        at: "/tmp/workspace"
+    - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
+    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > nginx-version-info
     - setup_remote_docker:
-        # Cache docker layers somewhere so that we don't have to rebuild test
-        # service images every time.
         docker_layer_caching: true
-    - run: |
-        env | sort
+    - run: 'env | sort'
     - run: test/bin/run --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
-
   format:
     docker:
-    - image: "datadog/docker-library:dd-trace-cpp-ci"
+    - image: datadog/docker-library:dd-trace-cpp-ci
     resource_class: small
     steps:
     - checkout
@@ -133,1013 +142,451 @@ jobs:
           pip install yapf
           update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
     - run: make lint
-
   shellcheck:
     docker:
     - image: koalaman/shellcheck-alpine:v0.9.0
-      entrypoint: /bin/sh
+      entrypoint: "/bin/sh"
     steps:
     - checkout
-    - run: find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
-
+    - run: find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude
+        SC1071,SC1091,SC2317
 workflows:
   build-and-test:
     jobs:
     - format
     - shellcheck:
-        name: "run shellcheck on shell scripts"
+        name: run shellcheck on shell scripts
         filters:
           tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
+            ignore: "/^v[0-9]+\\.[0-9]+\\.[0-9]+/"
+    - build_amd64:
         matrix:
           parameters:
-            arch: ["amd64", "arm64"]
-        name: "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2023.3.20240219.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2023.3.20240219.0"
-        nginx-version: "1.24.0"
+            nginx-version:
+            - 1.22.1
+            - 1.24.0
+            - 1.25.4
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
         filters:
           tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: "/^v[0-9]+\\.[0-9]+\\.[0-9]+/"
+    - build_arm64:
+        matrix:
+          parameters:
+            nginx-version:
+            - 1.22.1
+            - 1.24.0
+            - 1.25.4
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
+        filters:
+          tags:
+            ignore: "/^v[0-9]+\\.[0-9]+\\.[0-9]+/"
     - test:
         matrix:
           parameters:
-            arch: ["amd64", "arm64"]
-        name: "test on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2023.3.20240219.0"
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.25.4-alpine
+            - nginx:1.25.4
+            nginx-version:
+            - 1.25.4
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
+          >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
+          >>
         filters:
           tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230418.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230418.0"
-        nginx-version: "1.22.1"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: "/^v[0-9]+\\.[0-9]+\\.[0-9]+/"
     - test:
         matrix:
           parameters:
-            arch: ["amd64", "arm64"]
-        name: "test on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230418.0"
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - amazonlinux:2.0.20230418.0
+            nginx-version:
+            - 1.22.1
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
+          >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
+          >>
         filters:
           tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "build on nginx:1.26.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.26.0-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.26.0-alpine"
-        nginx-version: "1.26.0"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
+            ignore: "/^v[0-9]+\\.[0-9]+\\.[0-9]+/"
     - test:
         matrix:
           parameters:
-            arch: ["amd64", "arm64"]
-        name: "test on nginx:1.26.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.26.0-alpine"
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - amazonlinux:2023.3.20240219.0
+            nginx-version:
+            - 1.24.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on nginx:1.26.0-alpine-<< matrix.arch >>"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
         filters:
           tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - build:
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "build on nginx:1.26.0-<< matrix.arch >>"
-        base-image: "nginx:1.26.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.26.0"
-        nginx-version: "1.26.0"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-    - test:
-        matrix:
-          parameters:
-            arch: ["amd64", "arm64"]
-        name: "test on nginx:1.26.0-<< matrix.arch >>"
-        base-image: "nginx:1.26.0"
-        requires:
-        - "build on nginx:1.26.0-<< matrix.arch >>"
-        filters:
-          tags:
-            ignore: /^v[0-9]+\.[0-9]+\.[0-9]+/
-
+            ignore: "/^v[0-9]+\\.[0-9]+\\.[0-9]+/"
   build-and-test-all:
     jobs:
-    # Output of `bin/generate_jobs_yaml.sh` begins on the following line.
-    - build:
+    # output of bin/generate_jobs_yaml.rb
+    - build_amd64:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2023.3.20240219.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2023.3.20240219.0"
-        nginx-version: "1.24.0"
+            nginx-version:
+            - 1.22.0
+            - 1.22.1
+            - 1.23.0
+            - 1.23.1
+            - 1.23.2
+            - 1.23.3
+            - 1.23.4
+            - 1.24.0
+            - 1.25.0
+            - 1.25.1
+            - 1.25.2
+            - 1.25.3
+            - 1.25.4
+            - 1.25.5
+            - 1.26.0
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
+    - build_arm64:
+        <<: *release_tag_only
+        matrix:
+          parameters:
+            nginx-version:
+            - 1.22.0
+            - 1.22.1
+            - 1.23.0
+            - 1.23.1
+            - 1.23.2
+            - 1.23.3
+            - 1.23.4
+            - 1.24.0
+            - 1.25.0
+            - 1.25.1
+            - 1.25.2
+            - 1.25.3
+            - 1.25.4
+            - 1.25.5
+            - 1.26.0
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - amazonlinux:2023.3.20240219.0
+            - nginx:1.24.0-alpine
+            - nginx:1.24.0
+            nginx-version:
+            - 1.24.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2023.3.20240219.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2023.3.20240219.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230418.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230418.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - amazonlinux:2.0.20230418.0
+            - amazonlinux:2.0.20230320.0
+            - amazonlinux:2.0.20230307.0
+            - amazonlinux:2.0.20230221.0
+            - amazonlinux:2.0.20230207.0
+            - amazonlinux:2.0.20230119.1
+            - amazonlinux:2.0.20221210.0
+            - amazonlinux:2.0.20221103.3
+            - amazonlinux:2.0.20221004.0
+            - amazonlinux:2.0.20220912.1
+            - amazonlinux:2.0.20220805.0
+            - amazonlinux:2.0.20220719.0
+            - amazonlinux:2.0.20220606.1
+            - amazonlinux:2.0.20220426.0
+            - amazonlinux:2.0.20220419.0
+            - amazonlinux:2.0.20220406.1
+            - amazonlinux:2.0.20220316.0
+            - amazonlinux:2.0.20220218.1
+            - amazonlinux:2.0.20220121.0
+            - nginx:1.22.1-alpine
+            - nginx:1.22.1
+            nginx-version:
+            - 1.22.1
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20230418.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230418.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20230320.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230320.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230320.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.26.0-alpine
+            - nginx:1.26.0
+            nginx-version:
+            - 1.26.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20230320.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20230320.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230320.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20230307.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230307.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230307.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.25.5-alpine
+            - nginx:1.25.5
+            nginx-version:
+            - 1.25.5
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20230307.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20230307.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230307.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20230221.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230221.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230221.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.25.4-alpine
+            - nginx:1.25.4
+            nginx-version:
+            - 1.25.4
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20230221.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20230221.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230221.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20230207.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230207.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230207.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.25.3-alpine
+            - nginx:1.25.3
+            nginx-version:
+            - 1.25.3
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20230207.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20230207.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230207.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20230119.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230119.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20230119.1"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.25.2-alpine
+            - nginx:1.25.2
+            nginx-version:
+            - 1.25.2
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20230119.1-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20230119.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20230119.1"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20221210.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20221210.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20221210.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.25.1-alpine
+            - nginx:1.25.1
+            nginx-version:
+            - 1.25.1
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20221210.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20221210.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20221210.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20221103.3-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20221103.3"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20221103.3"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.25.0-alpine
+            - nginx:1.25.0
+            nginx-version:
+            - 1.25.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20221103.3-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20221103.3-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20221103.3"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20221004.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20221004.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20221004.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.23.4-alpine
+            - nginx:1.23.4
+            nginx-version:
+            - 1.23.4
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20221004.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20221004.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20221004.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220912.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220912.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220912.1"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.23.3-alpine
+            - nginx:1.23.3
+            nginx-version:
+            - 1.23.3
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20220912.1-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220912.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220912.1"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220805.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220805.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220805.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.23.2-alpine
+            - nginx:1.23.2
+            nginx-version:
+            - 1.23.2
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20220805.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220805.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220805.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220719.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220719.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220719.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.23.1-alpine
+            - nginx:1.23.1
+            nginx-version:
+            - 1.23.1
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20220719.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220719.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220719.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220606.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220606.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220606.1"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.23.0-alpine
+            - nginx:1.23.0
+            nginx-version:
+            - 1.23.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20220606.1-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220606.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220606.1"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220426.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220426.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220426.0"
-        nginx-version: "1.22.1"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         <<: *release_tag_only
         matrix:
           parameters:
-            arch: [amd64,arm64]
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.22.0-alpine
+            - nginx:1.22.0
+            nginx-version:
+            - 1.22.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - "build on amazonlinux:2.0.20220426.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220426.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220426.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220419.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220419.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220419.0"
-        nginx-version: "1.22.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on amazonlinux:2.0.20220419.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220419.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220419.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220406.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220406.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220406.1"
-        nginx-version: "1.22.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on amazonlinux:2.0.20220406.1-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220406.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220406.1"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220316.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220316.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220316.0"
-        nginx-version: "1.22.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on amazonlinux:2.0.20220316.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220316.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220316.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220218.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220218.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220218.1"
-        nginx-version: "1.22.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on amazonlinux:2.0.20220218.1-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220218.1-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220218.1"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on amazonlinux:2.0.20220121.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220121.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-amazonlinux_2.0.20220121.0"
-        nginx-version: "1.22.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on amazonlinux:2.0.20220121.0-<< matrix.arch >>"
-        name: "test on amazonlinux:2.0.20220121.0-<< matrix.arch >>"
-        base-image: "amazonlinux:2.0.20220121.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.26.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.26.0-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.26.0-alpine"
-        nginx-version: "1.26.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.26.0-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.26.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.26.0-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.26.0-<< matrix.arch >>"
-        base-image: "nginx:1.26.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.26.0"
-        nginx-version: "1.26.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.26.0-<< matrix.arch >>"
-        name: "test on nginx:1.26.0-<< matrix.arch >>"
-        base-image: "nginx:1.26.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.5-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.5-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.5-alpine"
-        nginx-version: "1.25.5"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.5-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.25.5-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.5-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.5-<< matrix.arch >>"
-        base-image: "nginx:1.25.5"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.5"
-        nginx-version: "1.25.5"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.5-<< matrix.arch >>"
-        name: "test on nginx:1.25.5-<< matrix.arch >>"
-        base-image: "nginx:1.25.5"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.4-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.4-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.4-alpine"
-        nginx-version: "1.25.4"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.4-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.25.4-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.4-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.4-<< matrix.arch >>"
-        base-image: "nginx:1.25.4"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.4"
-        nginx-version: "1.25.4"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.4-<< matrix.arch >>"
-        name: "test on nginx:1.25.4-<< matrix.arch >>"
-        base-image: "nginx:1.25.4"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.3-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.3-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.3-alpine"
-        nginx-version: "1.25.3"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.3-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.25.3-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.3-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.3-<< matrix.arch >>"
-        base-image: "nginx:1.25.3"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.3"
-        nginx-version: "1.25.3"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.3-<< matrix.arch >>"
-        name: "test on nginx:1.25.3-<< matrix.arch >>"
-        base-image: "nginx:1.25.3"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.2-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.2-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2-alpine"
-        nginx-version: "1.25.2"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.2-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.25.2-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.2-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.2-<< matrix.arch >>"
-        base-image: "nginx:1.25.2"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.2"
-        nginx-version: "1.25.2"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.2-<< matrix.arch >>"
-        name: "test on nginx:1.25.2-<< matrix.arch >>"
-        base-image: "nginx:1.25.2"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.1-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.1-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.1-alpine"
-        nginx-version: "1.25.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.1-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.25.1-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.1-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.1-<< matrix.arch >>"
-        base-image: "nginx:1.25.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.1"
-        nginx-version: "1.25.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.1-<< matrix.arch >>"
-        name: "test on nginx:1.25.1-<< matrix.arch >>"
-        base-image: "nginx:1.25.1"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.0-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.0-alpine"
-        nginx-version: "1.25.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.0-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.25.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.25.0-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.25.0-<< matrix.arch >>"
-        base-image: "nginx:1.25.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.25.0"
-        nginx-version: "1.25.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.25.0-<< matrix.arch >>"
-        name: "test on nginx:1.25.0-<< matrix.arch >>"
-        base-image: "nginx:1.25.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.24.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.24.0-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.24.0-alpine"
-        nginx-version: "1.24.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.24.0-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.24.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.24.0-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.24.0-<< matrix.arch >>"
-        base-image: "nginx:1.24.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.24.0"
-        nginx-version: "1.24.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.24.0-<< matrix.arch >>"
-        name: "test on nginx:1.24.0-<< matrix.arch >>"
-        base-image: "nginx:1.24.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.4-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.4-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.4-alpine"
-        nginx-version: "1.23.4"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.4-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.23.4-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.4-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.4-<< matrix.arch >>"
-        base-image: "nginx:1.23.4"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.4"
-        nginx-version: "1.23.4"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.4-<< matrix.arch >>"
-        name: "test on nginx:1.23.4-<< matrix.arch >>"
-        base-image: "nginx:1.23.4"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.3-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.3-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.3-alpine"
-        nginx-version: "1.23.3"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.3-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.23.3-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.3-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.3-<< matrix.arch >>"
-        base-image: "nginx:1.23.3"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.3"
-        nginx-version: "1.23.3"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.3-<< matrix.arch >>"
-        name: "test on nginx:1.23.3-<< matrix.arch >>"
-        base-image: "nginx:1.23.3"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.2-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.2-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.2-alpine"
-        nginx-version: "1.23.2"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.2-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.23.2-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.2-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.2-<< matrix.arch >>"
-        base-image: "nginx:1.23.2"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.2"
-        nginx-version: "1.23.2"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.2-<< matrix.arch >>"
-        name: "test on nginx:1.23.2-<< matrix.arch >>"
-        base-image: "nginx:1.23.2"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.1-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.1-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.1-alpine"
-        nginx-version: "1.23.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.1-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.23.1-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.1-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.1-<< matrix.arch >>"
-        base-image: "nginx:1.23.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.1"
-        nginx-version: "1.23.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.1-<< matrix.arch >>"
-        name: "test on nginx:1.23.1-<< matrix.arch >>"
-        base-image: "nginx:1.23.1"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.0-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.0-alpine"
-        nginx-version: "1.23.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.0-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.23.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.23.0-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.23.0-<< matrix.arch >>"
-        base-image: "nginx:1.23.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.23.0"
-        nginx-version: "1.23.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.23.0-<< matrix.arch >>"
-        name: "test on nginx:1.23.0-<< matrix.arch >>"
-        base-image: "nginx:1.23.0"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.22.1-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.22.1-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.22.1-alpine"
-        nginx-version: "1.22.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.22.1-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.22.1-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.22.1-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.22.1-<< matrix.arch >>"
-        base-image: "nginx:1.22.1"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.22.1"
-        nginx-version: "1.22.1"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.22.1-<< matrix.arch >>"
-        name: "test on nginx:1.22.1-<< matrix.arch >>"
-        base-image: "nginx:1.22.1"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.22.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.22.0-alpine"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.22.0-alpine"
-        nginx-version: "1.22.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.22.0-alpine-<< matrix.arch >>"
-        name: "test on nginx:1.22.0-alpine-<< matrix.arch >>"
-        base-image: "nginx:1.22.0-alpine"
-    - build:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        name: "build on nginx:1.22.0-<< matrix.arch >>"
-        base-image: "nginx:1.22.0"
-        build-image: "datadog/docker-library:nginx-datadog-build-nginx_1.22.0"
-        nginx-version: "1.22.0"
-    - test:
-        <<: *release_tag_only
-        matrix:
-          parameters:
-            arch: [amd64,arm64]
-        requires:
-        - "build on nginx:1.22.0-<< matrix.arch >>"
-        name: "test on nginx:1.22.0-<< matrix.arch >>"
-        base-image: "nginx:1.22.0"
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>

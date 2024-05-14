@@ -148,6 +148,19 @@ def parse_spans(log_lines):
     return spans
 
 
+def parse_rem_cfg_request(log_lines):
+    """Returns a list of decoded remote config requests seen by the agent.
+    They look like 'Remote config request with version 1712676390: <json data>"""
+
+    requests = []
+    for line in log_lines:
+        match = try_match(
+            r'Remote config request with version \d+: (?P<json>.+)', line)
+        if match is not None:
+            requests.append(json.loads(match.groupdict()['json']))
+    return requests
+
+
 def parse_access_log_sync_line(log_line):
     # Return a `dict` containing the sync token parsed from the specified
     # `log_line` if `log_line` is from the nginx access log for a sync request.

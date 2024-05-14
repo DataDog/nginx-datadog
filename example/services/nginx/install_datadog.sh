@@ -12,6 +12,15 @@ get_latest_release() {
   curl --silent "https://api.github.com/repos/$1/releases/latest" | jq --raw-output .tag_name
 }
 
+get_nginx_version() {
+  if ! is_installed nginx; then
+    >&2 echo 'Could not execute nginx binary'
+    exit 1
+  fi
+
+  nginx -version 2>&1 | sed 's@.*/@@'
+}
+
 if [ "$BASE_IMAGE" = '' ]; then
   >&2 echo 'This script expects BASE_IMAGE to be in the environment, e.g. "nginx:1.23.1-alpine" or "amazonlinux:2.0.20220121.0".'
   exit 1
@@ -86,11 +95,9 @@ if ! is_installed nginx; then
   fi
 fi
 
-# TODO(@dmehala): nginx version can be different from the base image
 RELEASE_TAG=$(get_latest_release DataDog/nginx-datadog)
-
-base_image_without_colons=$(echo "$BASE_IMAGE" | tr ':' '_')
-tarball="${base_image_without_colons}-${ARCH}-ngx_http_datadog_module.so.tgz"
+NGINX_VERSION=$(get_nginx_version)
+tarball="ngx_http_datadog_module-appsec-${ARCH}-${NGINX_VERSION}.so.tgz"
 
 wget "https://github.com/DataDog/nginx-datadog/releases/download/$RELEASE_TAG/$tarball"
 tar -xzf "$tarball" -C "$nginx_modules_path"
