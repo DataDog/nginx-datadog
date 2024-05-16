@@ -23,7 +23,6 @@ class NgxHeaderWriter : public datadog::tracing::DictWriter {
       : request_(request), pool_(request_->pool) {}
 
   void set(std::string_view key, std::string_view value) override {
-    // Question: Should we check first if the key already exist?
     const auto key_size = key.size();
 
     ngx_table_elt_t *h =

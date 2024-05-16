@@ -691,7 +691,7 @@ char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t * /*command*/,
 
   ngx_log_error(
       NGX_LOG_WARN, cf->log, 0,
-      "Directive \"%V\" is deprecated and can be removed since v1.0.15.",
+      "Directive \"%V\" is deprecated and can be removed since v1.2.0.",
       &elements[0]);
 
   return NGX_OK;

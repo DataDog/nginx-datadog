@@ -12,7 +12,6 @@
 
 #include "array_util.h"
 #include "dd.h"
-#include "string_util.h"
 
 extern "C" {
 #include <nginx.h>

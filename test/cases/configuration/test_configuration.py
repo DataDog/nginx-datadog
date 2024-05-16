@@ -34,44 +34,44 @@ def find_mismatches(pattern, subject):
     def yield_mismatches(path, pattern, subject):
         if type(pattern) is not type(subject):
             yield {
-                'path': path,
-                'error': 'mismatched types',
-                'pattern': pattern,
-                'actual': subject
+                "path": path,
+                "error": "mismatched types",
+                "pattern": pattern,
+                "actual": subject,
             }
         elif isinstance(pattern, list):
             if len(pattern) != len(subject):
                 yield {
-                    'path': path,
-                    'error': 'mismatched list lengths',
-                    'pattern': pattern,
-                    'actual': subject
+                    "path": path,
+                    "error": "mismatched list lengths",
+                    "pattern": pattern,
+                    "actual": subject,
                 }
                 return
             for i in range(len(pattern)):
-                yield from yield_mismatches(path + f'.{i}', pattern[i],
+                yield from yield_mismatches(path + f".{i}", pattern[i],
                                             subject[i])
         elif isinstance(pattern, dict):
             for key, subpattern in pattern.items():
                 if key not in subject:
                     yield {
-                        'path': path,
-                        'error': 'missing key',
-                        'key': key,
-                        'actual': subject
+                        "path": path,
+                        "error": "missing key",
+                        "key": key,
+                        "actual": subject,
                     }
                 else:
-                    yield from yield_mismatches(f'{path}.{key}', subpattern,
+                    yield from yield_mismatches(f"{path}.{key}", subpattern,
                                                 subject[key])
         elif pattern != subject:
             yield {
-                'path': path,
-                'error': 'mismatched values',
-                'expected': pattern,
-                'actual': subject
+                "path": path,
+                "error": "mismatched values",
+                "expected": pattern,
+                "actual": subject,
             }
 
-    return list(yield_mismatches('', pattern, subject))
+    return list(yield_mismatches("", pattern, subject))
 
 
 class TestConfiguration(case.TestCase):
@@ -81,14 +81,14 @@ class TestConfiguration(case.TestCase):
         self.default_config = None
 
     def test_in_http(self):
-        conf_path = Path(__file__).parent / 'conf' / 'in_http.conf'
+        conf_path = Path(__file__).parent / "conf" / "in_http.conf"
         conf_text = conf_path.read_text()
 
         status, log_lines = self.orch.nginx_replace_config(
             conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
-        status, _, body = self.orch.send_nginx_http_request('/')
+        status, _, body = self.orch.send_nginx_http_request("/")
         self.assertEqual(200, status)
 
         config = json.loads(body)
@@ -99,17 +99,17 @@ class TestConfiguration(case.TestCase):
         #     datadog_agent_url http://bogus:1234;
         #     datadog_propagation_styles B3 Datadog;
         pattern = {
-            'defaults': {
-                'service': 'foosvc',
-                'environment': 'fooment'
+            "defaults": {
+                "service": "foosvc",
+                "environment": "fooment"
             },
-            'collector': {
-                'config': {
-                    'traces_url': 'http://bogus:1234/v0.4/traces'
+            "collector": {
+                "config": {
+                    "traces_url": "http://bogus:1234/v0.4/traces"
                 }
             },
-            'injection_styles': ['B3', 'Datadog'],
-            'extraction_styles': ['B3', 'Datadog']
+            "injection_styles": ["B3", "Datadog"],
+            "extraction_styles": ["B3", "Datadog"],
         }
 
         mismatches = find_mismatches(pattern, config)
@@ -127,18 +127,21 @@ class TestConfiguration(case.TestCase):
 
     def test_duplicate_service_name(self):
         self.run_error_test(
-            conf_relative_path='./conf/duplicate/service_name.conf',
-            diagnostic_excerpt='Duplicate call to "datadog_service_name"')
+            conf_relative_path="./conf/duplicate/service_name.conf",
+            diagnostic_excerpt='Duplicate call to "datadog_service_name"',
+        )
 
     def test_duplicate_environment(self):
         self.run_error_test(
-            conf_relative_path='./conf/duplicate/environment.conf',
-            diagnostic_excerpt='Duplicate call to "datadog_environment"')
+            conf_relative_path="./conf/duplicate/environment.conf",
+            diagnostic_excerpt='Duplicate call to "datadog_environment"',
+        )
 
     def test_duplicate_agent_url(self):
         self.run_error_test(
-            conf_relative_path='./conf/duplicate/agent_url.conf',
-            diagnostic_excerpt='Duplicate call to "datadog_agent_url"')
+            conf_relative_path="./conf/duplicate/agent_url.conf",
+            diagnostic_excerpt='Duplicate call to "datadog_agent_url"',
+        )
 
     def test_duplicate_propagation_styles(self):
         self.run_error_test(
@@ -147,13 +150,6 @@ class TestConfiguration(case.TestCase):
             "Datadog propagation styles are already configured.",
         )
 
-    #def test_propagation_styles_error(self):
-    #    return self.run_error_test(
-    #        conf_relative_path="./conf/propagation_styles_error.conf",
-    #        diagnostic_excerpt=
-    #        "Datadog propagation styles are already configured.",
-    #    )
-
     def run_wrong_block_test(self, conf_relative_path):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
@@ -161,7 +157,7 @@ class TestConfiguration(case.TestCase):
         status, log_lines = self.orch.nginx_test_config(
             conf_text, conf_path.name)
         self.assertNotEqual(0, status)
-        excerpt = 'directive is not allowed here'
+        excerpt = "directive is not allowed here"
         self.assertTrue(any(excerpt in line for line in log_lines), log_lines)
 
     def test_error_in_main_service_name(self):
@@ -173,7 +169,7 @@ class TestConfiguration(case.TestCase):
             "./conf/error_in_main/environment.conf")
 
     def test_error_in_main_agent_url(self):
-        return self.run_wrong_block_test('./conf/error_in_main/agent_url.conf')
+        return self.run_wrong_block_test("./conf/error_in_main/agent_url.conf")
 
     def test_error_in_main_propagation_styles(self):
         return self.run_wrong_block_test(
