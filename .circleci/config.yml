@@ -224,7 +224,7 @@ workflows:
             nginx-version:
             - 1.22.1
             - 1.24.0
-            - 1.25.4
+            - 1.26.0
             waf:
             - 'ON'
             - 'OFF'
@@ -238,7 +238,7 @@ workflows:
             nginx-version:
             - 1.22.1
             - 1.24.0
-            - 1.25.4
+            - 1.26.0
             waf:
             - 'ON'
             - 'OFF'
@@ -261,10 +261,10 @@ workflows:
             - 'ON'
             - 'OFF'
             base-image:
-            - nginx:1.25.4-alpine
-            - nginx:1.25.4
+            - nginx:1.26.0-alpine
+            - nginx:1.26.0
             nginx-version:
-            - 1.25.4
+            - 1.26.0
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
           >> WAF << matrix.waf >>
         requires:
