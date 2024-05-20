@@ -114,4 +114,11 @@ int pthread_atfork(void (*prepare)(void), void (*parent)(void),
     return real_atfork(prepare, parent, child);
 }
 
+// the symbol strerror_r in glibc is not the POSIX version; it returns char *
+// __xpg_sterror_r is exported by both glibc and musl
+int strerror_r(int errnum, char *buf, size_t buflen) {
+    int __xpg_strerror_r(int, char *, size_t);
+    return __xpg_strerror_r(errnum, buf, buflen);
+}
+
 #endif
