@@ -19,5 +19,8 @@ RUN /tmp/install_tools.sh
 
 COPY ngx_http_datadog_module.so* /datadog-tests
 
+# settings for the generation of the profile data for coverage
+ENV LLVM_PROFILE_FILE="/tmp/nginx.%p.profraw"
+
 ENTRYPOINT ["nginx", "-c", "/datadog-tests/nginx.conf"]
 CMD ["-g", "daemon off;"]

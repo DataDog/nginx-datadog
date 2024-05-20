@@ -2,54 +2,42 @@
 
 #ifdef __x86_64__
 float ceilf(float x) {
-    float result;
-    __asm__(
-        "roundss $0x0A, %[x], %[result]"
-        : [result] "=x" (result)
-        : [x] "x" (x)
-    );
-    return result;
+  float result;
+  __asm__("roundss $0x0A, %[x], %[result]"
+          : [result] "=x"(result)
+          : [x] "x"(x));
+  return result;
 }
 double ceil(double x) {
-    double result;
-    __asm__(
-        "roundsd $0x0A, %[x], %[result]"
-        : [result] "=x" (result)
-        : [x] "x" (x)
-    );
-    return result;
+  double result;
+  __asm__("roundsd $0x0A, %[x], %[result]"
+          : [result] "=x"(result)
+          : [x] "x"(x));
+  return result;
 }
 #endif
 
 #ifdef __aarch64__
 float ceilf(float x) {
-    float result;
-    __asm__(
-        "frintp %s0, %s1\n"
-        : "=w" (result)
-        : "w" (x)
-    );
-    return result;
+  float result;
+  __asm__("frintp %s0, %s1\n" : "=w"(result) : "w"(x));
+  return result;
 }
 double ceil(double x) {
-    double result;
-    __asm__(
-        "frintp %d0, %d1\n"
-        : "=w" (result)
-        : "w" (x)
-    );
-    return result;
+  double result;
+  __asm__("frintp %d0, %d1\n" : "=w"(result) : "w"(x));
+  return result;
 }
 #endif
 
 int stat(const char *restrict path, void *restrict buf) {
-    int __xstat(int, const char *restrict, void *restrict);
-    return __xstat(3, path, buf);
+  int __xstat(int, const char *restrict, void *restrict);
+  return __xstat(3, path, buf);
 }
 
 int fstat(int fd, void *buf) {
-    int __fxstat(int, int, void *);
-    return __fxstat(3, fd, buf);
+  int __fxstat(int, int, void *);
+  return __fxstat(3, fd, buf);
 }
 
 // glibc doesn't define pthread_atfork on aarch64. We need to delegate to
@@ -80,45 +68,58 @@ int __register_atfork(void (*prepare)(void), void (*parent)(void),
 
 int pthread_atfork(void (*prepare)(void), void (*parent)(void),
                    void (*child)(void)) {
-    // glibc
-    if (__dso_handle && __register_atfork) {
-      return __register_atfork(prepare, parent, child, __dso_handle);
-    }
+  // glibc
+  if (__dso_handle && __register_atfork) {
+    return __register_atfork(prepare, parent, child, __dso_handle);
+  }
 
-    static int (*real_atfork)(void (*)(void), void (*)(void), void (*)(void));
+  static int (*real_atfork)(void (*)(void), void (*)(void), void (*)(void));
 
-    if (!real_atfork) {
-      // dlopen musl
+  if (!real_atfork) {
+    // dlopen musl
 #ifdef __aarch64__
-      void *handle = dlopen("ld-musl-aarch64.so.1", RTLD_LAZY);
-      if (!handle) {
-        fprintf(stderr, "dlopen of ld-musl-aarch64.so.1 failed: %s\n",
-                dlerror());
-        abort();
-      }
-#else
-      void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
-      if (!handle) {
-        fprintf(stderr, "dlopen of libc.musl-x86_64.so.1 failed: %s\n",
-                dlerror());
-        abort();
-      }
-#endif
-      real_atfork = dlsym(handle, "pthread_atfork");
-      if (!real_atfork) {
-        fprintf(stderr, "dlsym of pthread_atfork failed: %s\n", dlerror());
-        abort();
-      }
+    void *handle = dlopen("ld-musl-aarch64.so.1", RTLD_LAZY);
+    if (!handle) {
+      fprintf(stderr, "dlopen of ld-musl-aarch64.so.1 failed: %s\n", dlerror());
+      abort();
     }
+#else
+    void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
+    if (!handle) {
+      fprintf(stderr, "dlopen of libc.musl-x86_64.so.1 failed: %s\n",
+              dlerror());
+      abort();
+    }
+#endif
+    real_atfork = dlsym(handle, "pthread_atfork");
+    if (!real_atfork) {
+      fprintf(stderr, "dlsym of pthread_atfork failed: %s\n", dlerror());
+      abort();
+    }
+  }
 
-    return real_atfork(prepare, parent, child);
+  return real_atfork(prepare, parent, child);
 }
 
 // the symbol strerror_r in glibc is not the POSIX version; it returns char *
 // __xpg_sterror_r is exported by both glibc and musl
 int strerror_r(int errnum, char *buf, size_t buflen) {
-    int __xpg_strerror_r(int, char *, size_t);
-    return __xpg_strerror_r(errnum, buf, buflen);
+  int __xpg_strerror_r(int, char *, size_t);
+  return __xpg_strerror_r(errnum, buf, buflen);
+}
+
+// when compiling with --coverage, some references to atexit show up.
+// glibc doesn't provide atexit for similar reasons as pthread_atfork presumably
+int __cxa_atexit(void (*func)(void *), void *arg, void *dso_handle);
+int atexit(void (*function)(void)) {
+  if (!__dso_handle) {
+    fprintf(stderr, "Aborting because __dso_handle is NULL\n");
+    abort();
+  }
+
+  // the cast is harmless on amd64 and aarch64. Passing an extra argument to a
+  // function that expects none causes no problems
+  return __cxa_atexit((void (*)(void *))function, 0, __dso_handle);
 }
 
 #endif
