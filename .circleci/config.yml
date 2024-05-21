@@ -125,7 +125,7 @@ jobs:
           NGINX_VERSION: 1.26.0
           WAF: ON
     - codecov/upload:
-        file: .musl-build/coverage.txt
+        file: .musl-build/coverage.lcov
         upload_name: circleci
     machine:
       image: ubuntu-2204:current

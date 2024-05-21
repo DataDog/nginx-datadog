@@ -133,7 +133,7 @@ coverage:
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(DOCKER_REPOS):latest \
-		bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov show ./ngx_http_datadog_module.so -instr-profile=default.profdata -show-branches=count > coverage.txt'
+		bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata > coverage.lcov'
 
 
 .PHONY: test-parallel
