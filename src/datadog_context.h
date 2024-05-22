@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "datadog_conf.h"
-#include "propagation_header_querier.h"
 #include "request_tracing.h"
 #ifdef WITH_WAF
 #include "security/context.h"
@@ -41,14 +40,8 @@ class DatadogContext {
 
   void on_log_request(ngx_http_request_t* request);
 
-  ngx_str_t lookup_propagation_header_variable_value(
-      ngx_http_request_t* request, std::string_view key);
-
   ngx_str_t lookup_span_variable_value(ngx_http_request_t* request,
                                        std::string_view key);
-
-  ngx_str_t lookup_sampling_delegation_response_variable_value(
-      ngx_http_request_t* request);
 
   RequestTracing& single_trace();
 

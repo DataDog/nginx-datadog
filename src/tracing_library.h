@@ -42,25 +42,6 @@ struct TracingLibrary {
   static dd::Expected<dd::Tracer> make_tracer(
       const datadog_main_conf_t& conf, std::shared_ptr<dd::Logger> logger);
 
-  // Return the names of HTTP headers used to inject trace context in the
-  // specified `styles`. If `styles` is empty, then use the default styles
-  // instead. If an error occurs, return the error. Use the specified `logger`
-  // to issue warning diagnostics.
-  // Note that the storage to which each returned `std::string_view` refers must
-  // outlive any usage of the return value (realistically this means that they
-  // will refer to string literals).
-  static dd::Expected<std::vector<std::string_view>> propagation_header_names(
-      const std::vector<dd::PropagationStyle>& styles, dd::Logger& logger);
-
-  // Return the common prefix of all variable names that map to trace context
-  // propagation headers.  The portion of the variable name after the common
-  // prefix is the HTTP header name itself, lower-cased and with hyphens
-  // converted to underscores.  For example, if this function returns
-  // "datadog_propagation_header_", then the nginx configuration variable
-  // $datadog_propagation_header_x_datadog_origin refers to the
-  // X-Datadog-Origin propagation header value for the current span context.
-  static std::string_view propagation_header_variable_name_prefix();
-
   // Return the common prefix of all variable names that map to nginx worker
   // process environment variables.  The portion of the variable name after
   // the common prefix, converted to upper case, is the name of the
@@ -143,12 +124,6 @@ struct TracingLibrary {
   // An HTTP location is an endpoint as configured using a "location" block
   // in the nginx configuration.
   static bool trace_locations_by_default();
-
-  // Return the name of the nginx variable that expands to the value of the
-  // X-Datadog-Trace-Sampling-Decision response header to be delivered to a
-  // client that requested sampling delegation, or expands to the empty string
-  // in any other case.
-  static std::string_view sampling_delegation_response_variable_name();
 };
 
 }  // namespace nginx

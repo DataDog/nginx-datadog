@@ -1,6 +1,7 @@
 #include "request_tracing.h"
 
 #include <datadog/dict_writer.h>
+#include <datadog/injection_options.h>
 #include <datadog/span.h>
 #include <datadog/span_config.h>
 #include <datadog/trace_segment.h>
@@ -17,12 +18,48 @@
 #include "dd.h"
 #include "global_tracer.h"
 #include "ngx_header_reader.h"
+#include "ngx_header_writer.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
 #include "tracing_library.h"
 
 namespace datadog {
 namespace nginx {
+namespace {
+
+bool should_delegate(ngx_http_request_t *request,
+                     datadog_loc_conf_t *loc_conf) {
+  // First, we must check whether we're a subrequest (e.g. an authentification
+  // request), and consider the sampling delegation script only if sampling
+  // delegation is allowed for subrequests in this `location`.
+  if (request->parent != nullptr) {
+    const ngx_str_t subrequest_delegation =
+        loc_conf->allow_sampling_delegation_in_subrequests_script.run(request);
+    if (str(subrequest_delegation) == "off") {
+      return false;
+    } else if (str(subrequest_delegation) != "on") {
+      const auto &directive =
+          loc_conf->allow_sampling_delegation_in_subrequests_directive;
+      ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                    "Condition expression for %V directive at %V:%d evaluated "
+                    "to unexpected value "
+                    "\"%V\". Expected \"on\" or \"off\". Proceeding as if the "
+                    "value were \"off\".",
+                    &directive.directive_name, &directive.file_name,
+                    directive.line, &subrequest_delegation);
+      return false;
+    }
+  }
+
+  const ngx_str_t delegation =
+      loc_conf->sampling_delegation_script.run(request);
+  if (str(delegation) == "on") {
+    return true;
+  }
+
+  return false;
+}
+}  // namespace
 
 static std::string get_loc_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
@@ -196,7 +233,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // on the other hand, extracting trace context from the request headers
   // succeeds, then `request_span_` is part of the extracted trace.
   if (!parent && loc_conf_->trust_incoming_span) {
-    NgxHeaderReader reader{request};
+    NgxHeaderReader reader{&request->headers_in.headers};
     auto maybe_span = tracer->extract_or_create_span(reader, config);
     if (auto *error = maybe_span.if_error()) {
       ngx_log_error(
@@ -229,6 +266,15 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
+
+  // Inject the active span
+  dd::InjectionOptions injection_opts;
+  injection_opts.delegate_sampling_decision =
+      should_delegate(request_, loc_conf_);
+
+  NgxHeaderWriter writer(request_);
+  auto &span = active_span();
+  span.inject(writer, injection_opts);
 }
 
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
@@ -251,6 +297,15 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
+
+  // Inject the active span
+  dd::InjectionOptions injection_opts;
+  injection_opts.delegate_sampling_decision =
+      should_delegate(request_, loc_conf);
+
+  NgxHeaderWriter writer(request_);
+  auto &span = active_span();
+  span.inject(writer, injection_opts);
 }
 
 dd::Span &RequestTracing::active_span() {
@@ -317,67 +372,20 @@ void RequestTracing::on_log_request() {
 
   request_span_->set_end_time(finish_timestamp);
 
+  if (should_delegate(request_, loc_conf_)) {
+    NgxHeaderReader reader(&request_->headers_out.headers);
+    auto delegated = request_span_->read_sampling_delegation_response(reader);
+    if (!delegated.if_error()) return;
+  }
+
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
-// Expands the active span context into a list of key-value pairs and returns
-// the value for `key` if it exists.
-//
-// Note: there's caching so that if lookup_propagation_header_variable_value is
-// repeatedly called for the same active span context, it will only be expanded
-// once.
-//
-// See propagate_datadog_context
-ngx_str_t RequestTracing::lookup_propagation_header_variable_value(
-    std::string_view key) {
-  return propagation_header_querier_.lookup_value(request_, active_span(), key);
-}
-
 ngx_str_t RequestTracing::lookup_span_variable_value(std::string_view key) {
   return to_ngx_str(request_->pool, TracingLibrary::span_variables().resolve(
                                         key, active_span()));
-}
-
-ngx_str_t RequestTracing::lookup_sampling_delegation_response_variable_value() {
-  const ngx_str_t response_header =
-      loc_conf_->response_info_script.run(request_);
-
-  if (response_header.len) {
-    class OneHeaderReader : public dd::DictReader {
-      const ngx_str_t &value_;
-
-     public:
-      explicit OneHeaderReader(const ngx_str_t &value) : value_(value) {}
-
-      dd::Optional<dd::StringView> lookup(dd::StringView key) const override {
-        if (key == "x-datadog-trace-sampling-decision") {
-          return str(value_);
-        }
-        return dd::nullopt;
-      }
-
-      void visit(
-          const std::function<void(dd::StringView key, dd::StringView value)>
-              &visitor) const override {
-        visitor("x-datadog-trace-sampling-decision", str(value_));
-      }
-    } reader{response_header};
-
-    active_span().read_sampling_delegation_response(reader);
-  }
-
-  struct OneHeaderWriter : public dd::DictWriter {
-    std::string value_;
-    void set(dd::StringView /*key*/, dd::StringView value) override {
-      value_ = value;
-    }
-    ~OneHeaderWriter() {}
-  } writer;
-
-  active_span().trace_segment().write_sampling_delegation_response(writer);
-  return to_ngx_str(request_->pool, writer.value_);
 }
 
 }  // namespace nginx
