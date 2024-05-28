@@ -46,7 +46,10 @@ nginx_conf_path = "/datadog-tests/nginx.conf"
 
 
 def docker_compose_command(*args):
-    return [docker_command_path, 'compose', *docker_compose_flags, *args]
+    return [
+        docker_command_path, 'compose', '--ansi', 'never',
+        *docker_compose_flags, *args
+    ]
 
 
 def docker_command(*args):
@@ -212,6 +215,12 @@ def exit_on_exception(func):
     return wrapper
 
 
+def remove_terminal_escapes(input_string):
+    pattern = r'\x1b\[[0-9;]*[a-zA-Z]'
+    cleaned_string = re.sub(pattern, '', input_string)
+    return cleaned_string
+
+
 @exit_on_exception
 def docker_compose_up(on_ready, logs, verbose_file):
     """This function is meant to be executed on its own thread."""
@@ -226,6 +235,7 @@ def docker_compose_up(on_ready, logs, verbose_file):
                           env=child_env(),
                           encoding='utf8') as child:
         for line in child.stdout:
+            line = remove_terminal_escapes(line)
             kind, fields = formats.parse_docker_compose_up_line(line)
             print(json.dumps([time.monotonic(), kind, fields]),
                   file=verbose_file,
@@ -434,6 +444,10 @@ class Orchestration:
         Run `docker compose down` to bring down the orchestrated services.
         Join the log-parsing thread.
         """
+
+        if self.has_coverage_data():
+            self.create_coverage_tarball()
+
         command = docker_compose_command('down', '--remove-orphans')
         with print_duration('Bringing down all services', self.verbose):
             with subprocess.Popen(
@@ -452,6 +466,28 @@ class Orchestration:
             self.up_thread.join()
 
         self.verbose.close()
+
+    @staticmethod
+    def has_coverage_data():
+        command = docker_compose_command(
+            'exec', '-T', '--', 'nginx', 'bash', '-c',
+            "find /tmp -name '*.profraw' -print -quit | grep -q .")
+        result = subprocess.run(command)
+        return result.returncode == 0
+
+    @staticmethod
+    def create_coverage_tarball():
+        tar_command = docker_compose_command(
+            'exec', '-T', '--', 'nginx', 'bash', '-c',
+            "tar --transform='s@tmp/@@' -czf - -T <(find /tmp -maxdepth 1 -name '*.profraw')"
+        )
+
+        with open('./coverage_data.tar.gz', 'wb') as file:
+            result = subprocess.run(tar_command, stdout=file)
+
+        # Check if the tarball was created successfully
+        if result.returncode != 0:
+            raise Exception("Failed to create tarball")
 
     def send_nginx_http_request(self,
                                 path,

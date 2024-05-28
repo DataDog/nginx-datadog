@@ -7,6 +7,7 @@ MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 NGINX_SRC_DIR ?= $(PWD)/nginx
 ARCH ?= $(shell arch)
+COVERAGE ?= OFF
 DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain
 
 SHELL := /bin/bash
@@ -14,7 +15,8 @@ SHELL := /bin/bash
 .PHONY: build
 build: build-deps sources
 	# -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
-	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(NGINX_SRC_DIR) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) . \
+	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(NGINX_SRC_DIR) \
+		-DNGINX_COVERAGE=$(COVERAGE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) . \
 		&& cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
 	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
@@ -95,6 +97,7 @@ build-musl:
 		--env BUILD_TYPE=$(BUILD_TYPE) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
 		--env WAF=$(WAF) \
+		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(DOCKER_REPOS):latest \
 		make -C /mnt/repo build-musl-aux
@@ -108,6 +111,7 @@ build-musl-aux:
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_VERSION="$(NGINX_VERSION)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
+		-DNGINX_COVERAGE=$(COVERAGE) \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
 
 
@@ -115,6 +119,22 @@ build-musl-aux:
 test: build-musl
 	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
 	test/bin/run $(TEST_ARGS)
+
+.PHONY: coverage
+coverage:
+	COVERAGE=ON $(MAKE) build-musl
+	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
+	rm -f test/coverage_data.tar.gz
+	test/bin/run --verbose --failfast
+	docker run --init --rm --platform $(DOCKER_PLATFORM) \
+		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		$(DOCKER_REPOS):latest \
+		tar -C /mnt/repo/.musl-build -xzf /mnt/repo/test/coverage_data.tar.gz
+	docker run --init --rm --platform $(DOCKER_PLATFORM) \
+		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		$(DOCKER_REPOS):latest \
+		bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=/mnt/repo/src/coverage_fixup\.c > coverage.lcov'
+
 
 .PHONY: test-parallel
 test-parallel: build-in-docker

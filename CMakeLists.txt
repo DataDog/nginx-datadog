@@ -21,6 +21,7 @@ if (NGINX_SRC_DIR STREQUAL "" AND NGINX_VERSION STREQUAL "")
   message(FATAL_ERROR "Set NGINX_SRC_DIR or, alternatively NGINX_VERSION")
 endif()
 option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
+option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 
 # Make curl link against a static zlib (requires cmake 3.24)
 set(ZLIB_USE_STATIC_LIBS ON)
@@ -116,6 +117,17 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(ngx_http_datadog_module PRIVATE -Wall -Werror)
 endif()
 
+if(NGINX_COVERAGE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(ngx_http_datadog_module PRIVATE
+      -fprofile-instr-generate -fcoverage-mapping -mllvm -runtime-counter-relocation=true)
+    target_link_options(ngx_http_datadog_module PRIVATE
+      -fprofile-instr-generate -mllvm -runtime-counter-relocation=true)
+    target_sources(ngx_http_datadog_module PRIVATE src/coverage_fixup.c)
+  else()
+    message(FATAL_ERROR "NGINX_COVERAGE is only supported with clang")
+  endif()
+endif()
 
 target_include_directories(ngx_http_datadog_module
   PRIVATE

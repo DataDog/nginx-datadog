@@ -52,6 +52,7 @@ RUN mkdir -p /sysroot/${ARCH}-none-linux-musl/usr
 RUN ln -s /usr/lib /sysroot/${ARCH}-none-linux-musl/usr/
 RUN ln -s /usr/include /sysroot/${ARCH}-none-linux-musl/usr/
 RUN ln -s /lib /sysroot/${ARCH}-none-linux-musl/
+RUN ln -s /usr/lib/llvm16/lib/clang/16/lib /sysroot/${ARCH}-none-linux-musl/usr/lib/resource_dir/lib
 
 COPY Toolchain.cmake.${ARCH} /sysroot/${ARCH}-none-linux-musl/Toolchain.cmake
 

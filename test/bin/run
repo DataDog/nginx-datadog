@@ -11,5 +11,5 @@ printf "      arch : %s\n" "${ARCH}"
 printf "base image : %s\n" "${BASE_IMAGE}"
 printf " test args : %s\n" "$@"
 
-docker compose build --parallel
+docker compose build --parallel --progress=plain
 python3 -m unittest "$@"
