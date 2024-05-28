@@ -125,6 +125,7 @@ jobs:
           NGINX_VERSION: 1.26.0
           WAF: ON
     - codecov/upload:
+        upload_args: '--disable-search'
         file: .musl-build/coverage.lcov
         upload_name: circleci
     machine:
