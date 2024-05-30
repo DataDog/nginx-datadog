@@ -173,8 +173,13 @@ jobs:
           name: clone system-tests repo
           command: git clone https://github.com/DataDog/system-tests.git
       - run:
-          name: ls
-          command: ls -la /tmp/workspace/.musl-build
+          name: temporary, waiting for the system-tests PR to be merged
+          working_directory: ./system-tests
+          command: git switch cbeauchesne/cpp-binary
+      - run:
+          name: Move the module to the system-tests directory
+          working_directory: ./system-tests
+          command: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so binaries/ngx_http_datadog_module-appsec-amd64-1.25.4.so
       - run:
           name: Build test targets
           working_directory: ./system-tests
