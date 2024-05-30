@@ -161,6 +161,30 @@ jobs:
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
+  system_tests:
+    machine:
+      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
+      image: ubuntu-2004:current
+    resource_class: large
+    steps:
+      - attach_workspace:
+          at: "/tmp/workspace"
+      - run:
+          name: clone system-tests repo
+          command: git clone https://github.com/DataDog/system-tests.git
+      - run:
+          name: ls
+          command: ls -la /tmp/workspace/.musl-build
+      - run:
+          name: Build test targets
+          working_directory: ./system-tests
+          command: ./build.sh cpp
+      - run:
+          name: Run DEFAULT scenarios
+          working_directory: ./system-tests
+          command: ./run.sh
+
+
   format:
     docker:
     - image: datadog/docker-library:dd-trace-cpp-ci
@@ -285,6 +309,10 @@ workflows:
         filters:
           tags:
             ignore: "/^v[0-9]+\\.[0-9]+\\.[0-9]+/"
+    - system_tests:
+        name: Run system tests
+        requires:
+        - build 1.25.4 on amd64 WAF ON
   build-and-test-all:
     jobs:
     # output of bin/generate_jobs_yaml.rb
@@ -626,3 +654,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - system_tests:
+        name: Run system tests
+        requires:
+        - build 1.25.4 on amd64 WAF ON
