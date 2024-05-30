@@ -173,6 +173,9 @@ jobs:
           name: clone system-tests repo
           command: git clone https://github.com/DataDog/system-tests.git
       - run:
+          name: Install python 3.9
+          command: sudo apt-get install python3.9-venv
+      - run:
           name: temporary, waiting for the system-tests PR to be merged
           working_directory: ./system-tests
           command: git switch cbeauchesne/cpp-binary
