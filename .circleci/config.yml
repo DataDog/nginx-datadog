@@ -191,8 +191,8 @@ jobs:
           name: Run DEFAULT scenarios
           working_directory: ./system-tests
           command: ./run.sh
-
-
+          environment:
+            DD_API_KEY: fakekey
   format:
     docker:
     - image: datadog/docker-library:dd-trace-cpp-ci
