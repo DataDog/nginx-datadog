@@ -27,6 +27,32 @@ class TestHTTP(case.TestCase):
         priority = headers["x-datadog-sampling-priority"]
         priority = int(priority)
 
+    def test_context_extraction(self):
+        conf_path = Path(__file__).parent / "./conf/http_auto.conf"
+        conf_text = conf_path.read_text()
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
+        self.assertEqual(status, 0, log_lines)
+
+        tracing_context_headers = {
+            "x-datadog-trace-id": "2993963891409991723",
+            "x-datadog-parent-id": "6383613330463382713",
+        }
+
+        status, _, body = self.orch.send_nginx_http_request(
+            "/http", headers=tracing_context_headers)
+        self.assertEqual(status, 200)
+        response = json.loads(body)
+        self.assertEqual(response["service"], "http")
+        headers = response["headers"]
+
+        self.assertEqual(tracing_context_headers["x-datadog-trace-id"],
+                         headers["x-datadog-trace-id"])
+        self.assertNotEqual(
+            tracing_context_headers["x-datadog-parent-id"],
+            headers["x-datadog-parent-id"],
+        )
+
     def test_disabled_at_location(self):
         return self.run_test("./conf/http_disabled_at_location.conf",
                              should_propagate=False)
