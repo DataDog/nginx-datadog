@@ -1,2 +1,2 @@
-* @DataDog/apm-proxy
+* @DataDog/dd-trace-cpp
 src/security/ @DataDog/asm-cpp
