@@ -551,6 +551,31 @@ void Library::set_handle(OwnedDdwafHandle &&handle) {
   ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0, "WAF configuration updated");
 }
 
+bool Library::update_ruleset(const ddwaf_map_obj &spec) {
+  std::shared_ptr<OwnedDdwafHandle> cur_h{get_handle_uncond()};
+
+  if (!cur_h) {
+    throw std::runtime_error{"no handle to update"};
+  }
+
+  libddwaf_ddwaf_owned_obj<ddwaf_map_obj> diag{{}};
+  auto new_h = OwnedDdwafHandle{ddwaf_update(cur_h->get(), &spec, &diag.get())};
+  if (!new_h.get()) {
+    throw std::runtime_error{"call to ddwaf_update failed:" +
+                             ddwaf_diagnostics_to_str(diag.get())};
+  }
+
+  if (ngx_cycle->log->log_level & NGX_LOG_DEBUG_HTTP) {
+    std::string diag_str = ddwaf_diagnostics_to_str(diag.get());
+    ngx_str_t str = ngx_stringv(diag_str);
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
+                  "ddwaf_update succeeded: %V", &str);
+  }
+
+  set_handle(std::move(new_h));
+  return true;
+}
+
 std::shared_ptr<OwnedDdwafHandle> Library::get_handle() {
   if (active_.load(std::memory_order_relaxed)) {
     return get_handle_uncond();
