@@ -67,23 +67,18 @@ command_exists() {
   command -v "$@" > /dev/null 2>&1
 }
 
-# remove deps on jq
 get_latest_release() {
-  curl --silent "https://api.github.com/repos/$1/releases/latest" | jq --raw-output .tag_name
+  curl --silent "https://api.github.com/repos/$1/releases/latest" \
+    | grep '"tag_name":' \
+    | sed -E 's/.*"([^"]+)".*/\1/'
 }
 
 get_architecture() {
   case "$(uname -m)" in
-    aarch64)
+    aarch64 | arm64)
       echo "arm64"
       ;;
-    arm64)
-      echo "arm64"
-      ;;
-    x86_64)
-      echo "amd64"
-      ;;
-    amd64)
+    x86_64 | x86-64 | x64 | amd64)
       echo "amd64"
       ;;
     *)
@@ -109,6 +104,11 @@ make_datadog_conf() {
   EOF
 }
 
+err() {
+  echo 1>&2 "$1"
+  exit 1
+}
+
 # TODO:
 #  - more logging
 #  - args support (with rum or appsec?)
@@ -128,10 +128,8 @@ do_install() {
   fi
 
   arch=$(get_architecture)
-
   if [ -z "$arch" ]; then
-      echo 1>&2 "Error: Architecture $(uname -m) is not supported."
-      exit 1
+      err "Error: Architecture $(uname -m) is not supported."
   fi
 
   nginx_version="$(get_nginx_version)"
