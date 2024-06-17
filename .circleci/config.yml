@@ -316,7 +316,7 @@ workflows:
     - system_tests:
         name: Run system tests
         requires:
-        - test
+        - build 1.26.0 on amd64 WAF ON
   build-and-test-all:
     jobs:
     # output of bin/generate_jobs_yaml.rb
