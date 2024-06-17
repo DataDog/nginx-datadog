@@ -1,9 +1,9 @@
 <img alt="datadog tracing nginx" src="mascot.svg" height="200"/>
 
-Datadog Nginx Tracing Module
-============================
-This is the source for an nginx module that adds Datadog distributed tracing to
-nginx. The module is called `ngx_http_datadog_module`.
+Datadog NGINX Module
+====================
+This repository contains the source code for the `ngx_http_datadog_module`, an NGINX module
+that integrates Datadog [APM][13] and [Application Security Management][14] into NGINX.
 
 Usage
 -----
@@ -16,7 +16,7 @@ Usage
 load_module modules/ngx_http_datadog_module.so;
 ```
 
-Tracing is automatically added to all endpoints by default.  For more
+Tracing is automatically added to all endpoints by default. For more
 information, see [the API documentation](doc/API.md).
 
 Compatibility
@@ -51,13 +51,16 @@ Supported architectures (`<arch>`) are `amd64` and `arm64`.
 Default Behavior
 ----------------
 Unless otherwise configured, `ngx_http_datadog_module` adds the following
-default tracing behavior to nginx:
+default behavior to nginx:
+
+### Tracing
 - Connect to the Datadog agent at `http://localhost:8126`.
 - Create one span per request:
     - Service name is "nginx".
     - Operation name is "nginx.request".
     - Resource name is `"$request_method $uri"`, e.g. "GET /api/book/0-345-24223-8/title".
     - Includes multiple `http.*` [tags][8].
+
 
 Custom configuration can be specified via the [datadog\_*](doc/API.md) family of
 directives in nginx's configuration file, or via [environment variables][9].
@@ -138,5 +141,7 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [10]: https://hub.docker.com/_/amazonlinux
 [11]: https://www.nginx.com/blog/nginx-1-18-1-19-released/
 [12]: https://github.com/DataDog/nginx-datadog/releases
+[13]: https://docs.datadoghq.com/tracing/
+[14]: https://docs.datadoghq.com/security/application_security/
 
 <!-- vim: set tw=80: -->

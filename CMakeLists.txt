@@ -47,14 +47,14 @@ endif()
 add_compile_options(-fno-omit-frame-pointer)
 
 # Nginx module boilerplate (code within the nginx repository)
-include(./nginx-module.cmake)
+include(./cmake/deps/nginx-module.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
 set(RULES_VERSION "")
 set(LIBDDWAF_VERSION "")
 if(NGINX_DATADOG_ASM_ENABLED)
-  include(./rapidjson.cmake)
+  include(./cmake/deps/rapidjson.cmake)
   # we need neither but libddwaf requires one enabled
   set(LIBDDWAF_BUILD_STATIC ON)
   set(LIBDDWAF_BUILD_SHARED OFF)
@@ -156,18 +156,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set_target_properties(ngx_http_datadog_module PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT})
   target_link_options(ngx_http_datadog_module PRIVATE "-Wl,--version-script=${LINKER_SCRIPT}")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(EXPORTED_SYMBOLS ${CMAKE_SOURCE_DIR}/nginx_module.exported)
+  set(EXPORTED_SYMBOLS ${CMAKE_SOURCE_DIR}/nginx_module.ld)
   set_target_properties(ngx_http_datadog_module PROPERTIES LINK_DEPENDS ${EXPORTED_SYMBOLS})
   target_link_options(ngx_http_datadog_module PRIVATE "-Wl,-exported_symbols_list" "-Wl,${EXPORTED_SYMBOLS}")
 endif()
 
 if(NGINX_PATCH_AWAY_LIBC)
-  include(./patchelf.cmake)
+  include(./cmake/patchelf.cmake)
   patch_away_libc(ngx_http_datadog_module)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  include(./split_debug_info.cmake)
+  include(./cmake/split_debug_info.cmake)
   split_debug_info(ngx_http_datadog_module)
 endif()
 
