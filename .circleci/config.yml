@@ -225,7 +225,7 @@ workflows:
             - 1.22.1
             - 1.24.0
             - 1.25.4
-            - 1.26.0
+            - 1.27.0
             waf:
             - 'ON'
             - 'OFF'
@@ -236,13 +236,13 @@ workflows:
             nginx-version:
             - 1.22.1
             - 1.24.0
-            - 1.26.0
+            - 1.27.0
             waf:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
     - coverage:
-        name: Coverage on 1.26.0 with WAF ON
+        name: Coverage on 1.27.0 with WAF ON
     - test:
         matrix:
           parameters:
@@ -253,10 +253,10 @@ workflows:
             - 'ON'
             - 'OFF'
             base-image:
-            - nginx:1.26.0-alpine
-            - nginx:1.26.0
+            - nginx:1.27.0-alpine
+            - nginx:1.27.0
             nginx-version:
-            - 1.26.0
+            - 1.27.0
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
           >> WAF << matrix.waf >>
         requires:
@@ -327,6 +327,7 @@ workflows:
             - 1.25.5
             - 1.26.0
             - 1.26.1
+            - 1.27.0
             waf:
             - 'ON'
             - 'OFF'
@@ -351,6 +352,7 @@ workflows:
             - 1.25.5
             - 1.26.0
             - 1.26.1
+            - 1.27.0
             waf:
             - 'ON'
             - 'OFF'
@@ -406,6 +408,23 @@ workflows:
             - nginx:1.22.1
             nginx-version:
             - 1.22.1
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.27.0-alpine
+            - nginx:1.27.0
+            nginx-version:
+            - 1.27.0
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
