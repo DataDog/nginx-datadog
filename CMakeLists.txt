@@ -12,7 +12,7 @@ cmake_policy(SET CMP0135 NEW)
 #   nginx's `configure` script,
 # - `dd-trace-cpp/CMakeLists.txt`, the Datadog tracing library.
 
-project(ngx_http_datadog_module VERSION 1.2.0)
+project(ngx_http_datadog_module VERSION 1.2.1)
 
 option(NGINX_DATADOG_ASM_ENABLED "Build with libddwaf" ON)
 set(NGINX_SRC_DIR "" CACHE PATH "The path to a directory with nginx sources")
