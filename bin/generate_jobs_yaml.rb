@@ -21,6 +21,8 @@ amazonlinux:2.0.20220406.1 1.22.1
 amazonlinux:2.0.20220316.0 1.22.1
 amazonlinux:2.0.20220218.1 1.22.1
 amazonlinux:2.0.20220121.0 1.22.1
+nginx:1.26.1-alpine 1.26.1
+nginx:1.26.1 1.26.1
 nginx:1.26.0-alpine 1.26.0
 nginx:1.26.0 1.26.0
 nginx:1.25.5-alpine 1.25.5
@@ -64,7 +66,6 @@ all_versions = all_specs.map(&:version).uniq.sort
 
 puts <<-YAML.gsub(/^/, '    ')
 - build_amd64:
-    <<: *release_tag_only
     matrix:
       parameters:
         nginx-version:
@@ -74,7 +75,6 @@ puts <<-YAML.gsub(/^/, '    ')
         - 'OFF'
     name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
 - build_arm64:
-    <<: *release_tag_only
     matrix:
       parameters:
         nginx-version:
@@ -88,7 +88,6 @@ YAML
 all_specs.group_by(&:version).each do |version, specs|
     puts <<~YAML.gsub(/^/, '    ')
     - test:
-        <<: *release_tag_only
         matrix:
           parameters:
             arch:
