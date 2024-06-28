@@ -586,66 +586,6 @@ char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command,
       });
 }
 
-char *set_datadog_delegate_sampling(ngx_conf_t *cf, ngx_command_t *command,
-                                    void *conf) noexcept {
-  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  loc_conf->sampling_delegation_directive =
-      command_source_location(command, cf);
-
-  auto values = static_cast<ngx_str_t *>(cf->args->elts);
-  // values[0] is the command name, "datadog_delegate_sampling".
-  // The other elements are the arguments: either zero or one of them.
-  //
-  //     datadog_delegate_sampling [on | off];
-
-  const int num_args = cf->args->nelts - 1;
-
-  ngx_str_t pattern;
-  if (num_args == 0) {
-    pattern = ngx_string("on");
-  } else {
-    assert(num_args == 1);
-    pattern = values[1];
-  }
-
-  if (loc_conf->sampling_delegation_script.compile(cf, pattern) != NGX_OK) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  return NGX_CONF_OK;
-}
-
-char *set_datadog_allow_sampling_delegation_in_subrequests(
-    ngx_conf_t *cf, ngx_command_t *command, void *conf) noexcept {
-  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  loc_conf->allow_sampling_delegation_in_subrequests_directive =
-      command_source_location(command, cf);
-
-  auto values = static_cast<ngx_str_t *>(cf->args->elts);
-  // values[0] is the command name,
-  // "datadog_allow_sampling_delegation_in_subrequests". The other elements are
-  // the arguments: either zero or one of them.
-  //
-  //     datadog_allow_sampling_delegation_in_subrequests [on | off];
-
-  const int num_args = cf->args->nelts - 1;
-
-  ngx_str_t pattern;
-  if (num_args == 0) {
-    pattern = ngx_string("on");
-  } else {
-    assert(num_args == 1);
-    pattern = values[1];
-  }
-
-  if (loc_conf->allow_sampling_delegation_in_subrequests_script.compile(
-          cf, pattern) != NGX_OK) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  return NGX_CONF_OK;
-}
-
 char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept try {
   // Call the underlying directive handler, and then insert the following:

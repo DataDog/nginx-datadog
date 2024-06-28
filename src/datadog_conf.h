@@ -204,13 +204,9 @@ struct datadog_loc_conf_t {
   // The oldest ancestor (the `http` block) has `depth` zero. Each subsequent
   // generation has the `depth` of its parent plus one.
   int depth;
-  // `sampling_delegation_script` evaluates to one of "on", "off", or "" (the
-  // empty string). If "on", then sampling decisions will be delegated to the
-  // upstream at this location. If "off", then not. If "" (the empty string),
-  // then the `TracerConfig` will be used, which defaults to effectively "off"
-  // but can be overridden by the `DD_TRACE_DELEGATE_SAMPLING` environment
-  // variable.
-  NgxScript sampling_delegation_script;
+  // If "on", then sampling decisions will be delegated to the upstream at this
+  // location. If "off", then not.
+  ngx_flag_t sampling_delegation_enabled = NGX_CONF_UNSET;
   // `sampling_delegation_directive` is the source location of the
   // `datadog_delegate_sampling` directive that applies this location, if any.
   conf_directive_source_location_t sampling_delegation_directive;
@@ -227,7 +223,7 @@ struct datadog_loc_conf_t {
   // configuration context). If "off", then sampling delegation will not be
   // performed for subrequests in affected locations, even if those locations
   // are configured to delegate sampling.
-  NgxScript allow_sampling_delegation_in_subrequests_script;
+  ngx_flag_t allow_sampling_delegation_in_subrequests = NGX_CONF_UNSET;
   // `allow_sampling_delegation_in_subrequests_directive` is the source location
   // of the `datadog_allow_sampling_delegation_in_subrequests` directive that
   // applies this location, if any.
