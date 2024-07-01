@@ -1,0 +1,8 @@
+# `nm -m` to get the list of symbols
+# For more details: <https://developer.apple.com/library/archive/documentation/Performance/Conceptual/CodeFootprint/Articles/ReducingExports.html>
+_ngx_modules
+_ngx_module_names
+_ngx_module_order
+_datadog_version_nginx
+_datadog_version_nginx_mod
+_datadog_version_tracer

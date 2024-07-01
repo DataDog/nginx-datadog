@@ -29,35 +29,14 @@ namespace {
 
 bool should_delegate(ngx_http_request_t *request,
                      datadog_loc_conf_t *loc_conf) {
-  // First, we must check whether we're a subrequest (e.g. an authentification
-  // request), and consider the sampling delegation script only if sampling
-  // delegation is allowed for subrequests in this `location`.
   if (request->parent != nullptr) {
-    const ngx_str_t subrequest_delegation =
-        loc_conf->allow_sampling_delegation_in_subrequests_script.run(request);
-    if (str(subrequest_delegation) == "off") {
-      return false;
-    } else if (str(subrequest_delegation) != "on") {
-      const auto &directive =
-          loc_conf->allow_sampling_delegation_in_subrequests_directive;
-      ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
-                    "Condition expression for %V directive at %V:%d evaluated "
-                    "to unexpected value "
-                    "\"%V\". Expected \"on\" or \"off\". Proceeding as if the "
-                    "value were \"off\".",
-                    &directive.directive_name, &directive.file_name,
-                    directive.line, &subrequest_delegation);
-      return false;
-    }
+    return loc_conf->sampling_delegation_enabled;
   }
 
-  const ngx_str_t delegation =
-      loc_conf->sampling_delegation_script.run(request);
-  if (str(delegation) == "on") {
-    return true;
-  }
-
-  return false;
+  // `request` is a subrequest, sampling delegated must be allowed for
+  // subrequest.
+  return loc_conf->sampling_delegation_enabled &&
+         loc_conf->allow_sampling_delegation_in_subrequests;
 }
 }  // namespace
 
