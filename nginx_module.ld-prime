@@ -1,4 +1,4 @@
-# nm -m to get the listo f symbols
+# `nm -m` to get the list of symbols
 # For more details: <https://developer.apple.com/library/archive/documentation/Performance/Conceptual/CodeFootprint/Articles/ReducingExports.html>
 _ngx_modules
 _ngx_module_names
