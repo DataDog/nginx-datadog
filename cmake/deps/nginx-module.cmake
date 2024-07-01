@@ -13,6 +13,13 @@ list(APPEND NGINX_CONF_ARGS
   "--with-compat"
 )
 
+# if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+#   list(APPEND NGINX_CONF_ARGS
+#     "--with-cc-opt='-std=c11 -O0 -g'"
+#     "--with-debug"
+#   )
+# endif ()
+
 if (NGINX_DATADOG_ASM_ENABLED)
   list(APPEND NGINX_CONF_ARGS "--with-threads")
 endif ()

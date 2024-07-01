@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <csignal>
 #include <datadog/json.hpp>
 #include <iterator>
 #include <ostream>
@@ -17,17 +18,23 @@
 #include "datadog_conf.h"
 #include "dd.h"
 #include "ngx_event_scheduler.h"
+#include "ngx_http_client.h"
 #include "ngx_logger.h"
 #include "string_util.h"
-
 namespace datadog {
 namespace nginx {
 
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
-    const datadog_main_conf_t &nginx_conf, std::shared_ptr<dd::Logger> logger) {
+    ngx_cycle_t *cycle, const datadog_main_conf_t &nginx_conf,
+    std::shared_ptr<dd::Logger> logger) {
+  raise(SIGSTOP);
+  auto http_client = std::make_shared<tracing::NgxHTTPClient>(
+      cycle->log, cycle->pool, nginx_conf.resolver);
+
   dd::TracerConfig config;
   config.logger = std::move(logger);
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
+  config.agent.http_client = http_client;
   config.integration_name = "nginx";
   config.integration_version = NGINX_VERSION;
 

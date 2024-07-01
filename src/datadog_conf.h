@@ -109,6 +109,8 @@ struct datadog_main_conf_t {
   // `agent_url` is set by the `datadog_agent_url` directive.
   std::optional<configured_value_t> agent_url;
 
+  ngx_resolver_t *resolver;
+
 #ifdef WITH_WAF
   // DD_APPSEC_ENABLED
   ngx_flag_t appsec_enabled{NGX_CONF_UNSET};

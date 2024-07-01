@@ -47,6 +47,7 @@ endif()
 add_compile_options(-fno-omit-frame-pointer)
 
 # Nginx module boilerplate (code within the nginx repository)
+include(./cmake/deps/nghttp2.cmake)
 include(./cmake/deps/nginx-module.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
@@ -78,6 +79,7 @@ add_library(ngx_http_datadog_module SHARED)
 
 target_sources(ngx_http_datadog_module
   PRIVATE
+    # src/common/http_client/client.h
     src/array_util.cpp
     src/datadog_conf.cpp
     src/datadog_conf_handler.cpp
@@ -90,6 +92,7 @@ target_sources(ngx_http_datadog_module
     src/glibc_compat.c
     src/global_tracer.cpp
     src/log_conf.cpp
+    src/ngx_http_client.cpp
     src/ngx_event_scheduler.cpp
     src/ngx_header_reader.cpp
     src/ngx_http_datadog_module.cpp
@@ -134,7 +137,7 @@ target_include_directories(ngx_http_datadog_module
     src/
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-static nginx_module nghttp2)
 if(NGINX_DATADOG_ASM_ENABLED)
   target_link_libraries(ngx_http_datadog_module rapidjson libddwaf_objects)
 endif()
@@ -156,7 +159,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set_target_properties(ngx_http_datadog_module PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT})
   target_link_options(ngx_http_datadog_module PRIVATE "-Wl,--version-script=${LINKER_SCRIPT}")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(EXPORTED_SYMBOLS ${CMAKE_SOURCE_DIR}/nginx_module.ld)
+  set(EXPORTED_SYMBOLS ${CMAKE_SOURCE_DIR}/nginx_module.ld-prime)
   set_target_properties(ngx_http_datadog_module PROPERTIES LINK_DEPENDS ${EXPORTED_SYMBOLS})
   target_link_options(ngx_http_datadog_module PRIVATE "-Wl,-exported_symbols_list" "-Wl,${EXPORTED_SYMBOLS}")
 endif()

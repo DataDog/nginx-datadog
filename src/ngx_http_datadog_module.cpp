@@ -573,7 +573,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   }
 #endif
 
-  auto maybe_tracer = TracingLibrary::make_tracer(*main_conf, logger);
+  auto maybe_tracer = TracingLibrary::make_tracer(cycle, *main_conf, logger);
   if (auto *error = maybe_tracer.if_error()) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Failed to construct tracer: [error code %d] %s",
@@ -632,6 +632,10 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
   if (register_destructor(conf->pool, main_conf)) {
     return nullptr;  // error
   }
+
+  ngx_str_t dns[] = {ngx_string("8.8.8.8")};
+  main_conf->resolver = ngx_resolver_create(conf, dns, 1);
+
   return main_conf;
 }
 

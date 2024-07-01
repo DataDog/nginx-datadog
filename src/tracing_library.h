@@ -22,6 +22,10 @@
 
 #include "dd.h"
 
+extern "C" {
+#include <ngx_http.h>
+}
+
 namespace datadog {
 namespace nginx {
 
@@ -40,7 +44,8 @@ struct TracingLibrary {
   // `configuration` is empty, use a default configuration.  If an error
   // occurs, return a `dd::Error`.
   static dd::Expected<dd::Tracer> make_tracer(
-      const datadog_main_conf_t& conf, std::shared_ptr<dd::Logger> logger);
+      ngx_cycle_t* cycle, const datadog_main_conf_t& conf,
+      std::shared_ptr<dd::Logger> logger);
 
   // Return the common prefix of all variable names that map to nginx worker
   // process environment variables.  The portion of the variable name after
