@@ -3,6 +3,13 @@
 _ngx_modules
 _ngx_module_names
 _ngx_module_order
+_datadog_semver_nginx
 _datadog_version_nginx
+_datadog_semver_nginx_mod
 _datadog_version_nginx_mod
+_datadog_semver_tracer
 _datadog_version_tracer
+_datadog_semver_waf_rules
+_datadog_version_waf_rules
+_datadog_semver_libddwaf
+_datadog_version_libddwaf

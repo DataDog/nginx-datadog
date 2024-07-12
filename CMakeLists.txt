@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.24)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 cmake_policy(SET CMP0068 NEW)
 cmake_policy(SET CMP0135 NEW)
 
@@ -51,8 +52,6 @@ include(./cmake/deps/nginx-module.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
-set(RULES_VERSION "")
-set(LIBDDWAF_VERSION "")
 if(NGINX_DATADOG_ASM_ENABLED)
   include(./cmake/deps/rapidjson.cmake)
   # we need neither but libddwaf requires one enabled
@@ -62,15 +61,22 @@ if(NGINX_DATADOG_ASM_ENABLED)
   set(LIBDDWAF_ENABLE_LTO OFF)
   add_subdirectory(./libddwaf EXCLUDE_FROM_ALL)
 
-  execute_process(
-    COMMAND grep rules_version src/security/recommended.json
-    COMMAND sed "s/.*\"\\([0-9.]\\+\\)\".*/\\1/"
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    OUTPUT_VARIABLE RULES_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  file(READ ./libddwaf/version LIBDDWAF_VERSION)
+  # get libddwaf version
+  file(READ "./libddwaf/version" LIBDDWAF_VERSION)
+
+  # get rules version
+  file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/security/recommended.json ASM_RULES REGEX "rules_version")
+  string(REGEX REPLACE "\"rules_version\": \"(.*)\"" "\\1" RULES_VERSION ${ASM_RULES})
+  string(STRIP "${RULES_VERSION}" RULES_VERSION)
+  unset(ASM_RULES)
 endif()
 
+include(./cmake/generate_build_id.cmake)
+
+# Generate the build identifier.
+# Known issue: this command is only run during the CMake configuration stage.
+# Possible solution: <https://jonathanhamberg.com/post/cmake-embedding-git-hash/>
+make_build_id(NGINX_DATADOG_BUILD_ID) 
 configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
 
 # The shared library (nginx module) that we are building.
@@ -100,6 +106,7 @@ target_sources(ngx_http_datadog_module
     src/tracing_library.cpp
     ${CMAKE_BINARY_DIR}/version.cpp
 )
+
 if(NGINX_DATADOG_ASM_ENABLED)
   target_sources(ngx_http_datadog_module
     PRIVATE
@@ -135,6 +142,7 @@ target_include_directories(ngx_http_datadog_module
 )
 
 target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
+
 if(NGINX_DATADOG_ASM_ENABLED)
   target_link_libraries(ngx_http_datadog_module rapidjson libddwaf_objects)
 endif()

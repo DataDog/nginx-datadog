@@ -1,26 +1,25 @@
-// Provides constants for determining the version of the library.
-// The strings include more than just the version number to make it easier to
-// identify the version of the library in the output of `strings`.
-
 #include <datadog/version.h>
+
+#include "version.h"
 
 extern "C" {
 #include <nginx.h>
 
-extern const char *datadog_version_tracer;
 const char *datadog_version_tracer = datadog::tracing::tracer_version;
 
-extern const char datadog_version_nginx_mod[];
-const char datadog_version_nginx_mod[] = "[nginx_mod version @PROJECT_VERSION@]";
+const char datadog_semver_nginx_mod[] = "@PROJECT_VERSION@";
+const char datadog_version_nginx_mod[] =
+    "[nginx_mod version @PROJECT_VERSION@]";
+const char datadog_build_id_nginx_mod[] = "@NGINX_DATADOG_BUILD_ID@";
 
-extern const char datadog_version_nginx[];
+const char datadog_semver_nginx[] = NGINX_VERSION;
 const char datadog_version_nginx[] = "[nginx version " NGINX_VERSION "]";
 
-#ifdef WITH_WAF
-extern const char *datadog_version_waf_rules;
-const char *datadog_version_waf_rules = "[waf_rules version @RULES_VERSION@]";
+#if defined(WITH_WAF)
+const char datadog_semver_waf_rules[] = "@RULES_VERSION@";
+const char datadog_version_waf_rules[] = "[waf_rules version @RULES_VERSION@]";
 
-extern const char *datadog_version_libddwaf;
-const char *datadog_version_libddwaf = "[libddwaf version @LIBDDWAF_VERSION@]";
+const char datadog_semver_libddwaf[] = "@LIBDDWAF_VERSION@";
+const char datadog_version_libddwaf[] = "[libddwaf version @LIBDDWAF_VERSION@]";
 #endif
 }
