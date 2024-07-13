@@ -2,6 +2,8 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
+USER root
+
 # If BASE_IMAGE is an OpenResty image, then the file system layout will differ
 # from that expected in the tests' conf files.
 # Put nginx's default HTML in a known location to smooth things over.

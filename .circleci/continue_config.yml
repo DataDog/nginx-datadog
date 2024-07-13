@@ -111,6 +111,46 @@ jobs:
             - store_artifacts:
                 destination: nginx-version-info
                 path: nginx-version-info
+    build_ingress_nginx_module:
+        environment:
+            MAKE_JOB_COUNT: 8
+        machine:
+            image: ubuntu-2204:current
+        parameters:
+            arch:
+                enum:
+                    - amd64
+                type: enum
+            version:
+                type: string
+        resource_class: xlarge
+        steps:
+            - checkout
+            - run: git submodule sync && git submodule update --init --recursive
+            - run:
+                command: |
+                    if [ "<< parameters.arch >>" == "amd64" ]; then
+                      echo 'export NGINX_ARCH=x86_64' >> $BASH_ENV;
+                    else
+                      echo 'export NGINX_ARCH=aarch64' >> $BASH_ENV;
+                    fi
+                name: Set NGINX_ARCH based on job parameter
+            - run:
+                command: make build-ingress-nginx
+                environment:
+                    BUILD_TYPE: RelWithDebInfo
+                    INGRESS_NGINX_VERSION: << parameters.version >>
+            - persist_to_workspace:
+                paths:
+                    - .musl-build/ngx_http_datadog_module.so
+                    - .musl-build/ngx_http_datadog_module.so.debug
+                root: .
+            - store_artifacts:
+                destination: ngx_http_datadog_module.so
+                path: .musl-build/ngx_http_datadog_module.so
+            - store_artifacts:
+                destination: ngx_http_datadog_module.so.debug
+                path: .musl-build/ngx_http_datadog_module.so.debug
     build_installer_amd64:
         machine:
             image: ubuntu-2204:current
@@ -288,6 +328,33 @@ jobs:
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
+    test_ingress:
+        environment:
+            DOCKER_BUILDKIT: 1
+            NGINX_FLAVOR: ingress-nginx
+        executor:
+            image: cimg/python:3.10.13
+            name: docker-<< parameters.arch >>
+        parameters:
+            arch:
+                type: string
+            base-image:
+                default: ""
+                type: string
+            nginx-version:
+                type: string
+        steps:
+            - checkout
+            - attach_workspace:
+                at: /tmp/workspace
+            - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
+            - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >>:<< parameters.nginx-version >> > nginx-version-info
+            - setup_remote_docker:
+                docker_layer_caching: true
+            - run: test/bin/run --verbose --failfast
+            - store_artifacts:
+                destination: test.log
+                path: test/logs/test.log
 orbs:
     codecov: codecov/codecov@4.1.0
 parameters:
@@ -333,6 +400,14 @@ workflows:
                             - "ON"
                             - "OFF"
                 name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
+            - build_ingress_nginx_module:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                        version:
+                            - v1.11.2
+                name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - coverage:
                 name: Coverage on 1.27.0 with WAF ON
             - test:
@@ -384,6 +459,18 @@ workflows:
                 name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test_ingress:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                        base-image:
+                            - registry.k8s.io/ingress-nginx/controller
+                        nginx-version:
+                            - v1.11.2
+                name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
+                requires:
+                    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
             - system_tests:
                 name: Run system tests
                 requires:
@@ -394,6 +481,40 @@ workflows:
                 - not: << pipeline.parameters.build_all >>
     build-and-test-all:
         jobs:
+            - build_ingress_nginx_module:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                        version:
+                            - v1.11.2
+                            - v1.11.1
+                            - v1.11.0
+                            - v1.10.4
+                            - v1.10.3
+                            - v1.10.2
+                            - v1.10.1
+                            - v1.10.0
+                name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
+            - test_ingress:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                        base-image:
+                            - registry.k8s.io/ingress-nginx/controller
+                        nginx-version:
+                            - v1.11.2
+                            - v1.11.1
+                            - v1.11.0
+                            - v1.10.4
+                            - v1.10.3
+                            - v1.10.2
+                            - v1.10.1
+                            - v1.10.0
+                name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
+                requires:
+                    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
             - build_amd64:
                 matrix:
                     parameters:
