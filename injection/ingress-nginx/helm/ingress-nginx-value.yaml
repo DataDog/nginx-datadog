@@ -1,0 +1,24 @@
+controller:
+  config: 
+    main-snippet: "load_module /modules_mount/ngx_http_datadog_module.so;"
+    location-snippet: |
+      datadog_rum_version "5";
+      datadog_rum_config "applicationId" "<DATADOG_APPLICATION_ID>";
+      datadog_rum_config "clientToken" "<DATADOG_CLIENT_TOKEN>";
+      datadog_rum_config "site" "datadoghq.com";
+      datadog_rum_config "service" "my-web-application";
+      datadog_rum_config "env" "production";
+      datadog_rum_config "version" "1.0.0";
+      datadog_rum_config "sessionSampleRate" "100";
+      datadog_rum_config "sessionReplaySampleRate" "100";
+      datadog_rum_config "trackResources" "true";
+      datadog_rum_config "trackLongTasks" "true";
+      datadog_rum_config "trackUserInteractions" "true";
+  extraModules:
+    - name: nginx-datadog
+      image:
+        registry: docker.io
+        image: damienmehala178/ingress-nginx-injection
+        tag: "v1.10.0"
+        digest: "sha256:9a9a95c98103fc13afde4a61db6922b405bb0a8afdec4da17c09a482a8a093b8"
+        distroless: false

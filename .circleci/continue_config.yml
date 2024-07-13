@@ -97,6 +97,46 @@ jobs:
             - store_artifacts:
                 destination: nginx-version-info
                 path: nginx-version-info
+    build_ingress_nginx_module:
+        environment:
+            MAKE_JOB_COUNT: 8
+        machine:
+            image: ubuntu-2204:current
+        parameters:
+            arch:
+                enum:
+                    - amd64
+                type: enum
+            version:
+                type: string
+        resource_class: xlarge
+        steps:
+            - checkout
+            - run: git submodule sync && git submodule update --init --recursive
+            - run:
+                command: |
+                    if [ "<< parameters.arch >>" == "amd64" ]; then
+                      echo 'export NGINX_ARCH=x86_64' >> $BASH_ENV;
+                    else
+                      echo 'export NGINX_ARCH=aarch64' >> $BASH_ENV;
+                    fi
+                name: Set NGINX_ARCH based on job parameter
+            - run:
+                command: make build-ingress-nginx
+                environment:
+                    BUILD_TYPE: RelWithDebInfo
+                    INGRESS_NGINX_VERSION: << parameters.version >>
+            - persist_to_workspace:
+                paths:
+                    - .musl-build/ngx_http_datadog_module.so
+                    - .musl-build/ngx_http_datadog_module.so.debug
+                root: .
+            - store_artifacts:
+                destination: ngx_http_datadog_module.so
+                path: .musl-build/ngx_http_datadog_module.so
+            - store_artifacts:
+                destination: ngx_http_datadog_module.so.debug
+                path: .musl-build/ngx_http_datadog_module.so.debug
     build_installer_amd64:
         machine:
             image: ubuntu-2204:current
@@ -195,6 +235,32 @@ jobs:
                     DD_API_KEY: fakekey
                     NGINX_DOCKERFILE: << parameters.base-dockerfile >>
                 name: Run installer tests
+    package-ingress-nginx:
+        environment:
+            DOCKER_BUILDKIT: 1
+        executor:
+            image: cimg/python:3.10.13
+            name: docker-<< parameters.arch >>
+        parameters:
+            arch:
+                type: string
+            version:
+                type: string
+        steps:
+            - checkout
+            - attach_workspace:
+                at: /tmp/workspace
+            - run: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so ngx_http_datadog_module.so
+            - setup_remote_docker:
+                docker_layer_caching: true
+            - run:
+                command: |
+                    echo "$PARAM_DOCKER_PASSWORD" | docker login -u "$PARAM_DOCKER_USERNAME" --password-stdin
+                    python bin/ingress-nginx.py build-init-container \
+                            --module-path ngx_http_datadog_module.so \
+                            --image_name datadog/ingress-nginx-injection:<< parameters.version >> \
+                            --push
+                name: Package and Publish ingress-nginx init containers
     shellcheck:
         docker:
             - entrypoint: /bin/sh
@@ -232,6 +298,7 @@ jobs:
     test:
         environment:
             DOCKER_BUILDKIT: 1
+            NGINX_FLAVOR: << parameters.nginx-flavor >>
             WAF: << parameters.waf >>
         executor:
             image: cimg/python:3.10.13
@@ -241,6 +308,8 @@ jobs:
                 type: string
             base-image:
                 default: ""
+                type: string
+            nginx-flavor:
                 type: string
             nginx-version:
                 type: string
@@ -252,6 +321,38 @@ jobs:
                 at: /tmp/workspace
             - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
             - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > nginx-version-info
+            - setup_remote_docker:
+                docker_layer_caching: true
+            - run: test/bin/run --verbose --failfast
+            - store_artifacts:
+                destination: test.log
+                path: test/logs/test.log
+    test_ingress:
+        environment:
+            DOCKER_BUILDKIT: 1
+            NGINX_FLAVOR: << parameters.nginx-flavor >>
+            WAF: << parameters.waf >>
+        executor:
+            image: cimg/python:3.10.13
+            name: docker-<< parameters.arch >>
+        parameters:
+            arch:
+                type: string
+            base-image:
+                default: ""
+                type: string
+            nginx-flavor:
+                type: string
+            nginx-version:
+                type: string
+            waf:
+                type: string
+        steps:
+            - checkout
+            - attach_workspace:
+                at: /tmp/workspace
+            - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
+            - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >>:<< parameters.nginx-version >> > nginx-version-info
             - setup_remote_docker:
                 docker_layer_caching: true
             - run: test/bin/run --verbose --failfast
@@ -271,93 +372,60 @@ version: 2.1
 workflows:
     build-and-test:
         jobs:
-            - check-ci-definition
-            - format:
-                name: Verify formatting
-                requires:
-                    - check-ci-definition
-            - shellcheck:
-                name: run shellcheck on shell scripts
-                requires:
-                    - check-ci-definition
-            - build_amd64:
-                matrix:
-                    parameters:
-                        nginx-version:
-                            - 1.22.1
-                            - 1.24.0
-                            - 1.25.4
-                            - 1.27.1
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
-            - build_arm64:
-                matrix:
-                    parameters:
-                        nginx-version:
-                            - 1.22.1
-                            - 1.24.0
-                            - 1.27.1
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
-            - coverage:
-                name: Coverage on 1.27.0 with WAF ON
-            - test:
+            - build_ingress_nginx_module:
                 matrix:
                     parameters:
                         arch:
                             - amd64
-                            - arm64
-                        base-image:
-                            - nginx:1.27.1-alpine
-                            - nginx:1.27.1
-                        nginx-version:
-                            - 1.27.1
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test:
+                        version:
+                            - v1.11.2
+                            - v1.11.1
+                            - v1.11.0
+                            - v1.10.4
+                            - v1.10.3
+                            - v1.10.2
+                            - v1.10.1
+                            - v1.10.0
+                name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
+            - test_ingress:
                 matrix:
                     parameters:
                         arch:
                             - amd64
-                            - arm64
                         base-image:
-                            - amazonlinux:2.0.20230418.0
+                            - registry.k8s.io/ingress-nginx/controller
+                        nginx-flavor:
+                            - ingress-nginx
                         nginx-version:
-                            - 1.22.1
+                            - v1.11.2
+                            - v1.11.1
+                            - v1.11.0
+                            - v1.10.4
+                            - v1.10.3
+                            - v1.10.2
+                            - v1.10.1
+                            - v1.10.0
                         waf:
-                            - "ON"
                             - "OFF"
-                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
-                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test:
+                    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
+            - package-ingress-nginx:
                 matrix:
                     parameters:
                         arch:
                             - amd64
-                            - arm64
-                        base-image:
-                            - amazonlinux:2023.3.20240219.0
-                        nginx-version:
-                            - 1.24.0
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                        version:
+                            - v1.11.2
+                            - v1.11.1
+                            - v1.11.0
+                            - v1.10.4
+                            - v1.10.3
+                            - v1.10.2
+                            - v1.10.1
+                            - v1.10.0
                 requires:
-                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - system_tests:
-                name: Run system tests
-                requires:
-                    - build 1.25.4 on amd64 WAF ON
+                    - test ingress-nginx-<< matrix.version >> on amd64
         when:
             and:
                 - not: << pipeline.git.tag >>
