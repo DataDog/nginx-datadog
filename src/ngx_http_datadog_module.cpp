@@ -450,7 +450,7 @@ static const char *phases_to_cstr(ngx_http_phases phase) {
     case NGX_HTTP_LOG_PHASE:
       return "NGX_HTTP_LOG_PHASE";
   }
-  return "UNKNOWNED_PHASE";
+  return "UNKNOWN_PHASE";
 }
 
 template <typename F>
@@ -463,7 +463,7 @@ static int set_handler(ngx_log_t *log,
   *handler = callback;
 
   ngx_log_error(NGX_LOG_NOTICE, log, 0,
-                "nginx-datadog: installed handler on {} phase",
+                "nginx-datadog: installed handler on %s phase",
                 phases_to_cstr(phase));
   return NGX_OK;
 }
