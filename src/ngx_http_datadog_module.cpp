@@ -24,6 +24,7 @@
 #endif
 #include "string_util.h"
 #include "tracing_library.h"
+#include "version.h"
 
 extern "C" {
 #include <nginx.h>
@@ -31,6 +32,7 @@ extern "C" {
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ngx_log.h>
 }
 
 // clang-format off
@@ -423,6 +425,49 @@ ngx_module_t ngx_http_datadog_module = {
 };
 // clang-format on
 
+static const char *phases_to_cstr(ngx_http_phases phase) {
+  switch (phase) {
+    case NGX_HTTP_POST_READ_PHASE:
+      return "NGX_HTTP_POST_READ_PHASE";
+    case NGX_HTTP_SERVER_REWRITE_PHASE:
+      return "NGX_HTTP_SERVER_REWRITE_PHASE";
+    case NGX_HTTP_FIND_CONFIG_PHASE:
+      return "NGX_HTTP_FIND_CONFIG_PHASE";
+    case NGX_HTTP_REWRITE_PHASE:
+      return "NGX_HTTP_REWRITE_PHASE";
+    case NGX_HTTP_POST_REWRITE_PHASE:
+      return "NGX_HTTP_POST_REWRITE_PHASE";
+    case NGX_HTTP_PREACCESS_PHASE:
+      return "NGX_HTTP_PREACCESS_PHASE";
+    case NGX_HTTP_ACCESS_PHASE:
+      return "NGX_HTTP_ACCESS_PHASE";
+    case NGX_HTTP_POST_ACCESS_PHASE:
+      return "NGX_HTTP_POST_ACCESS_PHASE";
+    case NGX_HTTP_PRECONTENT_PHASE:
+      return "NGX_HTTP_PRECONTENT_PHASE";
+    case NGX_HTTP_CONTENT_PHASE:
+      return "NGX_HTTP_CONTENT_PHASE";
+    case NGX_HTTP_LOG_PHASE:
+      return "NGX_HTTP_LOG_PHASE";
+  }
+  return "UNKNOWN_PHASE";
+}
+
+template <typename F>
+static int set_handler(ngx_log_t *log,
+                       ngx_http_core_main_conf_t *core_main_conf,
+                       ngx_http_phases phase, F callback) {
+  auto handler = static_cast<ngx_http_handler_pt *>(
+      ngx_array_push(&core_main_conf->phases[phase].handlers));
+  if (handler == nullptr) return NGX_ERROR;
+  *handler = callback;
+
+  ngx_log_error(NGX_LOG_NOTICE, log, 0,
+                "nginx-datadog: installed handler on %s phase",
+                phases_to_cstr(phase));
+  return NGX_OK;
+}
+
 // Configure nginx to set the environment variable as indicated by the
 // specified `entry` in the context of the specified `cycle`.  `entry` is a
 // string in one of the following forms:
@@ -522,22 +567,22 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   }
 
   // Add handlers to create tracing data.
-  auto handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
-      &core_main_config->phases[NGX_HTTP_REWRITE_PHASE].handlers));
-  if (handler == nullptr) return NGX_ERROR;
-  *handler = on_enter_block;
+  if (set_handler(cf->log, core_main_config, NGX_HTTP_REWRITE_PHASE,
+                  on_enter_block) != NGX_OK) {
+    return NGX_ERROR;
+  }
+
+  if (set_handler(cf->log, core_main_config, NGX_HTTP_LOG_PHASE,
+                  on_log_request) != NGX_OK) {
+    return NGX_ERROR;
+  }
 
 #ifdef WITH_WAF
-  handler = static_cast<ngx_http_handler_pt *>(ngx_array_push(
-      &core_main_config->phases[NGX_HTTP_ACCESS_PHASE].handlers));
-  if (handler == nullptr) return NGX_ERROR;
-  *handler = on_access;
+  if (set_handler(cf->log, core_main_config, NGX_HTTP_ACCESS_PHASE,
+                  on_access) != NGX_OK) {
+    return NGX_ERROR;
+  }
 #endif
-
-  handler = static_cast<ngx_http_handler_pt *>(
-      ngx_array_push(&core_main_config->phases[NGX_HTTP_LOG_PHASE].handlers));
-  if (handler == nullptr) return NGX_ERROR;
-  *handler = on_log_request;
 
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();
@@ -562,8 +607,18 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog status: enabled");
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog version: %s (%s)",
+                datadog_semver_nginx_mod, datadog_build_id_nginx_mod);
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog features:");
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "- tracing: dd-trace-cpp@%s",
+                datadog_version_tracer);
+
   std::shared_ptr<dd::Logger> logger = std::make_shared<NgxLogger>();
 #ifdef WITH_WAF
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0,
+                "- appsec: libddwaf@%s, waf_rules@%s", datadog_semver_libddwaf,
+                datadog_semver_waf_rules);
   try {
     security::Library::initialize_security_library(*main_conf);
   } catch (const std::exception &e) {
@@ -677,6 +732,9 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
     if (inject_datadog_log_formats(conf)) {
       return nullptr;  // error
     }
+
+    ngx_log_error(NGX_LOG_INFO, conf->log, 0,
+                  "Added log format 'datadog_text' and 'datadog_json'");
   }
 
   loc_conf->block_type = block_type(conf);

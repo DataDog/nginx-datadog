@@ -192,6 +192,10 @@ char *hijack_access_log(ngx_conf_t *cf, ngx_command_t *command,
   if (rcode != NGX_OK) {
     return static_cast<char *>(NGX_CONF_ERROR);
   }
+
+  ngx_log_error(NGX_LOG_INFO, cf->log, 0,
+                "Replaced config callback for command 'access_log' from module "
+                "'ngx_http_log_module'");
   return static_cast<char *>(NGX_CONF_OK);
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
