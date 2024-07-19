@@ -13,3 +13,4 @@ _datadog_semver_waf_rules
 _datadog_version_waf_rules
 _datadog_semver_libddwaf
 _datadog_version_libddwaf
+_datadog_build_id_nginx_mod
