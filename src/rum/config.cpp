@@ -55,19 +55,8 @@ static std::string make_rum_json_config(
       continue;
     }
 
-    if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
-      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                    rapidjson::Value(std::stod(value.c_str())).Move(),
-                    allocator);
-    } else if (key == "trackResources" || key == "trackLongTasks" ||
-               key == "trackUserInteractions") {
-      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                    rapidjson::Value(value == "true").Move(), allocator);
-    } else {
-      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                    rapidjson::Value(value.c_str(), allocator).Move(),
-                    allocator);
-    }
+    rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                  rapidjson::Value(value.c_str(), allocator).Move(), allocator);
   }
 
   doc.AddMember("rum", rum, allocator);
