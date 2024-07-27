@@ -11,6 +11,7 @@ set(NGINX_DATADOG_VERSION 1.2.1)
 project(ngx_http_datadog_module VERSION ${NGINX_DATADOG_VERSION})
 
 option(NGINX_DATADOG_ASM_ENABLED "Build with libddwaf" ON)
+option(NGINX_DATADOG_RUM_ENABLED "Build with RUM injection" OFF)
 set(NGINX_SRC_DIR "" CACHE PATH "The path to a directory with nginx sources")
 set(NGINX_VERSION "" CACHE STRING "The nginx version")
 if (NGINX_SRC_DIR STREQUAL "" AND NGINX_VERSION STREQUAL "")
@@ -20,10 +21,23 @@ option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 
 message(STATUS "nginx-datadog version=[${NGINX_DATADOG_VERSION}]")
+
+set(NGINX_DATADOG_PRODUCTS_LIST "tracing")
 if (NGINX_DATADOG_ASM_ENABLED)
-  message(STATUS "nginx-datadog products: tracing appsec")
-else ()
-  message(STATUS "nginx-datadog products: tracing")
+  list(APPEND NGINX_DATADOG_PRODUCTS_LIST "appsec")
+endif ()
+
+if (NGINX_DATADOG_RUM_ENABLED)
+  list(APPEND NGINX_DATADOG_PRODUCTS_LIST "rum-injection")
+endif ()
+
+list(JOIN NGINX_DATADOG_PRODUCTS_LIST " " NGINX_DATADOG_PRODUCTS)
+unset(NGINX_DATADOG_PRODUCTS_LIST)
+
+message(STATUS "nginx-datadog products: ${NGINX_DATADOG_PRODUCTS}")
+
+if (NGINX_DATADOG_RUM_ENABLED AND NGINX_DATADOG_ASM_ENABLED)
+  message(FATAL_ERROR "ASM and RUM features are mutually exclusive")
 endif ()
 
 # Make curl link against a static zlib (requires cmake 3.24)
@@ -51,11 +65,11 @@ add_compile_options(-fno-omit-frame-pointer)
 
 # Nginx module boilerplate (code within the nginx repository)
 include(./cmake/deps/nginx-module.cmake)
+include(./cmake/deps/rapidjson.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
 if(NGINX_DATADOG_ASM_ENABLED)
-  include(./cmake/deps/rapidjson.cmake)
   # we need neither but libddwaf requires one enabled
   set(LIBDDWAF_BUILD_STATIC ON)
   set(LIBDDWAF_BUILD_SHARED OFF)
@@ -71,6 +85,11 @@ if(NGINX_DATADOG_ASM_ENABLED)
   string(REGEX REPLACE "\"rules_version\": \"(.*)\"" "\\1" RULES_VERSION ${ASM_RULES})
   string(STRIP "${RULES_VERSION}" RULES_VERSION)
   unset(ASM_RULES)
+endif()
+
+if(NGINX_DATADOG_RUM_ENABLED)
+  set(RUM_SDK_INJECTOR 0.1.0)
+  add_subdirectory(deps)
 endif()
 
 include(./cmake/generate_build_id.cmake)
@@ -121,6 +140,17 @@ if(NGINX_DATADOG_ASM_ENABLED)
     src/security/library.cpp)
   target_compile_definitions(ngx_http_datadog_module PRIVATE WITH_WAF)
 endif()
+if(NGINX_DATADOG_RUM_ENABLED)
+  target_sources(ngx_http_datadog_module
+    PRIVATE
+    src/rum/config.cpp
+    src/rum/injection.cpp
+  )
+  target_compile_definitions(ngx_http_datadog_module PRIVATE WITH_RUM)
+
+  target_link_libraries(ngx_http_datadog_module injectbrowsersdk)
+
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(ngx_http_datadog_module PRIVATE -Wall -Werror)
@@ -143,10 +173,9 @@ target_include_directories(ngx_http_datadog_module
     src/
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
-
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module rapidjson)
 if(NGINX_DATADOG_ASM_ENABLED)
-  target_link_libraries(ngx_http_datadog_module rapidjson libddwaf_objects)
+  target_link_libraries(ngx_http_datadog_module libddwaf_objects)
 endif()
 
 # Remove the "lib" prefix to match NGINX convention

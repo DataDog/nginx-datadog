@@ -3,12 +3,13 @@
 BUILD_DIR ?= .build
 BUILD_TYPE ?= RelWithDebInfo
 WAF ?= OFF
+RUM ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 NGINX_SRC_DIR ?= $(PWD)/nginx
 ARCH ?= $(shell arch)
 COVERAGE ?= OFF
-DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain
+DOCKER_REPOS ?= datadog/docker-library
 
 SHELL := /bin/bash
 
@@ -16,7 +17,7 @@ SHELL := /bin/bash
 build: build-deps sources
 	# -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(NGINX_SRC_DIR) \
-		-DNGINX_COVERAGE=$(COVERAGE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) . \
+		-DNGINX_COVERAGE=$(COVERAGE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) -DNGINX_DATADOG_RUM_ENABLED=$(RUM) . \
 		&& cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
 	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
@@ -81,13 +82,13 @@ build-musl-toolchain:
 
 .PHONY: build-push-musl-toolchain
 build-push-musl-toolchain:
-	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(DOCKER_REPOS):latest-amd64 build_env
-	docker push $(DOCKER_REPOS):latest-amd64
-	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(DOCKER_REPOS):latest-arm64 build_env
-	docker push $(DOCKER_REPOS):latest-arm64
-	docker buildx imagetools create -t $(DOCKER_REPOS):latest \
-		$(DOCKER_REPOS):latest-amd64 \
-		$(DOCKER_REPOS):latest-arm64
+	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(DOCKER_REPOS):musl-latest-amd64 build_env
+	docker push $(DOCKER_REPOS):musl-latest-amd64
+	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(DOCKER_REPOS):musl-latest-arm64 build_env
+	docker push $(DOCKER_REPOS):musl-latest-arm64
+	docker buildx imagetools create -t $(DOCKER_REPOS):musl-latest \
+		$(DOCKER_REPOS):musl-latest-amd64 \
+		$(DOCKER_REPOS):musl-latest-arm64
 
 .PHONY: build-musl
 build-musl:
@@ -97,9 +98,10 @@ build-musl:
 		--env BUILD_TYPE=$(BUILD_TYPE) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
 		--env WAF=$(WAF) \
+		--env RUM=$(RUM) \
 		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):musl-latest \
 		make -C /mnt/repo build-musl-aux
 
 # this is what's run inside the container nginx_musl_toolchain
@@ -111,6 +113,7 @@ build-musl-aux:
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_VERSION="$(NGINX_VERSION)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
+		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
 
@@ -128,11 +131,11 @@ coverage:
 	test/bin/run --verbose --failfast
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):musl-latest \
 		tar -C /mnt/repo/.musl-build -xzf /mnt/repo/test/coverage_data.tar.gz
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):musl-latest \
 		bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=/mnt/repo/src/coverage_fixup\.c > coverage.lcov'
 
 

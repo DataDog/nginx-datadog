@@ -1,0 +1,16 @@
+{
+  "majorVersion": 5,
+  "rum": {
+    "applicationId": "<DATADOG_APPLICATION_ID>",
+    "clientToken": "<DATADOG_CLIENT_TOKEN>",
+    "site": "<DATADOG_SITE>",
+    "service": "my-web-application",
+    "env": "production",
+    "version": "1.0.0",
+    "sessionSampleRate": 100,
+    "sessionReplaySampleRate": 100,
+    "trackResources": true,
+    "trackLongTasks": true,
+    "trackUserInteractions": true
+  }
+}

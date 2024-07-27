@@ -63,3 +63,8 @@ RUN cp /usr/lib/llvm16/lib/clang/16/include/stdatomic.h /usr/lib/gcc/${ARCH}-alp
 # Install dependencies for nginx
 RUN apk add --no-cache pcre-dev pcre2-dev zlib-dev openssl-dev perl
 
+# Install Rust toolchain
+RUN apk add curl 
+RUN curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq \
+  && ln -s ~/.cargo/bin/cargo /usr/bin/cargo
+
