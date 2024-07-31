@@ -95,7 +95,6 @@ target_sources(ngx_http_datadog_module
     src/datadog_variable.cpp
     src/dd.cpp
     src/defer.cpp
-    src/glibc_compat.c
     src/global_tracer.cpp
     src/log_conf.cpp
     src/ngx_event_scheduler.cpp

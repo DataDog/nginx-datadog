@@ -60,6 +60,12 @@ COPY Toolchain.cmake.${ARCH} /sysroot/${ARCH}-none-linux-musl/Toolchain.cmake
 RUN mv /usr/lib/gcc/${ARCH}-alpine-linux-musl/12.2.1/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/12.2.1/include/stdatomic.h_
 RUN cp /usr/lib/llvm16/lib/clang/16/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/12.2.1/include/stdatomic.h
 
+COPY glibc_compat.c /sysroot/
+RUN clang --sysroot /sysroot/${ARCH}-none-linux-musl/ -fpie -O2 -fno-omit-frame-pointer \
+    -ggdb3 -c /sysroot/glibc_compat.c -o /tmp/glibc_compat.o && \
+    ar rcs /sysroot/${ARCH}-none-linux-musl/usr/lib/libglibc_compat.a /tmp/glibc_compat.o && \
+    rm /tmp/glibc_compat.o
+
+
 # Install dependencies for nginx
 RUN apk add --no-cache pcre-dev pcre2-dev zlib-dev openssl-dev perl
-
