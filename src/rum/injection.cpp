@@ -14,6 +14,33 @@ namespace nginx {
 namespace rum {
 namespace {
 
+ngx_table_elt_t *search_header(ngx_http_request_t *request,
+                               std::string_view key) {
+  ngx_list_part_t *part = &request->headers_in.headers.part;
+  auto *h = static_cast<ngx_table_elt_t *>(part->elts);
+
+  for (std::size_t i = 0;; i++) {
+    if (i >= part->nelts) {
+      if (part->next == nullptr) {
+        break;
+      }
+
+      part = part->next;
+      h = static_cast<ngx_table_elt_t *>(part->elts);
+      i = 0;
+    }
+
+    if (key.size() != h[i].key.len ||
+        ngx_strcasecmp((u_char *)key.data(), h[i].key.data) != 0) {
+      continue;
+    }
+
+    return &h[i];
+  }
+
+  return nullptr;
+}
+
 ngx_int_t dd_validate_content_type(ngx_str_t *content_type) {
   std::string_view content_type_sv = to_string_view(*content_type);
   return content_type_sv.find("text/html") != content_type_sv.npos;
@@ -42,10 +69,10 @@ ngx_int_t InjectionHandler::on_rewrite_handler(ngx_http_request_t *r) {
     return NGX_ERROR;
   }
 
-  h->hash = 1;
-  h->lowcase_key = (u_char *)"x-datadog-sdk-injection";
-  ngx_str_set(&h->key, "x-datadog-sdk-injection");
+  ngx_str_set(&h->key, "x-datadog-rum-injection-pending");
   ngx_str_set(&h->value, "1");
+  h->lowcase_key = h->key.data;
+  h->hash = 1;
 
   return NGX_DECLINED;
 }
@@ -55,6 +82,13 @@ ngx_int_t InjectionHandler::on_header_filter(
     ngx_http_output_header_filter_pt &next_header_filter) {
   if (!cfg->rum_enable || cfg->rum_snippet == nullptr)
     return next_header_filter(r);
+
+  if (auto injected_header = search_header(r, "x-datadog-rum-injected");
+      injected_header != nullptr) {
+    if (nginx::to_string_view(injected_header->value) == "1") {
+      return next_header_filter(r);
+    }
+  }
 
   if (r->header_only || r->headers_out.content_length_n == 0 ||
       dd_validate_content_type(&r->headers_out.content_type) == 0)

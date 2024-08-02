@@ -260,7 +260,7 @@ class TestRUMInjection(case.TestCase):
         """
         headers = self.make_dict_headers(headers)
         assert headers["content-length"] != "0"
-        assert headers["x-datadog-sdk-injected"] == "1"
+        assert headers["x-datadog-rum-injected"] == "1"
         assert headers.get("transfer-encoding", "") != "chunked"
 
         assert "datadog-rum.js" in body
@@ -303,7 +303,7 @@ class TestRUMInjection(case.TestCase):
 
         @Request.application
         def app(request: Request) -> Response:
-            q.put(request.headers.get("x-datadog-sdk-injection"))
+            q.put(request.headers.get("x-datadog-rum-injection-pending"))
             return Response(
                 """<html>
         <head>
@@ -371,3 +371,4 @@ class TestRUMInjection(case.TestCase):
 
 
 # TODO: no injection point found should only add spaces
+# TODO: when `x-datadog-sdk-injected = 1` no injection else inject
