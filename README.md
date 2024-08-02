@@ -71,7 +71,7 @@ Enabling AppSec
 To enable AppSec, besides using the correct binary (the relase artifact with
 "-appsec") in the name, it's necessary to edit the nginx configuration:
 
-* Set `datadog_appsec_enabled yes;`.
+* Set `datadog_appsec_enabled on;`.
 * Define one (or more thread pools).
 * Choose which thread pool AppSec will use, either on a global or a per-location
   basis.
