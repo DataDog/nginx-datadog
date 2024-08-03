@@ -210,11 +210,6 @@ struct datadog_loc_conf_t {
   // `sampling_delegation_directive` is the source location of the
   // `datadog_delegate_sampling` directive that applies this location, if any.
   conf_directive_source_location_t sampling_delegation_directive;
-  // `block_type` is the name of the kind of configuration block we're in, e.g.
-  // "http", "server", "location", or "if". `block_type` is used by some
-  // configuration directives to alter their behavior based on the current
-  // configuration context.
-  ngx_str_t block_type;
   // `allow_sampling_delegation_in_subrequests_script` evaluates to one of "on"
   // or "off". If "on", then locations used as subrequests, such as those
   // created by the `ngx_http_auth_request_module`, can delegate the trace

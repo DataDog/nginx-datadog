@@ -17,9 +17,6 @@ char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
                                                  ngx_command_t *command,
                                                  void *conf) noexcept;
 
-char *hijack_access_log(ngx_conf_t *cf, ngx_command_t *command,
-                        void *conf) noexcept;
-
 char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
                       ngx_str_t value) noexcept;
 
