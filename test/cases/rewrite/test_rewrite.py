@@ -5,10 +5,12 @@ from pathlib import Path
 
 
 class TestRewrite(case.TestCase):
+
     def test_rewrite(self):
         conf_path = Path(__file__).parent / "./conf/default.conf"
         conf_text = conf_path.read_text()
-        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
         self.assertEqual(status, 0, log_lines)
 
         # Clear any outstanding logs from the agent.
