@@ -24,6 +24,7 @@
 #endif
 #if defined(WITH_RUM)
 #include "rum/config.h"
+#include "rum/discovery.h"
 #endif
 #include "string_util.h"
 #include "tracing_library.h"
@@ -311,6 +312,31 @@ static ngx_command_t datadog_commands[] = {
       NGX_HTTP_LOC_CONF_OFFSET,
       0,
       NULL },
+
+    {
+      ngx_string("datadog_api_key"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, api_key),
+      nullptr
+    },
+    {
+      ngx_string("datadog_app_key"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, app_key),
+      nullptr
+    },
+    {
+      ngx_string("datadog_client_token"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, client_token),
+      nullptr
+    },
 
 #ifdef WITH_WAF
     {

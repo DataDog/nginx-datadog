@@ -4,6 +4,8 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
+#include "discovery.h"
+#include "ngx_http_datadog_module.h"
 #include "string_util.h"
 
 namespace {
@@ -54,9 +56,19 @@ static std::string make_rum_json_config(
     if (key == "majorVersion") {
       continue;
     }
-
-    rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                  rapidjson::Value(value.c_str(), allocator).Move(), allocator);
+    if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
+      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                    rapidjson::Value(std::stod(value.c_str())).Move(),
+                    allocator);
+    } else if (key == "trackResources" || key == "trackLongTasks" ||
+               key == "trackUserInteractions") {
+      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                    rapidjson::Value(value == "true").Move(), allocator);
+    } else {
+      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                    rapidjson::Value(value.c_str(), allocator).Move(),
+                    allocator);
+    }
   }
 
   doc.AddMember("rum", rum, allocator);
@@ -123,6 +135,65 @@ char *on_datadog_rum_json_config(ngx_conf_t *cf, ngx_command_t *command,
   loc_conf->rum_snippet = snippet;
   loc_conf->rum_config_file =
       datadog::nginx::to_ngx_str(cf->pool, file_location);
+
+  return NGX_CONF_OK;
+}
+
+char *on_datadog_directive(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
+  auto *loc_conf = static_cast<datadog::nginx::datadog_loc_conf_t *>(conf);
+
+  ngx_str_t *values = (ngx_str_t *)(cf->args->elts);
+  std::string_view v = datadog::nginx::to_string_view(values[1]);
+
+  if (v == "off") {
+    loc_conf->rum_enable = 0;
+    return NGX_CONF_OK;
+  }
+
+  auto main_conf = static_cast<datadog::nginx::datadog_main_conf_t *>(
+      ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
+
+  auto default_app_id = datadog::rum::init(*main_conf);
+
+  if (default_app_id.empty()) {
+    return NGX_CONF_OK;
+  }
+
+  const std::unordered_map<std::string, std::string> rum_config{
+      {"applicationId", default_app_id},
+      {"clientToken", datadog::nginx::to_string(main_conf->client_token)},
+      {"site", "datadoghq.eu"},
+      {"service", "default_nginx"},
+      {"env", "production"},
+      {"version", "1.0.0"},
+      {"sessionSampleRate", "100"},
+      {"trackResources", "true"},
+      {"trackLongTasks", "true"},
+      {"trackUserInteractions", "true"},
+  };
+
+  auto json = make_rum_json_config("v5", rum_config);
+  if (json.empty()) {
+    auto *err_msg =
+        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    ngx_snprintf(
+        (u_char *)err_msg, 256,
+        "failed to generate the RUM SDK script: missing version field");
+  }
+
+  Snippet *snippet = snippet_create_from_json(json.c_str());
+
+  if (snippet->error_code) {
+    auto *err_msg =
+        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    ngx_snprintf((u_char *)err_msg, 256,
+                 "failed to generate the RUM SDK script: %s",
+                 snippet->error_message);
+    return err_msg;
+  }
+
+  loc_conf->rum_enable = 1;
+  loc_conf->rum_snippet = snippet;
 
   return NGX_CONF_OK;
 }

@@ -111,6 +111,10 @@ struct datadog_main_conf_t {
   std::optional<configured_value_t> environment;
   // `agent_url` is set by the `datadog_agent_url` directive.
   std::optional<configured_value_t> agent_url;
+  ngx_str_t api_key;
+  ngx_str_t app_key;
+  ngx_str_t rum_application_id;
+  ngx_str_t client_token;
 
 #ifdef WITH_WAF
   // DD_APPSEC_ENABLED

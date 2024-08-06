@@ -43,6 +43,8 @@ endif ()
 # Make curl link against a static zlib (requires cmake 3.24)
 set(ZLIB_USE_STATIC_LIBS ON)
 
+find_package(OpenSSL REQUIRED)
+
 # Prefer the build mode "release with debug info" if another mode wasn't
 # specified.
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -173,7 +175,7 @@ target_include_directories(ngx_http_datadog_module
     src/
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module rapidjson)
+target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module rapidjson OpenSSL::SSL OpenSSL::Crypto)
 if(NGINX_DATADOG_ASM_ENABLED)
   target_link_libraries(ngx_http_datadog_module libddwaf_objects)
 endif()
