@@ -476,6 +476,14 @@ Note that if `datadog_trace_locations` is `on`, then `$datadog_span_id` will
 refer to the span associated with the location (outbound request), not its
 parent (inbound request).
 
+### `datadog_trace_id_dec`
+Same as `$datadog_trace_id`, but in decimal format. Up until v1.2.1, this was
+the value returned by `$datadog_trace_id`.
+
+### `datadog_span_id_dec`
+Same as `$datadog_span_id`, but in decimal format. Up until v1.2.1, this was
+the value returned by `$datadog_span_id`.
+
 ### `datadog_location`
 `$datadog_location` expands to the name or pattern of the `location` block that
 matched the current request.  For example,

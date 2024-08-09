@@ -4,6 +4,7 @@
 #include <datadog/environment.h>
 #include <datadog/error.h>
 #include <datadog/expected.h>
+#include <datadog/hex.h>
 #include <datadog/span.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
@@ -117,8 +118,12 @@ std::string span_property(std::string_view key, const dd::Span &span) {
   const auto not_found = "-";
 
   if (key == "trace_id") {
-    return std::to_string(span.trace_id().low);
+    return span.trace_id().hex_padded();
   } else if (key == "span_id") {
+    return datadog::tracing::hex_padded(span.id());
+  } else if (key == "trace_id_dec") {
+    return std::to_string(span.trace_id().low);
+  } else if (key == "span_id_dec") {
     return std::to_string(span.id());
   } else if (key == "json") {
     SpanContextJSONWriter writer;
