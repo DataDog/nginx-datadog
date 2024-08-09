@@ -96,7 +96,6 @@ target_sources(ngx_http_datadog_module
     src/dd.cpp
     src/defer.cpp
     src/global_tracer.cpp
-    src/log_conf.cpp
     src/ngx_event_scheduler.cpp
     src/ngx_header_reader.cpp
     src/ngx_http_datadog_module.cpp

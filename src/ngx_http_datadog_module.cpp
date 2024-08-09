@@ -17,7 +17,6 @@
 #include "dd.h"
 #include "defer.h"
 #include "global_tracer.h"
-#include "log_conf.h"
 #include "ngx_logger.h"
 #ifdef WITH_WAF
 #include "security/library.h"
@@ -125,16 +124,6 @@ static ngx_command_t datadog_commands[] = {
     DEFINE_DEPRECATED_COMMAND(
       "opentracing_propagate_context",
       anywhere | NGX_CONF_NOARGS),
-
-    // The configuration of this directive was copied from
-    // ../nginx/src/http/modules/ngx_http_log_module.c.
-    { ngx_string("access_log"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF
-                        |NGX_HTTP_LMT_CONF|NGX_CONF_1MORE,
-      hijack_access_log,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      NULL },
 
     DEFINE_DEPRECATED_COMMAND(
       "opentracing_fastcgi_propagate_context",
@@ -509,6 +498,13 @@ static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
 
 static ngx_int_t datadog_master_process_post_config(
     ngx_cycle_t *cycle) noexcept {
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog status: enabled");
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog version: %s (%s)",
+                datadog_semver_nginx_mod, datadog_build_id_nginx_mod);
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog features:");
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "- tracing: dd-trace-cpp@%s",
+                datadog_version_tracer);
+
   // Forward tracer-specific environment variables to worker processes.
   for (const auto &env_var_name :
        TracingLibrary::environment_variable_names()) {
@@ -530,6 +526,9 @@ static ngx_int_t datadog_master_process_post_config(
   }
 
 #ifdef WITH_WAF
+  ngx_log_error(NGX_LOG_INFO, cycle->log, 0,
+                "- appsec: libddwaf@%s, waf_rules@%s", datadog_semver_libddwaf,
+                datadog_semver_waf_rules);
   ngx_http_next_output_body_filter = ngx_http_top_body_filter;
   ngx_http_top_body_filter = output_body_filter;
 #endif
@@ -607,18 +606,8 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog status: enabled");
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog version: %s (%s)",
-                datadog_semver_nginx_mod, datadog_build_id_nginx_mod);
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog features:");
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "- tracing: dd-trace-cpp@%s",
-                datadog_version_tracer);
-
   std::shared_ptr<dd::Logger> logger = std::make_shared<NgxLogger>();
 #ifdef WITH_WAF
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0,
-                "- appsec: libddwaf@%s, waf_rules@%s", datadog_semver_libddwaf,
-                datadog_semver_waf_rules);
   try {
     security::Library::initialize_security_library(*main_conf);
   } catch (const std::exception &e) {
@@ -690,19 +679,6 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
   return main_conf;
 }
 
-static bool is_server_block_begin(const ngx_conf_t *conf) {
-  return conf->args != nullptr && conf->args->nelts == 1 &&
-         str(*static_cast<const ngx_str_t *>(conf->args->elts)) == "server";
-}
-
-static ngx_str_t block_type(const ngx_conf_t *conf) {
-  if (conf->args == nullptr) {
-    return ngx_string("");
-  }
-  return to_ngx_str(conf->pool,
-                    str(*static_cast<const ngx_str_t *>(conf->args->elts)));
-}
-
 //------------------------------------------------------------------------------
 // create_datadog_loc_conf
 //------------------------------------------------------------------------------
@@ -716,28 +692,6 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   if (register_destructor(conf->pool, loc_conf)) {
     return nullptr;  // error
   }
-
-  // Trace ID and span ID are automatically added to the access log by altering
-  // the default log format to be one defined by this module.  We need to
-  // inject `log_format` directives as soon as possible within the `http` block
-  // of the configuration.  However, the only hook we have that's in an
-  // appropriate place is in this "location" handler, but when the "location"
-  // is actually a `server` block.  That allows us to insert `log_format`
-  // directives _before_ the `server` block (and thus directly within the
-  // `http` block).  It's _before_ because this function is not a configuration
-  // block handler, but is a configuration context constructor that is called
-  // before the handler. So, we're still currently "outside" the `server` block,
-  // within the `http` block, which is the only place `log_format` is allowed.
-  if (is_server_block_begin(conf)) {
-    if (inject_datadog_log_formats(conf)) {
-      return nullptr;  // error
-    }
-
-    ngx_log_error(NGX_LOG_INFO, conf->log, 0,
-                  "Added log format 'datadog_text' and 'datadog_json'");
-  }
-
-  loc_conf->block_type = block_type(conf);
 
   return loc_conf;
 }

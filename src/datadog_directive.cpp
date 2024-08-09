@@ -13,7 +13,6 @@
 #include "datadog_variable.h"
 #include "dd.h"
 #include "defer.h"
-#include "log_conf.h"
 #include "ngx_http_datadog_module.h"
 #include "ngx_logger.h"
 #include "ngx_script.h"
@@ -137,71 +136,6 @@ char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
   }
 
   return static_cast<char *>(NGX_CONF_OK);
-}
-
-char *hijack_access_log(ngx_conf_t *cf, ngx_command_t *command,
-                        void *conf) noexcept try {
-  // In case we need to change the `access_log` command's format to a
-  // Datadog-specific default, first make sure that those formats are defined.
-  ngx_int_t rcode = inject_datadog_log_formats(cf);
-  if (rcode != NGX_OK) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  // clang-format off
-  // The [documentation][1] of `access_log` lists the following possibilities:
-  //
-  //     access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]];
-  //     access_log off;
-  //
-  // The case we modify here is where the user specifies a file path but no
-  // format name.  Nginx defaults to the "combined" format, but we will instead
-  // inject the "datadog_text" format, i.e.
-  //
-  //     access_log /path/to/access.log;
-  //
-  // becomes
-  //
-  //     access_log /path/to/access.log datadog_text;
-  //
-  // All other cases are left unmodified.
-  //
-  // [1]: http://nginx.org/en/docs/http/ngx_http_log_module.html#access_log
-  // clang-format on
-
-  const auto old_args = cf->args;
-  const auto guard = defer([&]() { cf->args = old_args; });
-  const auto old_elts = static_cast<const ngx_str_t *>(old_args->elts);
-  const auto num_args = old_args->nelts;
-  // `new_args` might temporarily replace `cf->args` (if we decide to inject a
-  // format name).
-  ngx_array_t new_args;
-  ngx_str_t new_elts[] = {ngx_str_t(), ngx_str_t(), ngx_str_t()};
-  if (num_args == 2 && str(old_elts[1]) != "off") {
-    new_elts[0] = old_elts[0];
-    new_elts[1] = old_elts[1];
-    new_elts[2] = ngx_string("datadog_text");
-    new_args.elts = new_elts;
-    new_args.nelts = sizeof new_elts / sizeof new_elts[0];
-    cf->args = &new_args;
-  }
-
-  // Call the handler of the actual command that we're hijacking ("access_log")
-  // Be sure to skip this module, so we don't call ourself.
-  rcode = datadog_conf_handler({.conf = cf, .skip_this_module = true});
-  if (rcode != NGX_OK) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  ngx_log_error(NGX_LOG_INFO, cf->log, 0,
-                "Replaced config callback for command 'access_log' from module "
-                "'ngx_http_log_module'");
-  return static_cast<char *>(NGX_CONF_OK);
-} catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                "Datadog-wrapped configuration directive %V failed: %s",
-                command->name, e.what());
-  return static_cast<char *>(NGX_CONF_ERROR);
 }
 
 char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
