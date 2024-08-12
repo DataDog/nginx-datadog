@@ -132,6 +132,53 @@ int pthread_atfork(
     return real_atfork(prepare, parent, child);
 }
 
+struct pthread_cond;
+struct pthread_condattr;
+typedef struct pthread_cond pthread_cond_t;
+typedef struct ipthread_condattr pthread_condattr_t;
+
+int __pthread_cond_init (pthread_cond_t *cond, const pthread_condattr_t * attr) __attribute__((weak));
+
+int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
+{
+    static int (*real_pthread_cond_init)(pthread_cond_t *cond, const pthread_condattr_t *cond_attr);
+
+    if (!real_pthread_cond_init) {
+        void *handle = dlopen("libc.so.6", RTLD_LAZY);
+        if (!handle) {
+#    ifdef __aarch64__
+            void *handle = dlopen("ld-musl-aarch64.so.1", RTLD_LAZY);
+            if (!handle) {
+                (void)fprintf(
+                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                    stderr, "dlopen of ilbc.so.6 and ld-musl-aarch64.so.1 failed: %s\n",
+                    dlerror());
+                abort();
+            }
+#    else
+            void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
+            if (!handle) {
+                (void)fprintf(
+                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                    stderr, "dlopen of libc.so.6 and libc.musl-x86_64.so.1 failed: %s\n",
+                    dlerror());
+                abort();
+            }
+#    endif
+        }
+
+        real_pthread_cond_init = dlsym(handle, "pthread_cond_init");
+        if (!real_pthread_cond_init) {
+            (void)fprintf(
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                stderr, "dlsym of pthread_cond_init failed: %s\n", dlerror());
+            abort();
+        }
+    }
+
+    return real_pthread_cond_init(cond, cond_attr);
+}
+
 // the symbol strerror_r in glibc is not the POSIX version; it returns char *
 // __xpg_sterror_r is exported by both glibc and musl
 int strerror_r(int errnum, char *buf, size_t buflen)
