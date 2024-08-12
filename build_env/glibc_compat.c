@@ -136,7 +136,7 @@ int pthread_atfork(
 struct pthread_cond;
 struct pthread_condattr;
 typedef struct pthread_cond pthread_cond_t;
-typedef struct ipthread_condattr pthread_condattr_t;
+typedef struct pthread_condattr pthread_condattr_t;
 
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 {
