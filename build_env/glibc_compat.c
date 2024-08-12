@@ -132,6 +132,42 @@ int pthread_atfork(
     return real_atfork(prepare, parent, child);
 }
 
+#    ifdef __x86_64__
+struct pthread_cond;
+struct pthread_condattr;
+typedef struct pthread_cond pthread_cond_t;
+typedef struct pthread_condattr pthread_condattr_t;
+
+int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
+{
+    static int (*real_pthread_cond_init)(pthread_cond_t *cond, const pthread_condattr_t *cond_attr);
+
+    if (!real_pthread_cond_init) {
+        void *handle = dlopen("libc.so.6", RTLD_LAZY);
+        if (!handle) {
+            void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
+            if (!handle) {
+                (void)fprintf(
+                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                    stderr, "dlopen of libc.so.6 and libc.musl-x86_64.so.1 failed: %s\n",
+                    dlerror());
+                abort();
+            }
+        }
+
+        real_pthread_cond_init = dlsym(handle, "pthread_cond_init");
+        if (!real_pthread_cond_init) {
+            (void)fprintf(
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                stderr, "dlsym of pthread_cond_init failed: %s\n", dlerror());
+            abort();
+        }
+    }
+
+    return real_pthread_cond_init(cond, cond_attr);
+}
+#    endif
+
 // the symbol strerror_r in glibc is not the POSIX version; it returns char *
 // __xpg_sterror_r is exported by both glibc and musl
 int strerror_r(int errnum, char *buf, size_t buflen)
