@@ -36,7 +36,6 @@ extern "C" {
 }
 
 #include <datadog/span.h>
-#include <datadog/span_data.h>
 #include <datadog/trace_segment.h>
 #include <ddwaf.h>
 #include <rapidjson/document.h>

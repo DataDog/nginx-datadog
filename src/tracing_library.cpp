@@ -8,10 +8,12 @@
 #include <datadog/span.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 #include <algorithm>
 #include <cassert>
-#include <datadog/json.hpp>
 #include <iterator>
 #include <ostream>
 
@@ -99,19 +101,24 @@ std::string_view TracingLibrary::proxy_directive_variable_name() {
 namespace {
 
 class SpanContextJSONWriter : public dd::DictWriter {
-  nlohmann::json output_object_;
+  rapidjson::Document output_object_;
 
  public:
-  SpanContextJSONWriter() : output_object_(nlohmann::json::object()) {}
+  SpanContextJSONWriter() : output_object_() { output_object_.SetObject(); }
 
   void set(std::string_view key, std::string_view value) override {
     std::string normalized_key;
     std::transform(key.begin(), key.end(), std::back_inserter(normalized_key),
                    header_transform_char);
-    output_object_[std::move(normalized_key)] = value;
+
+    rapidjson::Document::AllocatorType &allocator =
+        output_object_.GetAllocator();
+    output_object_.AddMember(
+        rapidjson::Value(normalized_key.c_str(), allocator).Move(),
+        rapidjson::Value(value.data(), allocator).Move(), allocator);
   }
 
-  nlohmann::json &json() { return output_object_; }
+  rapidjson::Document &json() { return output_object_; }
 };
 
 std::string span_property(std::string_view key, const dd::Span &span) {
@@ -128,7 +135,13 @@ std::string span_property(std::string_view key, const dd::Span &span) {
   } else if (key == "json") {
     SpanContextJSONWriter writer;
     span.inject(writer);
-    return writer.json().dump();
+
+    auto &json_doc = writer.json();
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> buffer_writer(buffer);
+    json_doc.Accept(buffer_writer);
+    return buffer.GetString();
   }
 
   return not_found;

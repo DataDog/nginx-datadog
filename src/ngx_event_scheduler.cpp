@@ -1,7 +1,6 @@
 #include "ngx_event_scheduler.h"
 
 #include <chrono>
-#include <datadog/json.hpp>
 
 namespace datadog {
 namespace nginx {
@@ -53,9 +52,8 @@ NgxEventScheduler::~NgxEventScheduler() {
   }
 }
 
-nlohmann::json NgxEventScheduler::config_json() const {
-  return nlohmann::json::object(
-      {{"type", "datadog::nginx::NgxEventScheduler"}});
+std::string NgxEventScheduler::config() const {
+  return R"({"type": "datadog::nginx::NgxEventScheduler")";
 }
 
 }  // namespace nginx

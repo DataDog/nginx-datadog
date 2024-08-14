@@ -4,7 +4,6 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <datadog/json.hpp>
 #include <limits>
 #include <stdexcept>
 
@@ -140,8 +139,7 @@ static ngx_int_t expand_configuration_variable(
     return NGX_OK;
   }
 
-  const ngx_str_t json_str =
-      to_ngx_str(request->pool, tracer->config_json().dump());
+  const ngx_str_t json_str = to_ngx_str(request->pool, tracer->config());
   variable_value->len = json_str.len;
   variable_value->data = json_str.data;
   return NGX_OK;
