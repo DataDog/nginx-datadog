@@ -277,6 +277,10 @@ ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   variable = ngx_http_add_variable(cf, &name, NGX_HTTP_VAR_NOHASH);
   variable->get_handler = expand_proxy_directive_variable;
   variable->data = 0;
+
+  ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                "In the next release, $datadog_trace_id and $datadog_span_id "
+                "will return their values in hexadecimal format.");
   return NGX_OK;
 }
 }  // namespace nginx

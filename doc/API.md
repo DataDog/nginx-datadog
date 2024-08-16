@@ -464,17 +464,23 @@ about the currently active trace.
 
 ### `datadog_trace_id`
 `$datadog_trace_id` expands to the decimal representation of the unsigned
-64-bit ID of the currently active trace.  If there is no currently active
+64-bit ID of the currently active trace. If there is no currently active
 trace, then the variable expands to a hyphen character (`-`) instead.
 
 ### `datadog_span_id`
 `$datadog_span_id` expands to the decimal representation of the unsigned 64-bit
-ID of the currently active span.  If there is no currently active span, then
+ID of the currently active span.If there is no currently active span, then
 the variable expands to a hyphen character (`-`) instead.
 
 Note that if `datadog_trace_locations` is `on`, then `$datadog_span_id` will
 refer to the span associated with the location (outbound request), not its
 parent (inbound request).
+
+### `datadog_trace_id_hex`
+Same as `$datadog_trace_id`, but is the hexadecimal representation of the 128-bit ID. 
+
+### `datadog_span_id_hex`
+Same as `$datadog_span_id`, but is the hexadecimal representation.
 
 ### `datadog_location`
 `$datadog_location` expands to the name or pattern of the `location` block that
