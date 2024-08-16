@@ -93,7 +93,6 @@ ngx_str_t DatadogContext::lookup_span_variable_value(
     throw std::runtime_error{
         "lookup_span_variable_value failed: could not find request trace"};
   }
-
   return trace->lookup_span_variable_value(key);
 }
 

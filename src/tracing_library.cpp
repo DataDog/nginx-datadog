@@ -117,13 +117,13 @@ class SpanContextJSONWriter : public dd::DictWriter {
 std::string span_property(std::string_view key, const dd::Span &span) {
   const auto not_found = "-";
 
-  if (key == "trace_id") {
+  if (key == "trace_id_hex") {
     return span.trace_id().hex_padded();
-  } else if (key == "span_id") {
+  } else if (key == "span_id_hex") {
     return datadog::tracing::hex_padded(span.id());
-  } else if (key == "trace_id_dec") {
+  } else if (key == "trace_id") {
     return std::to_string(span.trace_id().low);
-  } else if (key == "span_id_dec") {
+  } else if (key == "span_id") {
     return std::to_string(span.id());
   } else if (key == "json") {
     SpanContextJSONWriter writer;
