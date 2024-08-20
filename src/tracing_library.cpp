@@ -4,7 +4,6 @@
 #include <datadog/environment.h>
 #include <datadog/error.h>
 #include <datadog/expected.h>
-#include <datadog/hex.h>
 #include <datadog/span.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
@@ -14,6 +13,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include <iterator>
 #include <ostream>
 
@@ -127,7 +127,11 @@ std::string span_property(std::string_view key, const dd::Span &span) {
   if (key == "trace_id_hex") {
     return span.trace_id().hex_padded();
   } else if (key == "span_id_hex") {
-    return datadog::tracing::hex_padded(span.id());
+    char buffer[17];
+    int written =
+        std::snprintf(buffer, sizeof(buffer), "%016" PRIx64, span.id());
+    assert(written == 16);
+    return {buffer, static_cast<size_t>(written)};
   } else if (key == "trace_id") {
     return std::to_string(span.trace_id().low);
   } else if (key == "span_id") {
