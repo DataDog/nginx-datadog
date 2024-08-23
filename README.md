@@ -137,7 +137,7 @@ This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
 [6]: https://www.gnu.org/software/libc/
 [7]: https://www.musl-libc.org/
 [8]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
-[9]: https://github.com/DataDog/dd-trace-cpp/blob/main/src/datadog/environment.h
+[9]: https://github.com/DataDog/dd-trace-cpp/blob/main/include/datadog/environment.h
 [10]: https://hub.docker.com/_/amazonlinux
 [11]: https://www.nginx.com/blog/nginx-1-18-1-19-released/
 [12]: https://github.com/DataDog/nginx-datadog/releases
