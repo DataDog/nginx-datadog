@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <datadog/json.hpp>
 #include <istream>
 #include <stdexcept>
 #include <string>

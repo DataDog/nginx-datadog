@@ -51,11 +51,11 @@ add_compile_options(-fno-omit-frame-pointer)
 
 # Nginx module boilerplate (code within the nginx repository)
 include(./cmake/deps/nginx-module.cmake)
+include(./cmake/deps/rapidjson.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
 if(NGINX_DATADOG_ASM_ENABLED)
-  include(./cmake/deps/rapidjson.cmake)
   # we need neither but libddwaf requires one enabled
   set(LIBDDWAF_BUILD_STATIC ON)
   set(LIBDDWAF_BUILD_SHARED OFF)
@@ -141,10 +141,14 @@ target_include_directories(ngx_http_datadog_module
     src/
 )
 
-target_link_libraries(ngx_http_datadog_module dd_trace_cpp-objects nginx_module)
+target_link_libraries(ngx_http_datadog_module
+  dd_trace_cpp-static
+  nginx_module
+  rapidjson
+)
 
 if(NGINX_DATADOG_ASM_ENABLED)
-  target_link_libraries(ngx_http_datadog_module rapidjson libddwaf_objects)
+  target_link_libraries(ngx_http_datadog_module libddwaf_objects)
 endif()
 
 # Remove the "lib" prefix to match NGINX convention
