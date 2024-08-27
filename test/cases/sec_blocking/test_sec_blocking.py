@@ -40,6 +40,19 @@ class TestSecBlocking(case.TestCase):
         headers = {k.lower(): v for k, v in headers.items()}
         return status, headers, body, log_lines
 
+    def run_with_body(self, content_type, req_body):
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http',
+            80,
+            headers={'content-type': content_type},
+            req_body=req_body)
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        headers = dict(headers)
+        headers = {k.lower(): v for k, v in headers.items()}
+        return status, headers, body, log_lines
+
     def test_default_action(self):
         status, headers, body, log_lines = self.run_with_ua(
             'block_default', '*/*')
@@ -118,3 +131,14 @@ class TestSecBlocking(case.TestCase):
         status, headers, _, _ = self.run_with_ua('redirect_bad_status', '*/*')
         self.assertEqual(status, 303)
         self.assertEqual(headers['location'], 'https://www.cloudflare.com')
+
+    def test_block_body_json(self):
+        status, _, _, _ = self.run_with_body('application/json',
+                                             '{"a": "block_default"}')
+        self.assertEqual(status, 403)
+
+    def test_block_body_json_long(self):
+        status, _, _, _ = self.run_with_body(
+            'application/json',
+            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024))
+        self.assertEqual(status, 403)

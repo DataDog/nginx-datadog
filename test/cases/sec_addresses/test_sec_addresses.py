@@ -53,6 +53,15 @@ class TestSecAddresses(case.TestCase):
         self.orch.send_nginx_http_request(endpoint, 80, method='PUT')
         return self.do_request_common()
 
+    def do_post(self, content_type, req_body):
+        self.orch.send_nginx_http_request(
+            '/http',
+            80,
+            method='POST',
+            headers={'content-type': content_type},
+            req_body=req_body)
+        return self.do_request_common()
+
     def do_request_common(self):
         rep = self.orch.find_first_appsec_report()
         if rep is None:
@@ -428,3 +437,92 @@ class TestSecAddresses(case.TestCase):
         self.assertEqual(
             result['triggers'][0]['rule_matches'][0]['parameters'][0]
             ['highlight'][0], '<Redacted>')
+
+    def test_post_json_key(self):
+        result = self.do_post('application/json', '{"matched key":42}')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_post_json_key_2(self):
+        result = self.do_post('application/json',
+                              '[[],{"a":{"matched key":42}}]')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_post_json_key_3(self):
+        result = self.do_post('application/json', '[[],{"a":{"matched key":')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_post_json_value(self):
+        result = self.do_post('application/json', '"matched value"')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_post_json_value_2(self):
+        result = self.do_post('application/json',
+                              '[[[0, {"a": "matched value"}]]]')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_post_json_value_3(self):
+        result = self.do_post('application/json',
+                              '[[[0, {"a": "matched value"')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_urlencoded_key(self):
+        result = self.do_post('application/x-www-form-urlencoded',
+                              'matched+key=value')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_urlencoded_value(self):
+        result = self.do_post('application/x-www-form-urlencoded',
+                              'key=matched+value')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_multipart_key(self):
+        result = self.do_post(
+            'multipart/form-data; boundary="bound"',
+            '--bound\r\nContent-Disposition: form-data; name="matched key"\r\n\r\nvalue\r\n--bound--'
+        )
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_multipart_value(self):
+        result = self.do_post(
+            'multipart/form-data; boundary="bound"',
+            '--bound\r\nContent-Disposition: form-data; name="key"\r\n\r\nmatched value\r\n--bound--'
+        )
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_multipart_large_value(self):
+        # payload larger than 40k
+        result = self.do_post(
+            'multipart/form-data; boundary="bound"',
+            '--bound\r\nContent-Disposition: form-data; name="key"\r\n\r\n' +
+            'matched value\r\n' +
+            '--bound\r\nContent-Disposition: form-data; name="key"\r\n\r\n' +
+            ('a' * (40 * 1024)) + '\r\n--bound--\r\n')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_string_value(self):
+        result = self.do_post('text/plain', 'matched value')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')

@@ -52,7 +52,17 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
            type == DDWAF_OBJ_FLOAT;
   }
 
+  bool is_bool() const noexcept { return type == DDWAF_OBJ_BOOL; }
+
+  bool is_null() const noexcept { return type == DDWAF_OBJ_NULL; }
+
   bool is_string() const noexcept { return type == DDWAF_OBJ_STRING; }
+
+  bool is_map() const noexcept { return type == DDWAF_OBJ_MAP; }
+
+  bool is_array() const noexcept { return type == DDWAF_OBJ_ARRAY; }
+
+  auto size_unchecked() { return nbEntries; }
 
   template <typename T>
   T numeric_val() const {
@@ -220,6 +230,7 @@ struct __attribute__((__may_alias__)) ddwaf_str_obj : ddwaf_obj {
   ddwaf_str_obj(const ddwaf_arr_obj &) = delete;
 
   std::string_view value() const { return {stringValue, nbEntries}; }
+  char *buffer() { return const_cast<char *>(stringValue); }
 };
 
 struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {
@@ -240,7 +251,7 @@ struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {
     return *reinterpret_cast<T *>(&array[index]);  // NOLINT
   }
 
-  template <typename T = ddwaf_object>
+  template <typename T = ddwaf_obj>
   T &at(nb_entries_t index) const {
     if (index >= nbEntries) {
       throw std::out_of_range("index out of range");

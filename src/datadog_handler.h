@@ -21,6 +21,12 @@ ngx_int_t on_log_request(ngx_http_request_t *request) noexcept;
 
 ngx_int_t on_header_filter(ngx_http_request_t *r) noexcept;
 
+#ifdef WITH_WAF
+extern ngx_http_request_body_filter_pt ngx_http_next_request_body_filter;
+ngx_int_t request_body_filter(ngx_http_request_t *r,
+                              ngx_chain_t *chain) noexcept;
+#endif
+
 ngx_int_t on_output_body_filter(ngx_http_request_t *r,
                                 ngx_chain_t *chain) noexcept;
 

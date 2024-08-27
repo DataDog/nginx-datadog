@@ -120,6 +120,32 @@ ngx_int_t on_header_filter(ngx_http_request_t *request) noexcept {
   }
 }
 
+#ifdef WITH_WAF
+ngx_http_request_body_filter_pt ngx_http_next_request_body_filter;
+
+ngx_int_t request_body_filter(ngx_http_request_t *request,
+                              ngx_chain_t *chain) noexcept {
+  if (request != request->main) {
+    return ngx_http_next_request_body_filter(request, chain);
+  }
+
+  DatadogContext *context = get_datadog_context(request);
+  if (!context) {
+    return ngx_http_next_request_body_filter(request, chain);
+  }
+
+  try {
+    return context->request_body_filter(request, chain);
+  } catch (const std::exception &e) {
+    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                  "Datadog instrumentation failed in request body filter for "
+                  "request %p: %s",
+                  request, e.what());
+    return NGX_ERROR;
+  }
+}
+#endif
+
 ngx_int_t on_output_body_filter(ngx_http_request_t *request,
                                 ngx_chain_t *chain) noexcept {
   if (request != request->main) {
