@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import urllib.request
+import tarfile
 
 
 class VerboseDict(dict):
@@ -56,15 +57,6 @@ def get_git():
     if exe_path is None:
         raise MissingDependency(
             'The "git" command must be available to tag the release commit.')
-    return exe_path
-
-
-def get_tar():
-    exe_path = shutil.which("tar")
-    if exe_path is None:
-        raise MissingDependency(
-            'The "tar" command must be available to compress and archive the nginx module.'
-        )
     return exe_path
 
 
@@ -132,7 +124,26 @@ def download_file(url, destination):
         shutil.copyfileobj(response, output)
 
 
+def package(files, out):
+    if not isinstance(files, list):
+        files = [files]
+
+    with tarfile.open(out, "w:gz") as tar:
+        for f in files:
+            if not f.is_file():
+                print(f"{f} is not a valid file and will be skipped")
+                continue
+
+            tar.add(f, arcname=os.path.basename(f))
+
+
+def sign_package(package_path: str) -> None:
+    command = [gpg_exe, "--armor", "--detach-sign", package_path]
+    run(command, check=True)
+
+
 def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
+    waf_suffix = "-appsec" if waf else ""
     artifacts = send_ci_request_paged(
         f"/project/{PROJECT_SLUG}/{build_job_number}/artifacts")
     module_url = None
@@ -159,35 +170,19 @@ def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
     module_debug_path = work_dir / "ngx_http_datadog_module.so.debug"
     download_file(module_url_dbg, module_debug_path)
 
-    waf_suffix = "-appsec" if waf else ""
-
+    # Package and sign .so
     tarball_path = (
         work_dir /
         f"ngx_http_datadog_module{waf_suffix}-{arch}-{version}.so.tgz")
-    command = [tar_exe, "-czf", tarball_path, "-C", work_dir, module_path.name]
-    run(command, check=True)
+    package(module_path, out=tarball_path)
+    sign_package(tarball_path)
 
-    command = [gpg_exe, "--armor", "--detach-sign", tarball_path]
-    run(command, check=True)
-
+    # Package and sign .so.debug
     debug_tarball_path = (
         work_dir /
         f"ngx_http_datadog_module{waf_suffix}-{arch}-{version}.so.debug.tgz")
-    command = [
-        tar_exe,
-        "-czf",
-        debug_tarball_path,
-        "-C",
-        work_dir,
-        module_debug_path.name,
-    ]
-    run(command, check=True)
-
-    command = [gpg_exe, "--armor", "--detach-sign", debug_tarball_path]
-    run(command, check=True)
-
-    module_path.unlink()
-    module_debug_path.unlink()
+    package(module_debug_path, out=debug_tarball_path)
+    sign_package(debug_tarball_path)
 
 
 def handle_job(job, work_dir):
@@ -225,7 +220,6 @@ if __name__ == "__main__":
         gh_exe = get_gh()
         gpg_exe = get_gpg()
         git_exe = get_git()
-        tar_exe = get_tar()
     except (MissingDependency, ValueError) as error:
         print(str(error), file=sys.stderr)
         sys.exit(1)
