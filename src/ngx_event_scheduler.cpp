@@ -53,7 +53,7 @@ NgxEventScheduler::~NgxEventScheduler() {
 }
 
 std::string NgxEventScheduler::config() const {
-  return R"({"type": "datadog::nginx::NgxEventScheduler")";
+  return R"({"type": "datadog::nginx::NgxEventScheduler"})";
 }
 
 }  // namespace nginx
