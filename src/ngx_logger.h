@@ -23,6 +23,10 @@ class NgxLogger : public dd::Logger {
   void log_error(const dd::Error& error) override;
 
   void log_error(std::string_view message) override;
+
+  void log_debug(const LogFunc& write);
+
+  void log_debug(std::string_view message);
 };
 
 }  // namespace nginx

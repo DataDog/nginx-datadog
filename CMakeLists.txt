@@ -26,6 +26,11 @@ else ()
   message(STATUS "nginx-datadog products: tracing")
 endif ()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -O0")
+endif()
+
 # Make curl link against a static zlib (requires cmake 3.24)
 set(ZLIB_USE_STATIC_LIBS ON)
 
@@ -78,7 +83,7 @@ include(./cmake/generate_build_id.cmake)
 # Generate the build identifier.
 # Known issue: this command is only run during the CMake configuration stage.
 # Possible solution: <https://jonathanhamberg.com/post/cmake-embedding-git-hash/>
-make_build_id(NGINX_DATADOG_BUILD_ID) 
+make_build_id(NGINX_DATADOG_BUILD_ID)
 configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
 
 # The shared library (nginx module) that we are building.
@@ -116,7 +121,8 @@ if(NGINX_DATADOG_ASM_ENABLED)
     src/security/context.cpp
     src/security/ddwaf_obj.cpp
     src/security/header_tags.cpp
-    src/security/library.cpp)
+    src/security/library.cpp
+    src/security/waf_remote_cfg.cpp)
   target_compile_definitions(ngx_http_datadog_module PRIVATE WITH_WAF)
 endif()
 
