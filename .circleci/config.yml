@@ -108,6 +108,34 @@ jobs:
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
+  build_arm64_installer:
+    steps:
+    - checkout
+    - run: go -C ./rum-injection-installer/installer build -o nginx-configurator
+    - persist_to_workspace:
+        root: "./rum-injection-installer/installer"
+        paths:
+          - "nginx-configurator"
+    - store_artifacts:
+        path: "./rum-injection-installer/installer/nginx-configurator"
+        destination: nginx-configurator
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.medium
+  build_amd64_installer:
+    steps:
+    - checkout
+    - run: go -C ./rum-injection-installer/installer build -o nginx-configurator
+    - persist_to_workspace:
+        root: "./rum-injection-installer/installer"
+        paths:
+          - "nginx-configurator"
+    - store_artifacts:
+        path: "./rum-injection-installer/installer/nginx-configurator"
+        destination: nginx-configurator
+    machine:
+      image: ubuntu-2204:current
+    resource_class: medium
   coverage:
     environment:
       DOCKER_BUILDKIT: 1
@@ -241,6 +269,10 @@ workflows:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
+    - build_amd64_installer:
+        name: build installer on amd64
+    - build_arm64_installer:
+        name: build installer on arm64
     - coverage:
         name: Coverage on 1.27.0 with WAF ON
     - test:
@@ -359,6 +391,10 @@ workflows:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
+    - build_amd64_installer:
+        name: build installer on amd64
+    - build_arm64_installer:
+        name: build installer on arm64
     - test:
         matrix:
           parameters:

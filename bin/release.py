@@ -141,6 +141,29 @@ def sign_package(package_path: str) -> None:
     command = [gpg_exe, "--armor", "--detach-sign", package_path]
     run(command, check=True)
 
+def prepare_installer_release_artifact(work_dir, build_job_number, arch):
+    artifacts = send_ci_request_paged(
+        f"/project/{PROJECT_SLUG}/{build_job_number}/artifacts")
+    module_url = None
+    for artifact in artifacts:
+        name = artifact["path"]
+        if name == "nginx_configurator":
+            module_url = artifact["url"]
+
+    if module_url is None:
+        raise Exception(
+            f"Job number {build_job_number} doesn't have an 'nginx_configurator' build artifact."
+        )
+
+    module_path = work_dir / "nginx_configurator"
+    download_file(module_url, module_path)
+
+    # Package and sign
+    tarball_path = (
+        work_dir /
+        f"nginx_configurator-{arch}.tgz")
+    package(module_path, out=tarball_path)
+    sign_package(tarball_path)
 
 def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
     waf_suffix = "-appsec" if waf else ""
@@ -188,7 +211,15 @@ def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
 def handle_job(job, work_dir):
     # See the response schema for a list of statuses:
     # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
-    if job["name"].startswith("build "):
+    if job["name"].startswith("build installer "):
+        # name should be something like "build installer on arm64"
+        match = re.match(r"build installer on (amd64|arm64)",
+                         job["name"])
+        if match is None:
+            raise Exception(f'Job name does not match regex "{re}": {job}')
+        arch = match.groups()[0]
+        prepare_installer_release_artifact(work_dir, job["job_number"], arch)
+    elif job["name"].startswith("build "):
         # name should be something like "build 1.25.4 on arm64 WAF ON"
         match = re.match(r"build ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
                          job["name"])
