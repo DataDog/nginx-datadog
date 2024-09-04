@@ -38,6 +38,7 @@ check_architecture() {
 
 check_dependencies() {
     command -v curl >/dev/null 2>&1 || error "curl is not installed. Please install curl and try again."
+    command -v gpg >/dev/null 2>&1 || error "gpg is not installed. Please install gpg and try again."
 
     check_architecture
 }

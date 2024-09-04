@@ -33,6 +33,8 @@ func (n *NginxConfigurator) Verify() error {
 
 	n.Version = matches[1]
 
+	print("Detected NGINX version: ", n.Version, "\n")
+
 	const minSupportedVersion = "1.22.0"
 	if compareVersions(n.Version, minSupportedVersion) < 0 {
 		return fmt.Errorf("nginx version %s is not supported, must be at least %s", n.Version, minSupportedVersion)
@@ -128,30 +130,78 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string) error {
 
 	moduleURL := fmt.Sprintf("https://github.com/DataDog/nginx-datadog/releases/latest/download/ngx_http_datadog_module-%s-%s.so.tgz", arch, n.Version)
 
-	resp, err := http.Get(moduleURL)
+	moduleContent, err := downloadFile(moduleURL)
 	if err != nil {
 		return fmt.Errorf("failed to download module: %v", err)
 	}
-	defer resp.Body.Close()
 
-	tmpfile, err := os.CreateTemp("", "nginx-module-*.tgz")
+	signatureURL := moduleURL + ".asc"
+	signatureContent, err := downloadFile(signatureURL)
 	if err != nil {
-		return fmt.Errorf("failed to create temp file")
-	}
-	defer os.Remove(tmpfile.Name())
-
-	_, err = io.Copy(tmpfile, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to write to temp file: %v", err)
+		return fmt.Errorf("failed to download signature: %v", err)
 	}
 
-	err = extractTarGzFile(tmpfile.Name(), n.ModulesPath)
+	publicKeyURL := "https://github.com/DataDog/nginx-datadog/releases/latest/download/pubkey.gpg"
+	publicKeyContent, err := downloadFile(publicKeyURL)
 	if err != nil {
+		return fmt.Errorf("failed to download public key: %v", err)
+	}
+
+	tmpDir, err := os.MkdirTemp("", "nginx-module-verification")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	moduleFile := filepath.Join(tmpDir, "module.tgz")
+	signatureFile := filepath.Join(tmpDir, "module.tgz.asc")
+	publicKeyFile := filepath.Join(tmpDir, "pubkey.gpg")
+
+	if err := os.WriteFile(moduleFile, moduleContent, 0644); err != nil {
+		return fmt.Errorf("failed to write module file: %v", err)
+	}
+	if err := os.WriteFile(signatureFile, signatureContent, 0644); err != nil {
+		return fmt.Errorf("failed to write signature file: %v", err)
+	}
+	if err := os.WriteFile(publicKeyFile, publicKeyContent, 0644); err != nil {
+		return fmt.Errorf("failed to write public key file: %v", err)
+	}
+
+	if err := verifySignatureGPG(moduleFile, signatureFile, publicKeyFile); err != nil {
+		return fmt.Errorf("failed to verify module signature: %v", err)
+	}
+
+	if err := extractTarGzFile(moduleFile, n.ModulesPath); err != nil {
 		return fmt.Errorf("failed to extract tgz file: %v", err)
 	}
 
-	fmt.Printf("Module successfully downloaded and installed in %s\n", n.ModulesPath)
+	fmt.Printf("Module successfully downloaded, verified, and installed in %s\n", n.ModulesPath)
 	return nil
+}
+
+func verifySignatureGPG(moduleFile, signatureFile, publicKeyFile string) error {
+	importCmd := exec.Command("gpg", "--import", publicKeyFile)
+	if output, err := importCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to import public key: %v\nOutput: %s", err, output)
+	}
+
+	verifyCmd := exec.Command("gpg", "--verify", signatureFile, moduleFile)
+	if output, err := verifyCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("signature verification failed: %v\nOutput: %s", err, output)
+	}
+
+	return nil
+}
+
+// Helper function to download a file
+func downloadFile(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return io.ReadAll(resp.Body)
 }
 
 // Gets the configuration file from 'nginx -T'

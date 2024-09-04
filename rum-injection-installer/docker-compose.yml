@@ -12,7 +12,9 @@ services:
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
 
   nginx:
-    image: nginx:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     depends_on:
       - datadog-agent
     volumes:
