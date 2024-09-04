@@ -39,6 +39,7 @@ check_architecture() {
 check_dependencies() {
     command -v curl >/dev/null 2>&1 || error "curl is not installed. Please install curl and try again."
     command -v gpg >/dev/null 2>&1 || error "gpg is not installed. Please install gpg and try again."
+    command -v tar >/dev/null 2>&1 || error "tar is not installed. Please install tar and try again."
 
     check_architecture
 }
@@ -56,6 +57,29 @@ verify_connection() {
     if ! curl -s -o /dev/null -w "%{http_code}" "${AGENT_URL}/info" | grep -q "200"; then
         error "Cannot connect to agent at ${AGENT_URL}/info"
     fi
+}
+
+download_installer_and_verify() {
+    BASE_URL="https://github.com/DataDog/nginx-datadog/releases/latest/download"
+    BINARY_URL="${BASE_URL}/nginx-configurator-${ARCH}.tgz"
+    SIGNATURE_URL="${BINARY_URL}.asc"
+    PUBKEY_URL="${BASE_URL}/pubkey.gpg"
+
+    curl -sSLO "$BINARY_URL" || error "Failed to download binary"
+    curl -sSLO "$SIGNATURE_URL" || error "Failed to download signature"
+    curl -sSLO "$PUBKEY_URL" || error "Failed to download public key"
+
+    gpg --import pubkey.gpg || error "Failed to import public key"
+
+    if ! gpg --verify "nginx-configurator-${ARCH}.tgz.asc" "nginx-configurator-${ARCH}.tgz"; then
+        error "Signature verification failed"
+    fi
+
+    tar -xzf "nginx-configurator-${ARCH}.tgz" || error "Failed to extract binary"
+
+    rm "nginx-configurator-${ARCH}.tgz" "nginx-configurator-${ARCH}.tgz.asc" "pubkey.gpg"
+
+    echo "Binary downloaded, verified, and extracted successfully."
 }
 
 main() {
@@ -76,7 +100,7 @@ main() {
     validate_parameters
     verify_connection
 
-    # TODO: Download appropriate binary based on $ARCH
+    download_installer_and_verify
     
     ./nginx-configurator --appId "$APP_ID" --site "$SITE" --clientToken "$CLIENT_TOKEN" --sessionSampleRate "$SESSION_SAMPLE_RATE" --sessionReplaySampleRate "$SESSION_REPLAY_SAMPLE_RATE" --arch "$ARCH" --agentUrl "$AGENT_URL"
     
