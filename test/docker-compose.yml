@@ -9,8 +9,12 @@ services:
       dockerfile: ./Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE}
+    environment:
+      DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS: 1
     cap_add:
       - SYS_PTRACE
+    volumes:
+      - ../:/mnt/repo/
     depends_on:
       - http
       - fastcgi

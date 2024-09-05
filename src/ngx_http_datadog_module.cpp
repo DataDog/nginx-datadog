@@ -20,6 +20,7 @@
 #include "ngx_logger.h"
 #ifdef WITH_WAF
 #include "security/library.h"
+#include "security/waf_remote_cfg.h"
 #endif
 #include "string_util.h"
 #include "tracing_library.h"
@@ -606,10 +607,16 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     return NGX_OK;
   }
 
-  std::shared_ptr<dd::Logger> logger = std::make_shared<NgxLogger>();
+  std::shared_ptr<datadog::nginx::NgxLogger> logger =
+      std::make_shared<NgxLogger>();
+
 #ifdef WITH_WAF
   try {
-    security::Library::initialize_security_library(*main_conf);
+    std::optional<security::ddwaf_owned_map> initial_waf_cfg =
+        security::Library::initialize_security_library(*main_conf);
+    if (initial_waf_cfg) {
+      security::register_default_config(std::move(*initial_waf_cfg), logger);
+    }
   } catch (const std::exception &e) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Initialising security library failed: %s", e.what());

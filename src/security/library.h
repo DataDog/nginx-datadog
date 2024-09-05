@@ -27,6 +27,8 @@ class Library {
   static std::optional<ddwaf_owned_map> initialize_security_library(
       const datadog_main_conf_t &conf);
 
+  static bool update_ruleset(const ddwaf_map_obj &spec);
+
   // returns the handle if active, otherwise an empty shared_ptr
   static std::shared_ptr<OwnedDdwafHandle> get_handle();
 
