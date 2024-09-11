@@ -3,13 +3,45 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/google/go-github/github"
 )
+
+func getLowestSupportedModuleVersion() (string, error) {
+	client := github.NewClient(nil)
+
+	release, _, err := client.Repositories.GetLatestRelease(context.Background(), "DataDog", "nginx-datadog")
+	if err != nil {
+		return "", fmt.Errorf("error getting latest release for the nginx module: %v", err)
+	}
+
+	re := regexp.MustCompile(`ngx_http_datadog_module-(?:amd64|arm64)-(\d+\.\d+\.\d+)\.so\.tgz`)
+
+	lowestVersion := ""
+	for _, asset := range release.Assets {
+		matches := re.FindStringSubmatch(*asset.Name)
+		if len(matches) > 1 {
+			version := matches[1]
+			if lowestVersion == "" || compareVersions(version, lowestVersion) < 0 {
+				lowestVersion = version
+			}
+		}
+	}
+
+	if lowestVersion == "" {
+		return "", fmt.Errorf("no valid version found for the nginx module in the release assets")
+	}
+
+	return lowestVersion, nil
+}
 
 func compareVersions(v1, v2 string) int {
 	v1Segments := strings.Split(v1, ".")

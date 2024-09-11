@@ -108,30 +108,30 @@ jobs:
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
-  build_arm64_installer:
+  build_installer_arm64:
     steps:
     - checkout
-    - run: go -C ./rum-injection-installer/installer build -o nginx-configurator
+    - run: go -C ./installer/configurator build -o nginx-configurator
     - persist_to_workspace:
-        root: "./rum-injection-installer/installer"
+        root: "./installer/configurator"
         paths:
           - "nginx-configurator"
     - store_artifacts:
-        path: "./rum-injection-installer/installer/nginx-configurator"
+        path: "./installer/configurator/nginx-configurator"
         destination: nginx-configurator
     machine:
       image: ubuntu-2204:current
     resource_class: arm.medium
-  build_amd64_installer:
+  build_installer_amd64:
     steps:
     - checkout
-    - run: go -C ./rum-injection-installer/installer build -o nginx-configurator
+    - run: go -C ./installer/configurator build -o nginx-configurator
     - persist_to_workspace:
-        root: "./rum-injection-installer/installer"
+        root: "./installer/configurator"
         paths:
           - "nginx-configurator"
     - store_artifacts:
-        path: "./rum-injection-installer/installer/nginx-configurator"
+        path: "./installer/configurator/nginx-configurator"
         destination: nginx-configurator
     machine:
       image: ubuntu-2204:current
@@ -269,9 +269,9 @@ workflows:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
-    - build_amd64_installer:
+    - build_installer_amd64:
         name: build installer on amd64
-    - build_arm64_installer:
+    - build_installer_arm64:
         name: build installer on arm64
     - coverage:
         name: Coverage on 1.27.0 with WAF ON
@@ -391,9 +391,9 @@ workflows:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
-    - build_amd64_installer:
+    - build_installer_amd64:
         name: build installer on amd64
-    - build_arm64_installer:
+    - build_installer_arm64:
         name: build installer on arm64
     - test:
         matrix:

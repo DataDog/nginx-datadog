@@ -4,7 +4,7 @@ services:
     ports:
       - "8126:8126"
     environment:
-      - DD_API_KEY=<YOUR_API_KEY>
+      - DD_API_KEY
       - DD_APM_ENABLED=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -18,5 +18,5 @@ services:
     depends_on:
       - datadog-agent
     volumes:
-      - .:/installer
+      - ..:/installer
     command: ["nginx", "-g", "daemon off;"]
