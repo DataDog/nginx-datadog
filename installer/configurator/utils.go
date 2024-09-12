@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/google/go-github/github"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func getLowestSupportedModuleVersion() (string, error) {
@@ -22,6 +24,8 @@ func getLowestSupportedModuleVersion() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error getting latest release for the nginx module: %v", err)
 	}
+
+	log.Debug("Got latest release for the nginx module")
 
 	re := regexp.MustCompile(`ngx_http_datadog_module-(?:amd64|arm64)-(\d+\.\d+\.\d+)\.so\.tgz`)
 
@@ -109,6 +113,8 @@ func extractTarGzFile(srcPath, destPath string) error {
 			return fmt.Errorf("unsupported file type to extract: %v", header.Typeflag)
 		}
 	}
+
+	log.Debug("Extracted file '", srcPath, "' to destination '", destPath, "'")
 
 	return nil
 }

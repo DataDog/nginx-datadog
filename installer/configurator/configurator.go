@@ -4,9 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func validateInput(appID, site, clientToken, arch string, sessionSampleRate, sessionReplaySampleRate int) error {
+
+	log.Debug("Validating input arguments")
+
 	if appID == "" {
 		return fmt.Errorf("--appId is required")
 	}
@@ -31,7 +36,7 @@ func validateInput(appID, site, clientToken, arch string, sessionSampleRate, ses
 func handleError(err error) {
 	// TODO: Send telemetry
 
-	fmt.Println("Error:", err)
+	log.Error(err)
 
 	os.Exit(1)
 }
@@ -45,8 +50,16 @@ func main() {
 	arch := flag.String("arch", "", "Architecture (amd64 or arm64)")
 	agentUrl := flag.String("agentUrl", "http://localhost:8126", "Datadog Agent URL")
 	skipVerify := flag.Bool("skipVerify", false, "Skip verifying downloads")
+	verbose := flag.Bool("verbose", false, "Verbose output")
 
 	flag.Parse()
+
+	if *verbose {
+		log.SetLevel(log.DebugLevel)
+		log.Debug("Verbose output enabled")
+	} else {
+		log.SetLevel(log.InfoLevel)
+	}
 
 	if err := validateInput(*appID, *site, *clientToken, *arch, *sessionSampleRate, *sessionReplaySampleRate); err != nil {
 		handleError(err)
@@ -70,5 +83,5 @@ func main() {
 		handleError(err)
 	}
 
-	fmt.Println("Datadog NGINX module has been successfully installed and configured. Please restart NGINX for the changes to take effect")
+	log.Info("Datadog NGINX module has been successfully installed and configured. Please restart NGINX for the changes to take effect")
 }
