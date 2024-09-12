@@ -63,7 +63,7 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 // 2. Creates a backup of the config file
 // 3. Appends the load_module line to the beginning of the file
 // 4. Inserts the RUM config as early as possible in the http section
-func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUrl string, sessionSampleRate, sessionReplaySampleRate int) error {
+func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUrl string, sessionSampleRate, sessionReplaySampleRate int, dryRun bool) error {
 
 	log.Debug("Modifying NGINX configuration")
 
@@ -105,6 +105,11 @@ func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUrl stri
 	}
 
 	log.Debug("Intermediate config is valid: ", newConfigPath)
+
+	if dryRun {
+		log.Info("Dry run enabled, skipping config file modifications. The config to be used in a non dry run is: ", newConfigPath)
+		return nil
+	}
 
 	if err := os.Remove(newConfigPath); err != nil {
 		return fmt.Errorf("failed to remove intermediate config file: %v", err)

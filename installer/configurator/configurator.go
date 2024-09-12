@@ -51,6 +51,7 @@ func main() {
 	agentUrl := flag.String("agentUrl", "http://localhost:8126", "Datadog Agent URL")
 	skipVerify := flag.Bool("skipVerify", false, "Skip verifying downloads")
 	verbose := flag.Bool("verbose", false, "Verbose output")
+	dryRun := flag.Bool("dryRun", false, "Dry run (no changes made)")
 
 	flag.Parse()
 
@@ -59,6 +60,10 @@ func main() {
 		log.Debug("Verbose output enabled")
 	} else {
 		log.SetLevel(log.InfoLevel)
+	}
+
+	if *dryRun {
+		log.Info("Dry run enabled. No changes will be made.")
 	}
 
 	if err := validateInput(*appID, *site, *clientToken, *arch, *sessionSampleRate, *sessionReplaySampleRate); err != nil {
@@ -75,13 +80,15 @@ func main() {
 		handleError(err)
 	}
 
-	if err := configurator.ModifyConfig(*appID, *site, *clientToken, *agentUrl, *sessionSampleRate, *sessionReplaySampleRate); err != nil {
+	if err := configurator.ModifyConfig(*appID, *site, *clientToken, *agentUrl, *sessionSampleRate, *sessionReplaySampleRate, *dryRun); err != nil {
 		handleError(err)
 	}
 
-	if err := configurator.ValidateConfig(); err != nil {
-		handleError(err)
-	}
+	if !*dryRun {
+		if err := configurator.ValidateConfig(); err != nil {
+			handleError(err)
+		}
 
-	log.Info("Datadog NGINX module has been successfully installed and configured. Please restart NGINX for the changes to take effect")
+		log.Info("Datadog NGINX module has been successfully installed and configured. Please restart NGINX for the changes to take effect")
+	}
 }
