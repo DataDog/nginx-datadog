@@ -234,7 +234,7 @@ jobs:
       entrypoint: "/bin/sh"
     steps:
     - checkout
-    - run: find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude
+    - run: find bin/ test/ example/ installer/ -type f -executable | xargs shellcheck --exclude
         SC1071,SC1091,SC2317
 workflows:
   build-and-test:

@@ -1,6 +1,6 @@
 NGINX INSTALLER
 ===============
-This folder contains the necessary components to install the nginx module.
+This folder contains the necessary components to install the NGINX module.
 It consists of an sh script, plus a go binary (configurator) that performs the actual installation.
 Running this installer results in the NGINX module being installed locally.
 
@@ -32,7 +32,7 @@ DD_API_KEY=<YOUR_API_KEY> docker compose -f test/docker-compose.yml up -d
 ```
 3. Run the installer
 ```bash
-docker compose -f test/docker-compose.yml exec nginx bash -c "cd /installer && sh install-nginx-datadog.sh --appId 123 --site datadoghq.com --clientToken abcdef --sessionSampleRate 50 --sessionReplaySampleRate 50 --agentUrl http://datadog-agent:8126"
+docker compose -f test/docker-compose.yml exec nginx bash -c "cd /installer && sh install-nginx-datadog.sh --appId 123 --site datadoghq.com --clientToken abcdef --sessionSampleRate 50 --sessionReplaySampleRate 50 --agentUri http://datadog-agent:8126"
 ```
 
 Currently, the latest release doesn't yet support rum injection, so expect a message

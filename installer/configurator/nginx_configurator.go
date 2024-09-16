@@ -27,7 +27,7 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 	cmd := exec.Command("nginx", "-v")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("nginx was not detected. Please ensure NGINX is included in the PATH")
+		return fmt.Errorf("'nginx' command was not detected. Please ensure NGINX is included in the PATH")
 	}
 
 	log.Debug("Successfully run 'nginx -v': ", string(output))
@@ -35,7 +35,7 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 	versionRegex := regexp.MustCompile(`nginx version: nginx/(\d+\.\d+\.\d+)`)
 	matches := versionRegex.FindStringSubmatch(string(output))
 	if len(matches) < 2 {
-		return fmt.Errorf("failed to parse nginx version: %s", output)
+		return fmt.Errorf("failed to parse NGINX version: %s", output)
 	}
 
 	n.Version = matches[1]
@@ -63,7 +63,7 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 // 2. Creates a backup of the config file
 // 3. Appends the load_module line to the beginning of the file
 // 4. Inserts the RUM config as early as possible in the http section
-func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUrl string, sessionSampleRate, sessionReplaySampleRate int, dryRun bool) error {
+func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUri string, sessionSampleRate, sessionReplaySampleRate int, dryRun bool) error {
 
 	log.Debug("Modifying NGINX configuration")
 
@@ -83,12 +83,12 @@ func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUrl stri
 
 	// Check if Datadog module is already loaded
 	if err := n.testNginxLoadsModule(n.ModulesPath + "/ngx_http_datadog_module.so"); err != nil {
-		return fmt.Errorf("failed to load module: %v", err)
+		return fmt.Errorf("datadog module could not be loaded, likely because the module is already in use: %v", err)
 	}
 
 	newConfigPath := configPath + ".datadog"
 	log.Info(fmt.Sprintf("Modifying NGINX configuration file based on '%s', into intermediate config file '%s'", configPath, newConfigPath))
-	newContent, err := transformConfig(n, content, agentUrl, appID, clientToken, site, sessionSampleRate, sessionReplaySampleRate, newConfigPath)
+	newContent, err := transformConfig(n, content, agentUri, appID, clientToken, site, sessionSampleRate, sessionReplaySampleRate, newConfigPath)
 
 	if err != nil {
 		return fmt.Errorf("failed modifying config config: %v", err)
@@ -111,21 +111,15 @@ func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUrl stri
 		return nil
 	}
 
-	if err := os.Remove(newConfigPath); err != nil {
-		return fmt.Errorf("failed to remove intermediate config file: %v", err)
-	}
-
-	log.Debug("Removed intermediate file: ", newConfigPath)
-
 	backupPath := configPath + ".backup"
-	if err := os.WriteFile(backupPath, content, 0644); err != nil {
-		return fmt.Errorf("failed to create backup file: %v", err)
+	if err := os.Rename(configPath, backupPath); err != nil {
+		return fmt.Errorf("failed to move file '%s' to '%s': %v", configPath, backupPath, err)
 	}
 
-	log.Info("Backup config created: ", backupPath)
+	log.Info(fmt.Sprintf("Moved config '%s' into backup file '%s'", configPath, backupPath))
 
-	if err := os.WriteFile(configPath, newContent, 0644); err != nil {
-		return fmt.Errorf("failed to create final config file file: %v", err)
+	if err := os.Rename(newConfigPath, configPath); err != nil {
+		return fmt.Errorf("failed to move '%s' into final config file '%s': %v", newConfigPath, configPath, err)
 	}
 
 	log.Debug("Created final config file: ", configPath)
@@ -231,7 +225,7 @@ func (n *NginxConfigurator) validateConfig(configPath string) error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("nginx configuration validation failed for config at '%s' with output:\n%s", configInfo, output)
+		return fmt.Errorf("NGINX configuration validation failed for config at '%s' with output:\n%s", configInfo, output)
 	}
 
 	log.Debug("Successfully validated nginx configuration at ", configInfo)
@@ -243,7 +237,7 @@ func (n *NginxConfigurator) validateConfig(configPath string) error {
 // Find http and bracket { on possibly multiple lines
 // Insert the datadog configuration after the http block
 // Return the modified content
-func transformConfig(n *NginxConfigurator, content []byte, agentUrl string, appID string, clientToken string, site string, sessionSampleRate int, sessionReplaySampleRate int, destFile string) ([]byte, error) {
+func transformConfig(n *NginxConfigurator, content []byte, agentUri string, appID string, clientToken string, site string, sessionSampleRate int, sessionReplaySampleRate int, destFile string) ([]byte, error) {
 	var newContent strings.Builder
 	newContent.WriteString(fmt.Sprintf("load_module %s/ngx_http_datadog_module.so;\n", n.ModulesPath))
 
@@ -274,7 +268,7 @@ func transformConfig(n *NginxConfigurator, content []byte, agentUrl string, appI
         "sessionSampleRate" "%d";
         "sessionReplaySampleRate" "%d";
     }
-`, agentUrl, appID, clientToken, site, sessionSampleRate, sessionReplaySampleRate)
+`, agentUri, appID, clientToken, site, sessionSampleRate, sessionReplaySampleRate)
 	newContent.WriteString(datadogConfig)
 
 	newContent.Write(content[httpBlockStart[1]:])
@@ -285,10 +279,10 @@ func transformConfig(n *NginxConfigurator, content []byte, agentUrl string, appI
 func (n *NginxConfigurator) testNginxLoadsModule(modulePath string) error {
 	// Ensure test without changes succeeds
 	if err := n.validateConfig(""); err != nil {
-		return fmt.Errorf("nginx configuration test failed with the current config: %s", err)
+		return fmt.Errorf("NGINX configuration test failed with the current config: %s", err)
 	}
 
-	log.Debug("Nginx default configuration test succeeded before modifications")
+	log.Debug("NGINX default configuration test succeeded before modifications")
 
 	// Test again loading the module
 	cmd := exec.Command("nginx", "-g", fmt.Sprintf("load_module %s;", modulePath), "-t")
@@ -297,7 +291,7 @@ func (n *NginxConfigurator) testNginxLoadsModule(modulePath string) error {
 		if strings.Contains(string(output), "already loaded") {
 			return fmt.Errorf("datadog module is already loaded, can't perform installation: %s\n%s", err, string(output))
 		}
-		return fmt.Errorf("nginx configuration test with module failed with unexpected error: %s\n%s", err, string(output))
+		return fmt.Errorf("NGINX configuration test with module failed with unexpected error: %s\n%s", err, string(output))
 	}
 
 	log.Debug("Successfully validated default configuration with module loaded")
@@ -363,7 +357,7 @@ func (n *NginxConfigurator) getDefaultConfigLocation() (string, error) {
 }
 
 func (n *NginxConfigurator) createModulesDir() error {
-	modulesPath := "/datadog"
+	modulesPath := "/opt/datadog-nginx"
 
 	if err := os.MkdirAll(modulesPath, 0644); err == nil {
 		n.ModulesPath = modulesPath

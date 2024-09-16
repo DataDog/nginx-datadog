@@ -22,10 +22,10 @@ func getLowestSupportedModuleVersion() (string, error) {
 
 	release, _, err := client.Repositories.GetLatestRelease(context.Background(), "DataDog", "nginx-datadog")
 	if err != nil {
-		return "", fmt.Errorf("error getting latest release for the nginx module: %v", err)
+		return "", fmt.Errorf("error getting latest release for the NGINX module: %v", err)
 	}
 
-	log.Debug("Got latest release for the nginx module")
+	log.Debug("Got latest release for the NGINX module")
 
 	re := regexp.MustCompile(`ngx_http_datadog_module-(?:amd64|arm64)-(\d+\.\d+\.\d+)\.so\.tgz`)
 
@@ -41,7 +41,7 @@ func getLowestSupportedModuleVersion() (string, error) {
 	}
 
 	if lowestVersion == "" {
-		return "", fmt.Errorf("no valid version found for the nginx module in the release assets")
+		return "", fmt.Errorf("no valid version found for the NGINX module in the release assets")
 	}
 
 	return lowestVersion, nil

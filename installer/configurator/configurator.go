@@ -48,7 +48,7 @@ func main() {
 	sessionSampleRate := flag.Int("sessionSampleRate", -1, "Session Sample Rate (0-100)")
 	sessionReplaySampleRate := flag.Int("sessionReplaySampleRate", -1, "Session Replay Sample Rate (0-100)")
 	arch := flag.String("arch", "", "Architecture (amd64 or arm64)")
-	agentUrl := flag.String("agentUrl", "http://localhost:8126", "Datadog Agent URL")
+	agentUri := flag.String("agentUri", "http://localhost:8126", "Datadog Agent URI")
 	skipVerify := flag.Bool("skipVerify", false, "Skip verifying downloads")
 	verbose := flag.Bool("verbose", false, "Verbose output")
 	dryRun := flag.Bool("dryRun", false, "Dry run (no changes made)")
@@ -80,7 +80,7 @@ func main() {
 		handleError(err)
 	}
 
-	if err := configurator.ModifyConfig(*appID, *site, *clientToken, *agentUrl, *sessionSampleRate, *sessionReplaySampleRate, *dryRun); err != nil {
+	if err := configurator.ModifyConfig(*appID, *site, *clientToken, *agentUri, *sessionSampleRate, *sessionReplaySampleRate, *dryRun); err != nil {
 		handleError(err)
 	}
 

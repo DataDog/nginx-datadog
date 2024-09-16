@@ -25,11 +25,6 @@ error() {
     exit 1
 }
 
-print_usage() {
-    echo "Usage: $0 --appId <appId> --site <site> --clientToken <clientToken> --sessionSampleRate <sessionSampleRate> --sessionReplaySampleRate <sessionReplaySampleRate> [--agentUrl <agentUrl>]"
-    echo "agentUrl defaults to http://localhost:8126"
-}
-
 check_architecture() {
     if command -v arch >/dev/null 2>&1; then
         ARCH=$(arch)
@@ -68,9 +63,9 @@ check_dependencies() {
 }
 
 verify_connection() {
-    if ! curl -s -o /dev/null -w "%{http_code}" "${AGENT_URL}/info" | grep -q "200"; then
-        error "Cannot connect to agent at ${AGENT_URL}/info. Please ensure the agent is running and accessible \
-in http://localhost:8126 or specify the correct agent URL with the --agentUrl flag."
+    if ! curl -s -o /dev/null -w "%{http_code}" "${AGENT_URI}/info" | grep -q "200"; then
+        error "Cannot infer the Datadog agent endpoint at ${AGENT_URI}. Please ensure the agent is running and accessible \
+ or specify the correct agent URL with the --agentUri flag."
     fi
 }
 
@@ -103,24 +98,31 @@ download_installer_and_verify() {
 main() {
     check_dependencies
 
-    ARGS_COPY="$@"
+    ARGS_COPY=$*
     SKIP_VERIFY=false
-    AGENT_URL="http://localhost:8126"
+    AGENT_URI="http://localhost:8126"
+    HELP=false
 
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --skipVerify) SKIP_VERIFY=true; shift 1;;
-            --agentUrl) AGENT_URL="$2"; shift 2;;
+            --help) HELP=true; shift 1;;
+            --agentUri) AGENT_URI="$2"; shift 2;;
             *) shift 1;;
         esac
     done
 
-    verify_connection
+    if [ $HELP = false ] ; then
+        verify_connection
+    fi
 
     download_installer_and_verify
 
+    # shellcheck disable=SC2086
     # Pass all arguments appending computed ones (arch...)
     ./nginx-configurator $ARGS_COPY --arch "$ARCH"
+
+    rm -f nginx-configurator
 
     exit 0
 }
