@@ -499,11 +499,11 @@ static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
 
 static ngx_int_t datadog_master_process_post_config(
     ngx_cycle_t *cycle) noexcept {
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog status: enabled");
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog version: %s (%s)",
+  ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog status: enabled");
+  ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog version: %s (%s)",
                 datadog_semver_nginx_mod, datadog_build_id_nginx_mod);
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "nginx-datadog features:");
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0, "- tracing: dd-trace-cpp@%s",
+  ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog features:");
+  ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "- tracing: dd-trace-cpp@%s",
                 datadog_version_tracer);
 
   // Forward tracer-specific environment variables to worker processes.
@@ -527,7 +527,7 @@ static ngx_int_t datadog_master_process_post_config(
   }
 
 #ifdef WITH_WAF
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0,
+  ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0,
                 "- appsec: libddwaf@%s, waf_rules@%s", datadog_semver_libddwaf,
                 datadog_semver_waf_rules);
   ngx_http_next_output_body_filter = ngx_http_top_body_filter;
