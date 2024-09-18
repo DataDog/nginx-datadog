@@ -88,17 +88,50 @@ Requirements:
 
 For enhanced usability, we provide a [GNU make][1] compatible [Makefile](Makefile).
 
+The easiest way to build the project is through [Docker][2].
+
+Build using Docker
+---------------
+### Linux, MacOS AMD64
+```shell
+NGINX_VERSION=1.25.2 make build-musl
+```
+
+### MacOS with Apple Silicon 
+```shell
+NGINX_VERSION=1.25.2 ARCH=aarch64 make build-musl
+```
+The resulting nginx module is `.musl-build\ngx_http_datadog_module.so`
+
+The `build-musl` target builds against musl and libc++ a glibc-compatible
+module. The Dockerfile for the docker image used in the process can be found in
+[build_env/Dockerfile](./build_env/Dockerfile).
+
+Build in Local Environment 
+--------------------------
+### Linux
 ```shell
 NGINX_VERSION=1.25.2 make build
 ```
 
-You can set the environment variable `WAF` to `ON` to build an AppSec-supporting
-module:
-
+### MacOS
 ```shell
-WAF=ON NGINX_VERSION=1.25.2 make build
+MACOS=true NGINX_VERSION=1.25.2 make build
 ```
 
+You will need pcre2 to be able to build the module correctly.
+You can install it with:
+```shell
+brew install pcre2
+```
+
+We assumes that the installation path is `/opt/homebrew/Cellar/pcre2/10.44`.
+This can be changed by changing the `PCRE2_PATH` param in the makefile or by overriding it during the build, i.e:
+
+```shell
+MACOS=true PCRE2_PATH=/your/path NGINX_VERSION=1.25.2 make build
+```
+#
 The resulting nginx module is `.build/ngx\_http\_datadog\_module.so`
 
 The `build` target does the following:
@@ -111,19 +144,48 @@ The `build` target does the following:
 `make clean` deletes CMake's build directory. `make clobber` deletes
 everything done by the build.
 
-Build in Docker
----------------
+### AppSec-supporting module
+
+
+You can set the environment variable `WAF` to `ON` to build an AppSec-supporting
+module:
+
 ```shell
-make build-musl
+WAF=ON NGINX_VERSION=1.25.2 make build
 ```
 
-The `build-musl` target builds against musl and libc++ a glibc-compatible
-module. The Dockerfile for the docker image used in the process can be found in
-[build_env/Dockerfile](./build_env/Dockerfile).
+Testing
+-------
 
-Test
-----
-See [test/README.md](test/README.md).
+To launch the tests, you will need to create a nginx-version-info file at the root of the project. You can use the nginx-version-info.example template. 
+
+You can easily launch the tests with the command:
+
+#
+### Linux, MacOS AMD64
+```shell
+NGINX_VERSION=1.25.2 make test
+```
+
+### MacOS with Apple Silicon
+```shell
+NGINX_VERSION=1.25.2 ARCH=aarch64 make test
+```
+
+#
+The `NGINX_VERSION`in the command and in the nginx-version-info should correspond.
+
+To run the tests related to AppSec:
+```shell
+WAF=ON NGINX_VERSION=1.25.2 make test
+```
+
+You can pass on arguments to test suites using : 
+```shell
+TEST_ARGS="foo=bar" NGINX_VERSION=1.25.2 make test
+```
+
+For more information on tests, see [test/README.md](test/README.md).
 
 Acknowledgements
 ----------------
