@@ -109,30 +109,13 @@ module. The Dockerfile for the docker image used in the process can be found in
 
 Build in Local Environment 
 --------------------------
-### Linux
 ```shell
 NGINX_VERSION=1.25.2 make build
 ```
 
-### MacOS
-```shell
-MACOS=true NGINX_VERSION=1.25.2 make build
-```
+The resulting nginx module is `.build/ngx\_http\_datadog\_module.so`.
 
-You will need pcre2 to be able to build the module correctly.
-You can install it with:
-```shell
-brew install pcre2
-```
-
-We assumes that the installation path is `/opt/homebrew/Cellar/pcre2/10.44`.
-This can be changed by changing the `PCRE2_PATH` param in the makefile or by overriding it during the build, i.e:
-
-```shell
-MACOS=true PCRE2_PATH=/your/path NGINX_VERSION=1.25.2 make build
-```
-#
-The resulting nginx module is `.build/ngx\_http\_datadog\_module.so`
+If you encounter some difficulties building the module on MacOS, please look at the troubleshooting section.
 
 The `build` target does the following:
 
@@ -186,6 +169,25 @@ TEST_ARGS="foo=bar" NGINX_VERSION=1.25.2 make test
 ```
 
 For more information on tests, see [test/README.md](test/README.md).
+
+Troubleshooting
+----------------
+### fatal error: 'pcre2.h' file not found on MacOS
+
+If during the build of the module, you encounter this error, please ensure that pcre2 is installed on your device. If not, you can install it with:
+```shell
+brew install pcre2
+```
+If the build still does not work, you can use the flag `MACOS` to resolve it:
+```shell
+MACOS=true NGINX_VERSION=1.25.2 make build
+```
+We assumes that the installation path is `/opt/homebrew/Cellar/pcre2/10.44`.
+This can be changed by changing the `PCRE2_PATH` param in the makefile or by overriding it during the build, i.e:
+
+```shell
+MACOS=true PCRE2_PATH=/your/path NGINX_VERSION=1.25.2 make build
+```
 
 Acknowledgements
 ----------------
