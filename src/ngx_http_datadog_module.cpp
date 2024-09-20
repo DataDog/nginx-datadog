@@ -142,34 +142,6 @@ static ngx_command_t datadog_commands[] = {
       "datadog_grpc_propagate_context",
       anywhere | NGX_CONF_NOARGS),
 
-    { ngx_string("proxy_pass"),
-      anywhere_but_main | NGX_CONF_TAKE1,
-      set_proxy_directive,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("fastcgi_pass"),
-      anywhere_but_main | NGX_CONF_TAKE1,
-      set_proxy_directive,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("grpc_pass"),
-      anywhere_but_main | NGX_CONF_TAKE1,
-      set_proxy_directive,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("uwsgi_pass"),
-      anywhere_but_main | NGX_CONF_TAKE1,
-      set_proxy_directive,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_operation_name",
       "opentracing_operation_name",
