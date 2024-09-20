@@ -10,9 +10,6 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-char *set_proxy_directive(ngx_conf_t *cf, ngx_command_t *command,
-                          void *conf) noexcept;
-
 char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
                                                  ngx_command_t *command,
                                                  void *conf) noexcept;

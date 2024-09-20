@@ -188,12 +188,6 @@ struct datadog_loc_conf_t {
   NgxScript loc_resource_name_script;
   ngx_flag_t trust_incoming_span = NGX_CONF_UNSET;
   ngx_array_t *tags;
-  // `proxy_directive` is the name of the configuration directive used to proxy
-  // requests at this location, i.e. `proxy_pass`, `grpc_pass`, or
-  // `fastcgi_pass`.  If this location does not have such a directive directly
-  // within it (as opposed to in a location nested within it), then
-  // `proxy_directive` is empty.
-  ngx_str_t proxy_directive;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
   // `nullptr` if this context has no parent.
   datadog_loc_conf_t *parent;
