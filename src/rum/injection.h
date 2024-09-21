@@ -6,6 +6,8 @@ extern "C" {
 
 #include <injectbrowsersdk.h>
 
+#include <span>
+
 #include "datadog_conf.h"
 
 namespace datadog {
@@ -25,15 +27,11 @@ class InjectionHandler final {
     searching,
     injected,
     error,
+    failed,  ///< no injection point found
   } state_ = state::init;
 
   // A flag indicating whether padding should be added to the HTML responses.
   bool output_padding_;
-
-  // NGINX buffers:
-  // <https://nginx.org/en/docs/dev/development_guide.html#buffer>
-  ngx_chain_t *busy_;
-  ngx_chain_t *free_;
 
   // Pointer to an Injector instance, used to scan and locate where the RUM
   // Browser SDK needs to be injected.
@@ -86,7 +84,7 @@ class InjectionHandler final {
   // @param slices_length - Number of elements in the `slices` array.
   // @return ngx_chain_t* - Chain of buffers with the injected data.
   ngx_chain_t *inject(ngx_pool_t *pool, ngx_chain_t *in,
-                      const BytesSlice *slices, uint32_t slices_length);
+                      std::span<const BytesSlice> slices);
 };
 
 }  // namespace rum
