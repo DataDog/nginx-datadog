@@ -486,7 +486,7 @@ static ngx_int_t datadog_master_process_post_config(
                 datadog_version_tracer);
 
 #ifdef WITH_RUM
-  ngx_log_error(NGX_LOG_INFO, cycle->log, 0,
+  ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0,
                 "- rum-injection: inject-browser-sdk@%s",
                 datadog_semver_rum_injector);
 #endif
