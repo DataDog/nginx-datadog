@@ -208,17 +208,19 @@ def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
     sign_package(debug_tarball_path)
 
 
-def handle_job(job, work_dir):
+def handle_job(job, work_dir, installer):
+
     # See the response schema for a list of statuses:
     # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
-    if job["name"].startswith("build installer "):
+    if installer and job["name"].startswith("build installer "):
         # name should be something like "build installer on arm64"
         match = re.match(r"build installer on (amd64|arm64)", job["name"])
         if match is None:
             raise Exception(f'Job name does not match regex "{re}": {job}')
         arch = match.groups()[0]
         prepare_installer_release_artifact(work_dir, job["job_number"], arch)
-    elif job["name"].startswith("build "):
+    if not installer and job["name"].startswith(
+            "build ") and not job["name"].startswith("build installer "):
         # name should be something like "build 1.25.4 on arm64 WAF ON"
         match = re.match(r"build ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
                          job["name"])
@@ -243,6 +245,9 @@ if __name__ == "__main__":
         help=
         "ID of the release workflow. Find in job url. Example: https://app.circleci.com/pipelines/github/DataDog/nginx-datadog/542/workflows/<WORKFLOW_ID>",
     )
+    parser.add_argument("--installer",
+                        help="Release the NGINX installer",
+                        action=argparse.BooleanOptionalAction)
     options = parser.parse_args()
 
     ci_api_token = options.ci_token
@@ -277,7 +282,7 @@ if __name__ == "__main__":
                 sys.exit(1)
 
         for job in jobs:
-            result = handle_job(job, Path(work_dir))
+            result = handle_job(job, Path(work_dir), options.installer)
             if result != "done":
                 sys.exit(1)
 

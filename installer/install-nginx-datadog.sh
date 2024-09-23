@@ -69,8 +69,20 @@ verify_connection() {
     fi
 }
 
+get_latest_installer_tag() {
+    curl -s "https://api.github.com/repos/Datadog/nginx-datadog/tags" | grep -o '"name": "[^"]*installer[^"]*"' | sed 's/"name": "//;s/"$//' | sort -V | tail -n 1
+}
+
 download_installer_and_verify() {
-    BASE_URL="https://github.com/DataDog/nginx-datadog/releases/latest/download"
+    LATEST_TAG=$(get_latest_installer_tag)
+
+    if [ -z "$LATEST_TAG" ] ; then
+        error "Failed to retrieve the latest installer git tag"
+    fi
+
+    echo "Latest installer tag: $LATEST_TAG"
+
+    BASE_URL="https://github.com/DataDog/nginx-datadog/releases/download/${LATEST_TAG}"
     BINARY_URL="${BASE_URL}/nginx-configurator-${ARCH}.tgz"
     SIGNATURE_URL="${BINARY_URL}.asc"
     PUBKEY_URL="${BASE_URL}/pubkey.gpg"
@@ -91,6 +103,8 @@ download_installer_and_verify() {
     tar -xzf "nginx-configurator-${ARCH}.tgz" || error "Failed to extract binary"
 
     rm -f "nginx-configurator-${ARCH}.tgz" "nginx-configurator-${ARCH}.tgz.asc" "pubkey.gpg"
+
+    chmod +x nginx-configurator
 
     echo "Binary downloaded, verified, and extracted successfully."
 }

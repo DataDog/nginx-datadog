@@ -22,7 +22,7 @@ func getLowestSupportedModuleVersion() (string, error) {
 
 	release, _, err := client.Repositories.GetLatestRelease(context.Background(), "DataDog", "nginx-datadog")
 	if err != nil {
-		return "", fmt.Errorf("error getting latest release for the NGINX module: %v", err)
+		return "", NewInstallerError(NginxError, fmt.Errorf("error getting latest release for the NGINX module: %v", err))
 	}
 
 	log.Debug("Got latest release for the NGINX module")
@@ -41,7 +41,7 @@ func getLowestSupportedModuleVersion() (string, error) {
 	}
 
 	if lowestVersion == "" {
-		return "", fmt.Errorf("no valid version found for the NGINX module in the release assets")
+		return "", NewInstallerError(NginxError, fmt.Errorf("no valid version found for the NGINX module in the release assets"))
 	}
 
 	return lowestVersion, nil
@@ -110,7 +110,7 @@ func extractTarGzFile(srcPath, destPath string) error {
 			}
 			f.Close()
 		default:
-			return fmt.Errorf("unsupported file type to extract: %v", header.Typeflag)
+			return NewInstallerError(InternalError, fmt.Errorf("unsupported file type to extract: %v", header.Typeflag))
 		}
 	}
 

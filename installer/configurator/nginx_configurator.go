@@ -27,7 +27,7 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 	cmd := exec.Command("nginx", "-v")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("'nginx' command was not detected. Please ensure NGINX is included in the PATH")
+		return NewInstallerError(NginxError, fmt.Errorf("'nginx' command was not detected. Please ensure NGINX is included in the PATH"))
 	}
 
 	log.Debug("Successfully run 'nginx -v': ", string(output))
@@ -35,7 +35,7 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 	versionRegex := regexp.MustCompile(`nginx version: nginx/(\d+\.\d+\.\d+)`)
 	matches := versionRegex.FindStringSubmatch(string(output))
 	if len(matches) < 2 {
-		return fmt.Errorf("failed to parse NGINX version: %s", output)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to parse NGINX version: %s", output))
 	}
 
 	n.Version = matches[1]
@@ -44,13 +44,13 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 
 	minSupportedVersion, err := getLowestSupportedModuleVersion()
 	if err != nil {
-		return fmt.Errorf("could not retrieve the supported versions for nginx-datadog")
+		return NewInstallerError(NginxError, fmt.Errorf("could not retrieve the supported versions for nginx-datadog"))
 	}
 
 	log.Debug("Got lowest supported version for nginx-datadog from module release assets: ", minSupportedVersion)
 
 	if compareVersions(n.Version, minSupportedVersion) < 0 {
-		return fmt.Errorf("nginx version %s is not supported, must be at least %s", n.Version, minSupportedVersion)
+		return NewInstallerError(NginxError, fmt.Errorf("nginx version %s is not supported, must be at least %s", n.Version, minSupportedVersion))
 	}
 
 	log.Info("The installed NGINX version is supported")
@@ -69,21 +69,21 @@ func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUri stri
 
 	configPath, err := n.getDefaultConfigLocation()
 	if err != nil {
-		return fmt.Errorf("failed to get config location: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to get config location: %v", err))
 	}
 
 	log.Debug("Found config file at: ", configPath)
 
 	content, err := os.ReadFile(configPath)
 	if err != nil {
-		return fmt.Errorf("failed to read config file: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to read config file: %v", err))
 	}
 
 	log.Debug("Successfully read config file")
 
 	// Check if Datadog module is already loaded
 	if err := n.testNginxLoadsModule(n.ModulesPath + "/ngx_http_datadog_module.so"); err != nil {
-		return fmt.Errorf("datadog module could not be loaded, likely because the module is already in use: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("datadog module could not be loaded, likely because the module is already in use: %v", err))
 	}
 
 	newConfigPath := configPath + ".datadog"
@@ -91,17 +91,17 @@ func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUri stri
 	newContent, err := transformConfig(n, content, agentUri, appID, clientToken, site, sessionSampleRate, sessionReplaySampleRate, newConfigPath)
 
 	if err != nil {
-		return fmt.Errorf("failed modifying config config: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed modifying config config: %v", err))
 	}
 
 	if err := os.WriteFile(newConfigPath, newContent, 0644); err != nil {
-		return fmt.Errorf("failed to create intermediate config file file: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to create intermediate config file file: %v", err))
 	}
 
 	log.Debug("Created intermediate config file: ", newConfigPath)
 
 	if err := n.validateConfig(newConfigPath); err != nil {
-		return fmt.Errorf("intermediate config '%s' is invalid: %v", newConfigPath, err)
+		return NewInstallerError(NginxError, fmt.Errorf("intermediate config '%s' is invalid: %v", newConfigPath, err))
 	}
 
 	log.Debug("Intermediate config is valid: ", newConfigPath)
@@ -113,13 +113,13 @@ func (n *NginxConfigurator) ModifyConfig(appID, site, clientToken, agentUri stri
 
 	backupPath := configPath + ".backup"
 	if err := os.Rename(configPath, backupPath); err != nil {
-		return fmt.Errorf("failed to move file '%s' to '%s': %v", configPath, backupPath, err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to move file '%s' to '%s': %v", configPath, backupPath, err))
 	}
 
 	log.Info(fmt.Sprintf("Moved config '%s' into backup file '%s'", configPath, backupPath))
 
 	if err := os.Rename(newConfigPath, configPath); err != nil {
-		return fmt.Errorf("failed to move '%s' into final config file '%s': %v", newConfigPath, configPath, err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to move '%s' into final config file '%s': %v", newConfigPath, configPath, err))
 	}
 
 	log.Debug("Created final config file: ", configPath)
@@ -143,12 +143,12 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 
 	moduleContent, err := downloadFile(moduleURL)
 	if err != nil {
-		return fmt.Errorf("failed to download module: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to download module: %v", err))
 	}
 
 	tmpDir, err := os.MkdirTemp("", "nginx-module-verification")
 	if err != nil {
-		return fmt.Errorf("failed to create temp directory: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to create temp directory: %v", err))
 	}
 
 	log.Debug("Created temp directory: ", tmpDir)
@@ -160,7 +160,7 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 	publicKeyFile := filepath.Join(tmpDir, "pubkey.gpg")
 
 	if err := os.WriteFile(moduleFile, moduleContent, 0644); err != nil {
-		return fmt.Errorf("failed to write module file: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to write module file: %v", err))
 	}
 
 	log.Debug("Downloaded module file: ", moduleURL)
@@ -169,7 +169,7 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 		signatureURL := moduleURL + ".asc"
 		signatureContent, err := downloadFile(signatureURL)
 		if err != nil {
-			return fmt.Errorf("failed to download signature: %v", err)
+			return NewInstallerError(NginxError, fmt.Errorf("failed to download signature: %v", err))
 		}
 
 		log.Debug("Downloaded signature file: ", signatureURL)
@@ -177,32 +177,32 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 		publicKeyURL := "https://github.com/DataDog/nginx-datadog/releases/latest/download/pubkey.gpg"
 		publicKeyContent, err := downloadFile(publicKeyURL)
 		if err != nil {
-			return fmt.Errorf("failed to download public key: %v", err)
+			return NewInstallerError(NginxError, fmt.Errorf("failed to download public key: %v", err))
 		}
 
 		log.Debug("Downloaded public key file: ", publicKeyURL)
 
 		if err := os.WriteFile(signatureFile, signatureContent, 0644); err != nil {
-			return fmt.Errorf("failed to write signature file: %v", err)
+			return NewInstallerError(NginxError, fmt.Errorf("failed to write signature file: %v", err))
 		}
 
 		log.Debug("Wrote signature file: ", signatureURL)
 
 		if err := os.WriteFile(publicKeyFile, publicKeyContent, 0644); err != nil {
-			return fmt.Errorf("failed to write public key file: %v", err)
+			return NewInstallerError(NginxError, fmt.Errorf("failed to write public key file: %v", err))
 
 		}
 		log.Debug("Wrote public key file: ", publicKeyURL)
 
 		if err := verifySignatureGPG(moduleFile, signatureFile, publicKeyFile); err != nil {
-			return fmt.Errorf("failed to verify module signature: %v", err)
+			return NewInstallerError(NginxError, fmt.Errorf("failed to verify module signature: %v", err))
 		}
 
 		log.Debug("Verified module signature")
 	}
 
 	if err := extractTarGzFile(moduleFile, n.ModulesPath); err != nil {
-		return fmt.Errorf("failed to extract tgz file: %v", err)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to extract tgz file: %v", err))
 	}
 
 	log.Info(fmt.Sprintf("Module successfully downloaded, possibly verified, and installed in %s", n.ModulesPath))
@@ -225,7 +225,7 @@ func (n *NginxConfigurator) validateConfig(configPath string) error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("NGINX configuration validation failed for config at '%s' with output:\n%s", configInfo, output)
+		return NewInstallerError(NginxError, fmt.Errorf("NGINX configuration validation failed for config at '%s' with output:\n%s", configInfo, output))
 	}
 
 	log.Debug("Successfully validated nginx configuration at ", configInfo)
@@ -245,7 +245,7 @@ func transformConfig(n *NginxConfigurator, content []byte, agentUri string, appI
 
 	httpBlockStart := httpRegex.FindIndex(content)
 	if httpBlockStart == nil {
-		return nil, fmt.Errorf("could not find http block in nginx config")
+		return nil, NewInstallerError(NginxError, fmt.Errorf("could not find http block in nginx config"))
 	}
 
 	newContent.Write(content[:httpBlockStart[0]])
@@ -279,7 +279,7 @@ func transformConfig(n *NginxConfigurator, content []byte, agentUri string, appI
 func (n *NginxConfigurator) testNginxLoadsModule(modulePath string) error {
 	// Ensure test without changes succeeds
 	if err := n.validateConfig(""); err != nil {
-		return fmt.Errorf("NGINX configuration test failed with the current config: %s", err)
+		return NewInstallerError(NginxError, fmt.Errorf("NGINX configuration test failed with the current config: %s", err))
 	}
 
 	log.Debug("NGINX default configuration test succeeded before modifications")
@@ -289,9 +289,9 @@ func (n *NginxConfigurator) testNginxLoadsModule(modulePath string) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(output), "already loaded") {
-			return fmt.Errorf("datadog module is already loaded, can't perform installation: %s\n%s", err, string(output))
+			return NewInstallerError(NginxError, fmt.Errorf("datadog module is already loaded, can't perform installation: %s\n%s", err, string(output)))
 		}
-		return fmt.Errorf("NGINX configuration test with module failed with unexpected error: %s\n%s", err, string(output))
+		return NewInstallerError(NginxError, fmt.Errorf("NGINX configuration test with module failed with unexpected error: %s\n%s", err, string(output)))
 	}
 
 	log.Debug("Successfully validated default configuration with module loaded")
@@ -302,14 +302,14 @@ func (n *NginxConfigurator) testNginxLoadsModule(modulePath string) error {
 func verifySignatureGPG(moduleFile, signatureFile, publicKeyFile string) error {
 	importCmd := exec.Command("gpg", "--import", publicKeyFile)
 	if output, err := importCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to import public key: %v\nOutput: %s", err, output)
+		return NewInstallerError(NginxError, fmt.Errorf("failed to import public key: %v\nOutput: %s", err, output))
 	}
 
 	log.Debug("Imported public key ", publicKeyFile)
 
 	verifyCmd := exec.Command("gpg", "--verify", signatureFile, moduleFile)
 	if output, err := verifyCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("signature verification failed: %v\nOutput: %s", err, output)
+		return NewInstallerError(NginxError, fmt.Errorf("signature verification failed: %v\nOutput: %s", err, output))
 	}
 
 	log.Debug("Verified signature ", signatureFile, " for module ", moduleFile)
@@ -337,7 +337,7 @@ func (n *NginxConfigurator) getDefaultConfigLocation() (string, error) {
 	cmd := exec.Command("nginx", "-T")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to execute nginx -T: %v. output:\n%s", err, output)
+		return "", NewInstallerError(NginxError, fmt.Errorf("failed to execute nginx -T: %v. output:\n%s", err, output))
 	}
 
 	lines := strings.Split(string(output), "\n")
@@ -353,7 +353,7 @@ func (n *NginxConfigurator) getDefaultConfigLocation() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("could not find configuration file in nginx -T output:\n%s", output)
+	return "", NewInstallerError(NginxError, fmt.Errorf("could not find configuration file in nginx -T output:\n%s", output))
 }
 
 func (n *NginxConfigurator) createModulesDir() error {
@@ -366,5 +366,5 @@ func (n *NginxConfigurator) createModulesDir() error {
 		return nil
 	}
 
-	return fmt.Errorf("could not create nginx modules directory: %s", modulesPath)
+	return NewInstallerError(NginxError, fmt.Errorf("could not create nginx modules directory: %s", modulesPath))
 }

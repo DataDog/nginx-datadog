@@ -8,27 +8,29 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+var InstallerVersion = "0.1.0"
+
 func validateInput(appID, site, clientToken, arch string, sessionSampleRate, sessionReplaySampleRate int) error {
 
 	log.Debug("Validating input arguments")
 
 	if appID == "" {
-		return fmt.Errorf("--appId is required")
+		return NewInstallerError(ArgumentError, fmt.Errorf("--appId is required"))
 	}
 	if site == "" {
-		return fmt.Errorf("--site is required")
+		return NewInstallerError(ArgumentError, fmt.Errorf("--site is required"))
 	}
 	if clientToken == "" {
-		return fmt.Errorf("--clientToken is required")
+		return NewInstallerError(ArgumentError, fmt.Errorf("--clientToken is required"))
 	}
 	if sessionSampleRate < 0 || sessionSampleRate > 100 {
-		return fmt.Errorf("sessionSampleRate is required and must be between 0 and 100")
+		return NewInstallerError(ArgumentError, fmt.Errorf("sessionSampleRate is required and must be between 0 and 100"))
 	}
 	if sessionReplaySampleRate < 0 || sessionReplaySampleRate > 100 {
-		return fmt.Errorf("sessionReplaySampleRate is required and must be between 0 and 100")
+		return NewInstallerError(ArgumentError, fmt.Errorf("sessionReplaySampleRate is required and must be between 0 and 100"))
 	}
 	if arch != "amd64" && arch != "arm64" {
-		return fmt.Errorf("arch must be either 'amd64' or 'arm64'")
+		return NewInstallerError(ArgumentError, fmt.Errorf("arch must be either 'amd64' or 'arm64'"))
 	}
 	return nil
 }
@@ -61,6 +63,8 @@ func main() {
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
+
+	log.Info("Starting installer version ", InstallerVersion)
 
 	if *dryRun {
 		log.Info("Dry run enabled. No changes will be made.")
