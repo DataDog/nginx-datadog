@@ -1,0 +1,17 @@
+#!/bin/sh
+
+cd "$(dirname "$0")/../"
+
+set -e
+
+. ../nginx-version-info
+export BASE_IMAGE
+
+cp ../test/cases/auto_propagation/nginx_base_conf/* ../test/cases/auto_propagation/conf/
+
+printf "      arch : %s\n" "${ARCH}"
+printf "base image : %s\n" "${BASE_IMAGE}"
+printf " test args : %s\n" "$@"
+
+docker compose build --parallel --progress=plain
+python3 -m unittest "$@"

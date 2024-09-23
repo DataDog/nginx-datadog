@@ -4,8 +4,10 @@ cd "$(dirname "$0")/../"
 
 set -e
 
-. ../nginx-version-info
+. ../openresty-version-info
 export BASE_IMAGE
+
+cp ../test/cases/auto_propagation/openresty_base_conf/* ../test/cases/auto_propagation/conf/
 
 printf "      arch : %s\n" "${ARCH}"
 printf "base image : %s\n" "${BASE_IMAGE}"

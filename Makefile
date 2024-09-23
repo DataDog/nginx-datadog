@@ -58,6 +58,7 @@ lint: .clang-format
 .PHONY: clean
 clean:
 	rm -rf \
+		.openresty-build \
 		.build \
 		.musl-build
 
@@ -102,6 +103,25 @@ build-musl:
 		$(DOCKER_REPOS):latest \
 		make -C /mnt/repo build-musl-aux
 
+.PHONY: build-openresty
+build-openresty:
+	docker run --rm \
+		--platform $(DOCKER_PLATFORM) \
+		--mount type=bind,source="$(PWD)",target=/tmp/nginx-datadog \
+		--workdir="/tmp/nginx-datadog" \
+		louis/base-test \
+		make build-openresty-aux 
+
+PHONY: build-openresty-aux
+build-openresty-aux:
+	cmake -B .openresty-build \
+		-DNGINX_SRC_DIR=/tmp/openresty-1.25.3.2/build/nginx-1.25.3 \
+		-DNGINX_DATADOG_ASM_ENABLED=OFF \
+		-DCMAKE_C_FLAGS='-I /usr/local/openresty/pcre/include' \
+		-DCMAKE_CXX_FLAGS='-I /usr/local/openresty/pcre/include' \
+		-DNGINX_CONF_ARGS='--with-pcre=/usr/local/openresty/pcre --with-openssl=/usr/local/openresty/openssl' . \
+	&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT)
+
 # this is what's run inside the container nginx_musl_toolchain
 .PHONY: build-musl-aux
 build-musl-aux:
@@ -118,7 +138,12 @@ build-musl-aux:
 .PHONY: test
 test: build-musl
 	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
-	test/bin/run $(TEST_ARGS)
+	test/bin/run-nginx $(TEST_ARGS)
+
+.PHONY: openresty-test
+openresty-test: build-openresty
+	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx
+	test/bin/run-openresty $(TEST_ARGS)
 
 .PHONY: coverage
 coverage:
@@ -144,4 +169,9 @@ test-parallel: build-in-docker
 .PHONY: lab
 lab: build-musl
 	cp -v .musl-build/ngx_http_datadog_module.so* lab/services/nginx/
-	lab/bin/run $(TEST_ARGS)
+	lab/bin/run-nginx-lab $(TEST_ARGS)
+
+.PHONY: openresty-lab
+openresty-lab: build-openresty
+	cp -v .openresty-build/ngx_http_datadog_module.so* lab/services/nginx/
+	lab/bin/run-openresty-lab $(TEST_ARGS)

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+cd "$(dirname "$0")/../"
+
+set -e
+
+. ../openresty-version-info
+export BASE_IMAGE
+export NGINX_MODULES_PATH="${NGINX_MODULES_PATH:-/usr/local/openresty/nginx/modules/}"
+export NGINX_CONF_PATH="${NGINX_CONF_PATH:-/usr/local/openresty/nginx/conf/nginx.conf}"
+
+cp services/nginx/openresty_base.conf services/nginx/nginx.conf
+docker-compose build --parallel
+docker-compose up --abort-on-container-exit

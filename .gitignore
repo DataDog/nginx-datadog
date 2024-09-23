@@ -3,15 +3,23 @@
 
 # build arifacts
 *.so
+*.so.*
 /.build
 /.musl-build
+/.openresty-build
 
 # text editor noise
 .*.sw?
 .vscode/
 
 # file used as part of the build configuration
-/nginx-version-info
+/*-version-info
+
+# file used for execution of the lab
+/lab/services/nginx/nginx.conf
+
+# file used for execution of a test where conf depends on openresty/ngninx
+/test/cases/auto_propagation/conf/uwsgi_*
 
 # scratch directory for preparing releases
 /.release/

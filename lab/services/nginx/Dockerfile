@@ -1,5 +1,5 @@
 # An nginx container that includes the module and plugin required for Datadog tracing.
-ARG BASE_IMAGE
+ARG BASE_IMAGE=nginx
 FROM ${BASE_IMAGE}
 
 # If BASE_IMAGE is an OpenResty image, then the file system layout will differ
@@ -21,5 +21,6 @@ COPY ngx_http_datadog_module.so ${NGINX_MODULES_PATH}
 ENTRYPOINT ["nginx"]
 CMD ["-g", "daemon off;"]
 
+ARG NGINX_CONF_PATH
 # Override the default configuration with a minimal one.
-COPY ./nginx.conf /etc/nginx/nginx.conf
+COPY ./nginx.conf ${NGINX_CONF_PATH}
