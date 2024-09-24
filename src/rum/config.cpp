@@ -5,6 +5,7 @@
 #include <rapidjson/writer.h>
 
 #include "string_util.h"
+#include "telemetry.h"
 
 namespace {
 
@@ -134,10 +135,12 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
     ngx_snprintf((u_char *)err_msg, 256,
                  "failed to generate the RUM SDK script: %s",
                  snippet->error_message);
+    datadog::nginx::rum::telemetry::configuration_failed_invalid_json.inc();
     return err_msg;
   }
 
   loc_conf->rum_snippet = snippet;
+  datadog::nginx::rum::telemetry::configuration_succeed.inc();
   return NGX_CONF_OK;
 }
 

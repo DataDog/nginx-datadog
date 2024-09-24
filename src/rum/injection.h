@@ -36,6 +36,7 @@ class InjectionHandler final {
   // Pointer to an Injector instance, used to scan and locate where the RUM
   // Browser SDK needs to be injected.
   Injector *injector_;
+  std::chrono::steady_clock::time_point beg_;
 
  public:
   InjectionHandler();
