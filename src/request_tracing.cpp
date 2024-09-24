@@ -215,10 +215,12 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
     NgxHeaderReader reader{&request->headers_in.headers};
     auto maybe_span = tracer->extract_span(reader);
     if (auto *error = maybe_span.if_error()) {
-      ngx_log_error(
-          NGX_LOG_ERR, request->connection->log, 0,
-          "failed to extract a Datadog span request %p: [error code %d]: %s",
-          request, error->code, error->message.c_str());
+      if (error->code != dd::Error::NO_SPAN_TO_EXTRACT) {
+        ngx_log_error(
+            NGX_LOG_ERR, request->connection->log, 0,
+            "failed to extract a Datadog span request %p: [error code %d]: %s",
+            request, error->code, error->message.c_str());
+      }
       request_span_.emplace(tracer->create_span(config));
     } else {
       request_span_.emplace(std::move(*maybe_span));
