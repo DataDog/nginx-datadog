@@ -177,7 +177,7 @@ jobs:
     - store_artifacts:
         path: ".openresty-build/ngx_http_datadog_module.so"
         destination: ngx_http_datadog_module.so
-    - store_artifacts:
+    - store_artifacts: 
         path: ".openresty-build/ngx_http_datadog_module.so.debug"
         destination: ngx_http_datadog_module.so.debug
     - store_artifacts:
@@ -190,7 +190,7 @@ jobs:
       ARCH: aarch64
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
-      RESTY_VERSION: "<< parameters.resty-version >>"
+      RESTY_VERSION: "<< parameters.openresty-version >>"
   coverage:
     environment:
       DOCKER_BUILDKIT: 1
@@ -248,7 +248,7 @@ jobs:
       base-image:
         type: string
         default: ''
-    openresty-version:
+      openresty-version:
         type: string
       arch:
         type: string
