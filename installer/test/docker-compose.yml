@@ -1,0 +1,22 @@
+services:
+  datadog-agent:
+    image: datadog/agent:latest
+    ports:
+      - "8126:8126"
+    environment:
+      - DD_API_KEY
+      - DD_APM_ENABLED=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - datadog-agent
+    volumes:
+      - ..:/installer
+    command: ["nginx", "-g", "daemon off;"]
