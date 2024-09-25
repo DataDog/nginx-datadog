@@ -2,10 +2,9 @@ ngx_addon_name=ngx_http_datadog_module
 ngx_module_type=HTTP
 ngx_module_name="$ngx_addon_name"
 
-# Make sure that our module is listed _before_ any of the modules whose
-# configuration directives we override.  This way, our module can define
-# handlers for those directives that do some processing and then forward
-# to the "real" handler in the other module.
-ngx_module_order="$ngx_addon_name ngx_http_fastcgi_module ngx_http_grpc_module ngx_http_proxy_module ngx_http_uwsgi_module"
+# Mimick HTTP_AUX_FILTER order
+# Requires to be executed after the copy filter for Appsec, otherwise the
+# content can still be in a file.
+ngx_module_order="$ngx_addon_name ngx_http_copy_filter_module"
 
 . auto/module
