@@ -25,6 +25,8 @@ nginx:1.27.1-alpine 1.27.1
 nginx:1.27.1 1.27.1
 nginx:1.27.0-alpine 1.27.0
 nginx:1.27.0 1.27.0
+nginx:1.26.2-alpine 1.26.2
+nginx:1.26.2 1.26.2
 nginx:1.26.1-alpine 1.26.1
 nginx:1.26.1 1.26.1
 nginx:1.26.0-alpine 1.26.0
