@@ -10,6 +10,44 @@ ARCH ?= $(shell arch)
 COVERAGE ?= OFF
 DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain
 
+# OpenResty ENV variables
+RESTY_OPENSSL_PATCH_VERSION ?= "1.1.1f"
+RESTY_OPENSSL_URL_BASE ?= "https://www.openssl.org/source/old/1.1.1"
+RESTY_PCRE_VERSION ?= "8.45"
+RESTY_PCRE_BUILD_OPTIONS ?= "--enable-jit"
+RESTY_PCRE_SHA256 ?= "4e6ce03e0336e8b4a3d6c2b70b1c5e18590a5673a98186da90d4f33c23defc09"
+RESTY_J ?= 8
+RESTY_CONFIG_OPTIONS?="\
+    --with-compat \
+    --with-file-aio \
+    --with-http_addition_module \
+    --with-http_auth_request_module \
+    --with-http_dav_module \
+    --with-http_flv_module \
+    --with-http_geoip_module=dynamic \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_image_filter_module=dynamic \
+    --with-http_mp4_module \
+    --with-http_random_index_module \
+    --with-http_realip_module \
+    --with-http_secure_link_module \
+    --with-http_slice_module \
+    --with-http_ssl_module \
+    --with-http_stub_status_module \
+    --with-http_sub_module \
+    --with-http_v2_module \
+    --with-http_xslt_module=dynamic \
+    --with-ipv6 \
+    --with-mail \
+    --with-mail_ssl_module \
+    --with-md5-asm \
+    --with-sha1-asm \
+    --with-stream \
+    --with-stream_ssl_module \
+    --with-threads \
+"
+
 SHELL := /bin/bash
 
 .PHONY: build
@@ -103,25 +141,6 @@ build-musl:
 		$(DOCKER_REPOS):latest \
 		make -C /mnt/repo build-musl-aux
 
-.PHONY: build-openresty
-build-openresty:
-	docker run --rm \
-		--platform $(DOCKER_PLATFORM) \
-		--mount type=bind,source="$(PWD)",target=/tmp/nginx-datadog \
-		--workdir="/tmp/nginx-datadog" \
-		louis/base-test \
-		make build-openresty-aux 
-
-PHONY: build-openresty-aux
-build-openresty-aux:
-	cmake -B .openresty-build \
-		-DNGINX_SRC_DIR=/tmp/openresty-1.25.3.2/build/nginx-1.25.3 \
-		-DNGINX_DATADOG_ASM_ENABLED=OFF \
-		-DCMAKE_C_FLAGS='-I /usr/local/openresty/pcre/include' \
-		-DCMAKE_CXX_FLAGS='-I /usr/local/openresty/pcre/include' \
-		-DNGINX_CONF_ARGS='--with-pcre=/usr/local/openresty/pcre --with-openssl=/usr/local/openresty/openssl' . \
-	&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT)
-
 # this is what's run inside the container nginx_musl_toolchain
 .PHONY: build-musl-aux
 build-musl-aux:
@@ -134,6 +153,53 @@ build-musl-aux:
 		-DNGINX_COVERAGE=$(COVERAGE) \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
 
+NGINX_VERSION ?= $(shell echo ${RESTY_VERSION} | cut -d '.' -f 1-3)
+
+.PHONY: build-openresty-toolchain
+build-openresty-toolchain:
+ifndef RESTY_VERSION
+	$(error RESTY_VERSION is not set. Please set RESTY_VERSION environment variable)
+endif 
+ifndef RESTY_OPENSSL_VERSION
+	$(error RESTY_OPENSSL_VERSION is not set. Please set RESTY_OPENSSL_VERSION environment variable)
+endif 
+	docker build \
+		--build-arg RESTY_VERSION=${RESTY_VERSION} \
+		--build-arg RESTY_CONFIG_OPTIONS=${RESTY_CONFIG_OPTIONS} \
+		--build-arg RESTY_CONFIG_OPTIONS_MORE=${RESTY_CONFIG_OPTIONS_MORE} \
+		--build-arg RESTY_OPENSSL_URL_BASE=${RESTY_OPENSSL_URL_BASE} \
+		--build-arg RESTY_OPENSSL_VERSION=${RESTY_OPENSSL_VERSION} \
+		--build-arg RESTY_OPENSSL_PATCH_VERSION=${RESTY_OPENSSL_PATCH_VERSION} \
+		--build-arg RESTY_PCRE_VERSION=${RESTY_PCRE_VERSION} \
+		--build-arg RESTY_PCRE_BUILD_OPTIONS=${RESTY_PCRE_BUILD_OPTIONS} \
+		--build-arg RESTY_PCRE_SHA256=${RESTY_PCRE_SHA256} \
+		--build-arg RESTY_J=${RESTY_J} \
+		-t louis/openresty-${RESTY_VERSION} \
+		--no-cache \
+		openresty/build
+
+.PHONY: build-openresty
+build-openresty:
+ifndef RESTY_VERSION
+	$(error RESTY_VERSION is not set. Please set RESTY_VERSION environment variable)
+endif 
+	docker run --rm \
+		--platform $(DOCKER_PLATFORM) \
+		--env WAF=$(WAF) \
+ 		--mount type=bind,source="$(PWD)",target=/tmp/nginx-datadog \
+		--workdir="/tmp/nginx-datadog" \
+		louis/openresty-${RESTY_VERSION} \
+		bash -c "RESTY_VERSION=${RESTY_VERSION} make build-openresty-aux"
+
+PHONY: build-openresty-aux
+build-openresty-aux:
+	cmake -B .openresty-build \
+		-DNGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
+		-DCMAKE_C_FLAGS='-I /usr/local/openresty/pcre/include' \
+		-DCMAKE_CXX_FLAGS='-I /usr/local/openresty/pcre/include' \
+		-DNGINX_CONF_ARGS='--with-pcre=/usr/local/openresty/pcre --with-openssl=/usr/local/openresty/openssl' . \
+		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
+	&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT)
 
 .PHONY: test
 test: build-musl

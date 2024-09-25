@@ -25,7 +25,7 @@ executors:
     resource_class: arm.xlarge
 
 jobs:
-  build_amd64:
+  build_nginx_amd64:
     parameters:
       nginx-version:
         type: string
@@ -69,7 +69,7 @@ jobs:
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
-  build_arm64:
+  build_nginx_arm64:
     parameters:
       nginx-version:
         type: string
@@ -108,6 +108,89 @@ jobs:
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
+  build_openresty_amd64:
+    parameters:
+      openresty-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        name: Verify versions (release tag only)
+        command: |
+          if [[ $CIRCLE_TAG =~ ^v ]]; then
+            bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+          else
+            echo "Not a release"
+          fi
+    - run:
+        command: 'make build-openresty'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          RESTY_VERSION: "<< parameters.openresty-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".openresty-build/ngx_http_datadog_module.so"
+          - ".openresty-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    machine:
+      image: ubuntu-2204:current
+    resource_class: xlarge
+    environment:
+      ARCH: x86_64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      RESTY_VERSION: "<< parameters.openresty-version >>"
+  build_openresty_arm64:
+    parameters:
+      openresty-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        command: 'make build-openresty'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          RESTY_VERSION: "<< parameters.openresty-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".openresty-build/ngx_http_datadog_module.so"
+          - ".openresty-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    - store_artifacts:
+        path: openresty-version-info
+        destination: openresty-version-info
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.xlarge
+    environment:
+      ARCH: aarch64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      RESTY_VERSION: "<< parameters.resty-version >>"
   coverage:
     environment:
       DOCKER_BUILDKIT: 1
@@ -130,7 +213,7 @@ jobs:
     machine:
       image: ubuntu-2204:current
     resource_class: xlarge
-  test:
+  test-nginx:
     parameters:
       base-image:
         type: string
@@ -156,7 +239,37 @@ jobs:
     - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > nginx-version-info
     - setup_remote_docker:
         docker_layer_caching: true
-    - run: test/bin/run --verbose --failfast
+    - run: test/bin/run-nginx --verbose --failfast
+    - store_artifacts:
+        path: test/logs/test.log
+        destination: test.log
+  test-openresty:
+    parameters:
+      base-image:
+        type: string
+        default: ''
+    openresty-version:
+        type: string
+      arch:
+        type: string
+      waf:
+        type: string
+    executor:
+      name: docker-<< parameters.arch >>
+      image: cimg/python:3.10.13
+    environment:
+      # https://github.com/containers/podman/issues/13889
+      DOCKER_BUILDKIT: 1
+      WAF: "<< parameters.waf >>"
+    steps:
+    - checkout
+    - attach_workspace:
+        at: "/tmp/workspace"
+    - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
+    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > openresty-version-info
+    - setup_remote_docker:
+        docker_layer_caching: true
+    - run: test/bin/run-nginx --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
@@ -218,7 +331,7 @@ workflows:
     - format
     - shellcheck:
         name: run shellcheck on shell scripts
-    - build_amd64:
+    - build_nginx_amd64:
         matrix:
           parameters:
             nginx-version:
@@ -230,7 +343,7 @@ workflows:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
-    - build_arm64:
+    - build_nginx_arm64:
         matrix:
           parameters:
             nginx-version:
@@ -241,9 +354,29 @@ workflows:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
+    - build_openresty_amd64:
+        matrix:
+          parameters:
+            openresty-version:
+            - 1.21.4.3
+            - 1.25.3.2
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.openresty-version >> on amd64 WAF << matrix.waf >>
+    - build_openresty_arm64:
+        matrix:
+          parameters:
+            openresty-version:
+            - 1.21.4.3
+            - 1.25.3.2
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.openresty-version >> on arm64 WAF << matrix.waf >>
     - coverage:
         name: Coverage on 1.27.0 with WAF ON
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -262,7 +395,7 @@ workflows:
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
           >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -280,7 +413,7 @@ workflows:
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
           >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -296,6 +429,25 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test-openresty:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - openresty/openresty:1.25.3.2-jammy
+            - openresty/openresty:1.25.3.2
+            openresty-version:
+            - 1.25.3.2
+        name: test << matrix.openresty-version >> on << matrix.base-image >>:<< matrix.arch
+          >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.openresty-version >> on << matrix.arch >> WAF << matrix.waf
+          >>
     - system_tests:
         name: Run system tests
         requires:
@@ -307,7 +459,7 @@ workflows:
         - matches: { pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+", value: << pipeline.git.tag >> }
     jobs:
     # output of bin/generate_jobs_yaml.rb
-    - build_amd64:
+    - build_nginx_amd64:
         matrix:
           parameters:
             nginx-version:
@@ -333,7 +485,7 @@ workflows:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
-    - build_arm64:
+    - build_nginx_arm64:
         matrix:
           parameters:
             nginx-version:
@@ -359,7 +511,33 @@ workflows:
             - 'ON'
             - 'OFF'
         name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
-    - test:
+    - build_openresty_amd64:
+        matrix:
+          parameters:
+            openresty-version:
+            - 1.21.4.1
+            - 1.21.4.2
+            - 1.21.4.3
+            - 1.25.3.1
+            - 1.25.3.2
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.openresty-version >> on amd64 WAF << matrix.waf >>
+    - build_openresty_arm64:
+        matrix:
+          parameters:
+            openresty-version:
+            - 1.21.4.1
+            - 1.21.4.2
+            - 1.21.4.3
+            - 1.25.3.1
+            - 1.25.3.2
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.openresty-version >> on arm64 WAF << matrix.waf >>
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -377,7 +555,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -413,7 +591,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -430,7 +608,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -447,7 +625,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -464,7 +642,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -481,7 +659,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -498,7 +676,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -515,7 +693,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -532,7 +710,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -549,7 +727,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -566,7 +744,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -583,7 +761,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -600,7 +778,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -617,7 +795,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -634,7 +812,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -651,7 +829,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -668,7 +846,7 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
+    - test-nginx:
         matrix:
           parameters:
             arch:
@@ -685,3 +863,88 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test-openresty:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - openresty/openresty:1.21.4.1-jammy
+            - openresty/openresty:1.21.4.1
+            openresty-version:
+            - 1.21.4.1
+        name: test << matrix.openresty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.openresty-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test-openresty:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - openresty/openresty:1.21.4.2-jammy
+            - openresty/openresty:1.21.4.2
+            openresty-version:
+            - 1.21.4.2
+        name: test << matrix.openresty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.openresty-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test-openresty:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - openresty/openresty:1.21.4.3-jammy
+            - openresty/openresty:1.21.4.3
+            openresty-version:
+            - 1.21.4.3
+        name: test << matrix.openresty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.openresty-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test-openresty:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - openresty/openresty:1.25.3.1-jammy
+            - openresty/openresty:1.25.3.1
+            openresty-version:
+            - 1.25.3.1
+        name: test << matrix.openresty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.openresty-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test-openresty:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - openresty/openresty:1.25.3.2-jammy
+            - openresty/openresty:1.25.3.2
+            openresty-version:
+            - 1.25.3.1
+        name: test << matrix.openresty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.openresty-version >> on << matrix.arch >> WAF << matrix.waf >>
