@@ -1,0 +1,341 @@
+---
+version: 2.1
+orbs:
+  codecov: codecov/codecov@4.1.0
+
+parameters:
+  build_all:
+    type: boolean
+    default: false
+
+executors:
+  docker-amd64:
+    parameters:
+      image:
+        type: string
+    docker:
+    - image: "<< parameters.image >>"
+    resource_class: xlarge
+  docker-arm64:
+    parameters:
+      image:
+        type: string
+    docker:
+    - image: "<< parameters.image >>"
+    resource_class: arm.xlarge
+
+jobs:
+  build_amd64:
+    parameters:
+      nginx-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        name: Verify versions (release tag only)
+        command: |
+          if [[ $CIRCLE_TAG =~ ^v ]]; then
+            bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+          else
+            echo "Not a release"
+          fi
+    - run:
+        command: 'make build-musl'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          NGINX_VERSION: "<< parameters.nginx-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".musl-build/ngx_http_datadog_module.so"
+          - ".musl-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    machine:
+      image: ubuntu-2204:current
+    resource_class: xlarge
+    environment:
+      ARCH: x86_64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      NGINX_VERSION: "<< parameters.nginx-version >>"
+  build_arm64:
+    parameters:
+      nginx-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        command: 'make build-musl'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          NGINX_VERSION: "<< parameters.nginx-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".musl-build/ngx_http_datadog_module.so"
+          - ".musl-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    - store_artifacts:
+        path: nginx-version-info
+        destination: nginx-version-info
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.xlarge
+    environment:
+      ARCH: aarch64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      NGINX_VERSION: "<< parameters.nginx-version >>"
+  build_installer_arm64:
+    steps:
+    - checkout
+    - run: go -C ./installer/configurator build -o nginx-configurator
+    - persist_to_workspace:
+        root: "./installer/configurator"
+        paths:
+          - "nginx-configurator"
+    - store_artifacts:
+        path: "./installer/configurator/nginx-configurator"
+        destination: nginx-configurator
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.medium
+  build_installer_amd64:
+    steps:
+    - checkout
+    - run: go -C ./installer/configurator build -o nginx-configurator
+    - persist_to_workspace:
+        root: "./installer/configurator"
+        paths:
+          - "nginx-configurator"
+    - store_artifacts:
+        path: "./installer/configurator/nginx-configurator"
+        destination: nginx-configurator
+    machine:
+      image: ubuntu-2204:current
+    resource_class: medium
+  coverage:
+    environment:
+      DOCKER_BUILDKIT: 1
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run: echo -e "ARCH=amd64\nBASE_IMAGE=nginx:1.26.0\n" > nginx-version-info
+    - run:
+        command: 'make coverage'
+        environment:
+          ARCH: x86_64
+          MAKE_JOB_COUNT: 8
+          BUILD_TYPE: RelWithDebInfo
+          NGINX_VERSION: 1.26.0
+          WAF: ON
+    - codecov/upload:
+        upload_args: '--disable-search'
+        file: .musl-build/coverage.lcov
+        upload_name: circleci
+    machine:
+      image: ubuntu-2204:current
+    resource_class: xlarge
+  test:
+    parameters:
+      base-image:
+        type: string
+        default: ''
+      nginx-version:
+        type: string
+      arch:
+        type: string
+      waf:
+        type: string
+    executor:
+      name: docker-<< parameters.arch >>
+      image: cimg/python:3.10.13
+    environment:
+      # https://github.com/containers/podman/issues/13889
+      DOCKER_BUILDKIT: 1
+      WAF: "<< parameters.waf >>"
+    steps:
+    - checkout
+    - attach_workspace:
+        at: "/tmp/workspace"
+    - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
+    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > nginx-version-info
+    - setup_remote_docker:
+        docker_layer_caching: true
+    - run: test/bin/run --verbose --failfast
+    - store_artifacts:
+        path: test/logs/test.log
+        destination: test.log
+  system_tests:
+    machine:
+      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
+      image: ubuntu-2004:current
+    resource_class: large
+    steps:
+      - attach_workspace:
+          at: "/tmp/workspace"
+      - run:
+          name: clone system-tests repo
+          command: git clone https://github.com/DataDog/system-tests.git
+      - run:
+          name: Install python 3.9
+          command: sudo apt-get install python3.9-venv
+      - run:
+          name: Move the module to the system-tests directory
+          working_directory: ./system-tests
+          command: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so binaries/ngx_http_datadog_module-appsec-amd64-1.25.4.so
+      - run:
+          name: Build test targets
+          working_directory: ./system-tests
+          command: ./build.sh cpp
+      - run:
+          name: Run DEFAULT scenarios
+          working_directory: ./system-tests
+          command: ./run.sh
+          environment:
+            DD_API_KEY: fakekey
+  format:
+    docker:
+    - image: datadog/docker-library:dd-trace-cpp-ci
+    resource_class: small
+    steps:
+    - checkout
+    - run:
+        name: Install Python dependencies
+        command: |
+          pip install yapf
+          update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
+    - run: make lint
+  shellcheck:
+    docker:
+    - image: koalaman/shellcheck-alpine:v0.9.0
+      entrypoint: "/bin/sh"
+    steps:
+    - checkout
+    - run: find bin/ test/ example/ installer/ -type f -executable | xargs shellcheck --exclude
+        SC1071,SC1091,SC2317
+workflows:
+  build-and-test:
+    when:
+      and:
+        - not: << pipeline.git.tag >>
+        - not: << pipeline.parameters.build_all >>
+    jobs:
+    - format
+    - shellcheck:
+        name: run shellcheck on shell scripts
+    - build_amd64:
+        matrix:
+          parameters:
+            nginx-version:
+            - 1.22.1
+            - 1.24.0
+            - 1.25.4
+            - 1.27.1
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
+    - build_arm64:
+        matrix:
+          parameters:
+            nginx-version:
+            - 1.22.1
+            - 1.24.0
+            - 1.27.1
+            waf:
+            - 'ON'
+            - 'OFF'
+        name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
+    - build_installer_amd64:
+        name: build installer on amd64
+    - build_installer_arm64:
+        name: build installer on arm64
+    - coverage:
+        name: Coverage on 1.27.0 with WAF ON
+    - test:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.27.1-alpine
+            - nginx:1.27.1
+            nginx-version:
+            - 1.27.1
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
+          >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
+          >>
+    - test:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - amazonlinux:2.0.20230418.0
+            nginx-version:
+            - 1.22.1
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
+          >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
+          >>
+    - test:
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - amazonlinux:2023.3.20240219.0
+            nginx-version:
+            - 1.24.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - system_tests:
+        name: Run system tests
+        requires:
+        - build 1.25.4 on amd64 WAF ON
+  build-and-test-all:
+    when:
+      or:
+        -  << pipeline.parameters.build_all >>
+        - matches: { pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+", value: << pipeline.git.tag >> }
+    jobs:
+    # output of bin/generate_jobs_yaml.rb
