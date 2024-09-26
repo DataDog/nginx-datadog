@@ -114,7 +114,7 @@ jobs:
     steps:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
-    - run: echo -e "ARCH=amd64\nBASE_IMAGE=nginx:1.26.0\n" > nginx-version-info
+    - run: echo -e "ARCH=amd64\nBASE_IMAGE=nginx:1.21.3\n" > nginx-version-info
     - run:
         command: 'make coverage'
         environment:
@@ -177,7 +177,7 @@ jobs:
       - run:
           name: Move the module to the system-tests directory
           working_directory: ./system-tests
-          command: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so binaries/ngx_http_datadog_module-appsec-amd64-1.25.4.so
+          command: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so binaries/ngx_http_datadog_module-appsec-amd64-1.21.3.so
       - run:
           name: Build test targets
           working_directory: ./system-tests
@@ -257,22 +257,6 @@ workflows:
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
           >>
-    - test:
-        matrix:
-          parameters:
-            arch:
-            - amd64
-            - arm64
-            waf:
-            - 'ON'
-            - 'OFF'
-            base-image:
-            - amazonlinux:2023.3.20240219.0
-            nginx-version:
-            - 1.21.3
-        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-        requires:
-        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - system_tests:
         name: Run system tests
         requires:
