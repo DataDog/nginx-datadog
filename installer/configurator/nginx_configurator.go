@@ -139,7 +139,10 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 		return err
 	}
 
-	moduleURL := fmt.Sprintf("https://github.com/DataDog/nginx-datadog/releases/latest/download/ngx_http_datadog_module-%s-%s.so.tgz", arch, n.Version)
+	// TODO: Use the releases once the module is actually released with RUM
+	// baseURL := fmt.Sprintf("https://github.com/DataDog/nginx-datadog/releases/latest/download/")
+	baseURL := "https://ddagent-windows-unstable.s3.amazonaws.com/inject-browser-sdk/nginx/0d26733/"
+	moduleURL := baseURL + fmt.Sprintf("ngx_http_datadog_module-%s-%s.so.tgz", arch, n.Version)
 
 	moduleContent, err := downloadFile(moduleURL)
 	if err != nil {
@@ -174,7 +177,7 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 
 		log.Debug("Downloaded signature file: ", signatureURL)
 
-		publicKeyURL := "https://github.com/DataDog/nginx-datadog/releases/latest/download/pubkey.gpg"
+		publicKeyURL := baseURL + "pubkey.gpg"
 		publicKeyContent, err := downloadFile(publicKeyURL)
 		if err != nil {
 			return NewInstallerError(NginxError, fmt.Errorf("failed to download public key: %v", err))
