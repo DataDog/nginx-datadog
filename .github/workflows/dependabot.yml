@@ -1,0 +1,42 @@
+name: Auto test new nginx versions
+
+on:
+    schedule:
+        - cron: '0 0 * * 0' # Every Sunday at midnight
+    pull_request_target:
+        branches: [master, main]
+    workflow_dispatch: 
+    push:
+
+jobs:
+    test_nginx_version:
+        runs-on: ubuntu-22.04
+        permissions:
+            actions: read # read secrets
+            contents: write # Creates a branch
+            pull-requests: write # Creates a PR
+        env:
+            GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Install Python
+              uses: actions/setup-python@v4
+              with:
+                python--version: '3.x'
+            - name: Check and Modify
+              run: echo "NGINX_VERSION_TO_TEST=$(python bin/nginx_dependencies.py)" >> $GITHUB_ENV
+            - name: Create Pull Request
+              id: pr
+              uses: peter-evans/create-pull-request@v3.10.0
+              with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+                branch: "bot/test-nginx-version-$NGINX_VERSION_TO_TEST"
+                commit-message: "[Test Package Versions Bump]"
+                delete-branch: true
+                base: master
+                title: "[IGNORE] Test new version of NGINX: $NGINX_VERSION_TO_TEST"
+                reviewers: "DataDog/dd-trace-cpp"
+                body: |
+                    Test a new release of NGINX
+
