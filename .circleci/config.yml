@@ -253,7 +253,7 @@ workflows:
             - 1.22.1
             - 1.24.0
             - 1.25.4
-            - 1.27.1
+            - 1.27.0
             waf:
             - 'ON'
             - 'OFF'
@@ -264,7 +264,7 @@ workflows:
             nginx-version:
             - 1.22.1
             - 1.24.0
-            - 1.27.1
+            - 1.27.0
             waf:
             - 'ON'
             - 'OFF'
@@ -285,10 +285,10 @@ workflows:
             - 'ON'
             - 'OFF'
             base-image:
-            - nginx:1.27.1-alpine
-            - nginx:1.27.1
+            - nginx:1.27.0-alpine
+            - nginx:1.27.0
             nginx-version:
-            - 1.27.1
+            - 1.27.0
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
           >> WAF << matrix.waf >>
         requires:
@@ -361,7 +361,6 @@ workflows:
             - 1.26.1
             - 1.26.2
             - 1.27.0
-            - 1.27.1
             waf:
             - 'ON'
             - 'OFF'
@@ -388,7 +387,6 @@ workflows:
             - 1.26.1
             - 1.26.2
             - 1.27.0
-            - 1.27.1
             waf:
             - 'ON'
             - 'OFF'
@@ -448,23 +446,6 @@ workflows:
             - nginx:1.22.1
             nginx-version:
             - 1.22.1
-        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-        requires:
-        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test:
-        matrix:
-          parameters:
-            arch:
-            - amd64
-            - arm64
-            waf:
-            - 'ON'
-            - 'OFF'
-            base-image:
-            - nginx:1.27.1-alpine
-            - nginx:1.27.1
-            nginx-version:
-            - 1.27.1
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
