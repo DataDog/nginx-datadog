@@ -60,10 +60,16 @@ using namespace datadog::nginx;
         NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                   \
   }
 
-#define DEFINE_DEPRECATED_COMMAND(NAME, TYPE)                                  \
-  {                                                                            \
-    ngx_string(NAME), TYPE, warn_deprecated_command, NGX_HTTP_LOC_CONF_OFFSET, \
-        0, NULL                                                                \
+#define DEFINE_DEPRECATED_COMMAND_1_2_0(NAME, TYPE)        \
+  {                                                        \
+    ngx_string(NAME), TYPE, warn_deprecated_command_1_2_0, \
+        NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                  \
+  }
+
+#define DEFINE_DEPRECATED_COMMAND_1_4_0(NAME, TYPE)        \
+  {                                                        \
+    ngx_string(NAME), TYPE, warn_deprecated_command_1_4_0, \
+        NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                  \
   }
 
 // Part of configuring a command is saying where the command is allowed to
@@ -95,19 +101,22 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
-    { ngx_string("datadog_enable"),
-      anywhere | NGX_CONF_NOARGS,
-      datadog_enable,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
+    DEFINE_DEPRECATED_COMMAND_1_4_0(
+      "datadog_enable",
+      anywhere | NGX_CONF_NOARGS),
 
-    { ngx_string("datadog_disable"),
-      anywhere | NGX_CONF_NOARGS,
-      datadog_disable,
+    DEFINE_DEPRECATED_COMMAND_1_4_0(
+      "datadog_disable",
+      anywhere | NGX_CONF_NOARGS
+    ),
+
+    { ngx_string("datadog_tracing"),
+      anywhere | NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
+      offsetof(datadog_loc_conf_t, enable),
+      nullptr
+    },
 
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_trace_locations",
@@ -118,27 +127,27 @@ static ngx_command_t datadog_commands[] = {
       offsetof(datadog_loc_conf_t, enable_locations),
       nullptr),
 
-    DEFINE_DEPRECATED_COMMAND(
+    DEFINE_DEPRECATED_COMMAND_1_2_0(
       "datadog_propagate_context",
       anywhere | NGX_CONF_NOARGS),
 
-    DEFINE_DEPRECATED_COMMAND(
+    DEFINE_DEPRECATED_COMMAND_1_2_0(
       "opentracing_propagate_context",
       anywhere | NGX_CONF_NOARGS),
 
-    DEFINE_DEPRECATED_COMMAND(
+    DEFINE_DEPRECATED_COMMAND_1_2_0(
       "opentracing_fastcgi_propagate_context",
       anywhere | NGX_CONF_NOARGS),
 
-    DEFINE_DEPRECATED_COMMAND(
+    DEFINE_DEPRECATED_COMMAND_1_2_0(
       "datadog_fastcgi_propagate_context",
       anywhere | NGX_CONF_NOARGS),
 
-    DEFINE_DEPRECATED_COMMAND(
+    DEFINE_DEPRECATED_COMMAND_1_2_0(
       "opentracing_grpc_propagate_context",
       anywhere | NGX_CONF_NOARGS),
 
-    DEFINE_DEPRECATED_COMMAND(
+    DEFINE_DEPRECATED_COMMAND_1_2_0(
       "datadog_grpc_propagate_context",
       anywhere | NGX_CONF_NOARGS),
 

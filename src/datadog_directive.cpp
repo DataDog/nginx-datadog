@@ -206,20 +206,6 @@ char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command,
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-char *datadog_enable(ngx_conf_t *cf, ngx_command_t *command,
-                     void *conf) noexcept {
-  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  loc_conf->enable = true;
-  return static_cast<char *>(NGX_CONF_OK);
-}
-
-char *datadog_disable(ngx_conf_t *cf, ngx_command_t *command,
-                      void *conf) noexcept {
-  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  loc_conf->enable = false;
-  return static_cast<char *>(NGX_CONF_OK);
-}
-
 char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command,
                                 void *conf) noexcept {
   ngx_log_error(NGX_LOG_ERR, cf->log, 0,
@@ -535,14 +521,28 @@ char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
                 e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
 }
-char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t * /*command*/,
-                              void * /*conf*/) noexcept {
+
+char *warn_deprecated_command_1_2_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
+                                    void * /*conf*/) noexcept {
   const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
   assert(cf->args->nelts >= 1);
 
   ngx_log_error(
       NGX_LOG_WARN, cf->log, 0,
       "Directive \"%V\" is deprecated and can be removed since v1.2.0.",
+      &elements[0]);
+
+  return NGX_OK;
+}
+
+char *warn_deprecated_command_1_4_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
+                                    void * /*conf*/) noexcept {
+  const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
+  assert(cf->args->nelts >= 1);
+
+  ngx_log_error(
+      NGX_LOG_WARN, cf->log, 0,
+      "Directive \"%V\" is deprecated and can be removed since v1.4.0.",
       &elements[0]);
 
   return NGX_OK;
