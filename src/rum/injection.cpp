@@ -133,12 +133,12 @@ ngx_int_t InjectionHandler::on_header_filter(
     state_ = state::error;
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                   "RUM SDK injection failed: unable to add "
-                  "x-datadog-sdk-injected HTTP header");
+                  "x-datadog-rum-injected HTTP header");
     return NGX_ERROR;
   }
 
   h->hash = 1;
-  ngx_str_set(&h->key, "x-datadog-sdk-injected");
+  ngx_str_set(&h->key, "x-datadog-rum-injected");
   ngx_str_set(&h->value, "1");
 
   // If `filter_need_in_memory` is not set, the filter can be called on with a

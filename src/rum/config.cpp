@@ -4,6 +4,8 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
+#include <charconv>
+
 #include "string_util.h"
 
 namespace {
@@ -16,7 +18,7 @@ char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
     char *err_msg =
         static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf((u_char *)err_msg, 256,
-                 "Invalid number of arguments. Expected exactly two: a key and "
+                 "invalid number of arguments. Expected exactly two: a key and "
                  "a value.");
     return err_msg;
   }
@@ -27,7 +29,7 @@ char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
   if (key.empty()) {
     char *err_msg =
         static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char *)err_msg, 256, "Empty key");
+    ngx_snprintf((u_char *)err_msg, 256, "empty key");
     return err_msg;
   }
 
@@ -35,7 +37,7 @@ char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
   if (value.empty()) {
     char *err_msg =
         static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char *)err_msg, 256, "Empty value");
+    ngx_snprintf((u_char *)err_msg, 256, "empty value");
     return err_msg;
   }
 
@@ -44,15 +46,13 @@ char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
 }
 
 static std::string make_rum_json_config(
-    std::string_view config_version,
+    int config_version,
     const std::unordered_map<std::string, std::string> &config) {
   rapidjson::Document doc;
   doc.SetObject();
 
   rapidjson::Document::AllocatorType &allocator = doc.GetAllocator();
-  doc.AddMember("majorVersion",
-                rapidjson::Value(std::stoi(config_version.data() + 1)),
-                allocator);
+  doc.AddMember("majorVersion", config_version, allocator);
 
   rapidjson::Value rum(rapidjson::kObjectType);
   for (const auto &[key, value] : config) {
@@ -83,6 +83,23 @@ static std::string make_rum_json_config(
   return buffer.GetString();
 }
 
+std::optional<int> parse_rum_version(std::string_view config_version) {
+  if (config_version.size() < 2 || !config_version.starts_with("v")) {
+    return std::nullopt;
+  }
+
+  int version_number;
+  auto [ptr, ec] = std::from_chars(
+      config_version.data() + 1, config_version.data() + config_version.size(),
+      version_number);
+  if (ptr == config_version.data() || ec == std::errc::invalid_argument ||
+      ec == std::errc::result_out_of_range) {
+    return std::nullopt;
+  }
+
+  return version_number;
+}
+
 }  // namespace
 
 extern "C" {
@@ -93,15 +110,16 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
 
   auto *values = static_cast<ngx_str_t *>(cf->args->elts);
 
-  std::string_view config_version = datadog::nginx::to_string_view(values[1]);
-  if (!config_version.starts_with('v')) {
+  auto arg1 = datadog::nginx::to_string_view(values[1]);
+  auto config_version = parse_rum_version(arg1);
+  if (!config_version) {
     auto *err_msg =
         static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf((u_char *)err_msg, 256,
-                 "Invalid version argument provided. Expected version 'v5' but "
+                 "invalid version argument provided. Expected version 'v5' but "
                  "encountered '%s'. Please ensure you are using the correct "
                  "version format 'v5'",
-                 config_version);
+                 arg1);
     return err_msg;
   }
 
@@ -117,13 +135,14 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
     return status;
   }
 
-  auto json = make_rum_json_config(config_version, rum_config);
+  auto json = make_rum_json_config(*config_version, rum_config);
   if (json.empty()) {
     auto *err_msg =
         static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf(
         (u_char *)err_msg, 256,
         "failed to generate the RUM SDK script: missing version field");
+    return err_msg;
   }
 
   Snippet *snippet = snippet_create_from_json(json.c_str());
