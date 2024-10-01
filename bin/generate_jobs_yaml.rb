@@ -21,6 +21,8 @@ amazonlinux:2.0.20220406.1 1.22.1
 amazonlinux:2.0.20220316.0 1.22.1
 amazonlinux:2.0.20220218.1 1.22.1
 amazonlinux:2.0.20220121.0 1.22.1
+nginx:1.27.1-alpine 1.27.1
+nginx:1.27.1 1.27.1
 nginx:1.27.0-alpine 1.27.0
 nginx:1.27.0 1.27.0
 nginx:1.26.2-alpine 1.26.2
