@@ -114,7 +114,7 @@ static ngx_command_t datadog_commands[] = {
       anywhere | NGX_CONF_TAKE1,
       ngx_conf_set_flag_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, enable),
+      offsetof(datadog_loc_conf_t, enable_tracing),
       nullptr
     },
 
@@ -721,7 +721,7 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
   conf->parent = prev;
   conf->depth = prev->depth + 1;
 
-  ngx_conf_merge_value(conf->enable, prev->enable,
+  ngx_conf_merge_value(conf->enable_tracing, prev->enable_tracing,
                        TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());

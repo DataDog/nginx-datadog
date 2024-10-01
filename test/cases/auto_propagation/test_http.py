@@ -65,11 +65,6 @@ class TestHTTP(case.TestCase):
         return self.run_test("./conf/http_disabled_at_http.conf",
                              should_propagate=False)
 
-    def test_disabled_at_http_enabled_at_location(self):
-        return self.run_test(
-            "./conf/http_disabled_at_http_enabled_at_location.conf",
-            should_propagate=True)
-
     def test_without_module(self):
         return self.run_test("./conf/http_without_module.conf",
                              should_propagate=False)

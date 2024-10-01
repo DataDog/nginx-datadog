@@ -190,32 +190,23 @@ Sampling delegation is `off` by default. The directive's argument can be a
 variable expression that evaluates to either of `on` or `off`. If the
 directive's argument is omitted, then it is as if it were `on`.
 
-### `datadog_enable`
-- **syntax** `datadog_enable`
+### `datadog_tracing`
+- **syntax** `datadog_tracing [on|off]`
+- **default** `on`
 - **context** `http`, `server`, `location`
 
-Enable Datadog tracing in the current configuration context.  This overrides
-any `datadog_disable` directives at higher levels, and may be overridden by
-`datadog_disable` directives at lower levels.
+If `on`, enable Datadog tracing in the current configuration context.  
+If `off`, disable Datadog tracing in the current configuration context.
+
+This overrides any `datadog_tracing` directives at higher levels,
+and may be overriden by `datadog_tracing` directives at lower levels. 
 
 When tracing is enabled, a span is created for each request, and trace context
 is propagated to the proxied service.
-
-Datadog tracing is enabled by default.
-
-### `datadog_disable`
-- **syntax** `datadog_disable`
-- **context** `http`, `server`, `location`
-
-Disable Datadog tracing in the current configuration context.  This overrides
-any `datadog_enable` directives at higher levels, and may be overridden by
-`datadog_enable` directives at lower levels.
-
 When tracing is disabled, no span is created when a request is handled, and no
 trace context is propagated to proxied services.
 
-Datadog tracing is enabled by default.  This directive is the way to disable
-it.
+Datadog tracing is enabled by default.
 
 ### `datadog_resource_name`
 
