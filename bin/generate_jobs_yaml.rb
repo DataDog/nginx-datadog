@@ -89,6 +89,13 @@ puts <<-YAML.gsub(/^/, '    ')
     name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
 YAML
 
+puts <<~YAML.gsub(/^/, '    ')
+- build_installer_amd64:
+    name: build installer on amd64
+- build_installer_arm64:
+    name: build installer on arm64
+YAML
+
 all_specs.group_by(&:version).each do |version, specs|
     puts <<~YAML.gsub(/^/, '    ')
     - test:

@@ -27,17 +27,17 @@ jobs:
             - name: Check and Modify
               id: run-script
               run: echo "NGINX_VERSION_TO_TEST=$(python bin/nginx_dependencies.py)" >> $GITHUB_OUTPUT
-            - name: Create Pull Request
-              id: pr
-              uses: peter-evans/create-pull-request@v3.10.0
-              with:
-                token: ${{ secrets.GITHUB_TOKEN }}
-                branch: "bot/test-nginx-version-${{steps.run-script.outputs.NGINX_VERSION_TO_TEST}}"
-                commit-message: "[Test Package Versions Bump]"
-                delete-branch: true
-                base: master
-                title: "[IGNORE] Test new version of NGINX: $NGINX_VERSION_TO_TEST"
-                reviewers: "DataDog/dd-trace-cpp"
-                body: |
-                    Test a new release of NGINX
+            # - name: Create Pull Request
+            #   id: pr
+            #   uses: peter-evans/create-pull-request@v3.10.0
+            #   with:
+            #     token: ${{ secrets.GITHUB_TOKEN }}
+            #     branch: "bot/test-nginx-version-${{steps.run-script.outputs.NGINX_VERSION_TO_TEST}}"
+            #     commit-message: "[Test Package Versions Bump]"
+            #     delete-branch: true
+            #     base: master
+            #     title: "[IGNORE] Test new version of NGINX: $NGINX_VERSION_TO_TEST"
+            #     reviewers: "DataDog/dd-trace-cpp"
+            #     body: |
+            #         Test a new release of NGINX
 
