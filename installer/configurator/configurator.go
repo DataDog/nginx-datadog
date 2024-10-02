@@ -4,11 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
-var InstallerVersion = "0.1.1"
+var InstallerVersion = "0.1.2"
+var IntegrationVersion = "unset"
+var IntegrationName = "unset"
 
 func validateInput(appID, site, clientToken, arch string, sessionSampleRate, sessionReplaySampleRate int) error {
 
@@ -35,15 +38,51 @@ func validateInput(appID, site, clientToken, arch string, sessionSampleRate, ses
 	return nil
 }
 
-func handleError(err error) {
-	// TODO: Send telemetry
-
+func handleError(err error, sender *TelemetrySender, appId string, dryRun bool) {
 	log.Error(err)
+
+	if !dryRun {
+		var errorType ErrorType
+
+		if installerErr, ok := err.(*InstallerError); ok {
+			errorType = installerErr.ErrorType
+		} else {
+			errorType = UnexpectedError
+		}
+
+		if sender != nil {
+			if err := sender.SendLog(LogMessage{
+				Message: err.Error(),
+				Level:   "ERROR",
+				Tags: keyValuePairsAsTags(map[string]string{
+					"app_id":              appId,
+					"installer_version":   InstallerVersion,
+					"integration_name":    IntegrationName,
+					"integration_version": IntegrationVersion}),
+			}); err != nil {
+				log.Error("Error sending error log: ", err)
+			}
+
+			if err := sender.SendInstallationCount("error", errorType.String()); err != nil {
+				log.Error("Error sending error count: ", err)
+			}
+
+			end := time.Now().UnixNano() / int64(time.Millisecond)
+			diff := end - start
+			if err := sender.SendInstallationTime("error", errorType.String(), diff); err != nil {
+				log.Error("Error sending error distribution: ", err)
+			}
+		}
+	}
 
 	os.Exit(1)
 }
 
+var start int64
+
 func main() {
+	start = time.Now().UnixNano() / int64(time.Millisecond)
+
 	appID := flag.String("appId", "", "Application ID")
 	site := flag.String("site", "", "Site")
 	clientToken := flag.String("clientToken", "", "Client Token")
@@ -55,6 +94,8 @@ func main() {
 	verbose := flag.Bool("verbose", false, "Verbose output")
 	dryRun := flag.Bool("dryRun", false, "Dry run (no changes made)")
 	skipDownload := flag.Bool("skipDownload", false, "Skip the download of this installer and use a local binary instead")
+
+	log.Info("Starting installer version ", InstallerVersion)
 
 	flag.Parse()
 
@@ -69,35 +110,51 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	log.Info("Starting installer version ", InstallerVersion)
+	sender, err := NewTelemetrySender(*agentUri, "rum-installer-nginx", "prod")
+	if err != nil {
+		handleError(err, sender, "", *dryRun)
+	}
 
 	if *dryRun {
 		log.Info("Dry run enabled. No changes will be made.")
 	}
 
 	if err := validateInput(*appID, *site, *clientToken, *arch, *sessionSampleRate, *sessionReplaySampleRate); err != nil {
-		handleError(err)
+		handleError(err, sender, *appID, *dryRun)
 	}
 
 	var configurator ProxyConfigurator = &NginxConfigurator{}
 
 	if err := configurator.VerifyRequirements(); err != nil {
-		handleError(err)
+		handleError(err, sender, *appID, *dryRun)
 	}
 
 	if err := configurator.DownloadAndInstallModule(*arch, *skipVerify); err != nil {
-		handleError(err)
+		handleError(err, sender, *appID, *dryRun)
 	}
 
 	if err := configurator.ModifyConfig(*appID, *site, *clientToken, *agentUri, *sessionSampleRate, *sessionReplaySampleRate, *dryRun); err != nil {
-		handleError(err)
+		handleError(err, sender, *appID, *dryRun)
 	}
 
 	if !*dryRun {
 		if err := configurator.ValidateConfig(); err != nil {
-			handleError(err)
+			handleError(err, sender, *appID, *dryRun)
 		}
 
 		log.Info("Datadog NGINX module has been successfully installed and configured. Please reload NGINX or restart the service for the changes to take effect")
+	}
+
+	if !*dryRun {
+		log.Debug("Sending installation telemetry")
+		if err := sender.SendInstallationCount("success", ""); err != nil {
+			log.Error("Error sending installation success count: ", err)
+		}
+
+		end := time.Now().UnixNano() / int64(time.Millisecond)
+		diff := end - start
+		if err := sender.SendInstallationTime("success", "", diff); err != nil {
+			log.Error("Error sending installation success distribution: ", err)
+		}
 	}
 }
