@@ -141,7 +141,7 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 
 	// TODO: Use the releases once the module is actually released with RUM
 	// baseURL := fmt.Sprintf("https://github.com/DataDog/nginx-datadog/releases/latest/download/")
-	baseURL := "https://ddagent-windows-unstable.s3.amazonaws.com/inject-browser-sdk/nginx/0d26733/"
+	baseURL := "https://ddagent-windows-unstable.s3.amazonaws.com/inject-browser-sdk/nginx/latest/"
 	moduleURL := baseURL + fmt.Sprintf("ngx_http_datadog_module-%s-%s.so.tgz", arch, n.Version)
 
 	moduleContent, err := downloadFile(moduleURL)

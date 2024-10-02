@@ -196,10 +196,6 @@ jobs:
     - checkout
     - run: go test -C ./installer/configurator -v
     - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
-    - persist_to_workspace:
-        root: "./installer/configurator"
-        paths:
-          - "nginx-configurator"
     - store_artifacts:
         path: "./installer/configurator/nginx-configurator"
         destination: nginx-configurator
@@ -240,6 +236,17 @@ jobs:
         environment:
           DD_API_KEY: fakekey
           NGINX_DOCKERFILE: << parameters.base-dockerfile >>
+  installer_download_test:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+    - checkout
+    - run:
+        name: Run installer download tests
+        command: docker compose -f installer/test/docker-compose-download.yml up --build --exit-code-from nginx
+        environment:
+          DD_API_KEY: fakekey
+          NGINX_DOCKERFILE: bookworm.Dockerfile
   format:
     docker:
     - image: datadog/docker-library:dd-trace-cpp-ci
@@ -261,6 +268,29 @@ jobs:
     - run: find bin/ test/ example/ installer/ -type f -executable | xargs shellcheck --exclude
         SC1071,SC1091,SC2317
 workflows:
+  build-and-test-installer:
+    when:
+      and:
+        - not: << pipeline.git.tag >>
+        - << pipeline.parameters.run-installer-workflow >>
+    jobs:
+     - build_installer_amd64:
+        name: build installer on amd64
+     - build_installer_arm64:
+        name: build installer on arm64
+     - installer_test:
+        matrix:
+          parameters:
+            base-dockerfile:
+            - 'bookworm.Dockerfile'
+            - 'alpine.Dockerfile'
+            - 'al2023.Dockerfile'
+        name: test installer with << matrix.base-dockerfile >> base image
+        requires:
+        - build installer on amd64
+        - build installer on arm64
+     - installer_download_test:
+        name: test installer download
   build-and-test:
     when:
       and:
@@ -756,24 +786,3 @@ workflows:
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-  build-and-test-installer:
-    when:
-      and:
-        - not: << pipeline.git.tag >>
-        - << pipeline.parameters.run-installer-workflow >>
-    jobs:
-     - build_installer_amd64:
-        name: build installer on amd64
-     - build_installer_arm64:
-        name: build installer on arm64
-     - installer_test:
-        matrix:
-          parameters:
-            base-dockerfile:
-            - 'bookworm.Dockerfile'
-            - 'alpine.Dockerfile'
-            - 'al2023.Dockerfile'
-        name: test installer with << matrix.base-dockerfile >> base image
-        requires:
-        - build installer on amd64
-
