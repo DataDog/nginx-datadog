@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var InstallerVersion = "0.1.0"
+var InstallerVersion = "0.1.1"
 
 func validateInput(appID, site, clientToken, arch string, sessionSampleRate, sessionReplaySampleRate int) error {
 
@@ -54,8 +54,13 @@ func main() {
 	skipVerify := flag.Bool("skipVerify", false, "Skip verifying downloads")
 	verbose := flag.Bool("verbose", false, "Verbose output")
 	dryRun := flag.Bool("dryRun", false, "Dry run (no changes made)")
+	skipDownload := flag.Bool("skipDownload", false, "Skip the download of this installer and use a local binary instead")
 
 	flag.Parse()
+
+	if *skipDownload {
+		log.Info("Download was skipped, used local binary")
+	}
 
 	if *verbose {
 		log.SetLevel(log.DebugLevel)
@@ -93,6 +98,6 @@ func main() {
 			handleError(err)
 		}
 
-		log.Info("Datadog NGINX module has been successfully installed and configured. Please restart NGINX for the changes to take effect")
+		log.Info("Datadog NGINX module has been successfully installed and configured. Please reload NGINX or restart the service for the changes to take effect")
 	}
 }

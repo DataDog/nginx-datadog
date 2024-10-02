@@ -28,4 +28,5 @@ services:
     command: >
       sh -c "
       cd /installer &&
-      sh install-nginx-datadog.sh --verbose --appId 123 --site datadoghq.com --clientToken myToken --sessionSampleRate 100 --sessionReplaySampleRate 50 --agentUri http://datadog-agent:8126 --skipDownload"
+      sh install-nginx-datadog.sh --verbose --appId 123 --site datadoghq.com --clientToken myToken --sessionSampleRate 100 --sessionReplaySampleRate 50 --agentUri http://datadog-agent:8126 \
+      | grep -q 'Binary downloaded, verified, and extracted successfully'"
