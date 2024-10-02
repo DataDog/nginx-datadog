@@ -15,9 +15,10 @@ extern ngx_module_t ngx_http_datadog_module;
 namespace datadog {
 namespace nginx {
 
-static bool is_datadog_tracing_enabled(const ngx_http_request_t *request,
-                               const ngx_http_core_loc_conf_t *core_loc_conf,
-                               const datadog_loc_conf_t *loc_conf) noexcept {
+static bool is_datadog_tracing_enabled(
+    const ngx_http_request_t *request,
+    const ngx_http_core_loc_conf_t *core_loc_conf,
+    const datadog_loc_conf_t *loc_conf) noexcept {
   // Check if this is a main request instead of a subrequest.
   if (request == request->main) {
     return loc_conf->enable_tracing;
