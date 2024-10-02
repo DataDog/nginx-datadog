@@ -190,7 +190,7 @@ class TestConfiguration(case.TestCase):
     def test_error_in_server_propagation_styles(self):
         return self.run_wrong_block_test(
             "./conf/error_in_server/propagation_styles.conf")
-    
+
     def run_precedence_test(self, conf_relative_path):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
@@ -204,7 +204,7 @@ class TestConfiguration(case.TestCase):
         self.assertEqual(response["service"], "http")
         headers = response["headers"]
         self.assertIn("x-datadog-sampling-priority", headers)
-           
+
     def test_datadog_tracing_precedence(self):
         return self.run_precedence_test(
             "./conf/datadog_tracing_precedence.conf")
