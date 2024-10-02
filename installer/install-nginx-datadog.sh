@@ -114,12 +114,14 @@ main() {
 
     ARGS_COPY=$*
     SKIP_VERIFY=false
+    SKIP_DOWNLOAD=false
     AGENT_URI="http://localhost:8126"
     HELP=false
 
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --skipVerify) SKIP_VERIFY=true; shift 1;;
+            --skipDownload) SKIP_DOWNLOAD=true; shift 1;;
             --help) HELP=true; shift 1;;
             --agentUri) AGENT_URI="$2"; shift 2;;
             *) shift 1;;
@@ -130,13 +132,17 @@ main() {
         verify_connection
     fi
 
-    download_installer_and_verify
+    if [ $SKIP_DOWNLOAD = false ] ; then
+        download_installer_and_verify
+    fi
 
     # shellcheck disable=SC2086
     # Pass all arguments appending computed ones (arch...)
     ./nginx-configurator $ARGS_COPY --arch "$ARCH"
 
-    rm -f nginx-configurator
+    if [ $SKIP_DOWNLOAD = false ] ; then
+        rm -f nginx-configurator
+    fi
 
     exit 0
 }
