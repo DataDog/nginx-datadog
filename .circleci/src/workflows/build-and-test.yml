@@ -1,0 +1,90 @@
+when:
+  and:
+    - not: << pipeline.git.tag >>
+    - not: << pipeline.parameters.build_all >>
+jobs:
+- format
+- shellcheck:
+    name: run shellcheck on shell scripts
+- build_amd64:
+    matrix:
+      parameters:
+        nginx-version:
+        - 1.22.1
+        - 1.24.0
+        - 1.25.4
+        - 1.27.1
+        waf:
+        - 'ON'
+        - 'OFF'
+    name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
+- build_arm64:
+    matrix:
+      parameters:
+        nginx-version:
+        - 1.22.1
+        - 1.24.0
+        - 1.27.1
+        waf:
+        - 'ON'
+        - 'OFF'
+    name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
+- coverage:
+    name: Coverage on 1.27.0 with WAF ON
+- test:
+    matrix:
+      parameters:
+        arch:
+        - amd64
+        - arm64
+        waf:
+        - 'ON'
+        - 'OFF'
+        base-image:
+        - nginx:1.27.1-alpine
+        - nginx:1.27.1
+        nginx-version:
+        - 1.27.1
+    name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
+      >> WAF << matrix.waf >>
+    requires:
+    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
+      >>
+- test:
+    matrix:
+      parameters:
+        arch:
+        - amd64
+        - arm64
+        waf:
+        - 'ON'
+        - 'OFF'
+        base-image:
+        - amazonlinux:2.0.20230418.0
+        nginx-version:
+        - 1.22.1
+    name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
+      >> WAF << matrix.waf >>
+    requires:
+    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
+      >>
+- test:
+    matrix:
+      parameters:
+        arch:
+        - amd64
+        - arm64
+        waf:
+        - 'ON'
+        - 'OFF'
+        base-image:
+        - amazonlinux:2023.3.20240219.0
+        nginx-version:
+        - 1.24.0
+    name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+    requires:
+    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+- system_tests:
+    name: Run system tests
+    requires:
+    - build 1.25.4 on amd64 WAF ON
