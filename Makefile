@@ -145,3 +145,10 @@ test-parallel: build-in-docker
 lab: build-musl
 	cp -v .musl-build/ngx_http_datadog_module.so* lab/services/nginx/
 	lab/bin/run $(TEST_ARGS)
+
+.PHONY: circleci-config
+circleci-config:
+	@echo "Compiling circleci config"
+	circleci config pack .circleci/src > .circleci/continue_config.yml
+	@echo "Validating circleci config"
+	circleci config validate .circleci/continue_config.yml 
