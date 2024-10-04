@@ -3,9 +3,15 @@ when:
     - not: << pipeline.git.tag >>
     - not: << pipeline.parameters.build_all >>
 jobs:
-- format
+- check-ci-definition
+- format:
+    name: Verify formatting
+    requires: 
+    - check-ci-definition
 - shellcheck:
     name: run shellcheck on shell scripts
+    requires: 
+    - check-ci-definition
 - build_amd64:
     matrix:
       parameters:

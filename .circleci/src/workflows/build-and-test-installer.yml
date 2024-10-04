@@ -3,10 +3,15 @@
         - not: << pipeline.git.tag >>
         - << pipeline.parameters.run-installer-workflow >>
     jobs:
+     - check-ci-definition
      - build_installer_amd64:
         name: build installer on amd64
+        requires: 
+        - check-ci-definition
      - build_installer_arm64:
         name: build installer on arm64
+        requires: 
+        - check-ci-definition
      - installer_test:
         matrix:
           parameters:

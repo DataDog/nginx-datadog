@@ -169,11 +169,6 @@ jobs:
     steps:
     - checkout
     - run:
-        name: Verify 
-        command: |
-          CIRCLE_CFG=generated-config.yml make circleci-config 
-          diff .circleci/continue_config.yml generated-config.yml
-    - run:
         name: Install Python dependencies
         command: |
           pip install yapf
@@ -187,7 +182,16 @@ jobs:
     - checkout
     - run: find bin/ test/ example/ installer/ -type f -executable | xargs shellcheck --exclude
         SC1071,SC1091,SC2317
-
+  check-ci-definition:
+    docker:
+      - image: circleci/circleci-cli:latest
+    steps:
+    - checkout
+    - run:
+        name: Verify 
+        command: |
+          CIRCLE_CFG=generated-config.yml make circleci-config 
+          diff .circleci/continue_config.yml generated-config.yml
   build_installer_arm64:
     steps:
     - checkout

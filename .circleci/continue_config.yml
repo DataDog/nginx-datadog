@@ -122,6 +122,14 @@ jobs:
             - store_artifacts:
                 destination: nginx-configurator
                 path: ./installer/configurator/nginx-configurator
+    check-ci-definition:
+        docker:
+            - image: circleci/circleci-cli:latest
+        steps:
+            - checkout
+            - run:
+                command: "CIRCLE_CFG=generated-config.yml make circleci-config \ndiff .circleci/continue_config.yml generated-config.yml\n"
+                name: Verify
     coverage:
         environment:
             DOCKER_BUILDKIT: 1
@@ -150,9 +158,6 @@ jobs:
         resource_class: small
         steps:
             - checkout
-            - run:
-                command: "CIRCLE_CFG=generated-config.yml make circleci-config \ndiff .circleci/continue_config.yml generated-config.yml\n"
-                name: Verify
             - run:
                 command: |
                     pip install yapf
@@ -266,9 +271,15 @@ version: 2.1
 workflows:
     build-and-test:
         jobs:
-            - format
+            - check-ci-definition
+            - format:
+                name: Verify formatting
+                requires:
+                    - check-ci-definition
             - shellcheck:
                 name: run shellcheck on shell scripts
+                requires:
+                    - check-ci-definition
             - build_amd64:
                 matrix:
                     parameters:
@@ -758,10 +769,15 @@ workflows:
                     value: << pipeline.git.tag >>
     build-and-test-installer:
         jobs:
+            - check-ci-definition
             - build_installer_amd64:
                 name: build installer on amd64
+                requires:
+                    - check-ci-definition
             - build_installer_arm64:
                 name: build installer on arm64
+                requires:
+                    - check-ci-definition
             - installer_test:
                 matrix:
                     parameters:
