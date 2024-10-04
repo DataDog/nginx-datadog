@@ -11,18 +11,18 @@ class TestDeprecationWarnings(case.TestCase):
 
     def test_opentracing_propagate_context(self):
         directive = "opentracing_propagate_context"
-        return self.run_test_deprecated_1_2_0_directive(f"conf/{directive}.conf",
-                                                  directive)
+        return self.run_test_deprecated_1_2_0_directive(
+            f"conf/{directive}.conf", directive)
 
     def test_opentracing_fastcgi_propagate_context(self):
         directive = "opentracing_fastcgi_propagate_context"
-        return self.run_test_deprecated_1_2_0_directive(f"conf/{directive}.conf",
-                                                  directive)
+        return self.run_test_deprecated_1_2_0_directive(
+            f"conf/{directive}.conf", directive)
 
     def test_opentracing_grpc_propagate_context(self):
         directive = "opentracing_grpc_propagate_context"
-        return self.run_test_deprecated_1_2_0_directive(f"conf/{directive}.conf",
-                                                  directive)
+        return self.run_test_deprecated_1_2_0_directive(
+            f"conf/{directive}.conf", directive)
 
     def test_opentracing_operation_name(self):
         directive = "opentracing_operation_name"
@@ -39,14 +39,16 @@ class TestDeprecationWarnings(case.TestCase):
     def test_opentracing_tag(self):
         directive = "opentracing_tag"
         return self.run_test_for_config(f"conf/{directive}.conf", directive)
-    
+
     def test_datadog_enable_tag(self):
         directive = "datadog_enable"
-        return self.run_test_deprecated_1_4_0_directive(f"conf/{directive}.conf", directive)
+        return self.run_test_deprecated_1_4_0_directive(
+            f"conf/{directive}.conf", directive)
 
     def test_datadog_disable_tag(self):
         directive = "datadog_disable"
-        return self.run_test_deprecated_1_4_0_directive(f"conf/{directive}.conf", directive)
+        return self.run_test_deprecated_1_4_0_directive(
+            f"conf/{directive}.conf", directive)
 
     def run_test_for_config(self, config_relative_path, directive):
         config_path = Path(__file__).parent / config_relative_path
@@ -69,7 +71,8 @@ class TestDeprecationWarnings(case.TestCase):
             },
         )
 
-    def run_test_deprecated_1_2_0_directive(self, config_relative_path, directive):
+    def run_test_deprecated_1_2_0_directive(self, config_relative_path,
+                                            directive):
         config_path = Path(__file__).parent / config_relative_path
         config_text = config_path.read_text()
         status, log_lines = self.orch.nginx_test_config(
@@ -87,7 +90,8 @@ class TestDeprecationWarnings(case.TestCase):
             },
         )
 
-    def run_test_deprecated_1_4_0_directive(self, config_relative_path, directive):
+    def run_test_deprecated_1_4_0_directive(self, config_relative_path,
+                                            directive):
         config_path = Path(__file__).parent / config_relative_path
         config_text = config_path.read_text()
         status, log_lines = self.orch.nginx_test_config(
