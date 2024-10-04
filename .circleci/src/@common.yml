@@ -1,0 +1,28 @@
+version: 2.1
+
+orbs:
+  codecov: codecov/codecov@4.1.0
+
+parameters:
+  build_all:
+    type: boolean
+    default: false
+  run-installer-workflow:
+    type: boolean
+    default: false
+
+executors:
+  docker-amd64:
+    parameters:
+      image:
+        type: string
+    docker:
+    - image: "<< parameters.image >>"
+    resource_class: xlarge
+  docker-arm64:
+    parameters:
+      image:
+        type: string
+    docker:
+    - image: "<< parameters.image >>"
+    resource_class: arm.xlarge

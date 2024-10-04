@@ -9,6 +9,7 @@ NGINX_SRC_DIR ?= $(PWD)/nginx
 ARCH ?= $(shell arch)
 COVERAGE ?= OFF
 DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain
+CIRCLE_CFG ?= .circleci/continue_config.yml
 
 SHELL := /bin/bash
 
@@ -145,3 +146,10 @@ test-parallel: build-in-docker
 lab: build-musl
 	cp -v .musl-build/ngx_http_datadog_module.so* lab/services/nginx/
 	lab/bin/run $(TEST_ARGS)
+
+.PHONY: circleci-config
+circleci-config:
+	@echo "Compiling circleci config"
+	circleci config pack .circleci/src > $(CIRCLE_CFG)
+	@echo "Validating circleci config"
+	circleci config validate $(CIRCLE_CFG)
