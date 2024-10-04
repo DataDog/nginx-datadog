@@ -179,13 +179,10 @@ char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command,
   const auto values = static_cast<const ngx_str_t *>(cf->args->elts);
   assert(cf->args->nelts == 2);
 
-  std::string_view preferred;
   if (str(values[1]) == "on") {
-    loc_conf->enable = true;
-    preferred = "datadog_enable";
+    loc_conf->enable_tracing = true;
   } else if (str(values[1]) == "off") {
-    loc_conf->enable = false;
-    preferred = "datadog_disable";
+    loc_conf->enable_tracing = false;
   } else {
     ngx_log_error(
         NGX_LOG_ERR, cf->log, 0,
@@ -194,29 +191,15 @@ char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command,
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  // Warn the user to prefer the corresponding "datadog_{enable,disable}"
+  // Warn the user to prefer the corresponding "datadog_tracing"
   // directive.
-  const ngx_str_t preferred_str = to_ngx_str(preferred);
+  const ngx_str_t preferred_str = to_ngx_str({"datadog_tracing"});
   ngx_log_error(
       NGX_LOG_WARN, cf->log, 0,
       "Backward compatibility with the \"%V %V;\" configuration directive is "
       "deprecated.  Please use \"%V;\" instead.",
       &values[0], &values[1], &preferred_str);
 
-  return static_cast<char *>(NGX_CONF_OK);
-}
-
-char *datadog_enable(ngx_conf_t *cf, ngx_command_t *command,
-                     void *conf) noexcept {
-  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  loc_conf->enable = true;
-  return static_cast<char *>(NGX_CONF_OK);
-}
-
-char *datadog_disable(ngx_conf_t *cf, ngx_command_t *command,
-                      void *conf) noexcept {
-  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  loc_conf->enable = false;
   return static_cast<char *>(NGX_CONF_OK);
 }
 
@@ -535,14 +518,29 @@ char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
                 e.what());
   return static_cast<char *>(NGX_CONF_ERROR);
 }
-char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t * /*command*/,
-                              void * /*conf*/) noexcept {
+
+char *warn_deprecated_command_1_2_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
+                                    void * /*conf*/) noexcept {
   const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
   assert(cf->args->nelts >= 1);
 
   ngx_log_error(
       NGX_LOG_WARN, cf->log, 0,
       "Directive \"%V\" is deprecated and can be removed since v1.2.0.",
+      &elements[0]);
+
+  return NGX_OK;
+}
+
+char *warn_deprecated_command_datadog_tracing(ngx_conf_t *cf,
+                                              ngx_command_t * /*command*/,
+                                              void * /*conf*/) noexcept {
+  const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
+  assert(cf->args->nelts >= 1);
+
+  ngx_log_error(
+      NGX_LOG_WARN, cf->log, 0,
+      "Directive \"%V\" is deprecated. Use datadog_tracing on/off instead",
       &elements[0]);
 
   return NGX_OK;
