@@ -191,7 +191,7 @@ variable expression that evaluates to either of `on` or `off`. If the
 directive's argument is omitted, then it is as if it were `on`.
 
 ### `datadog_tracing`
-- **syntax** `datadog_tracing [on|off]`
+- **syntax** `datadog_tracing on|off`
 - **default** `on`
 - **context** `http`, `server`, `location`
 
