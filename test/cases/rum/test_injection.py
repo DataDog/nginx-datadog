@@ -351,7 +351,7 @@ class TestRUMInjection(case.TestCase):
             "/dd_logo_v_rgb.png")
         headers = self.make_dict_headers(headers)
         self.assertEqual(status, 200)
-        self.assertTrue("x-datadog-sdk-injected" not in headers)
+        self.assertTrue("x-datadog-rum-injected" not in headers)
         self.assertEqual(
             self.compute_sha256(body.encode("utf8")),
             "7fd70efd25882a7d05e38ead11eca64bbc2602d474592db3ce4c4a770a81a8de",
@@ -369,7 +369,7 @@ class TestRUMInjection(case.TestCase):
             "/disable-rum")
         headers = self.make_dict_headers(headers)
         assert status == 200
-        assert headers.get("x-datadog-sdk-injected") == None
+        assert headers.get("x-datadog-rum-injected") == None
         assert "datadog-rum.js" not in body
 
 
