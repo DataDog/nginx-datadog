@@ -66,10 +66,10 @@ using namespace datadog::nginx;
         NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                  \
   }
 
-#define DEFINE_DEPRECATED_COMMAND_1_4_0(NAME, TYPE)        \
-  {                                                        \
-    ngx_string(NAME), TYPE, warn_deprecated_command_1_4_0, \
-        NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                  \
+#define DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING(NAME, TYPE)        \
+  {                                                                  \
+    ngx_string(NAME), TYPE, warn_deprecated_command_datadog_tracing, \
+        NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                            \
   }
 
 // Part of configuring a command is saying where the command is allowed to
@@ -101,11 +101,11 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
-    DEFINE_DEPRECATED_COMMAND_1_4_0(
+    DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING(
       "datadog_enable",
       anywhere | NGX_CONF_NOARGS),
 
-    DEFINE_DEPRECATED_COMMAND_1_4_0(
+    DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING(
       "datadog_disable",
       anywhere | NGX_CONF_NOARGS
     ),

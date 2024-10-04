@@ -42,12 +42,12 @@ class TestDeprecationWarnings(case.TestCase):
 
     def test_datadog_enable_tag(self):
         directive = "datadog_enable"
-        return self.run_test_deprecated_1_4_0_directive(
+        return self.run_test_deprecated_datadog_tracing_directive(
             f"conf/{directive}.conf", directive)
 
     def test_datadog_disable_tag(self):
         directive = "datadog_disable"
-        return self.run_test_deprecated_1_4_0_directive(
+        return self.run_test_deprecated_datadog_tracing_directive(
             f"conf/{directive}.conf", directive)
 
     def run_test_for_config(self, config_relative_path, directive):
@@ -90,8 +90,9 @@ class TestDeprecationWarnings(case.TestCase):
             },
         )
 
-    def run_test_deprecated_1_4_0_directive(self, config_relative_path,
-                                            directive):
+    def run_test_deprecated_datadog_tracing_directive(self,
+                                                      config_relative_path,
+                                                      directive):
         config_path = Path(__file__).parent / config_relative_path
         config_text = config_path.read_text()
         status, log_lines = self.orch.nginx_test_config(
@@ -100,7 +101,7 @@ class TestDeprecationWarnings(case.TestCase):
         self.assertEqual(status, 0)
 
         old = directive
-        expected = f'Directive "{old}" is deprecated and can be removed since v1.4.0'
+        expected = f'Directive "{old}" is deprecated. Use datadog_tracing on/off instead'
         self.assertTrue(
             any(expected in line for line in log_lines),
             {
