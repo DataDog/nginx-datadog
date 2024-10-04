@@ -62,8 +62,9 @@ char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
 char *warn_deprecated_command_1_2_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
                                     void * /*conf*/) noexcept;
 
-char *warn_deprecated_command_1_4_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
-                                    void * /*conf*/) noexcept;
+char *warn_deprecated_command_datadog_tracing(ngx_conf_t *cf,
+                                              ngx_command_t * /*command*/,
+                                              void * /*conf*/) noexcept;
 
 #ifdef WITH_WAF
 char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
