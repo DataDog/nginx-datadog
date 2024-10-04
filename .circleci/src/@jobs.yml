@@ -169,6 +169,11 @@ jobs:
     steps:
     - checkout
     - run:
+        name: Verify 
+        command: |
+          CIRCLE_CFG=generated-config.yml make circleci-config 
+          diff .circleci/continue_config.yml generated-config.yml
+    - run:
         name: Install Python dependencies
         command: |
           pip install yapf

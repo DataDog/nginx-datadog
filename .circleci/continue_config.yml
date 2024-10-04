@@ -151,6 +151,9 @@ jobs:
         steps:
             - checkout
             - run:
+                command: "CIRCLE_CFG=generated-config.yml make circleci-config \ndiff .circleci/continue_config.yml generated-config.yml\n"
+                name: Verify
+            - run:
                 command: |
                     pip install yapf
                     update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100

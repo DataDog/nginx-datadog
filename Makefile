@@ -9,6 +9,7 @@ NGINX_SRC_DIR ?= $(PWD)/nginx
 ARCH ?= $(shell arch)
 COVERAGE ?= OFF
 DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain
+CIRCLE_CFG ?= .circleci/continue_config.yml
 
 SHELL := /bin/bash
 
@@ -149,6 +150,6 @@ lab: build-musl
 .PHONY: circleci-config
 circleci-config:
 	@echo "Compiling circleci config"
-	circleci config pack .circleci/src > .circleci/continue_config.yml
+	circleci config pack .circleci/src > $(CIRCLE_CFG)
 	@echo "Validating circleci config"
-	circleci config validate .circleci/continue_config.yml 
+	circleci config validate $(CIRCLE_CFG)
