@@ -1,4 +1,25 @@
 stages:
   - benchmarks
+  - shared-pipeline # OCI packaging
 
-include: ".gitlab/benchmarks.yml"
+include:
+  - local: .gitlab/benchmarks.yml
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
+  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include-wip/one-pipeline.yml
+
+download_artifacts:
+  extends: .ci_authenticated_job
+  stage: build
+  image: registry.ddbuild.io/images/ci_docker_base
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - |
+      # TBD
+      source .gitlab/download-circleci_artifact.sh
+
+      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"
+      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-aarch64-linux.tar.gz" "dd-library-php-ssi-aarch64-linux.tar.gz"
+  artifacts:
+    paths:
+      - 'dd-library-php-ssi-x86_64-linux.tar.gz'
+      - 'dd-library-php-ssi-aarch64-linux.tar.gz'
