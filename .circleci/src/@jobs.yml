@@ -8,6 +8,12 @@ jobs:
         enum:
         - 'ON'
         - 'OFF'
+      rum:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+        default: 'OFF'
     steps:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
@@ -42,6 +48,7 @@ jobs:
       ARCH: x86_64
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
+      RUM: "<< parameters.rum >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
   build_arm64:
     parameters:
@@ -52,6 +59,12 @@ jobs:
         enum:
         - 'ON'
         - 'OFF'
+      rum:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+        default: 'OFF'
     steps:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
@@ -81,6 +94,7 @@ jobs:
       ARCH: aarch64
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
+      RUM: "<< parameters.rum >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
   coverage:
     environment:
@@ -88,6 +102,9 @@ jobs:
     steps:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        name: Install Python dependencies
+        command: pip install -r requirements.txt
     - run: echo -e "ARCH=amd64\nBASE_IMAGE=nginx:1.26.0\n" > nginx-version-info
     - run:
         command: 'make coverage'
@@ -114,7 +131,16 @@ jobs:
       arch:
         type: string
       waf:
-        type: string
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+      rum:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+        default: 'OFF'
     executor:
       name: docker-<< parameters.arch >>
       image: cimg/python:3.10.13
@@ -122,8 +148,12 @@ jobs:
       # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
       WAF: "<< parameters.waf >>"
+      RUM: "<< parameters.rum >>"
     steps:
     - checkout
+    - run:
+        name: Install Python dependencies
+        command: pip install -r requirements.txt
     - attach_workspace:
         at: "/tmp/workspace"
     - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
@@ -171,7 +201,7 @@ jobs:
     - run:
         name: Install Python dependencies
         command: |
-          pip install yapf
+          pip install -r requirements.txt
           update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
     - run: make lint
   shellcheck:

@@ -22,4 +22,10 @@ const char datadog_version_waf_rules[] = "[waf_rules version @RULES_VERSION@]";
 const char datadog_semver_libddwaf[] = "@LIBDDWAF_VERSION@";
 const char datadog_version_libddwaf[] = "[libddwaf version @LIBDDWAF_VERSION@]";
 #endif
+
+#ifdef WITH_RUM
+const char datadog_semver_rum_injector[] = "@RUM_SDK_INJECTOR_VERSION@";
+const char datadog_version_rum_injector[] =
+    "[inject-browser-sdk version @RUM_SDK_INJECTOR_VERSION@]";
+#endif
 }

@@ -12,6 +12,9 @@ extern "C" {
 
 #include <datadog/propagation_style.h>
 #include <datadog/trace_sampler_config.h>
+#ifdef WITH_RUM
+#include <injectbrowsersdk.h>
+#endif
 
 #include <string>
 #include <vector>
@@ -221,6 +224,11 @@ struct datadog_loc_conf_t {
 
 #ifdef WITH_WAF
   ngx_thread_pool_t *waf_pool{nullptr};
+#endif
+
+#ifdef WITH_RUM
+  ngx_flag_t rum_enable;
+  Snippet *rum_snippet;
 #endif
 };
 
