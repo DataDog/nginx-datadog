@@ -11,6 +11,10 @@
 #include "security/context.h"
 #endif
 
+#ifdef WITH_RUM
+#include "rum/injection.h"
+#endif
+
 extern "C" {
 #include <nginx.h>
 #include <ngx_config.h>
@@ -33,10 +37,12 @@ class DatadogContext {
 
 #ifdef WITH_WAF
   bool on_main_req_access(ngx_http_request_t* request);
-
-  ngx_int_t main_output_body_filter(ngx_http_request_t* request,
-                                    ngx_chain_t* chain);
 #endif
+
+  ngx_int_t on_header_filter(ngx_http_request_t* request);
+
+  ngx_int_t on_output_body_filter(ngx_http_request_t* request,
+                                  ngx_chain_t* chain);
 
   void on_log_request(ngx_http_request_t* request);
 
@@ -49,6 +55,10 @@ class DatadogContext {
   std::vector<RequestTracing> traces_;
 #ifdef WITH_WAF
   std::unique_ptr<security::Context> sec_ctx_;
+#endif
+
+#ifdef WITH_RUM
+  rum::InjectionHandler rum_ctx_;
 #endif
 
   RequestTracing* find_trace(ngx_http_request_t* request);

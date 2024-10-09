@@ -19,6 +19,9 @@ RUN /tmp/install_tools.sh
 
 COPY ngx_http_datadog_module.so* /datadog-tests
 
+COPY ./html/ /datadog-tests/html
+COPY ./rum_conf.json /datadog-tests/rum_conf.json
+
 # settings for the generation of the profile data for coverage
 ENV LLVM_PROFILE_FILE="/tmp/nginx.%p.profraw"
 

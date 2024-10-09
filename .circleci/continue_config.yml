@@ -19,12 +19,19 @@ jobs:
             ARCH: x86_64
             MAKE_JOB_COUNT: 8
             NGINX_VERSION: << parameters.nginx-version >>
+            RUM: << parameters.rum >>
             WAF: << parameters.waf >>
         machine:
             image: ubuntu-2204:current
         parameters:
             nginx-version:
                 type: string
+            rum:
+                default: "OFF"
+                enum:
+                    - "ON"
+                    - "OFF"
+                type: enum
             waf:
                 enum:
                     - "ON"
@@ -63,12 +70,19 @@ jobs:
             ARCH: aarch64
             MAKE_JOB_COUNT: 8
             NGINX_VERSION: << parameters.nginx-version >>
+            RUM: << parameters.rum >>
             WAF: << parameters.waf >>
         machine:
             image: ubuntu-2204:current
         parameters:
             nginx-version:
                 type: string
+            rum:
+                default: "OFF"
+                enum:
+                    - "ON"
+                    - "OFF"
+                type: enum
             waf:
                 enum:
                     - "ON"
@@ -139,6 +153,9 @@ jobs:
         steps:
             - checkout
             - run: git submodule sync && git submodule update --init --recursive
+            - run:
+                command: pip install -r requirements.txt
+                name: Install Python dependencies
             - run: echo -e "ARCH=amd64\nBASE_IMAGE=nginx:1.26.0\n" > nginx-version-info
             - run:
                 command: make coverage
@@ -160,7 +177,7 @@ jobs:
             - checkout
             - run:
                 command: |
-                    pip install yapf
+                    pip install -r requirements.txt
                     update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
                 name: Install Python dependencies
             - run: make lint
@@ -232,6 +249,7 @@ jobs:
     test:
         environment:
             DOCKER_BUILDKIT: 1
+            RUM: << parameters.rum >>
             WAF: << parameters.waf >>
         executor:
             image: cimg/python:3.10.13
@@ -244,10 +262,22 @@ jobs:
                 type: string
             nginx-version:
                 type: string
+            rum:
+                default: "OFF"
+                enum:
+                    - "ON"
+                    - "OFF"
+                type: enum
             waf:
-                type: string
+                enum:
+                    - "ON"
+                    - "OFF"
+                type: enum
         steps:
             - checkout
+            - run:
+                command: pip install -r requirements.txt
+                name: Install Python dependencies
             - attach_workspace:
                 at: /tmp/workspace
             - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
