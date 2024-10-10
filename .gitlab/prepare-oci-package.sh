@@ -20,4 +20,4 @@ case "$(uname -m)" in
     ;;
 esac
 
-python3 bin/prepare_oci_package.py --version-tag v1.3.1 --arch ${arch}
+python3 ../bin/prepare_oci_package.py --version-tag v1.3.1 --arch ${arch}
