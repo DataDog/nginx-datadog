@@ -17,6 +17,4 @@ case "$(uname -m)" in
     ;;
 esac
 
-rm -rf dd-library-php-ssi
-tar xvzf ../dd-library-php-ssi-${arch}-linux.tar.gz
-mv dd-library-php-ssi sources
+python --version
