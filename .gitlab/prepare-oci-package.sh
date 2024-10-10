@@ -18,11 +18,11 @@ case "$(uname -m)" in
 esac
 
 # Prepare
-mkdir -p /sources/1.26.0
+mkdir -p sources/1.26.0
 
 NGINX_VERSION="1.26.0"
 TARBALL="ngx_http_datadog_module-${arch}-${NGINX_VERSION}.so.tgz"
 
 curl -Lo ${TARBALL} "https://github.com/DataDog/nginx-datadog/releases/download/v1.3.1/${TARBALL}"
-tar -xzf "$TARBALL" -C /sources/1.26.0
+tar -xzf "$TARBALL" -C sources/1.26.0
 rm "$TARBALL"
