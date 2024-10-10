@@ -20,6 +20,6 @@ esac
 NGINX_VERSION="1.26.0"
 TARBALL="ngx_http_datadog_module-${arch}-${NGINX_VERSION}.so.tgz"
 
-curl -Lo ${TARBALL} "https://github.com/DataDog/nginx-datadog/releases/download/v1.3.1/${TARBALL}
+curl -Lo ${TARBALL} "https://github.com/DataDog/nginx-datadog/releases/download/v1.3.1/${TARBALL}"
 tar -xzf "$tarball"
 rm "$tarball"
