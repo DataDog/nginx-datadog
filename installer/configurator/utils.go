@@ -17,19 +17,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func getLowestSupportedModuleVersion() (string, error) {
+func getSupportedModuleVersions() (string, string, error) {
 	client := github.NewClient(nil)
 
 	release, _, err := client.Repositories.GetLatestRelease(context.Background(), "DataDog", "nginx-datadog")
 	if err != nil {
-		return "", NewInstallerError(NginxError, fmt.Errorf("error getting latest release for the NGINX module: %v", err))
+		return "", "", NewInstallerError(NginxError, fmt.Errorf("error getting latest release for the NGINX module: %v", err))
 	}
 
 	log.Debug("Got latest release for the NGINX module")
 
 	re := regexp.MustCompile(`ngx_http_datadog_module-(?:amd64|arm64)-(\d+\.\d+\.\d+)\.so\.tgz`)
 
-	lowestVersion := ""
+	lowestVersion, highestVersion := "", ""
 	for _, asset := range release.Assets {
 		matches := re.FindStringSubmatch(*asset.Name)
 		if len(matches) > 1 {
@@ -37,14 +37,17 @@ func getLowestSupportedModuleVersion() (string, error) {
 			if lowestVersion == "" || compareVersions(version, lowestVersion) < 0 {
 				lowestVersion = version
 			}
+			if highestVersion == "" || compareVersions(version, highestVersion) > 0 {
+				highestVersion = version
+			}
 		}
 	}
 
-	if lowestVersion == "" {
-		return "", NewInstallerError(NginxError, fmt.Errorf("no valid version found for the NGINX module in the release assets"))
+	if lowestVersion == "" || highestVersion == "" {
+		return "", "", NewInstallerError(NginxError, fmt.Errorf("no valid version found for the NGINX module in the release assets"))
 	}
 
-	return lowestVersion, nil
+	return lowestVersion, highestVersion, nil
 }
 
 func compareVersions(v1, v2 string) int {
@@ -117,4 +120,18 @@ func extractTarGzFile(srcPath, destPath string) error {
 	log.Debug("Extracted file '", srcPath, "' to destination '", destPath, "'")
 
 	return nil
+}
+
+func keyValuePairsAsTags(pairs map[string]string) string {
+	result := make([]string, 0, len(pairs))
+	for key, value := range pairs {
+		result = append(result, fmt.Sprintf("%s:%s", key, value))
+	}
+	return strings.Join(result, ", ")
+}
+
+func envBool(key string) bool {
+	value := os.Getenv(key)
+	value = strings.TrimSpace(strings.ToLower(value))
+	return value != "false" && value != "0"
 }
