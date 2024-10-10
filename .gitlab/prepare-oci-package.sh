@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Script executed by the 1-pipeline (internal tool) to prepare
 # OCI artifacts that will be used by the Datadog Installer.
+#
+# Limitations: One OCI per nginx-datadog module. The OCI will contains
+# all supported NGINX versions.
 set -euo pipefail
 
 arch=${ARCH:-$(uname -m)}
@@ -17,12 +20,4 @@ case "$(uname -m)" in
     ;;
 esac
 
-# Prepare
-mkdir -p sources/1.26.0
-
-NGINX_VERSION="1.26.0"
-TARBALL="ngx_http_datadog_module-${arch}-${NGINX_VERSION}.so.tgz"
-
-curl -Lo ${TARBALL} "https://github.com/DataDog/nginx-datadog/releases/download/v1.3.1/${TARBALL}"
-tar -xzf "$TARBALL" -C sources/1.26.0
-rm "$TARBALL"
+python3 bin/prepare_oci_package.py --version-tag v1.3.1 --arch ${arch}
