@@ -18,7 +18,6 @@ case "$(uname -m)" in
 esac
 
 NGINX_VERSION="1.26.0"
-RELEASE_TAG=$(get_latest_release DataDog/nginx-datadog)
 TARBALL="ngx_http_datadog_module-${arch}-${NGINX_VERSION}.so.tgz"
 
 curl -Lo ${TARBALL} "https://github.com/DataDog/nginx-datadog/releases/download/v1.3.1/${TARBALL}
