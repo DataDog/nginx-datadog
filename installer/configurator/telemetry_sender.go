@@ -21,12 +21,16 @@ const (
 	NA            = "unavailable"
 )
 
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
 type TelemetrySender struct {
 	AgentEndpoint    string
 	RuntimeID        string
 	Application      Application
 	Host             Host
-	client           *http.Client
+	client           HTTPClient
 	seqID            int
 	telemetryEnabled bool
 	metricsEnabled   bool

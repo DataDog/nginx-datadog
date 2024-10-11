@@ -67,9 +67,8 @@ func handleError(err error, sender *TelemetrySender, appId string, dryRun bool) 
 				log.Error("Error sending error count: ", err)
 			}
 
-			end := time.Now().UnixNano() / int64(time.Millisecond)
-			diff := end - start
-			if err := sender.SendInstallationTime("error", errorType.String(), diff); err != nil {
+			elapsed := time.Since(start)
+			if err := sender.SendInstallationTime("error", errorType.String(), elapsed.Milliseconds()); err != nil {
 				log.Error("Error sending error distribution: ", err)
 			}
 		}
@@ -78,10 +77,10 @@ func handleError(err error, sender *TelemetrySender, appId string, dryRun bool) 
 	os.Exit(1)
 }
 
-var start int64
+var start time.Time
 
 func main() {
-	start = time.Now().UnixNano() / int64(time.Millisecond)
+	start = time.Now()
 
 	appID := flag.String("appId", "", "Application ID")
 	site := flag.String("site", "", "Site")
@@ -146,14 +145,14 @@ func main() {
 	}
 
 	if !*dryRun {
+		elapsed := time.Since(start)
 		log.Debug("Sending installation telemetry")
+
 		if err := sender.SendInstallationCount("success", ""); err != nil {
 			log.Error("Error sending installation success count: ", err)
 		}
 
-		end := time.Now().UnixNano() / int64(time.Millisecond)
-		diff := end - start
-		if err := sender.SendInstallationTime("success", "", diff); err != nil {
+		if err := sender.SendInstallationTime("success", "", elapsed.Milliseconds()); err != nil {
 			log.Error("Error sending installation success distribution: ", err)
 		}
 	}
