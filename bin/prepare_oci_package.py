@@ -27,7 +27,6 @@ import tarfile
 import json
 import re
 import os
-import shutil
 import tempfile
 import typing
 
