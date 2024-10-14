@@ -24,6 +24,8 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 
 	log.Debug("Verifying NGINX requirements")
 
+	IntegrationName = "nginx"
+
 	cmd := exec.Command("nginx", "-v")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -41,16 +43,17 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 	n.Version = matches[1]
 
 	log.Info("Detected NGINX version: ", n.Version)
+	IntegrationVersion = n.Version
 
-	minSupportedVersion, err := getLowestSupportedModuleVersion()
+	minSupportedVersion, maxSupportedVersion, err := getSupportedModuleVersions()
 	if err != nil {
 		return NewInstallerError(NginxError, fmt.Errorf("could not retrieve the supported versions for nginx-datadog"))
 	}
 
-	log.Debug("Got lowest supported version for nginx-datadog from module release assets: ", minSupportedVersion)
+	log.Debug(fmt.Sprintf("Got lowest and highest supported versions for nginx-datadog from module release assets: [%s-%s]", minSupportedVersion, maxSupportedVersion))
 
-	if compareVersions(n.Version, minSupportedVersion) < 0 {
-		return NewInstallerError(NginxError, fmt.Errorf("nginx version %s is not supported, must be at least %s", n.Version, minSupportedVersion))
+	if compareVersions(n.Version, minSupportedVersion) < 0 || compareVersions(n.Version, maxSupportedVersion) > 0 {
+		return NewInstallerError(NginxError, fmt.Errorf("nginx version %s is not supported, must be in range [%s-%s]", n.Version, minSupportedVersion, maxSupportedVersion))
 	}
 
 	log.Info("The installed NGINX version is supported")
@@ -228,7 +231,7 @@ func (n *NginxConfigurator) validateConfig(configPath string) error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return NewInstallerError(NginxError, fmt.Errorf("NGINX configuration validation failed for config at '%s' with output:\n%s", configInfo, output))
+		return NewInstallerError(NginxError, fmt.Errorf("NGINX configuration validation failed for config at '%s' with output: %s. %v", configInfo, output, err))
 	}
 
 	log.Debug("Successfully validated nginx configuration at ", configInfo)
