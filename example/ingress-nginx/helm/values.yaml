@@ -1,4 +1,3 @@
-# TODO: Disable opentelemetry
 controller:
   config: 
     main-snippet: "load_module /modules_mount/ngx_http_datadog_module.so;"
@@ -14,3 +13,8 @@ controller:
         # Check <> for the list of all versions supported.
         tag: "v1.10.0"
         distroless: false
+  extraEnvs:
+    - name: DD_AGENT_HOST
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
