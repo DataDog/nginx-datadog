@@ -1,32 +1,34 @@
-# Ingress-nginx support
-Ingress-nginx is an [ingress controller for Kubernetes](https://kubernetes.io/docs/concepts/services-networking/ingress/) that
-uses NGINX as a reverse proxy and load balancer. By default, a Kubernetes cluster is isolated from the outside world for 
-security reasons. An ingress controller allows external connections to the cluster based on defined ingress rules.
+# Ingress-nginx support for Datadog
 
-Ingress-nginx is configured and managed through [Kubernetes resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/),
-offering limited flexibility to modify the underlying NGINX configuration beyond its intended use case. However, ingress-nginx offers the possibility 
+[Ingress-nginx](https://github.com/kubernetes/ingress-nginx) is one of the [Kubernetes ingress controller](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+that uses NGINX as a reverse proxy and load balancer. In a Kubernetes cluster, external access is restricted by default for security reasons.
+An ingress controller enables traffic from the outside world to reach your services, based on ingress rules.
 
-In the Kubernetes ecosystem, init containers are specialized containers that run before the main application containers in a Pod.
-This mechanism can be used to add functionalities to an app container. For our purposes, the init container needs to:
-Contain a compatible version of Datadog’s NGINX module for ingress-nginx.
-During its run:
-Copy the module to a shared volume.
-The user must manually add the init container to their Kubernetes deployment.
+The ingress-nginx controller is managed through [Kubernetes resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/),
+but customization of the underlying NGINX configuration is typically limited beyon its intended use case. However, ingress-nginx allows
+the addition of extra NGINX modules for extended functionality. To take advantage of this feature with Datadog, we provide **init containers**.
 
-Goal: Explain how it works and how to use.
+## How to enable `nginx-datadog` in ingress-nginx
+To integrate `nginx-datadog` with ingress-nginx, you need to add one of our [init container](https://hub.docker.com/r/datadog/ingress-nginx-injection) to your pod
+specification and configure NGINX to load the `nginx-datadog` module. Check [our details examples](./examples/ingress-nginx) to help you set up ingress-nginx with `nginx-datadog`.
 
-Needs:
-- Usage and usage examples
-- Explain the loading mechanism and how to setup configs
-- Relationship with OpenTelemetry (maybe offer drop-in support?)
+## How does it work?
+Init containers are special containers that run before the main container in a Kubernetes pod. In this case,
+the Datadog init container is responsible for copying the `nginx-datadog` module into a shared volume that will be
+accessible by the main ingress-nginx container.
 
-For contributors:
-- Why it needs to be patches?
-- How to build/test/package?
+When the main ingrees-nginx controller starts, the NGINX configuration must be updated with the `load_module` directive,
+allowing it to load the Datadog module seamlessly.
 
-Next steps:
-- Reach out ingress-nginx to simplify building extra modules
-(some kind of prepare step downloading nginx and apply patches)
+> [!WARNING]  
+> We provide a specific init container *for each ingress-nginx controller version* start with `v1.10.0`. 
+> This is crucial because **each** init container must match the underlying NGINX version. Be sure to choose
+> the version of the Datadog init container matching your ingress-nginx version to ensure compatibility.
 
+## Interaction with OpenTelemetry
+By default, ingress-nginx includes an OpenTelemetry (oTel) module, which can be enabled via the `enable-opentelemetry: true` setting
+in the [ingress-nginx ConfigMap](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#enable-opentelemetry).
+However, if you are using `nginx-datadog` for tracing, we recommend **disabling** OpenTelemetry to prevent duplicate tracing data from both
+the oTel and Datadog modules.
 
-
+To disable OpenTelemetry, set `enable-opentelemetry: false`.
