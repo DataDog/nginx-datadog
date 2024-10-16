@@ -32,6 +32,7 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 def get_underlying_nginx_version(controller_version: str) -> str:
     # Map an ingress-nginx version to an NGINX version
     mapping = {
+        "v1.11.3": "1.25.5",
         "v1.11.2": "1.25.5",
         "v1.11.1": "1.25.5",
         "v1.11.0": "1.25.5",
@@ -64,6 +65,21 @@ def clone_nginx(version: str, out_dir: str) -> str:
         shutil.move(nginx_src_dir, out_dir)
 
     return out_dir
+
+
+def get_patch_directory(version: str, ingress_rootdir: str) -> str:
+    mapping = {
+        "v1.11.3": f"{ingress_rootdir}/images/nginx/rootfs/patches",
+        "v1.11.2": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+        "v1.11.1": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+        "v1.11.0": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+        "v1.10.4": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+        "v1.10.3": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+        "v1.10.2": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+        "v1.10.1": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+        "v1.10.0": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+    }
+    return mapping.get(version, "")
 
 
 def patch_nginx(src_dir: str, patch_dir: str) -> None:
@@ -110,10 +126,10 @@ def prepare(args) -> int:
 
         nginx_src_dir = clone_nginx(nginx_version, args.output_dir)
 
-        # NOTE(@dmehala): Release after v1.11.2 renamed nginx-1.25 to nginx
-        # PR: <https://github.com/kubernetes/ingress-nginx/pull/12031>
-        patches_path = f"{ingress_nginx_path}/images/nginx-1.25/rootfs/patches"
-        if os.path.exists(patches_path):
+        patches_path = get_patch_directory(
+            args.ingress_nginx_version, ingress_nginx_path
+        )
+        if patches_path and os.path.exists(patches_path):
             patch_nginx(nginx_src_dir, patches_path)
 
     return 0
@@ -132,45 +148,40 @@ def build_init_container(args) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Script managing ingress-nginx")
+    parser = argparse.ArgumentParser(description="Script managing ingress-nginx")
     subparsers = parser.add_subparsers()
 
     # prepare subcommand
     prepare_parser = subparsers.add_parser(
         "prepare",
-        help=
-        "Prepare an NGINX source directory to be compatible with a specified ingress-nginx version",
+        help="Prepare an NGINX source directory to be compatible with a specified ingress-nginx version",
     )
     prepare_parser.set_defaults(func=prepare)
     prepare_parser.add_argument(
         "--ingress-nginx-version",
         metavar="INGRESS_NGINX_VERSION",
-        help=
-        "Specify the ingress-nginx version for compatibility (e.g., v1.10.3).",
+        help="Specify the ingress-nginx version for compatibility (e.g., v1.10.3).",
         required=True,
     )
     prepare_parser.add_argument(
         "--output-dir",
-        help=
-        f"Directory where the prepared NGINX source code will be saved. Defaults to the current working directory ({os.path.join(CWD, 'ingress-nginx')}).",
+        help=f"Directory where the prepared NGINX source code will be saved. Defaults to the current working directory ({os.path.join(CWD, 'ingress-nginx')}).",
         default=os.path.join(CWD, "ingress-nginx"),
     )
     prepare_parser.add_argument(
         "--dry-run",
         action="store_true",
-        help=
-        "Simulate the process without making any changes. Useful for testing what will happen.",
+        help="Simulate the process without making any changes. Useful for testing what will happen.",
     )
 
     # build-init-container subcommand
     build_init_container_parser = subparsers.add_parser(
-        "build-init-container", help="Build init-container for ingress-nginx")
+        "build-init-container", help="Build init-container for ingress-nginx"
+    )
     build_init_container_parser.set_defaults(func=build_init_container)
     build_init_container_parser.add_argument(
-        "--image_name",
-        help="Init-container docker tag name",
-        default="ingress-nginx")
+        "--image_name", help="Init-container docker tag name", default="ingress-nginx"
+    )
     build_init_container_parser.add_argument(
         "--module-path",
         help="Location of the module to package and publish",
