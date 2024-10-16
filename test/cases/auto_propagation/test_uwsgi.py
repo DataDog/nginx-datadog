@@ -1,9 +1,15 @@
 from .. import case
 
 import json
+import os
 from pathlib import Path
+from unittest import skipIf
 
 
+@skipIf(
+    os.getenv("NGINX_FLAVOR", "") == "ingress-nginx",
+    "UWSGI module is not bundled with ingress-nginx",
+)
 class TestUWSGI(case.TestCase):
 
     def test_auto_propagation(self):
