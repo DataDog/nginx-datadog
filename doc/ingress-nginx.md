@@ -21,7 +21,7 @@ When the main ingrees-nginx controller starts, the NGINX configuration must be u
 allowing it to load the Datadog module seamlessly.
 
 > [!WARNING]  
-> We provide a specific init container *for each ingress-nginx controller version* start with `v1.10.0`. 
+> We provide a specific init container **for each ingress-nginx controller version** start with `v1.10.0`. 
 > This is crucial because **each** init container must match the underlying NGINX version. Be sure to choose
 > the version of the Datadog init container matching your ingress-nginx version to ensure compatibility.
 
