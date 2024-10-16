@@ -10,6 +10,7 @@
             arch:
             - 'amd64'
             version:
+            - v1.11.3
             - v1.11.2
             - v1.11.1
             - v1.11.0
@@ -29,6 +30,7 @@
             base-image:
             - registry.k8s.io/ingress-nginx/controller
             nginx-version:
+            - v1.11.3
             - v1.11.2
             - v1.11.1
             - v1.11.0
