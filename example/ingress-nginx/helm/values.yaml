@@ -2,6 +2,8 @@
 controller:
   config: 
     main-snippet: "load_module /modules_mount/ngx_http_datadog_module.so;"
+  opentelemetry:
+    enabled: false
   extraModules:
     - name: nginx-datadog
       image:
