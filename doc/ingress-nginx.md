@@ -5,12 +5,34 @@ that uses NGINX as a reverse proxy and load balancer. In a Kubernetes cluster, e
 An ingress controller enables traffic from the outside world to reach your services, based on ingress rules.
 
 The ingress-nginx controller is managed through [Kubernetes resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/),
-but customization of the underlying NGINX configuration is typically limited beyon its intended use case. However, ingress-nginx allows
-the addition of extra NGINX modules for extended functionality. To take advantage of this feature with Datadog, we provide **init containers**.
+but customization of the underlying NGINX configuration is typically limited beyond its intended use case. However, ingress-nginx allows
+the addition of extra NGINX modules for extended functionality. To take advantage of this feature with `nginx-datadog`, we provide **init containers**.
 
-## How to enable `nginx-datadog` in ingress-nginx
+## How to enable `nginx-datadog` in ingress-nginx?
 To integrate `nginx-datadog` with ingress-nginx, you need to add one of our [init container](https://hub.docker.com/r/datadog/ingress-nginx-injection) to your pod
-specification and configure NGINX to load the `nginx-datadog` module. Check [our details examples](./examples/ingress-nginx) to help you set up ingress-nginx with `nginx-datadog`.
+specification and configure NGINX to load the `nginx-datadog` module.
+
+The following Helm values demonstrates how to inject `nginx-datadog` module into an ingress-nginx controller:
+
+```yaml
+controller:
+  config: 
+    main-snippet: "load_module /modules_mount/ngx_http_datadog_module.so;"
+  opentelemetry:
+    enabled: false
+  extraModules:
+    - name: nginx-datadog
+      image:
+        registry: docker.io
+        image: datadog/ingress-nginx-injection
+        # The tag should match the version of the ingress-nginx controller
+        # For example, this will inject the Datadog module for ingress v1.10.0
+        # Check <> for the list of all versions supported.
+        tag: "v1.10.0"
+        distroless: false
+```
+
+Check [our details examples](./examples/ingress-nginx) to help you set up ingress-nginx with `nginx-datadog`.
 
 ## How does it work?
 Init containers are special containers that run before the main container in a Kubernetes pod. In this case,
