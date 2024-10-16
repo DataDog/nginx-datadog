@@ -27,7 +27,8 @@ controller:
         image: datadog/ingress-nginx-injection
         # The tag should match the version of the ingress-nginx controller
         # For example, this will inject the Datadog module for ingress v1.10.0
-        # Check <> for the list of all versions supported.
+        # Check <https://hub.docker.com/repository/docker/datadog/ingress-nginx-injection/tags> 
+        # for the list of all versions supported.
         tag: "v1.10.0"
         distroless: false
 ```
