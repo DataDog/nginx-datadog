@@ -205,7 +205,7 @@ ngx_int_t InjectionHandler::output(
   return next_body_filter(r, out);
 }
 
-// NOTE(@dmehala): Ideally for v2 the buffer should be reuse to avoid
+// NOTE(@dmehala): Ideally for v2 the buffer should be reused to avoid
 // unnecessary allocation.
 ngx_chain_t *InjectionHandler::inject(ngx_pool_t *pool, ngx_chain_t *in,
                                       std::span<const BytesSlice> slices) {
@@ -249,6 +249,13 @@ ngx_chain_t *InjectionHandler::inject(ngx_pool_t *pool, ngx_chain_t *in,
 
   cl->buf = buf;
   cl->next = in->next;
+
+  // NOTE(@dmehala): When a buffer is marked as recycled, it MUST be consumed by
+  // the filter otherwise, it could not be reused. A consumed buffer has its
+  // `pos` move towards `last`.
+  if (in->buf->recycled) {
+    in->buf->pos = in->buf->last;
+  }
   return cl;
 }
 
