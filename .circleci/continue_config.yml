@@ -317,7 +317,7 @@ workflows:
                             - 1.22.1
                             - 1.24.0
                             - 1.25.4
-                            - 1.27.1
+                            - 1.27.2
                         waf:
                             - "ON"
                             - "OFF"
@@ -328,7 +328,7 @@ workflows:
                         nginx-version:
                             - 1.22.1
                             - 1.24.0
-                            - 1.27.1
+                            - 1.27.2
                         waf:
                             - "ON"
                             - "OFF"
@@ -342,10 +342,10 @@ workflows:
                             - amd64
                             - arm64
                         base-image:
-                            - nginx:1.27.1-alpine
-                            - nginx:1.27.1
+                            - nginx:1.27.2-alpine
+                            - nginx:1.27.2
                         nginx-version:
-                            - 1.27.1
+                            - 1.27.2
                         waf:
                             - "ON"
                             - "OFF"
