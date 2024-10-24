@@ -98,6 +98,7 @@ build-musl:
 		--env ARCH=$(ARCH) \
 		--env BUILD_TYPE=$(BUILD_TYPE) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
+		--env NGINX_SRC_DIR=$(NGINX_SRC_DIR) \
 		--env WAF=$(WAF) \
 		--env RUM=$(RUM) \
 		--env COVERAGE=$(COVERAGE) \
@@ -117,7 +118,6 @@ build-musl-aux:
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
-
 
 .PHONY: test
 test: build-musl
@@ -156,3 +156,28 @@ circleci-config:
 	circleci config pack .circleci/src > $(CIRCLE_CFG)
 	@echo "Validating circleci config"
 	circleci config validate $(CIRCLE_CFG)
+
+.PHONY: build-ingress-nginx
+build-ingress-nginx:
+	python3 bin/ingress_nginx.py prepare --ingress-nginx-version $(INGRESS_NGINX_VERSION) --output nginx-controller-$(INGRESS_NGINX_VERSION)
+	docker run --init --rm \
+		--platform $(DOCKER_PLATFORM) \
+		--env ARCH=$(ARCH) \
+		--env BUILD_TYPE=$(BUILD_TYPE) \
+		--env NGINX_SRC_DIR=/mnt/repo/nginx-controller-$(INGRESS_NGINX_VERSION) \
+		--env WAF=$(WAF) \
+		--env COVERAGE=$(COVERAGE) \
+		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		$(DOCKER_REPOS):latest \
+		make -C /mnt/repo build-musl-aux-ingress
+
+.PHONY: build-musl-aux-ingress
+build-musl-aux-ingress:
+	cmake -B .musl-build \
+		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
+		-DNGINX_PATCH_AWAY_LIBC=ON \
+		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+		-DNGINX_SRC_DIR="$(NGINX_SRC_DIR)" \
+		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" \
+		-DNGINX_COVERAGE=$(COVERAGE) . \
+		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
