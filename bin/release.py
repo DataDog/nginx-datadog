@@ -12,7 +12,7 @@ To release ingress-nginx docker init containers:
 ./release.py ingres-nginx --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID>
 
 To release the installer:
-./release.py ingres-nginx --ci-token <CI_TOKEN> --version-tag v0.3.3 --workflow-id <CI_RELEASE_WORKFLOW_ID>
+./release.py installer --ci-token <CI_TOKEN> --version-tag v0.3.3 --workflow-id <CI_RELEASE_WORKFLOW_ID>
 """
 
 import re
@@ -356,7 +356,7 @@ def release_module(args) -> int:
             # See the response schema for a list of statuses:
             # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
             if job["name"].startswith("build ") and not job["name"].startswith(
-                    "build installer "):
+                    "build installer ") and not job["name"].startsWith("build ingress-nginx"):
                 # name should be something like "build 1.25.4 on arm64 WAF ON"
                 match = re.match(
                     r"build ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
