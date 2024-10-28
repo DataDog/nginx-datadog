@@ -24,7 +24,7 @@ DatadogContext::DatadogContext(ngx_http_request_t *request,
     : sec_ctx_{security::Context::maybe_create()}
 #endif
 {
-  if (loc_conf->enable) {
+  if (loc_conf->enable_tracing) {
     traces_.emplace_back(request, core_loc_conf, loc_conf);
   }
 
@@ -48,7 +48,7 @@ DatadogContext::DatadogContext(ngx_http_request_t *request,
 void DatadogContext::on_change_block(ngx_http_request_t *request,
                                      ngx_http_core_loc_conf_t *core_loc_conf,
                                      datadog_loc_conf_t *loc_conf) {
-  if (loc_conf->enable) {
+  if (loc_conf->enable_tracing) {
     auto trace = find_trace(request);
     if (trace != nullptr) {
       trace->on_change_block(core_loc_conf, loc_conf);
@@ -158,7 +158,7 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
     throw std::runtime_error{"on_log_request failed: could not get loc conf"};
   }
 
-  if (!loc_conf->enable) {
+  if (!loc_conf->enable_tracing) {
     return;
   }
 
