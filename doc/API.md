@@ -304,7 +304,7 @@ The request span is the span created while processing a request.
 ### `datadog_location_operation_name`
 
 - **syntax** `datadog_location_operation_name <name>`
-- **default**: `nginx.$datadog_proxy_directive`, e.g. `nginx.proxy_pass`
+- **default**: `nginx.location`
 - **context**: `http`, `server`, `location`
 
 Set the location span's "operation name" to the result of evaluating the
@@ -508,16 +508,6 @@ has location name "@updates".
 
 If there is no location associated with the current request, then
 `$datadog_location` expands to a hyphen character ("-").
-
-### `datadog_proxy_directive`
-`$datadog_proxy_directive` expands to the name of the configuration directive
-used to proxy the current request, i.e. one of `proxy_pass`, `grpc_pass`,
-`fastcgi_pass`, or `uwsgi_pass`.
-
-If the request was not configured by one of those directives, then
-`$datadog_proxy_directive` expands to "`location`".
-
-This variable is used in the implementation of the Datadog nginx module.
 
 ### `datadog_json`
 `$datadog_json` expands to a JSON object of trace context.  Each of its

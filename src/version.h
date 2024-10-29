@@ -20,4 +20,9 @@ extern const char datadog_version_waf_rules[];
 extern const char datadog_semver_libddwaf[];
 extern const char datadog_version_libddwaf[];
 #endif
+
+#if defined(WITH_RUM)
+extern const char datadog_semver_rum_injector[];
+extern const char datadog_version_rum_injector[];
+#endif
 }

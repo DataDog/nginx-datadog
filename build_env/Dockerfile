@@ -69,3 +69,8 @@ RUN clang --sysroot /sysroot/${ARCH}-none-linux-musl/ -fpie -O2 -fno-omit-frame-
 
 # Install dependencies for nginx
 RUN apk add --no-cache pcre-dev pcre2-dev zlib-dev openssl-dev perl
+
+# Install Rust toolchain
+RUN apk add curl 
+RUN curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq \
+  && ln -s ~/.cargo/bin/cargo /usr/bin/cargo

@@ -75,32 +75,6 @@ static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-// Hijack proxy directive for tagging, then dispatch to the real handler
-// for the specified `command`.
-char *set_proxy_directive(ngx_conf_t *cf, ngx_command_t *command,
-                          void * /* conf */) noexcept try {
-  // First, call the handler of the actual command.
-  // Be sure to skip this module, so we don't call ourself.
-  const ngx_int_t rcode =
-      datadog_conf_handler({.conf = cf, .skip_this_module = true});
-  if (rcode != NGX_OK) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  // Set the name of the proxy directive associated with this location.
-  if (const auto loc_conf = static_cast<datadog_loc_conf_t *>(
-          ngx_http_conf_get_module_loc_conf(cf, ngx_http_datadog_module))) {
-    loc_conf->proxy_directive = command->name;
-  }
-
-  return NGX_OK;
-} catch (const std::exception &e) {
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                "Datadog-wrapped configuration directive %V failed: %s",
-                command->name, e.what());
-  return static_cast<char *>(NGX_CONF_ERROR);
-}
-
 char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
                                                  ngx_command_t *command,
                                                  void *conf) noexcept {

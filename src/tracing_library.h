@@ -77,10 +77,6 @@ struct TracingLibrary {
   // location chosen for the current request.
   static std::string_view location_variable_name();
 
-  // Return the name of the nginx variable that expands to the name of the
-  // configuration directive used to proxy requests through a location.
-  static std::string_view proxy_directive_variable_name();
-
   // Return the pattern of an nginx variable script that will be used for the
   // operation name of request spans that do not have an operation name defined
   // in the nginx configuration.  Note that the storage to which the returned

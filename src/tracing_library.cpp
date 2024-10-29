@@ -114,10 +114,6 @@ std::string_view TracingLibrary::location_variable_name() {
   return "datadog_location";
 }
 
-std::string_view TracingLibrary::proxy_directive_variable_name() {
-  return "datadog_proxy_directive";
-}
-
 namespace {
 
 class SpanContextJSONWriter : public dd::DictWriter {
@@ -188,7 +184,7 @@ std::string_view TracingLibrary::default_request_operation_name_pattern() {
 }
 
 std::string_view TracingLibrary::default_location_operation_name_pattern() {
-  return "nginx.$datadog_proxy_directive";
+  return "nginx.location";
 }
 
 std::unordered_map<std::string_view, std::string_view>
