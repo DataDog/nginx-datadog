@@ -323,14 +323,6 @@ jobs:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
     - run:
-        name: Set NGINX_ARCH based on job parameter
-        command: |
-          if [ "<< parameters.arch >>" == "amd64" ]; then
-            echo 'export NGINX_ARCH=x86_64' >> $BASH_ENV;
-          else
-            echo 'export NGINX_ARCH=aarch64' >> $BASH_ENV;
-          fi
-    - run:
         command: 'make build-ingress-nginx'
         environment:
           BUILD_TYPE: RelWithDebInfo

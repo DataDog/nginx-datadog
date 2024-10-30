@@ -127,7 +127,6 @@ jobs:
         steps:
             - checkout
             - run: git submodule sync && git submodule update --init --recursive
-                name: Set NGINX_ARCH based on job parameter
             - run:
                 command: make build-ingress-nginx
                 environment:
