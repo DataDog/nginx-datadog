@@ -1,15 +1,43 @@
-FROM ubuntu:jammy
+FROM ubuntu:22.04
 
-ARG RESTY_VERSION
-ARG RESTY_OPENSSL_VERSION
-ARG RESTY_OPENSSL_PATCH_VERSION
-ARG RESTY_OPENSSL_URL_BASE
-ARG RESTY_PCRE_VERSION
-ARG RESTY_PCRE_OPTIONS
-ARG RESTY_PCRE_BUILD_OPTIONS
-ARG RESTY_PCRE_SHA256
-ARG RESTY_J
-ARG RESTY_CONFIG_OPTIONS=
+ARG RESTY_VERSION="1.25.3.2"
+ARG RESTY_OPENSSL_VERSION="1.1.1w"
+ARG RESTY_OPENSSL_PATCH_VERSION="1.1.1f"
+ARG RESTY_OPENSSL_URL_BASE="https://www.openssl.org/source/old/1.1.1"
+ARG RESTY_PCRE_VERSION="8.45"
+ARG RESTY_PCRE_BUILD_OPTIONS="--enable-jit"
+ARG RESTY_PCRE_SHA256="4e6ce03e0336e8b4a3d6c2b70b1c5e18590a5673a98186da90d4f33c23defc09"
+ARG RESTY_J=8
+ARG RESTY_CONFIG_OPTIONS="\
+    --with-compat \
+    --with-file-aio \
+    --with-http_addition_module \
+    --with-http_auth_request_module \
+    --with-http_dav_module \
+    --with-http_flv_module \
+    --with-http_geoip_module=dynamic \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_image_filter_module=dynamic \
+    --with-http_mp4_module \
+    --with-http_random_index_module \
+    --with-http_realip_module \
+    --with-http_secure_link_module \
+    --with-http_slice_module \
+    --with-http_ssl_module \
+    --with-http_stub_status_module \
+    --with-http_sub_module \
+    --with-http_v2_module \
+    --with-http_xslt_module=dynamic \
+    --with-ipv6 \
+    --with-mail \
+    --with-mail_ssl_module \
+    --with-md5-asm \
+    --with-sha1-asm \
+    --with-stream \
+    --with-stream_ssl_module \
+    --with-threads \
+"
 ARG RESTY_CONFIG_OPTIONS_MORE=""
 ARG RESTY_LUAJIT_OPTIONS="--with-luajit-xcflags='-DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT'"
 
@@ -89,7 +117,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
         openresty-${RESTY_VERSION}.tar.gz
 
 COPY install-cmake /tmp
-RUN ["chmod", "+x", "/tmp/install-cmake"]
+RUN ["chmod", "+x", "./tmp/install-cmake"]
 RUN ["./tmp/install-cmake"]
 
 WORKDIR /tmp/nginx-datadog
