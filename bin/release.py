@@ -356,7 +356,8 @@ def release_module(args) -> int:
             # See the response schema for a list of statuses:
             # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
             if job["name"].startswith("build ") and not job["name"].startswith(
-                    "build installer ") and not job["name"].startsWith("build ingress-nginx"):
+                    "build installer ") and not job["name"].startsWith(
+                        "build ingress-nginx"):
                 # name should be something like "build 1.25.4 on arm64 WAF ON"
                 match = re.match(
                     r"build ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",

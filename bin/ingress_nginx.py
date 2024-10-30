@@ -84,7 +84,7 @@ def get_patch_directory(version: str, ingress_rootdir: str) -> str:
 
 def patch_nginx(src_dir: str, patch_dir: str) -> None:
     if DRY_RUN:
-       return
+        return
     for patch_file in os.listdir(patch_dir):
         patch_file_abspath = os.path.join(patch_dir, patch_file)
         if patch_file.endswith(".txt"):
