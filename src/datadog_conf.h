@@ -183,7 +183,7 @@ struct datadog_sample_rate_condition_t {
 };
 
 struct datadog_loc_conf_t {
-  ngx_flag_t enable = NGX_CONF_UNSET;
+  ngx_flag_t enable_tracing = NGX_CONF_UNSET;
   ngx_flag_t enable_locations = NGX_CONF_UNSET;
   NgxScript operation_name_script;
   NgxScript loc_operation_name_script;

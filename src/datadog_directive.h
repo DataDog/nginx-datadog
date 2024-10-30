@@ -39,12 +39,6 @@ char *set_datadog_location_resource_name(ngx_conf_t *cf, ngx_command_t *command,
 char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command,
                          void *conf) noexcept;
 
-char *datadog_enable(ngx_conf_t *cf, ngx_command_t *command,
-                     void *conf) noexcept;
-
-char *datadog_disable(ngx_conf_t *cf, ngx_command_t *command,
-                      void *conf) noexcept;
-
 char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command,
                                 void *conf) noexcept;
 
@@ -65,8 +59,12 @@ char *set_datadog_agent_url(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept;
 
-char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t * /*command*/,
-                              void * /*conf*/) noexcept;
+char *warn_deprecated_command_1_2_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
+                                    void * /*conf*/) noexcept;
+
+char *warn_deprecated_command_datadog_tracing(ngx_conf_t *cf,
+                                              ngx_command_t * /*command*/,
+                                              void * /*conf*/) noexcept;
 
 #ifdef WITH_WAF
 char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
