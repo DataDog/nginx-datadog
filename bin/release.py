@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Build, test, and publish a GitHub release of this library.
+"""
+This script automates the release process for the nginx-dataadog module, 
+ingress-nginx init container and the installer.
+
+Usage:
+======
+To release nginx-datadog modules:
+./release.py nginx-module --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID>
+
+To release ingress-nginx docker init containers:
+./release.py ingres-nginx --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID>
+
+To release the installer:
+./release.py installer --ci-token <CI_TOKEN> --version-tag v0.3.3 --workflow-id <CI_RELEASE_WORKFLOW_ID>
 """
 
 import re
@@ -15,6 +28,8 @@ import sys
 import tempfile
 import urllib.request
 import tarfile
+
+from ingress_nginx import build_init_container
 
 
 class VerboseDict(dict):
@@ -118,6 +133,18 @@ def send_ci_request_paged(path, payload=None, method=None):
     return items
 
 
+def get_workflow_jobs(workflow_id: str):
+    jobs = send_ci_request_paged(f"/workflow/{workflow_id}/job")
+
+    # Make sure all jobs run successfully
+    for job in jobs:
+        if job["status"] != "success":
+            print("Found unsuccessful jobs")
+            return None
+
+    return jobs
+
+
 def download_file(url, destination):
     response = urllib.request.urlopen(url)
     with open(destination, "wb") as output:
@@ -144,7 +171,7 @@ def sign_package(package_path: str) -> None:
 
 def prepare_installer_release_artifact(work_dir, build_job_number, arch):
     artifacts = send_ci_request_paged(
-        f"/project/{PROJECT_SLUG}/{build_job_number}/artifacts")
+        f"/project/gh/DataDog/nginx-datadog/{build_job_number}/artifacts")
     module_url = None
     for artifact in artifacts:
         name = artifact["path"]
@@ -160,7 +187,7 @@ def prepare_installer_release_artifact(work_dir, build_job_number, arch):
     download_file(module_url, module_path)
 
     # Package and sign
-    tarball_path = (work_dir / f"nginx-configurator-{arch}.tgz")
+    tarball_path = work_dir / f"nginx-configurator-{arch}.tgz"
     package(module_path, out=tarball_path)
     sign_package(tarball_path)
 
@@ -168,7 +195,7 @@ def prepare_installer_release_artifact(work_dir, build_job_number, arch):
 def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
     waf_suffix = "-appsec" if waf else ""
     artifacts = send_ci_request_paged(
-        f"/project/{PROJECT_SLUG}/{build_job_number}/artifacts")
+        f"/project/gh/DataDog/nginx-datadog/{build_job_number}/artifacts")
     module_url = None
     module_url_dbg = None
     for artifact in artifacts:
@@ -208,83 +235,30 @@ def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
     sign_package(debug_tarball_path)
 
 
-def handle_job(job, work_dir, installer):
+def release_installer(args) -> int:
+    """
+    This subcommand function downloads installer artifacts from the release workflow
+    and publishes them to a GitHub release.
 
-    # See the response schema for a list of statuses:
-    # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
-    if installer and job["name"].startswith("build installer "):
-        # name should be something like "build installer on arm64"
-        match = re.match(r"build installer on (amd64|arm64)", job["name"])
-        if match is None:
-            raise Exception(f'Job name does not match regex "{re}": {job}')
-        arch = match.groups()[0]
-        prepare_installer_release_artifact(work_dir, job["job_number"], arch)
-    if not installer and job["name"].startswith(
-            "build ") and not job["name"].startswith("build installer "):
-        # name should be something like "build 1.25.4 on arm64 WAF ON"
-        match = re.match(r"build ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
-                         job["name"])
-        if match is None:
-            raise Exception(f'Job name does not match regex "{re}": {job}')
-        version, arch, waf = match.groups()
-        prepare_release_artifact(work_dir, job["job_number"], version, arch,
-                                 waf == "ON")
-    return "done"
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Build and publish a release of nginx-datadog.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument("--version-tag", )
-    parser.add_argument("--ci-token", help="Circle CI Token", required=True)
-    parser.add_argument(
-        "workflow_id",
-        type=str,
-        help=
-        "ID of the release workflow. Find in job url. Example: https://app.circleci.com/pipelines/github/DataDog/nginx-datadog/542/workflows/<WORKFLOW_ID>",
-    )
-    parser.add_argument("--installer",
-                        help="Release the NGINX installer",
-                        action=argparse.BooleanOptionalAction)
-    options = parser.parse_args()
-
-    ci_api_token = options.ci_token
-    try:
-        gh_exe = get_gh()
-        gpg_exe = get_gpg()
-        git_exe = get_git()
-    except (MissingDependency, ValueError) as error:
-        print(str(error), file=sys.stderr)
-        sys.exit(1)
-
-    print({
-        "token": ci_api_token,
-        "gh": gh_exe,
-        "gpg": gpg_exe,
-        "git": git_exe,
-    })
-
-    workflow_id = options.workflow_id
-    PROJECT_SLUG = "gh/DataDog/nginx-datadog"
+    Requirements:
+        - You must be logged into the GitHub CLI (gh) to authenticate and publish the release.
+    """
+    jobs = get_workflow_jobs(args.workflow_id)
+    if not jobs:
+        return 1
 
     with tempfile.TemporaryDirectory() as work_dir:
-        print("Working directory is", work_dir)
-
-        done_jobs = set()  # job numbers (not IDs)
-        jobs = send_ci_request_paged(f"/workflow/{workflow_id}/job")
-
-        # Make sure all jobs run successfully
         for job in jobs:
-            if job["status"] != "success":
-                print("Found unsuccessful jobs")
-                sys.exit(1)
-
-        for job in jobs:
-            result = handle_job(job, Path(work_dir), options.installer)
-            if result != "done":
-                sys.exit(1)
+            if job["name"].startswith("build installer "):
+                # name should be something like "build installer on arm64"
+                match = re.match(r"build installer on (amd64|arm64)",
+                                 job["name"])
+                if match is None:
+                    raise Exception(
+                        f'Job name does not match regex "{re}": {job}')
+                arch = match.groups()[0]
+                prepare_installer_release_artifact(work_dir, job["job_number"],
+                                                   arch)
 
         pubkey_file = os.path.join(work_dir, "pubkey.gpg")
         run([gpg_exe, "--output", pubkey_file, "--armor", "--export"],
@@ -312,4 +286,176 @@ if __name__ == "__main__":
             *release_files,
         ]
         run(command, check=True)
-    sys.exit(0)
+
+    return 0
+
+
+def release_ingress_nginx(args) -> int:
+    """
+    This subcommand function retrieves the modules from the CI workflow, builds the ingress-nginx init container,
+    and publishes it to a Docker registry.
+
+    Requirements:
+        - You must be logged into the Docker registry to push the built container image.
+    """
+    jobs = get_workflow_jobs(args.workflow_id)
+    if not jobs:
+        return 1
+
+    for job in jobs:
+        if job["name"].startswith("build ingress-nginx"):
+            match = re.match(r"build ingress-nginx-(v[\d.]+) on (amd64|arm64)",
+                             job["name"])
+            if match is None:
+                raise Exception(f'Job name does not match regex "{re}": {job}')
+            version, arch = match.groups()
+
+            artifacts = send_ci_request_paged(
+                f"/project/gh/DataDog/nginx-datadog/{job['job_number']}/artifacts"
+            )
+            module_url = None
+            for artifact in artifacts:
+                name = artifact["path"]
+                if name == "ngx_http_datadog_module.so":
+                    module_url = artifact["url"]
+
+            if module_url is None:
+                raise Exception(
+                    f"Job number {job['job_number']} doesn't have an 'ngx_http_datadog_module.so' build artifact."
+                )
+
+            with tempfile.TemporaryDirectory() as work_dir:
+                module_path = Path(work_dir) / "ngx_http_datadog_module.so"
+                download_file(module_url, module_path)
+
+                args.push = True
+                args.platform = f"linux/{arch}"
+                args.image_name = f"{args.registry}:{version}"
+                args.module_path = work_dir
+                build_init_container(args)
+
+    return 0
+
+
+def release_module(args) -> int:
+    """
+    This subcommand function downloads NGINX module artifacts from the release workflow
+    and publishes them to a GitHub release.
+
+    Requirements:
+        - You must be logged into the GitHub CLI (gh) to authenticate and interact with the GitHub API.
+    """
+    jobs = get_workflow_jobs(args.workflow_id)
+    if not jobs:
+        return 1
+
+    with tempfile.TemporaryDirectory() as work_dir:
+        print("Working directory is", work_dir)
+
+        for job in jobs:
+            # See the response schema for a list of statuses:
+            # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
+            if job["name"].startswith("build ") and not job["name"].startswith(
+                    "build installer ") and not job["name"].startsWith(
+                        "build ingress-nginx"):
+                # name should be something like "build 1.25.4 on arm64 WAF ON"
+                match = re.match(
+                    r"build ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
+                    job["name"])
+                if match is None:
+                    raise Exception(
+                        f'Job name does not match regex "{re}": {job}')
+                version, arch, waf = match.groups()
+                prepare_release_artifact(work_dir, job["job_number"], version,
+                                         arch, waf == "ON")
+
+        pubkey_file = os.path.join(work_dir, "pubkey.gpg")
+        run([gpg_exe, "--output", pubkey_file, "--armor", "--export"],
+            check=True)
+
+        # We've tgz'd and signed all of our release modules.
+        # Now let's send them to GitHub in a release via `gh release create`.
+        release_files = itertools.chain(
+            Path(work_dir).glob("*.tgz"),
+            Path(work_dir).glob("*.tgz.asc"),
+            (pubkey_file, ),
+        )
+
+        command = [
+            gh_exe,
+            "release",
+            "create",
+            "--prerelease",
+            "--draft",
+            "--title",
+            options.version_tag,
+            "--notes",
+            "TODO",
+            options.version_tag,
+            *release_files,
+        ]
+        run(command, check=True)
+
+    return 0
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Build and publish a release of nginx-datadog.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--version-tag", )
+    parser.add_argument("--ci-token", help="Circle CI Token", required=True)
+    parser.add_argument(
+        "workflow_id",
+        type=str,
+        help=
+        "ID of the release workflow. Find in job url. Example: https://app.circleci.com/pipelines/github/DataDog/nginx-datadog/542/workflows/<WORKFLOW_ID>",
+    )
+
+    subparsers = parser.add_subparsers()
+    subparsers.required = True
+
+    # nginx-module
+    nginx_module_parser = subparsers.add_parser(
+        "nginx-module", help="Release the NGINX module")
+    nginx_module_parser.set_defaults(func=release_module)
+
+    # installer subcommand
+    installer_parser = subparsers.add_parser(
+        "installer", help="Release the NGINX installer")
+    installer_parser.set_defaults(func=release_installer)
+    installer_parser.add_argument(
+        "--installer",
+        help="Release the NGINX installer",
+        action=argparse.BooleanOptionalAction,
+    )
+
+    # ingress-nginx subcommand
+    ingress_nginx_parser = subparsers.add_parser(
+        "ingress-nginx", help="Release ingress-nginx init containers")
+    ingress_nginx_parser.set_defaults(func=release_ingress_nginx)
+    ingress_nginx_parser.add_argument(
+        "--registry",
+        help="Docker registry where images will be pushed",
+        default="datadog/ingress-nginx-injection",
+    )
+    options = parser.parse_args()
+
+    ci_api_token = options.ci_token
+    try:
+        gh_exe = get_gh()
+        gpg_exe = get_gpg()
+        git_exe = get_git()
+    except (MissingDependency, ValueError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)
+
+    print({
+        "token": ci_api_token,
+        "gh": gh_exe,
+        "gpg": gpg_exe,
+        "git": git_exe,
+    })
+
+    sys.exit(options.func(options))

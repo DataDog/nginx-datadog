@@ -164,6 +164,37 @@ jobs:
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
+  test_ingress:
+    parameters:
+      base-image:
+        type: string
+        default: ''
+      nginx-version:
+        type: string
+      arch:
+        type: string
+    executor:
+      name: docker-<< parameters.arch >>
+      image: cimg/python:3.10.13
+    environment:
+      # https://github.com/containers/podman/issues/13889
+      DOCKER_BUILDKIT: 1
+      NGINX_FLAVOR: "ingress-nginx"
+    steps:
+    - checkout
+    - run:
+        name: Install Python dependencies
+        command: pip install -r requirements.txt
+    - attach_workspace:
+        at: "/tmp/workspace"
+    - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
+    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >>:<< parameters.nginx-version >> > nginx-version-info
+    - setup_remote_docker:
+        docker_layer_caching: true
+    - run: test/bin/run --verbose --failfast
+    - store_artifacts:
+        path: test/logs/test.log
+        destination: test.log
   system_tests:
     machine:
       # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
@@ -278,3 +309,36 @@ jobs:
         environment:
           DD_API_KEY: fakekey
           NGINX_DOCKERFILE: bookworm.Dockerfile
+  build_ingress_nginx_module:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: xlarge
+    environment:
+      MAKE_JOB_COUNT: 8
+    parameters:
+      version:
+        type: string
+      arch:
+        type: enum
+        enum:
+        - 'amd64'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        command: 'make build-ingress-nginx'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          INGRESS_NGINX_VERSION: "<< parameters.version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".musl-build/ngx_http_datadog_module.so"
+          - ".musl-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".musl-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+

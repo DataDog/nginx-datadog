@@ -1,0 +1,34 @@
+# Emulate what the Cluster Agent does as closely as possible.
+# The Cluster Agent creates an InitContainer with the init image and runs the copy-lib.sh script.
+# It then patches the pods to include the PYTHONPATH environment variable and the volume mount.
+services:
+  lib_inject:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # A host mount is used rather than named volumes as they run into permission issues when copying files.
+      # The injection image is run with a non-root user which does not have permission to write to the named volume.
+      - ${TEMP_DIR:-/tmp/ddtrace_test}:/datadog-lib
+
+  # testagent is used to collect data from the library to validate.
+  testagent:
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
+    ports:
+      - "8126:8126"
+
+  # app is parametrized to generically run images with the library injected and submit data to the test agent.
+  app:
+    depends_on:
+      - lib_inject
+      - testagent
+    image: nginx:1.25.3
+    environment:
+      - DD_TRACE_AGENT_URL=http://testagent:8126
+      - DD_AGENT_HOST=testagent
+    volumes:
+      - ${TEMP_DIR:-/tmp/ddtrace_test}:/datadog-lib
+      # - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - 8080:80
+    command: [nginx-debug, '-g', 'load_module /datadog-lib/ngx_http_datadog_module.so;', '-g', 'daemon off;']
