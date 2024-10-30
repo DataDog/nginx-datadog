@@ -337,6 +337,9 @@ jobs:
                 type: string
         steps:
             - checkout
+            - run:
+                command: pip install -r requirements.txt
+                name: Install Python dependencies
             - attach_workspace:
                 at: /tmp/workspace
             - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
