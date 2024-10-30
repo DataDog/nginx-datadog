@@ -488,6 +488,7 @@ workflows:
                             - v1.10.2
                             - v1.10.1
                             - v1.10.0
+                            - v1.9.6
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - test_ingress:
                 matrix:
@@ -506,6 +507,7 @@ workflows:
                             - v1.10.2
                             - v1.10.1
                             - v1.10.0
+                            - v1.9.6
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>

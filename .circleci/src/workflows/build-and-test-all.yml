@@ -19,6 +19,7 @@
             - v1.10.2
             - v1.10.1
             - v1.10.0
+            - v1.9.6
     - test_ingress:
         name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
         requires:
@@ -39,6 +40,7 @@
             - v1.10.2
             - v1.10.1
             - v1.10.0
+            - v1.9.6
     # output of bin/generate_jobs_yaml.rb
     - build_amd64:
         matrix:
