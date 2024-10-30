@@ -32,7 +32,7 @@ signal.signal(signal.SIGQUIT, quit_signal_handler)
 # Since we override the environment variables of child processes,
 # `subprocess.Popen` (and its derivatives) need to know exactly where the
 # "docker" executable is, since it won't find it in the passed-in env's PATH.
-docker_command_path = shutil.which('docker')
+docker_command_path = shutil.which("docker")
 
 # If we want to always pass some flags to `docker compose` or to `docker`, put
 # them here.  For example, "--tls".  However, TLS behavior can be specified in
@@ -47,8 +47,12 @@ nginx_conf_path = "/datadog-tests/nginx.conf"
 
 def docker_compose_command(*args):
     return [
-        docker_command_path, 'compose', '--ansi', 'never',
-        *docker_compose_flags, *args
+        docker_command_path,
+        "compose",
+        "--ansi",
+        "never",
+        *docker_compose_flags,
+        *args,
     ]
 
 
@@ -71,27 +75,27 @@ def child_env(parent_env=None):
         parent_env = os.environ
 
     result = {}
-    for name in ('BASE_IMAGE', 'NGINX_CONF_PATH', 'NGINX_MODULES_PATH'):
+    for name in ("BASE_IMAGE", "NGINX_CONF_PATH", "NGINX_MODULES_PATH"):
         if name in parent_env:
             result[name] = parent_env[name]
 
     # Forward DOCKER_HOST, DOCKER_TLS_VERIFY, etc.
     for name, value in parent_env.items():
-        if name.startswith('DOCKER_'):
+        if name.startswith("DOCKER_"):
             result[name] = value
 
     # Forward COMPOSE_PROJECT_NAME (with default), COMPOSE_VERSION, etc.
-    result['COMPOSE_PROJECT_NAME'] = parent_env.get('COMPOSE_PROJECT_NAME',
-                                                    'test')
+    result["COMPOSE_PROJECT_NAME"] = parent_env.get("COMPOSE_PROJECT_NAME",
+                                                    "test")
     for name, value in parent_env.items():
-        if name.startswith('COMPOSE_'):
+        if name.startswith("COMPOSE_"):
             result[name] = value
 
-    result['PATH'] = docker_bin
+    result["PATH"] = docker_bin
 
     # `docker compose` uses $HOME to examine `~/.cache`, though I have no idea
     # why.
-    result['HOME'] = parent_env['HOME']
+    result["HOME"] = parent_env["HOME"]
 
     return result
 
@@ -111,15 +115,15 @@ def to_service_name(container_name):
     # container name are separated by underscore ("_"), while when I run
     # docker compose in CircleCI, hyphen ("-") is used.  Go with whichever is
     # being used.
-    if '_' in container_name and '-' in container_name:
+    if "_" in container_name and "-" in container_name:
         raise Exception(
             f"Container name {json.dumps(container_name)} contains both underscores and hyphens.  I can't tell which is being used as a delimiter."
         )
 
-    if '_' in container_name:
-        delimiter = '_'
-    elif '-' in container_name:
-        delimiter = '-'
+    if "_" in container_name:
+        delimiter = "_"
+    elif "-" in container_name:
+        delimiter = "-"
     else:
         raise Exception(
             f"Container name {json.dumps(container_name)} contains neither underscores nor hyphens.  I don't know which delimiter to use."
@@ -129,11 +133,11 @@ def to_service_name(container_name):
 
 
 def docker_compose_ps(service):
-    command = docker_compose_command('ps', '--quiet', service)
+    command = docker_compose_command("ps", "--quiet", service)
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             env=child_env(),
-                            encoding='utf8',
+                            encoding="utf8",
                             check=True)
     return result.stdout.strip()
 
@@ -142,14 +146,14 @@ def docker_top(container, verbose_output):
     # `docker top` is picky about the output format of `ps`.  It allows us to
     # pass arbitrary options to `ps`, but, for example, if `pid` is not first,
     # it breaks `docker top`.
-    fields = ('pid', 'cmd')
+    fields = ("pid", "cmd")
 
-    command = docker_command('top', container, '-o', ','.join(fields))
-    with print_duration('Consuming docker compose top PIDs', verbose_output):
+    command = docker_command("top", container, "-o", ",".join(fields))
+    with print_duration("Consuming docker compose top PIDs", verbose_output):
         with subprocess.Popen(command,
                               stdout=subprocess.PIPE,
                               env=child_env(),
-                              encoding='utf8') as child:
+                              encoding="utf8") as child:
             # Discard the first line, which is the field names.
             # We could suppress it using ps's `--no-headers` option, but that
             # breaks something inside of `docker top`.
@@ -158,7 +162,7 @@ def docker_top(container, verbose_output):
             # so this is particular to `fields`).
             for line in child.stdout:
                 split = line.split()
-                pid_str, cmd = split[0], ' '.join(split[1:])
+                pid_str, cmd = split[0], " ".join(split[1:])
                 yield (int(pid_str), cmd)
 
 
@@ -166,7 +170,7 @@ def nginx_worker_pids(nginx_container, verbose_output):
     # cmd could be "nginx: worker process" or "nginx: worker process shutting down".
     # We want to match both.
     return set(pid for pid, cmd in docker_top(nginx_container, verbose_output)
-               if re.match(r'\s*nginx: worker process', cmd))
+               if re.match(r"\s*nginx: worker process", cmd))
 
 
 def docker_compose_ps_with_retries(max_attempts, service):
@@ -174,9 +178,9 @@ def docker_compose_ps_with_retries(max_attempts, service):
     while True:
         try:
             result = docker_compose_ps(service)
-            if result == '':
+            if result == "":
                 raise Exception(
-                    f'docker_compose_ps({json.dumps(service)}) returned an empty string'
+                    f"docker_compose_ps({json.dumps(service)}) returned an empty string"
                 )
             return result
         except Exception:
@@ -187,14 +191,14 @@ def docker_compose_ps_with_retries(max_attempts, service):
 
 def ready_services():
     """Return the set of names of services that are "ready"."""
-    command = docker_compose_command('ps', '--services', '--filter',
-                                     'status=running')
+    command = docker_compose_command("ps", "--services", "--filter",
+                                     "status=running")
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             env=child_env(),
-                            encoding='utf8',
+                            encoding="utf8",
                             check=True)
-    return set(result.stdout.strip().split('\n'))
+    return set(result.stdout.strip().split("\n"))
 
 
 # When a function runs on its own thread, like `docker_compose_up`, exceptions
@@ -216,8 +220,8 @@ def exit_on_exception(func):
 
 
 def remove_terminal_escapes(input_string):
-    pattern = r'\x1b\[[0-9;]*[a-zA-Z]'
-    cleaned_string = re.sub(pattern, '', input_string)
+    pattern = r"\x1b\[[0-9;]*[a-zA-Z]"
+    cleaned_string = re.sub(pattern, "", input_string)
     return cleaned_string
 
 
@@ -225,44 +229,51 @@ def remove_terminal_escapes(input_string):
 def docker_compose_up(on_ready, logs, verbose_file):
     """This function is meant to be executed on its own thread."""
     containers = {}  # {service: container_id}
-    command = docker_compose_command('up', '--remove-orphans',
-                                     '--force-recreate', '--no-color')
+    command = docker_compose_command("up", "--remove-orphans",
+                                     "--force-recreate", "--no-color")
     before = time.monotonic()
-    with subprocess.Popen(command,
-                          stdin=subprocess.DEVNULL,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT,
-                          env=child_env(),
-                          encoding='utf8') as child:
+    with subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=child_env(),
+            encoding="utf8",
+    ) as child:
         for line in child.stdout:
             line = remove_terminal_escapes(line)
             kind, fields = formats.parse_docker_compose_up_line(line)
-            print(json.dumps([time.monotonic(), kind, fields]),
-                  file=verbose_file,
-                  flush=True)
+            print(
+                json.dumps([time.monotonic(), kind, fields]),
+                file=verbose_file,
+                flush=True,
+            )
 
-            if kind == 'attach_to_logs':
+            if kind == "attach_to_logs":
                 # Done starting containers.  Time to deliver the container IDs
                 # to our caller.
                 after = time.monotonic()
                 print(
-                    f'It took {after - before} seconds to create all service containers.',
+                    f"It took {after - before} seconds to create all service containers.",
                     file=verbose_file,
-                    flush=True)
-                with print_duration('Waiting for services to be ready',
+                    flush=True,
+                )
+                with print_duration("Waiting for services to be ready",
                                     verbose_file):
                     while len(ready_services()) != len(containers):
                         poll_seconds = 0.1
-                        print('Not all services are ready.  Going to wait',
-                              poll_seconds,
-                              'seconds',
-                              file=verbose_file,
-                              flush=True)
+                        print(
+                            "Not all services are ready.  Going to wait",
+                            poll_seconds,
+                            "seconds",
+                            file=verbose_file,
+                            flush=True,
+                        )
                         time.sleep(poll_seconds)
-                on_ready({'containers': containers})
-            elif kind == 'finish_create_container':
+                on_ready({"containers": containers})
+            elif kind == "finish_create_container":
                 # Started a container.  Add its container ID to `containers`.
-                container_name = fields['container']
+                container_name = fields["container"]
                 service = to_service_name(container_name)
                 # Consult `docker compose ps` for the service's container ID.
                 # Since we're handling a finish_create_container event, you'd
@@ -279,11 +290,11 @@ def docker_compose_up(on_ready, logs, verbose_file):
                 # output.
                 containers[service] = docker_compose_ps_with_retries(
                     max_attempts=100, service=service)
-            elif kind == 'service_log':
+            elif kind == "service_log":
                 # Got a line of logging from some service.  Push it onto the
                 # appropriate queue for consumption by tests.
-                service = fields['service']
-                payload = fields['payload']
+                service = fields["service"]
+                payload = fields["payload"]
                 logs[service].put(payload)
 
 
@@ -292,32 +303,32 @@ def print_duration(of_what, output):
     before = time.monotonic()
     yield
     after = time.monotonic()
-    print(f'{of_what} took {after - before:.5} seconds.',
+    print(f"{of_what} took {after - before:.5} seconds.",
           file=output,
           flush=True)
 
 
 def docker_compose_services():
-    command = docker_compose_command('config', '--services')
+    command = docker_compose_command("config", "--services")
     result = subprocess.run(command,
                             stdout=subprocess.PIPE,
                             env=child_env(),
-                            encoding='utf8',
+                            encoding="utf8",
                             check=True)
     return result.stdout.split()
 
 
-def curl(url, headers, stderr=None, method='GET', body=None):
+def curl(url, headers, stderr=None, method="GET", body=None):
 
     def header_args():
         if isinstance(headers, dict):
             for name, value in headers.items():
-                yield '--header'
-                yield f'{name}: {value}'
+                yield "--header"
+                yield f"{name}: {value}"
         else:
             for name, value in headers:
-                yield '--header'
-                yield f'{name}: {value}'
+                yield "--header"
+                yield f"{name}: {value}"
 
     # "curljson.sh" is a script that lives in the "client" docker compose
     # service.  It's a wrapper around "curl" that outputs a JSON object of
@@ -330,23 +341,33 @@ def curl(url, headers, stderr=None, method='GET', body=None):
         body_args = []
     else:
         # read data from stdin
-        body_args = ['--data-binary', '@-']
+        body_args = ["--data-binary", "@-"]
 
     # "-T" means "don't allocate a TTY".  This prevents `jq` from outputting in
     # color.
-    command = docker_compose_command('exec', '-T', '--', 'client',
-                                     'curljson.sh', f'-X{method}',
-                                     *header_args(), *body_args, url)
-    result = subprocess.run(command,
-                            input=body if body is not None else '',
-                            stdout=subprocess.PIPE,
-                            stderr=stderr,
-                            env=child_env(),
-                            encoding='utf8',
-                            check=True)
-    fields_json, headers_json, body_json, *rest = result.stdout.split('\n')
+    command = docker_compose_command(
+        "exec",
+        "-T",
+        "--",
+        "client",
+        "curljson.sh",
+        f"-X{method}",
+        *header_args(),
+        *body_args,
+        url,
+    )
+    result = subprocess.run(
+        command,
+        input=body if body is not None else "",
+        stdout=subprocess.PIPE,
+        stderr=stderr,
+        env=child_env(),
+        encoding="utf8",
+        check=True,
+    )
+    fields_json, headers_json, body_json, *rest = result.stdout.split("\n")
     if any(line for line in rest):
-        raise Exception('Unexpected trailing output to curljson.sh: ' +
+        raise Exception("Unexpected trailing output to curljson.sh: " +
                         json.dumps(rest))
 
     fields = json.loads(fields_json)
@@ -371,8 +392,8 @@ def add_services_in_nginx_etc_hosts(services):
     """
     # "-T" means "don't allocate a TTY".  This is necessary to avoid the
     # error "the input device is not a TTY".
-    command = docker_compose_command('exec', '-T', '--', 'nginx', '/bin/sh')
-    subprocess.run(command, input=script, env=child_env(), encoding='utf8')
+    command = docker_compose_command("exec", "-T", "--", "nginx", "/bin/sh")
+    subprocess.run(command, input=script, env=child_env(), encoding="utf8")
 
 
 class Orchestration:
@@ -390,13 +411,15 @@ class Orchestration:
     """
 
     def __init__(self):
-        project_name = child_env()['COMPOSE_PROJECT_NAME']
+        project_name = child_env()["COMPOSE_PROJECT_NAME"]
         self.verbose = (Path(__file__).parent.resolve().parent /
-                        f'logs/{project_name}.log').open('w')
+                        f"logs/{project_name}.log").open("w")
 
-        print('The test runner is running in the following environment:',
-              os.environ,
-              file=self.verbose)
+        print(
+            "The test runner is running in the following environment:",
+            os.environ,
+            file=self.verbose,
+        )
 
     # Properties (all private)
     # - `up_thread` is the `threading.Thread` running `docker compose up`.
@@ -417,16 +440,18 @@ class Orchestration:
         # Before we bring things up, first clean up any detritus left over from
         # previous runs.  Failing to do so can create problems later when we
         # ask docker compose which container a service is running in.
-        command = docker_compose_command('down', '--remove-orphans')
-        subprocess.run(command,
-                       stdin=subprocess.DEVNULL,
-                       stdout=self.verbose,
-                       stderr=self.verbose,
-                       env=child_env(),
-                       check=True)
+        command = docker_compose_command("down", "--remove-orphans")
+        subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=self.verbose,
+            stderr=self.verbose,
+            env=child_env(),
+            check=True,
+        )
 
         self.services = docker_compose_services()
-        print('services:', self.services, file=self.verbose, flush=True)
+        print("services:", self.services, file=self.verbose, flush=True)
         self.logs = {service: queue.SimpleQueue() for service in self.services}
         ready_queue = queue.SimpleQueue()
         self.up_thread = threading.Thread(target=docker_compose_up,
@@ -434,7 +459,7 @@ class Orchestration:
                                                 self.verbose))
         self.up_thread.start()
         runtime_info = ready_queue.get()
-        self.containers = runtime_info['containers']
+        self.containers = runtime_info["containers"]
         print(runtime_info, file=self.verbose, flush=True)
         add_services_in_nginx_etc_hosts(self.services)
 
@@ -448,15 +473,16 @@ class Orchestration:
         if self.has_coverage_data():
             self.create_coverage_tarball()
 
-        command = docker_compose_command('down', '--remove-orphans')
-        with print_duration('Bringing down all services', self.verbose):
+        command = docker_compose_command("down", "--remove-orphans")
+        with print_duration("Bringing down all services", self.verbose):
             with subprocess.Popen(
                     command,
                     stdin=subprocess.DEVNULL,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,  # "Stopping test_foo_1   ... done"
                     env=child_env(),
-                    encoding='utf8') as child:
+                    encoding="utf8",
+            ) as child:
                 for line in child.stderr:
                     kind, fields = formats.parse_docker_compose_down_line(line)
                     print(json.dumps((kind, fields)),
@@ -470,19 +496,30 @@ class Orchestration:
     @staticmethod
     def has_coverage_data():
         command = docker_compose_command(
-            'exec', '-T', '--', 'nginx', 'bash', '-c',
-            "find /tmp -name '*.profraw' -print -quit | grep -q .")
+            "exec",
+            "-T",
+            "--",
+            "nginx",
+            "bash",
+            "-c",
+            "find /tmp -name '*.profraw' -print -quit | grep -q .",
+        )
         result = subprocess.run(command)
         return result.returncode == 0
 
     @staticmethod
     def create_coverage_tarball():
         tar_command = docker_compose_command(
-            'exec', '-T', '--', 'nginx', 'bash', '-c',
-            "tar --transform='s@tmp/@@' -czf - -T <(find /tmp -maxdepth 1 -name '*.profraw')"
+            "exec",
+            "-T",
+            "--",
+            "nginx",
+            "bash",
+            "-c",
+            "tar --transform='s@tmp/@@' -czf - -T <(find /tmp -maxdepth 1 -name '*.profraw')",
         )
 
-        with open('./coverage_data.tar.gz', 'wb') as file:
+        with open("./coverage_data.tar.gz", "wb") as file:
             result = subprocess.run(tar_command, stdout=file)
 
         # Check if the tarball was created successfully
@@ -493,29 +530,29 @@ class Orchestration:
                                 path,
                                 port=80,
                                 headers={},
-                                method='GET',
+                                method="GET",
                                 req_body=None):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
-        url = f'http://nginx:{port}{path}'
-        print('fetching', url, file=self.verbose, flush=True)
+        url = f"http://nginx:{port}{path}"
+        print("fetching", url, file=self.verbose, flush=True)
         fields, headers, body = curl(url,
                                      headers,
                                      body=req_body,
                                      stderr=self.verbose,
                                      method=method)
-        return fields['response_code'], headers, body
+        return fields["response_code"], headers, body
 
     def setup_remote_config_payload(self, payload):
         """Sets up the next remote config response"""
-        url = f'http://agent:8126/save_rem_cfg_resp'
-        print('posting', url, file=self.verbose, flush=True)
+        url = f"http://agent:8126/save_rem_cfg_resp"
+        print("posting", url, file=self.verbose, flush=True)
         fields, headers, body = curl(url, {},
                                      body=payload,
                                      stderr=self.verbose,
-                                     method='POST')
-        return fields['response_code'], headers, body
+                                     method="POST")
+        return fields["response_code"], headers, body
 
     def send_nginx_grpc_request(self, symbol, port=1337):
         """Send an empty gRPC request to the nginx endpoint at "/", where
@@ -524,18 +561,20 @@ class Orchestration:
         command line utility.  Return the exit status of `grpcurl` and its
         combined stdout and stderr as a tuple `(status, output)`.
         """
-        address = f'nginx:{port}'
+        address = f"nginx:{port}"
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = docker_compose_command('exec', '-T', '--', 'client',
-                                         'grpcurl', '-plaintext', address,
+        command = docker_compose_command("exec", "-T", "--", "client",
+                                         "grpcurl", "-plaintext", address,
                                          symbol)
-        result = subprocess.run(command,
-                                stdin=subprocess.DEVNULL,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT,
-                                encoding='utf8',
-                                env=child_env())
+        result = subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="utf8",
+            env=child_env(),
+        )
         return result.returncode, result.stdout
 
     def sync_service(self, service):
@@ -552,14 +591,16 @@ class Orchestration:
         the service's log.
         """
         token = str(uuid.uuid4())
-        fields, _, body = curl(f'http://{service}:{sync_port}',
-                               headers={'X-Datadog-Test-Sync-Token': token})
+        fields, _, body = curl(
+            f"http://{service}:{sync_port}",
+            headers={"X-Datadog-Test-Sync-Token": token},
+        )
 
-        assert fields['response_code'] == 200
+        assert fields["response_code"] == 200
 
         log_lines = []
         q = self.logs[service]
-        sync_message = f'SYNC {token}'
+        sync_message = f"SYNC {token}"
         while True:
             line = q.get()
             if line.strip() == sync_message:
@@ -578,7 +619,7 @@ class Orchestration:
         while True:
             if time.monotonic() > deadline:
                 raise Exception(
-                    f'Timeout of {timeout_secs} seconds exceeded while waiting for log message matching {regex}.'
+                    f"Timeout of {timeout_secs} seconds exceeded while waiting for log message matching {regex}."
                 )
             try:
                 line = q.get_nowait()
@@ -590,16 +631,16 @@ class Orchestration:
     def find_first_appsec_report(self):
         self.reload_nginx(
         )  # waits for workers to finish; force traces to be sent
-        log_lines = self.sync_service('agent')
+        log_lines = self.sync_service("agent")
         entries = [
-            json.loads(line) for line in log_lines if line.startswith('[[{')
+            json.loads(line) for line in log_lines if line.startswith("[[{")
         ]
         # find _dd.appsec.json in one of the spans of the traces
         for entry in entries:
             for trace in entry:
                 for span in trace:
-                    if span.get('meta', {}).get('_dd.appsec.json'):
-                        return json.loads(span['meta']['_dd.appsec.json'])
+                    if span.get("meta", {}).get("_dd.appsec.json"):
+                        return json.loads(span["meta"]["_dd.appsec.json"])
         return None
 
     def sync_nginx_access_log(self):
@@ -609,17 +650,17 @@ class Orchestration:
         Note that this assumes that nginx has a particular configuration.
         """
         token = str(uuid.uuid4())
-        status, _, body = self.send_nginx_http_request(f'/sync?token={token}')
+        status, _, body = self.send_nginx_http_request(f"/sync?token={token}")
         if status != 200:
             raise Exception(
-                f'nginx returned error (status, body): {(status, body)}')
+                f"nginx returned error (status, body): {(status, body)}")
 
         log_lines = []
-        q = self.logs['nginx']
+        q = self.logs["nginx"]
         while True:
             line = q.get()
             result = formats.parse_access_log_sync_line(line)
-            if result is not None and result['token'] == token:
+            if result is not None and result["token"] == token:
                 return log_lines
             log_lines.append(line)
 
@@ -651,15 +692,17 @@ exit "$rcode"
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = docker_compose_command('exec', '-T', '--', 'nginx',
-                                         '/bin/sh')
-        result = subprocess.run(command,
-                                input=script,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT,
-                                env=child_env(),
-                                encoding='utf8')
-        return result.returncode, result.stdout.split('\n')
+        command = docker_compose_command("exec", "-T", "--", "nginx",
+                                         "/bin/sh")
+        result = subprocess.run(
+            command,
+            input=script,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=child_env(),
+            encoding="utf8",
+        )
+        return result.returncode, result.stdout.split("\n")
 
     def reload_nginx(self, wait_for_workers_to_terminate=True):
         """Send a "reload" signal to nginx.
@@ -668,8 +711,8 @@ exit "$rcode"
         `docker compose ps` until the workers associated with nginx's previous
         cycle have terminated.
         """
-        with print_duration('Reloading nginx', self.verbose):
-            nginx_container = self.containers['nginx']
+        with print_duration("Reloading nginx", self.verbose):
+            nginx_container = self.containers["nginx"]
             old_worker_pids = None
             if wait_for_workers_to_terminate:
                 old_worker_pids = nginx_worker_pids(nginx_container,
@@ -677,16 +720,29 @@ exit "$rcode"
 
             # "-T" means "don't allocate a TTY".  This is necessary to avoid
             # the error "the input device is not a TTY".
-            command = docker_compose_command('exec', '-T', '--', 'nginx',
-                                             'nginx', '-s', 'reload')
-            with print_duration('Sending the reload signal to nginx',
+            command = docker_compose_command(
+                "exec",
+                "-T",
+                "--",
+                "nginx",
+                "nginx",
+                "-g",
+                "pid /run/nginx.pid;",
+                "-c",
+                nginx_conf_path,
+                "-s",
+                "reload",
+            )
+            with print_duration("Sending the reload signal to nginx",
                                 self.verbose):
-                subprocess.run(command,
-                               stdin=subprocess.DEVNULL,
-                               stdout=self.verbose,
-                               stderr=self.verbose,
-                               env=child_env(),
-                               check=True)
+                subprocess.run(
+                    command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=self.verbose,
+                    stderr=self.verbose,
+                    env=child_env(),
+                    check=True,
+                )
             if not wait_for_workers_to_terminate:
                 return
 
@@ -702,7 +758,7 @@ exit "$rcode"
                 now = time.monotonic()
                 if now - before >= timeout_seconds:
                     raise Exception(
-                        f'{timeout_seconds} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed.'
+                        f"{timeout_seconds} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed."
                     )
                 time.sleep(poll_period_seconds)
 
@@ -726,15 +782,17 @@ END_CONF
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = docker_compose_command('exec', '-T', '--', 'nginx',
-                                         '/bin/sh')
-        subprocess.run(command,
-                       input=script,
-                       stdout=self.verbose,
-                       stderr=self.verbose,
-                       env=child_env(),
-                       check=True,
-                       encoding='utf8')
+        command = docker_compose_command("exec", "-T", "--", "nginx",
+                                         "/bin/sh")
+        subprocess.run(
+            command,
+            input=script,
+            stdout=self.verbose,
+            stderr=self.verbose,
+            env=child_env(),
+            check=True,
+            encoding="utf8",
+        )
 
         self.reload_nginx()
         return status, log_lines
@@ -749,15 +807,17 @@ END_CONF
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = docker_compose_command('exec', '-T', '--', 'nginx',
-                                         '/bin/sh')
-        subprocess.run(command,
-                       input=script,
-                       stdout=self.verbose,
-                       stderr=self.verbose,
-                       env=child_env(),
-                       check=True,
-                       encoding='utf8')
+        command = docker_compose_command("exec", "-T", "--", "nginx",
+                                         "/bin/sh")
+        subprocess.run(
+            command,
+            input=script,
+            stdout=self.verbose,
+            stderr=self.verbose,
+            env=child_env(),
+            check=True,
+            encoding="utf8",
+        )
 
     @contextlib.contextmanager
     def custom_nginx(self, nginx_conf, extra_env=None, healthcheck_port=None):
@@ -774,48 +834,63 @@ END_CONF
         # error "the input device is not a TTY".
 
         # Make a temporary directory.
-        command = docker_compose_command('exec', '-T', '--', 'nginx', 'mktemp',
-                                         '-d')
-        result = subprocess.run(command,
-                                stdin=subprocess.DEVNULL,
-                                capture_output=True,
-                                encoding='utf8',
-                                env=child_env(),
-                                check=True)
+        command = docker_compose_command("exec", "-T", "--", "nginx", "mktemp",
+                                         "-d")
+        result = subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            encoding="utf8",
+            env=child_env(),
+            check=True,
+        )
         temp_dir = result.stdout.strip()
 
         # Write the config file to the temporary directory.
-        conf_path = temp_dir + '/nginx.conf'
-        command = docker_compose_command('exec', '-T', '--', 'nginx',
-                                         '/bin/sh', '-c',
+        conf_path = temp_dir + "/nginx.conf"
+        command = docker_compose_command("exec", "-T", "--", "nginx",
+                                         "/bin/sh", "-c",
                                          f"cat >'{conf_path}'")
-        subprocess.run(command,
-                       input=nginx_conf,
-                       stdout=self.verbose,
-                       stderr=self.verbose,
-                       encoding='utf8',
-                       env=child_env(),
-                       check=True)
+        subprocess.run(
+            command,
+            input=nginx_conf,
+            stdout=self.verbose,
+            stderr=self.verbose,
+            encoding="utf8",
+            env=child_env(),
+            check=True,
+        )
 
         # Start up nginx using the config in the temporary directory and
         # putting the PID file in there too.
         # Let the caller play with the child process, and when they're done,
         # send SIGQUIT to the child process and wait for it to terminate.
-        pid_path = temp_dir + '/nginx.pid'
+        pid_path = temp_dir + "/nginx.pid"
         conf_preamble = f'daemon off; pid "{pid_path}"; error_log stderr notice;'
         env_args = []
         if extra_env is not None:
             for key, value in extra_env.items():
-                env_args.append('--env')
-                env_args.append(f'{key}={value}')
-        command = docker_compose_command('exec', '-T', *env_args, '--',
-                                         'nginx', 'nginx', '-c', conf_path,
-                                         '-g', conf_preamble)
-        child = subprocess.Popen(command,
-                                 stdin=subprocess.DEVNULL,
-                                 stdout=self.verbose,
-                                 stderr=self.verbose,
-                                 env=child_env())
+                env_args.append("--env")
+                env_args.append(f"{key}={value}")
+        command = docker_compose_command(
+            "exec",
+            "-T",
+            *env_args,
+            "--",
+            "nginx",
+            "nginx",
+            "-c",
+            conf_path,
+            "-g",
+            conf_preamble,
+        )
+        child = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=self.verbose,
+            stderr=self.verbose,
+            env=child_env(),
+        )
 
         # Before we `yield child` to the caller, possibly poll the nginx
         # instance's /healthcheck endpoint to wait for it to be ready.
@@ -826,12 +901,13 @@ END_CONF
             while remaining_attempts > 0:
                 try:
                     status, _, _ = self.send_nginx_http_request(
-                        '/healthcheck', port=healthcheck_port)
+                        "/healthcheck", port=healthcheck_port)
                     if status == 200:
                         after = time.time()
                         print(
-                            f'custom nginx at port {healthcheck_port} took {after - before} seconds to be ready',
-                            file=self.verbose)
+                            f"custom nginx at port {healthcheck_port} took {after - before} seconds to be ready",
+                            file=self.verbose,
+                        )
                         break
                 except Exception:
                     pass
@@ -839,7 +915,7 @@ END_CONF
                 remaining_attempts -= 1
             if remaining_attempts == 0:
                 raise Exception(
-                    f'custom nginx at port {healthcheck_port} did not become ready'
+                    f"custom nginx at port {healthcheck_port} did not become ready"
                 )
 
         try:
@@ -851,26 +927,36 @@ END_CONF
             # Instead, we signal graceful shutdown by using the `kill`
             # command to send `SIGQUIT`.
             command = docker_compose_command(
-                'exec', '-T', '--', 'nginx', '/bin/sh', '-c',
-                f"<'{pid_path}' xargs kill -QUIT")
-            subprocess.run(command,
-                           stdin=subprocess.DEVNULL,
-                           stdout=self.verbose,
-                           stderr=self.verbose,
-                           encoding='utf8',
-                           env=child_env(),
-                           check=True)
+                "exec",
+                "-T",
+                "--",
+                "nginx",
+                "/bin/sh",
+                "-c",
+                f"<'{pid_path}' xargs kill -QUIT",
+            )
+            subprocess.run(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=self.verbose,
+                stderr=self.verbose,
+                encoding="utf8",
+                env=child_env(),
+                check=True,
+            )
             child.wait()
 
         # Remove the temporary directory.
-        command = docker_compose_command('exec', '-T', '--', 'nginx', 'rm',
-                                         '-r', temp_dir)
-        subprocess.run(command,
-                       stdin=subprocess.DEVNULL,
-                       stdout=self.verbose,
-                       stderr=self.verbose,
-                       env=child_env(),
-                       check=True)
+        command = docker_compose_command("exec", "-T", "--", "nginx", "rm",
+                                         "-r", temp_dir)
+        subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=self.verbose,
+            stderr=self.verbose,
+            env=child_env(),
+            check=True,
+        )
 
 
 _singleton = LazySingleton(Orchestration, Orchestration.up, Orchestration.down)
