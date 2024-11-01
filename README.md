@@ -86,6 +86,13 @@ Requirements:
 - CMake `v3.24` or newer.
 - Architecture must be `x86_64` or `arm64`.
 
+For build to be able to run properly, it must happen within the git clone of
+this repository:
+
+```shell
+git clone https://github.com/DataDog/nginx-datadog.git
+```
+
 For enhanced usability, we provide a [GNU make][1] compatible [Makefile](Makefile).
 
 ```shell
