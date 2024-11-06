@@ -1,6 +1,6 @@
-FROM alpine:3.18.3 AS sysroot
+FROM alpine:3.20.3 AS sysroot
 
-ARG LLVM_VERSION=16.0.6
+ARG LLVM_VERSION=17.0.6
 ARG ARCH
 
 COPY CHECKSUMS /CHECKSUMS
@@ -27,6 +27,7 @@ RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build && cd build && \
     -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1" \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1" \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DLIBUNWIND_ENABLE_SHARED=OFF \
     -DLIBUNWIND_ENABLE_STATIC=ON \
     -DLIBUNWIND_USE_COMPILER_RT=ON \
@@ -52,13 +53,13 @@ RUN mkdir -p /sysroot/${ARCH}-none-linux-musl/usr
 RUN ln -s /usr/lib /sysroot/${ARCH}-none-linux-musl/usr/
 RUN ln -s /usr/include /sysroot/${ARCH}-none-linux-musl/usr/
 RUN ln -s /lib /sysroot/${ARCH}-none-linux-musl/
-RUN ln -s /usr/lib/llvm16/lib/clang/16/lib /sysroot/${ARCH}-none-linux-musl/usr/lib/resource_dir/lib
+RUN ln -s /usr/lib/llvm${LLVM_VERSION%%.*}/lib/clang/${LLVM_VERSION%%.*}/lib /sysroot/${ARCH}-none-linux-musl/usr/lib/resource_dir/lib
 
 COPY Toolchain.cmake.${ARCH} /sysroot/${ARCH}-none-linux-musl/Toolchain.cmake
 
 # see https://github.com/llvm/llvm-project/issues/60572
-RUN mv /usr/lib/gcc/${ARCH}-alpine-linux-musl/12.2.1/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/12.2.1/include/stdatomic.h_
-RUN cp /usr/lib/llvm16/lib/clang/16/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/12.2.1/include/stdatomic.h
+RUN mv /usr/lib/gcc/${ARCH}-alpine-linux-musl/13.2.1/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/13.2.1/include/stdatomic.h_
+RUN cp /usr/lib/llvm${LLVM_VERSION%%.*}/lib/clang/${LLVM_VERSION%%.*}/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/13.2.1/include/stdatomic.h
 
 COPY glibc_compat.c /sysroot/
 RUN clang --sysroot /sysroot/${ARCH}-none-linux-musl/ -fpie -O2 -fno-omit-frame-pointer \
@@ -71,6 +72,6 @@ RUN clang --sysroot /sysroot/${ARCH}-none-linux-musl/ -fpie -O2 -fno-omit-frame-
 RUN apk add --no-cache pcre-dev pcre2-dev zlib-dev openssl-dev perl
 
 # Install Rust toolchain
-RUN apk add curl 
+RUN apk add --no-cache curl
 RUN curl –proto ‘=https’ –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq \
   && ln -s ~/.cargo/bin/cargo /usr/bin/cargo
