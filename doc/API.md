@@ -188,7 +188,7 @@ the service than it can within nginx.
 
 Sampling delegation is `off` by default. The directive's argument can be a
 variable expression that evaluates to either of `on` or `off`. If the
-directive's argument is omitted, then it is as if it were `on`
+directive's argument is omitted, then it is as if it were `on`.
 
 ### `datadog_tracing`
 - **syntax** `datadog_tracing on|off`
