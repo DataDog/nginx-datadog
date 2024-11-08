@@ -7,6 +7,7 @@ RUM ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 NGINX_SRC_DIR ?= $(PWD)/nginx
+NGINX_VERSION ?= $(if $(RESTY_VERSION),$(shell echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}'))
 ARCH ?= $(shell arch)
 COVERAGE ?= OFF
 BUILD_TESTING ?= ON
@@ -122,10 +123,30 @@ build-musl-aux build-musl-cov-aux:
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
+.PHONY: build-openresty
+build-openresty:
+	@export NGINX_VERSION=$$(echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}');
+	docker run --init --rm \
+		--platform $(DOCKER_PLATFORM) \
+		--env ARCH=$(ARCH) \
+		--env BUILD_TYPE=$(BUILD_TYPE) \
+		--env RESTY_VERSION=$(RESTY_VERSION) \
+		--env NGINX_VERSION=$(NGINX_VERSION) \
+		--env NGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
+		--env WAF=$(WAF) \
+ 		--mount type=bind,source="$(PWD)",target=/mnt/repo \
+		$(DOCKER_REPOS):latest \
+		bash -c "cd /mnt/repo && ./bin/openresty/build_common.sh ${RESTY_VERSION} && make build-musl-aux"
+
 .PHONY: test
 test: build-musl
 	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
 	test/bin/run $(TEST_ARGS)
+
+.PHONY: test-openresty
+test-openresty: build-openresty
+	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
+	RESTY_TEST=ON test/bin/run $(TEST_ARGS)
 
 .PHONY: coverage
 coverage:
@@ -156,6 +177,11 @@ test-parallel: build-in-docker
 lab: build-musl
 	cp -v .musl-build/ngx_http_datadog_module.so* lab/services/nginx/
 	lab/bin/run $(TEST_ARGS)
+
+.PHONY: lab-openresty
+openresty-lab: build-openresty
+	cp -v .openresty-build/ngx_http_datadog_module.so* lab/services/nginx/
+	RESTY_TEST=ON lab/bin/run $(TEST_ARGS)
 
 .PHONY: circleci-config
 circleci-config:

@@ -4,7 +4,13 @@ cd "$(dirname "$0")/../"
 
 set -e
 
-. ../nginx-version-info
+if [ $(echo ${RESTY_TEST}) = "ON" ] ; then
+    . ../openresty-version-info
+    cp ../test/cases/auto_propagation/openresty_base_conf/* ../test/cases/auto_propagation/conf/
+else
+    . ../nginx-version-info
+    cp ../test/cases/auto_propagation/nginx_base_conf/* ../test/cases/auto_propagation/conf/
+fi
 export BASE_IMAGE
 
 printf "      arch : %s\n" "${ARCH}"
@@ -13,3 +19,4 @@ printf " test args : %s\n" "$@"
 
 docker compose build --parallel --progress=plain
 python3 -m unittest "$@"
+# docker-compose up --abort-on-container-exit
