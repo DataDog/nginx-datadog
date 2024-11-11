@@ -12,10 +12,12 @@ namespace datadog::nginx::security {
 class NgxChainInputStream {
  public:
   NgxChainInputStream(const ngx_chain_t *chain) : current_{chain} {
-    if (current_) {
-      pos_ = current_->buf->pos;
-      end_ = current_->buf->last;
+    if (!current_) {
+      throw std::invalid_argument{"chain must not be null"};
     }
+
+    pos_ = current_->buf->pos;
+    end_ = current_->buf->last;
   }
   NgxChainInputStream(const NgxChainInputStream &) = default;
   NgxChainInputStream &operator=(const NgxChainInputStream &) = default;

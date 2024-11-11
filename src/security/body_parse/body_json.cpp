@@ -3,6 +3,8 @@
 #include <rapidjson/error/en.h>
 #include <rapidjson/reader.h>
 
+#include <algorithm>
+
 #include "../ddwaf_memres.h"
 #include "../ddwaf_obj.h"
 
@@ -24,10 +26,11 @@ class RapidNgxChainInputStream {
   using Ch = char;
 
   RapidNgxChainInputStream(const ngx_chain_t *chain) : current_{chain} {
-    if (current_) {
-      pos_ = current_->buf->pos;
-      end_ = current_->buf->last;
+    if (!current_) {
+      throw std::invalid_argument{"chain must not be null"};
     }
+    pos_ = current_->buf->pos;
+    end_ = current_->buf->last;
   }
 
   Ch Peek() {  // NOLINT
@@ -225,10 +228,7 @@ class ToDdwafObjHandler
       return buf.ptr[buf.len - 1];
     }
 
-    std::size_t new_cap = buf.cap * 2;
-    if (new_cap == 0) {
-      new_cap = 1;
-    }
+    std::size_t new_cap = std::max(buf.cap * 2, 1UL);
     buf.ptr = pool_.realloc(buf.ptr, buf.cap, new_cap);
 
     buf.len++;
@@ -292,12 +292,8 @@ bool parse_json(ddwaf_obj &slot, ngx_http_request_t &req,
                    "body json parsing finished successfully");
   }
 
-  if (json_obj) {
-    assert(json_obj == &slot);
-    return true;
-  }
-
-  return false;
+  assert(json_obj == nullptr || json_obj == &slot);
+  return json_obj != nullptr;
 }
 
 }  // namespace datadog::nginx::security

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <optional>
 #include <string_view>
 
 #include "../decode.h"
@@ -93,7 +94,7 @@ std::optional<std::string_view> consume_wg_token(std::string_view &sv) {
  * quoted-pair    = "\" ( HTAB / SP / VCHAR / obs-text )
  */
 std::optional<std::string> consume_9110_quoted_string(std::string_view &sv) {
-  if (sv.front() != '"') {
+  if (!sv.starts_with('"')) {
     return std::nullopt;
   }
   sv.remove_prefix(1);
@@ -125,7 +126,7 @@ std::optional<std::string> consume_9110_quoted_string(std::string_view &sv) {
       }
     }
 
-    return std::nullopt;
+    return std::nullopt; /* invalid character */
   }
   return std::nullopt;
 }
@@ -295,14 +296,13 @@ std::optional<HttpContentType> HttpContentType::for_string(
       continue;
     }
 
-    if (sv.empty() || sv.front() != '=') {
+    if (sv.size() < 2) {
+      return std::nullopt;
+    }
+    if (sv.front() != '=') {
       return std::nullopt;
     }
     sv.remove_prefix(1);
-
-    if (sv.empty()) {
-      return std::nullopt;
-    }
 
     std::string value;
     if (sv.front() == '"') {
@@ -384,8 +384,9 @@ std::optional<MimeContentDisposition> MimeContentDisposition::for_stream(
     NgxChainInputStream &is) {
   MimeContentDisposition cd{};
 
-  // consumes data, up until the last matching character
+  // consumes data, up until the last matching character; case insensitive
   auto try_match_token = [](auto &gen, std::string_view token) {
+    assert(token == to_lc(token));
     std::size_t i;
     for (i = 0; gen.has_next() && i < token.size(); i++) {
       if (std::tolower(gen.peek()) != token[i]) {
@@ -404,7 +405,7 @@ std::optional<MimeContentDisposition> MimeContentDisposition::for_stream(
     }
 
     // no space allowed before :
-    static constexpr std::string_view header_name_lc = "content-disposition:"sv;
+    static constexpr auto header_name_lc = "content-disposition:"sv;
     if (!try_match_token(gen, header_name_lc)) {
       // not the header we're looking for. Consume the rest of it and retry
       while (gen.has_next()) {

@@ -3,6 +3,7 @@
 // adapted from: https://en.cppreference.com/w/cpp/language/coroutines
 #include <coroutine>
 #include <exception>
+#include <stdexcept>
 
 namespace datadog::nginx::security {
 
@@ -56,12 +57,13 @@ struct Generator {
     }
 
     if (h_.done()) {
-      std::terminate();
+      throw std::runtime_error{"fetch from a done generator"};
     }
 
     h_();
-    if (h_.promise().exception_)
+    if (h_.promise().exception_) {
       std::rethrow_exception(h_.promise().exception_);
+    }
     // propagate coroutine exception in called context
 
     fetch_next_ = false;

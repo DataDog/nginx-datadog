@@ -29,7 +29,7 @@ bool is_content_type(std::string_view actual, std::string_view tested) {
     sv.remove_prefix(1);
   }
 
-  if (actual.size() < tested.size()) {
+  if (sv.size() < tested.size()) {
     return false;
   }
 
@@ -40,15 +40,8 @@ bool is_content_type(std::string_view actual, std::string_view tested) {
   }
   sv.remove_prefix(tested.size());
 
-  if (!sv.empty()) {
-    auto next = sv.front();
-    if (next == ';' || next == ' ' || next == '\t') {
-      return true;
-    }
-    return false;
-  }
-
-  return true;
+  return sv.empty() || sv.front() == ';' || sv.front() == ' ' ||
+         sv.front() == '\t';
 }
 
 bool is_json(const ngx_http_request_t &req) {
@@ -69,6 +62,11 @@ bool is_urlencoded(const ngx_http_request_t &req) {
   return ct && is_content_type(datadog::nginx::to_string_view(ct->value),
                                "application/x-www-form-urlencoded"sv);
 }
+bool is_text_plain(const ngx_http_request_t &req) {
+  const ngx_table_elt_t *ct = req.headers_in.content_type;
+  return ct && is_content_type(datadog::nginx::to_string_view(ct->value),
+                               "text/plain"sv);
+}
 
 }  // namespace
 
@@ -83,9 +81,7 @@ bool parse_body(ddwaf_obj &slot, ngx_http_request_t &req,
     if (success) {
       return true;
     }
-  }
-
-  if (is_multipart(req)) {
+  } else if (is_multipart(req)) {
     std::optional<HttpContentType> ct = HttpContentType::for_string(
         to_string_view(req.headers_in.content_type->value));
     if (!ct) {
@@ -95,6 +91,16 @@ bool parse_body(ddwaf_obj &slot, ngx_http_request_t &req,
     }
 
     return parse_multipart(slot, req, *ct, chain, memres);
+  }
+
+  bool ct_plain = is_text_plain(req);
+  bool ct_urlencoded = !ct_plain && is_urlencoded(req);
+
+  if (!ct_plain && !ct_urlencoded) {
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                   "unsupported content-type: %V",
+                   &req.headers_in.content_type->value);
+    return false;
   }
 
   // linearize the input
@@ -107,38 +113,41 @@ bool parse_body(ddwaf_obj &slot, ngx_http_request_t &req,
         "declared)");
   }
 
-  if (is_urlencoded(req)) {
+  if (ct_urlencoded) {
     QueryStringIter it{
         {buf, size}, memres, '&', QueryStringIter::trim_mode::no_trim};
 
     // count key occurrences
-    std::unordered_map<std::string_view, std::size_t> bag;
+    union count_or_ddobj {
+      std::size_t count;
+      ddwaf_obj *dobj;
+    };
+    std::unordered_map<std::string_view, count_or_ddobj> key_index;
     for (; !it.ended(); ++it) {
       std::string_view cur_key = it.cur_key();
-      bag[cur_key]++;
+      key_index[cur_key].count++;
     }
 
     // allocate all ddwaf_obj, set keys
-    std::unordered_map<std::string_view, ddwaf_obj *> key_index;
-    ddwaf_map_obj slot_map = slot.make_map(bag.size(), memres);
+    ddwaf_map_obj slot_map = slot.make_map(key_index.size(), memres);
     std::size_t i = 0;
-    for (auto &&[key, count] : bag) {
+    for (auto &&[key, count_or_arr] : key_index) {
       ddwaf_obj &cur = slot_map.at_unchecked(i++);
-      key_index.emplace(key, &cur);
       cur.set_key(key);
-      if (count == 1) {
+      if (count_or_arr.count == 1) {
         cur.make_string(""sv);  // to be filled later
       } else {
-        cur.make_array(count, memres);
+        cur.make_array(count_or_arr.count, memres);
         cur.nbEntries = 0;  // fixed later
       }
+      count_or_arr.dobj = &cur;
     }
 
     // set values
     it.reset();
     for (it.reset(); !it.ended(); ++it) {
       auto [cur_key, cur_value] = *it;
-      ddwaf_obj &cur = *key_index.at(cur_key);
+      ddwaf_obj &cur = *key_index.at(cur_key).dobj;
       if (cur.is_string()) {
         cur.make_string(cur_value);
       } else {

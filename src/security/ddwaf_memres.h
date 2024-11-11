@@ -106,7 +106,7 @@ class DdwafObjArrPool {
  public:
   DdwafObjArrPool(DdwafMemres &memres) : memres_{memres} {}
 
-  DdwafObjType *get(std::size_t size) {
+  DdwafObjType *alloc(std::size_t size) {
     auto it = free_.find(size);
     if (it != free_.end()) {
       std::vector<DdwafObjType *> &free_list = it->second;
@@ -123,7 +123,7 @@ class DdwafObjArrPool {
   DdwafObjType *realloc(DdwafObjType *arr, std::size_t cur_size,
                         std::size_t new_size) {
     assert(new_size > cur_size);
-    auto *new_arr = get(new_size);
+    auto *new_arr = alloc(new_size);
     if (cur_size > 0) {
       std::copy_n(arr, cur_size, new_arr);
 
