@@ -20,7 +20,7 @@ http
     datadog_agent_url http://localhost:8126;
 
     # Disable APM Tracing. Remove the next line to enable APM Tracing.
-    datadog_disable;
+    datadog_tracing off;
 
     # Enable RUM Injection
     datadog_rum on;

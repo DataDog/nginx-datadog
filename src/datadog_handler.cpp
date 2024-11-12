@@ -24,11 +24,11 @@ static bool is_datadog_tracing_enabled(
     const datadog_loc_conf_t *loc_conf) noexcept {
   // Check if this is a main request instead of a subrequest.
   if (request == request->main) {
-    return loc_conf->enable;
+    return loc_conf->enable_tracing;
   } else {
     // Only trace subrequests if `log_subrequest` is enabled; otherwise the
     // spans won't be finished.
-    return loc_conf->enable && core_loc_conf->log_subrequest;
+    return loc_conf->enable_tracing && core_loc_conf->log_subrequest;
   }
 }
 
