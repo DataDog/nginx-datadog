@@ -76,7 +76,6 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
     }
 
     if (type == DDWAF_OBJ_UNSIGNED) {
-      static constexpr auto max = std::numeric_limits<T>::max();
       if (uintValue > max) {
         throw std::out_of_range("value out of range");
       }
@@ -84,7 +83,17 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
     }
 
     if (type == DDWAF_OBJ_FLOAT) {
-      if (f64 < min || f64 > max) {
+      double adjusted_max;
+      if constexpr (std::is_same_v<T, int64_t>) {
+        // this is the largest representable int64_t as a double
+        // max=static_cast<double>(max) would be 9223372036854775808.0, which
+        // is larger than the largest representable int64_t (2^63-1)
+        adjusted_max =
+            9223372036854774784.0;  // nextafter((double)max, -DBL_MAX)
+      } else {
+        adjusted_max = static_cast<double>(max);
+      }
+      if (f64 < min || f64 > adjusted_max) {
         throw std::out_of_range("value out of range");
       }
       return static_cast<T>(f64);
