@@ -1,5 +1,5 @@
 #!/bin/sh
-# TBD
-dest="${1:-/modules_mount/}"
 
-cp /datadog/ngx_http_datadog_module.so "${dest}/ngx_http_datadog_module.so"
+dest="${1:-/opt/datadog-modules/}"
+
+cp -v /datadog/ngx_http_datadog_module.so* "${dest}"
