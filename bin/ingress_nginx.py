@@ -142,7 +142,7 @@ def prepare(args) -> int:
 def build_init_container(args) -> int:
     dockerfile_path = os.path.join(PROJECT_DIR, "injection", "ingress-nginx")
     run_cmd(
-        f"docker build --progress=plain --build-context build={args.module_path} --platform {args.platform} --tag {args.image_name} {dockerfile_path}"
+        f"docker build --progress=plain --no-cache --build-context build={args.module_path} --platform {args.platform} --tag {args.image_name} {dockerfile_path}"
     )
 
     if args.push:

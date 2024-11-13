@@ -120,9 +120,15 @@ jobs:
             arch:
                 enum:
                     - amd64
+                    - arm64
                 type: enum
             version:
                 type: string
+            waf:
+                enum:
+                    - "ON"
+                    - "OFF"
+                type: enum
         resource_class: xlarge
         steps:
             - checkout
@@ -132,6 +138,7 @@ jobs:
                 environment:
                     BUILD_TYPE: RelWithDebInfo
                     INGRESS_NGINX_VERSION: << parameters.version >>
+                    WAF: << parameters.waf >>
             - persist_to_workspace:
                 paths:
                     - .musl-build/ngx_http_datadog_module.so
@@ -335,6 +342,11 @@ jobs:
                 type: string
             nginx-version:
                 type: string
+            waf:
+                enum:
+                    - "ON"
+                    - "OFF"
+                type: enum
         steps:
             - checkout
             - run:
@@ -402,7 +414,10 @@ workflows:
                             - amd64
                         version:
                             - v1.11.3
-                name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: build ingress-nginx-<< matrix.version >> on << matrix.arch >> WAF << matrix.waf >>
             - coverage:
                 name: Coverage on 1.27.0 with WAF ON
             - test:
@@ -463,9 +478,11 @@ workflows:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
                             - v1.11.3
+                        waf:
+                            - "OFF"
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
-                    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
+                    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - system_tests:
                 name: Run system tests
                 requires:
@@ -481,6 +498,7 @@ workflows:
                     parameters:
                         arch:
                             - amd64
+                            - arm64
                         version:
                             - v1.11.3
                             - v1.11.2
@@ -492,7 +510,10 @@ workflows:
                             - v1.10.1
                             - v1.10.0
                             - v1.9.6
-                name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: build ingress-nginx-<< matrix.version >> on << matrix.arch >> WAF << matrix.waf >>
             - test_ingress:
                 matrix:
                     parameters:
@@ -511,9 +532,11 @@ workflows:
                             - v1.10.1
                             - v1.10.0
                             - v1.9.6
-                name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
+                        waf:
+                            - "OFF"
+                name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
                 requires:
-                    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
+                    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - build_amd64:
                 matrix:
                     parameters:

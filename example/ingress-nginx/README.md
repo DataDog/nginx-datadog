@@ -33,10 +33,39 @@ spec:
     spec:
       initContainers:
         - name: init-datadog
-          image: datadog/ingress-nginx-injection:v1.10.0
+          # choose tag as appropriate, e.g. v1.11.3-appsec-amd64, v1.11.3-arm64
+          image: datadog/ingress-nginx-injection:v1.10.0-amd64
+          command: ['/datadog/init_module.sh', '/opt/datadog-modules']
           volumeMounts:
             - name: nginx-module
               mountPath: /opt/datadog-modules
+      containers:
+        - name: controller
+          image: registry.k8s.io/ingress-nginx/controller:v1.10.0
+          env:
+            - ...
+            - name: DD_AGENT_HOST
+              # or another way to access the datadog-agent
+              # see https://docs.datadoghq.com/containers/kubernetes/installation/
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: ingress-nginx
+            - name: DD_ENV
+              value: ...
+            - name: DD_VERSION
+              value: v1.10.0
+          ...
+          volumeMounts:
+            - ...
+            - mountPath: /opt/datadog-modules
+              name: nginx-module
+              readOnly: true
+      volumes:
+        - ...
+        - name: nginx-module
+          emptyDir: {}
 ```
 
 3. **Apply the ConfigMap**: The following ConfigMap will add the necessary directive to load the Datadog module into NGINX:

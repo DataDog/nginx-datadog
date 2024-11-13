@@ -4,11 +4,15 @@
         - matches: { pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+", value: << pipeline.git.tag >> }
     jobs:
     - build_ingress_nginx_module:
-        name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
+        name: build ingress-nginx-<< matrix.version >> on << matrix.arch >> WAF << matrix.waf >>
         matrix:
           parameters:
             arch:
             - 'amd64'
+            - 'arm64'
+            waf:
+            - "ON"
+            - "OFF"
             version:
             - v1.11.3
             - v1.11.2
@@ -21,13 +25,15 @@
             - v1.10.0
             - v1.9.6
     - test_ingress:
-        name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
+        name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
+        - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
         matrix:
           parameters:
             arch:
             - amd64
+            waf:
+            - 'OFF'
             base-image:
             - registry.k8s.io/ingress-nginx/controller
             nginx-version:
