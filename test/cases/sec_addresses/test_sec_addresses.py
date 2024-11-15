@@ -1,5 +1,4 @@
 import json
-
 from .. import case
 
 from pathlib import Path
@@ -51,6 +50,15 @@ class TestSecAddresses(case.TestCase):
 
     def do_put(self, endpoint):
         self.orch.send_nginx_http_request(endpoint, 80, method='PUT')
+        return self.do_request_common()
+
+    def do_post(self, content_type, req_body):
+        self.orch.send_nginx_http_request(
+            '/http',
+            80,
+            method='POST',
+            headers={'content-type': content_type},
+            req_body=req_body)
         return self.do_request_common()
 
     def do_request_common(self):
@@ -428,3 +436,118 @@ class TestSecAddresses(case.TestCase):
         self.assertEqual(
             result['triggers'][0]['rule_matches'][0]['parameters'][0]
             ['highlight'][0], '<Redacted>')
+
+    def test_post_json_key(self):
+        result = self.do_post('application/json', '{"matched key":42}')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_post_json_key_2(self):
+        result = self.do_post('application/json',
+                              '[[],{"a":{"matched key":42}}]')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_post_json_key_3(self):
+        result = self.do_post('application/json', '[[],{"a":{"matched key":')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_post_json_value(self):
+        result = self.do_post('application/json', '"matched value"')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_post_json_value_2(self):
+        result = self.do_post('application/json',
+                              '[[[0, {"a": "matched value"}]]]')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_post_json_value_3(self):
+        result = self.do_post('application/json',
+                              '[[[0, {"a": "matched value"')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_urlencoded_key(self):
+        result = self.do_post('application/x-www-form-urlencoded',
+                              'matched+key=value')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_urlencoded_value(self):
+        result = self.do_post('application/x-www-form-urlencoded',
+                              'key=matched+value')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_multipart_key(self):
+        result = self.do_post(
+            'multipart/form-data; boundary="bound"',
+            '--bound\r\nContent-Disposition: form-data; name="matched key"\r\n\r\nvalue\r\n--bound--'
+        )
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched key')
+
+    def test_multipart_value(self):
+        result = self.do_post(
+            'multipart/form-data; boundary="bound"',
+            '--bound\r\nContent-Disposition: form-data; name="key"\r\n\r\nmatched value\r\n--bound--'
+        )
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_multipart_large_value(self):
+        # payload larger than 40k
+        result = self.do_post(
+            'multipart/form-data; boundary="bound"',
+            '--bound\r\nContent-Disposition: form-data; name="key"\r\n\r\n' +
+            'matched value\r\n' +
+            '--bound\r\nContent-Disposition: form-data; name="key"\r\n\r\n' +
+            ('a' * (40 * 1024)) + '\r\n--bound--\r\n')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_string_value(self):
+        result = self.do_post('text/plain', 'matched value')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_string_value_no_match(self):
+        self.orch.send_nginx_http_request(
+            '/http',
+            80,
+            method='POST',
+            headers={'content-type': 'text/plain'},
+            req_body='another value')
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service("agent")
+        entries = [
+            json.loads(line) for line in log_lines if line.startswith("[[{")
+        ]
+
+        found_appsec = False
+        for entry in entries:
+            for trace in entry:
+                for span in trace:
+                    if span.get("metrics", {}).get("_dd.appsec.enabled"):
+                        found_appsec = True
+                    if span.get("meta", {}).get("_dd.appsec.json"):
+                        self.fail("Unexpected appsec report found in trace")
+
+        if not found_appsec:
+            self.fail("No appsec span found in traces")

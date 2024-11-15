@@ -40,13 +40,20 @@ class TestSecBlocking(case.TestCase):
         headers = {k.lower(): v for k, v in headers.items()}
         return status, headers, body, log_lines
 
-    def test_default_action(self):
-        status, headers, body, log_lines = self.run_with_ua(
-            'block_default', '*/*')
-        self.assertEqual(status, 403)
-        self.assertEqual(headers['content-type'], 'application/json')
-        self.assertRegex(body, r'"title":"You\'ve been blocked')
+    def run_with_body(self, content_type, req_body):
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http',
+            80,
+            headers={'content-type': content_type},
+            req_body=req_body)
 
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        headers = dict(headers)
+        headers = {k.lower(): v for k, v in headers.items()}
+        return status, headers, body, log_lines
+
+    def assert_has_report(self, log_lines):
         traces = [
             json.loads(line) for line in log_lines if line.startswith('[[{')
         ]
@@ -59,10 +66,21 @@ class TestSecBlocking(case.TestCase):
             self.fail('No trace found with appsec.blocked=true')
 
         # check if we also get appsec report
+        if '_dd.appsec.json' not in trace[0][0]['meta']:
+            self.fail('No appsec report found in trace')
+
         appsec_rep = json.loads(trace[0][0]['meta']['_dd.appsec.json'])
 
         self.assertEqual(appsec_rep['triggers'][0]['rule']['on_match'][0],
                          'block')
+
+    def test_default_action(self):
+        status, headers, body, log_lines = self.run_with_ua(
+            'block_default', '*/*')
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+        self.assert_has_report(log_lines)
 
     def test_default_action_html(self):
         status, headers, body, _ = self.run_with_ua('block_default',
@@ -118,3 +136,16 @@ class TestSecBlocking(case.TestCase):
         status, headers, _, _ = self.run_with_ua('redirect_bad_status', '*/*')
         self.assertEqual(status, 303)
         self.assertEqual(headers['location'], 'https://www.cloudflare.com')
+
+    def test_block_body_json(self):
+        status, _, _, log_lines = self.run_with_body('application/json',
+                                                     '{"a": "block_default"}')
+        self.assertEqual(status, 403)
+        self.assert_has_report(log_lines)
+
+    def test_block_body_json_long(self):
+        status, _, _, log_lines = self.run_with_body(
+            'application/json',
+            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024))
+        self.assertEqual(status, 403)
+        self.assert_has_report(log_lines)

@@ -26,6 +26,9 @@
               },
               {
                 "address": "server.response.headers.no_cookies"
+              },
+              {
+                "address": "server.request.body"
               }
             ],
             "regex": "^(?:%(?:a)?)?matched[ -]key(?:%(?:a)?)?$"
@@ -59,6 +62,9 @@
               },
               {
                 "address": "server.response.headers.no_cookies"
+              },
+              {
+                "address": "server.request.body"
               }
             ],
             "regex": "^(?:%(?:a)?)?matched value(?:%(?:a)?)?$$"

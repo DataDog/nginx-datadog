@@ -9,6 +9,7 @@ PWD ?= $(shell pwd)
 NGINX_SRC_DIR ?= $(PWD)/nginx
 ARCH ?= $(shell arch)
 COVERAGE ?= OFF
+BUILD_TESTING ?= ON
 DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain
 CIRCLE_CFG ?= .circleci/continue_config.yml
 
@@ -19,6 +20,7 @@ build: build-deps sources
 	# -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(NGINX_SRC_DIR) \
 		-DNGINX_COVERAGE=$(COVERAGE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) -DNGINX_DATADOG_RUM_ENABLED=$(RUM) . \
+		-DBUILD_TESTING=$(BUILD_TESTING) \
 		&& cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
 	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
@@ -91,8 +93,8 @@ build-push-musl-toolchain:
 		$(DOCKER_REPOS):latest-amd64 \
 		$(DOCKER_REPOS):latest-arm64
 
-.PHONY: build-musl
-build-musl:
+.PHONY: build-musl build-musl-cov
+build-musl build-musl-cov:
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
 		--env ARCH=$(ARCH) \
@@ -104,11 +106,11 @@ build-musl:
 		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(DOCKER_REPOS):latest \
-		make -C /mnt/repo build-musl-aux
+		make -C /mnt/repo $@-aux
 
 # this is what's run inside the container nginx_musl_toolchain
-.PHONY: build-musl-aux
-build-musl-aux:
+.PHONY: build-musl-aux build-musl-cov-aux
+build-musl-aux build-musl-cov-aux:
 	cmake -B .musl-build \
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
@@ -117,7 +119,8 @@ build-musl-aux:
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
-		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
+		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
+		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
 .PHONY: test
 test: build-musl
@@ -126,7 +129,11 @@ test: build-musl
 
 .PHONY: coverage
 coverage:
-	COVERAGE=ON $(MAKE) build-musl
+	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
+	docker run --init --rm --platform $(DOCKER_PLATFORM) \
+		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		$(DOCKER_REPOS):latest \
+		/bin/sh -c 'cd /mnt/repo/.musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests'
 	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
 	rm -f test/coverage_data.tar.gz
 	test/bin/run --verbose --failfast

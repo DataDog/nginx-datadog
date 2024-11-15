@@ -524,6 +524,9 @@ static ngx_int_t datadog_master_process_post_config(
   ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0,
                 "- appsec: libddwaf@%s, waf_rules@%s", datadog_semver_libddwaf,
                 datadog_semver_waf_rules);
+
+  ngx_http_next_request_body_filter = ngx_http_top_request_body_filter;
+  ngx_http_top_request_body_filter = request_body_filter;
 #endif
 
   // Forward tracer-specific environment variables to worker processes.

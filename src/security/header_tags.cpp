@@ -1,6 +1,5 @@
 #include "header_tags.h"
 
-#include <array>
 #include <string_view>
 
 #include "../dd.h"

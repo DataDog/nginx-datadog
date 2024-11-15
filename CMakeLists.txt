@@ -19,10 +19,20 @@ if (NGINX_SRC_DIR STREQUAL "" AND NGINX_VERSION STREQUAL "")
 endif()
 option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
+option(ENABLE_FUZZERS "For building fuzzers" OFF)
 
 if (NGINX_DATADOG_RUM_ENABLED AND NGINX_DATADOG_ASM_ENABLED)
   message(FATAL_ERROR "ASM and RUM features are mutually exclusive")
 endif ()
+
+include(CTest)
+
+if(BUILD_TESTING)
+  add_subdirectory(test/unit)
+endif()
+if(ENABLE_FUZZERS)
+  add_subdirectory(test/fuzz)
+endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
@@ -116,7 +126,11 @@ configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
 
-target_sources(ngx_http_datadog_module
+target_sources(ngx_http_datadog_module PRIVATE ${CMAKE_BINARY_DIR}/version.cpp)
+
+add_library(ngx_http_datadog_objs OBJECT)
+set_target_properties(ngx_http_datadog_objs PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_sources(ngx_http_datadog_objs
   PRIVATE
     src/array_util.cpp
     src/datadog_conf.cpp
@@ -136,21 +150,25 @@ target_sources(ngx_http_datadog_module
     src/request_tracing.cpp
     src/string_util.cpp
     src/tracing_library.cpp
-    ${CMAKE_BINARY_DIR}/version.cpp
 )
 
 if(NGINX_DATADOG_ASM_ENABLED)
-  target_sources(ngx_http_datadog_module
+  target_sources(ngx_http_datadog_objs
     PRIVATE
     src/security/blocking.cpp
+    src/security/body_parse/body_json.cpp
+    src/security/body_parse/body_multipart.cpp
+    src/security/body_parse/body_parsing.cpp
+    src/security/body_parse/header.cpp
     src/security/client_ip.cpp
     src/security/collection.cpp
     src/security/context.cpp
     src/security/ddwaf_obj.cpp
+    src/security/decode.cpp
     src/security/header_tags.cpp
     src/security/library.cpp
     src/security/waf_remote_cfg.cpp)
-  target_compile_definitions(ngx_http_datadog_module PRIVATE WITH_WAF)
+  target_compile_definitions(ngx_http_datadog_objs PUBLIC WITH_WAF)
 endif()
 if(NGINX_DATADOG_RUM_ENABLED)
   target_sources(ngx_http_datadog_module
@@ -164,35 +182,48 @@ if(NGINX_DATADOG_RUM_ENABLED)
 
 endif()
 
+if(ENABLE_FUZZERS)
+  target_compile_options(ngx_http_datadog_objs PUBLIC -fsanitize=fuzzer,address,undefined,leak)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(ngx_http_datadog_module PRIVATE -Wall -Werror)
+  target_compile_options(ngx_http_datadog_objs PRIVATE -Wall -Werror)
 endif()
 
 if(NGINX_COVERAGE)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(ngx_http_datadog_module PRIVATE
+    target_compile_options(ngx_http_datadog_objs PUBLIC
       -fprofile-instr-generate -fcoverage-mapping -mllvm -runtime-counter-relocation=true)
-    target_link_options(ngx_http_datadog_module PRIVATE
+    target_link_options(ngx_http_datadog_objs INTERFACE
       -fprofile-instr-generate -mllvm -runtime-counter-relocation=true)
     target_sources(ngx_http_datadog_module PRIVATE src/coverage_fixup.c)
+    if(APPLE)
+      # pass --coverage so the linker is instructed to link against libclang_rt.profile_osx.
+      target_link_options(ngx_http_datadog_objs INTERFACE -v --coverage)
+    endif()
   else()
     message(FATAL_ERROR "NGINX_COVERAGE is only supported with clang")
   endif()
 endif()
 
-target_include_directories(ngx_http_datadog_module
-  PRIVATE
+target_include_directories(ngx_http_datadog_objs
+  PUBLIC
     src/
 )
 
-target_link_libraries(ngx_http_datadog_module
+target_link_libraries(ngx_http_datadog_objs PUBLIC
   dd_trace_cpp-static
   nginx_module
   rapidjson
 )
+target_link_libraries(ngx_http_datadog_module PRIVATE
+  ngx_http_datadog_objs
+  nginx_module # objects don't come transitively from ngx_http_datadog_objs
+)
 
 if(NGINX_DATADOG_ASM_ENABLED)
-  target_link_libraries(ngx_http_datadog_module libddwaf_objects)
+  target_link_libraries(ngx_http_datadog_objs PUBLIC libddwaf_objects)
+  target_link_libraries(ngx_http_datadog_module PUBLIC libddwaf_objects)
 endif()
 
 # Remove the "lib" prefix to match NGINX convention
@@ -203,7 +234,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
     set_property(TARGET ngx_http_datadog_module PROPERTY SUFFIX ".so")
     target_link_options(ngx_http_datadog_module PRIVATE -undefined dynamic_lookup)
   else()
-    target_link_libraries(ngx_http_datadog_module -static-libstdc++ -static-libgcc)
+    target_link_options(ngx_http_datadog_module PRIVATE -static-libstdc++ -static-libgcc)
   endif()
 endif()
 
@@ -226,5 +257,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" AND CMAKE_SYSTEM_NAME STREQUAL "Li
   include(./cmake/split_debug_info.cmake)
   split_debug_info(ngx_http_datadog_module)
 endif()
+
+add_library(ngx_http_datadog_static_lib STATIC EXCLUDE_FROM_ALL)
+target_link_libraries(ngx_http_datadog_static_lib PUBLIC ngx_http_datadog_objs)
 
 # vim: et ts=2 sw=2:

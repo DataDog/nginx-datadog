@@ -41,6 +41,11 @@ class DatadogContext {
 
   ngx_int_t on_header_filter(ngx_http_request_t* request);
 
+#ifdef WITH_WAF
+  ngx_int_t request_body_filter(ngx_http_request_t* request,
+                                ngx_chain_t* chain);
+#endif
+
   ngx_int_t on_output_body_filter(ngx_http_request_t* request,
                                   ngx_chain_t* chain);
 

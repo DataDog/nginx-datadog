@@ -3,10 +3,10 @@
 #include <ddwaf.h>
 
 #include <algorithm>
-#include <cstdint>
+#include <cassert>
 #include <cstdlib>
 #include <memory>
-#include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
 extern "C" {
@@ -94,6 +94,49 @@ class DdwafMemres {
   std::vector<std::unique_ptr<char[]>> allocs_string_;
   std::size_t objects_stored_{0};
   std::size_t strings_stored_{0};
+};
+
+/*
+ * A pool of ddwaf object vectors of sizes in powers in two. Used when the
+ * sizes of arrays or maps are not known in advance.
+ */
+template <typename DdwafObjType>
+requires std::is_base_of_v<ddwaf_object, DdwafObjType>
+class DdwafObjArrPool {
+ public:
+  DdwafObjArrPool(DdwafMemres &memres) : memres_{memres} {}
+
+  DdwafObjType *alloc(std::size_t size) {
+    auto it = free_.find(size);
+    if (it != free_.end()) {
+      std::vector<DdwafObjType *> &free_list = it->second;
+      if (!free_list.empty()) {
+        auto *obj = free_list.back();
+        free_list.pop_back();
+        return new (obj) DdwafObjType[size]{};
+      }
+    }
+
+    return memres_.allocate_objects<DdwafObjType>(size);
+  }
+
+  DdwafObjType *realloc(DdwafObjType *arr, std::size_t cur_size,
+                        std::size_t new_size) {
+    assert(new_size > cur_size);
+    auto *new_arr = alloc(new_size);
+    if (cur_size > 0) {
+      std::copy_n(arr, cur_size, new_arr);
+
+      std::vector<DdwafObjType *> &free_list = free_[cur_size];
+      free_list.emplace_back(arr);
+    }
+
+    return new_arr;
+  }
+
+ private:
+  DdwafMemres &memres_;
+  std::unordered_map<std::size_t, std::vector<DdwafObjType *>> free_;
 };
 
 }  // namespace datadog::nginx::security

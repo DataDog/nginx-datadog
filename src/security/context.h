@@ -2,6 +2,7 @@
 
 #include <datadog/span.h>
 #include <ddwaf.h>
+#include <sys/types.h>
 
 #include <atomic>
 #include <cstddef>
@@ -12,6 +13,7 @@
 #include "../dd.h"
 #include "blocking.h"
 #include "collection.h"
+#include "ddwaf_obj.h"
 #include "library.h"
 #include "util.h"
 
@@ -20,6 +22,7 @@ extern "C" {
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+#include <ngx_thread_pool.h>
 }
 
 namespace datadog::nginx::security {
@@ -55,42 +58,142 @@ class Context {
   // returns a new context or an empty unique_ptr if the waf is not active
   static std::unique_ptr<Context> maybe_create();
 
+  ngx_int_t request_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
+                                dd::Span &span) noexcept;
+
   bool on_request_start(ngx_http_request_t &request, dd::Span &span) noexcept;
+
   ngx_int_t output_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
                                dd::Span &span) noexcept;
+
   void on_main_log_request(ngx_http_request_t &request,
                            dd::Span &span) noexcept;
 
   // runs on a separate thread; returns whether it blocked
   std::optional<BlockSpecification> run_waf_start(ngx_http_request_t &request,
                                                   dd::Span &span);
+
+  std::optional<BlockSpecification> run_waf_req_post(
+      ngx_http_request_t &request, dd::Span &span);
+
+  void waf_req_post_done(ngx_http_request_t &request, bool blocked);
+
   std::optional<BlockSpecification> run_waf_end(ngx_http_request_t &request,
                                                 dd::Span &span);
 
  private:
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
+  ngx_int_t do_request_body_filter(ngx_http_request_t &request,
+                                   ngx_chain_t *chain, dd::Span &span);
   ngx_int_t do_output_body_filter(ngx_http_request_t &request,
                                   ngx_chain_t *chain, dd::Span &span);
   void do_on_main_log_request(ngx_http_request_t &request, dd::Span &span);
 
   bool has_matches() const noexcept;
   void report_matches(ngx_http_request_t &request, dd::Span &span);
+  ngx_int_t buffer_chain(ngx_pool_t &pool, ngx_chain_t *in, bool consume);
+
+  enum class stage {
+    /* Set on on_request_start (NGX_HTTP_ACCESS_PHASE) if there's no thread
+     * pool mapped for the request.
+     * Incoming transitions: START → DISABLED */
+    DISABLED,
+
+    /* Initial state, upon DatadogContext creation on on_enter
+     * (NGX_HTTP_REWRITE_PHASE) */
+    START,
+
+    /* Set on on_request_start (NGX_HTTP_ACCESS_PHASE) in normal conditions.
+     * The request may be suspended for 1st WAF run after entering this stage.
+     * If submission fails, the stage will remain at this value (will not
+     * transition to AFTER_BEGIN_WAF/AFTER_BEGIN_WAF_BLOCK).
+     * Incoming transitions: START → ENTERED_ON_START. */
+    ENTERED_ON_START,
+
+    /* After the 1st WAF run, the state transitions to this stage if WAF did not
+     * indicate a block. The write happens on the WAF thread with the request
+     * suspended.
+     * Incoming transitions: ENTERED_ON_START → AFTER_BEGIN_WAF */
+    AFTER_BEGIN_WAF,
+
+    /* Similar to AFTER_BEGIN_WAF, but when the WAF told us to block.
+     * In this case we won't further run the WAF.
+     * Incoming transitions: ENTERED_ON_START → AFTER_BEGIN_WAF_BLOCK */
+    AFTER_BEGIN_WAF_BLOCK,
+
+    /* Set on the request body filter when its first call is a preread
+     * call. The filter transitions to COLLECTING_ON_REQ_DATA before the it
+     * returns.
+     * Incoming transitions: AFTER_BEGIN_WAF → COLLECTING_ON_REQ_DATA_PREREAD */
+    COLLECTING_ON_REQ_DATA_PREREAD,
+
+    /* The request body filter is collecting data to call the WAF.
+     * Incoming transitions: AFTER_BEGIN_WAF → COLLECTING_ON_REQ_DATA_PREREAD
+     *                       COLLECTING_ON_REQ_DATA_PREREAD →
+     *                         COLLECTING_ON_REQ_DATA */
+    COLLECTING_ON_REQ_DATA,
+
+    /* The request body filter is suspended after the submiting the WAF task
+     * on the request body.
+     * Incoming transitions: COLLECTING_ON_REQ_DATA → SUSPENDED_ON_REQ_WAF */
+    SUSPENDED_ON_REQ_WAF,
+
+    /* Set on the complete() handler of the WAF task (main thread, if request
+     * is live after the WAF completes) if we're not to block. Also set directly
+     * in the request body filter if there is no data to run the WAF on or if
+     * submission of the WAF task fails.
+     * Incoming transitions: SUSPENDED_ON_REQ_WAF → AFTER_ON_REQ_WAF
+     *                       COLLECTING_ON_REQ_DATA → AFTER_ON_REQ_WAF (no data)
+     */
+    AFTER_ON_REQ_WAF,
+
+    /* Set on the complete() handler of the WAF if we're to block.
+     * Incoming transitions: SUSPENDED_ON_REQ_WAF → AFTER_ON_REQ_WAF_BLOCK */
+    AFTER_ON_REQ_WAF_BLOCK,
+
+    /* Set on the 1st call of the output body filter, just before trying to
+     * submit the WAF final run.
+     * Incoming transitions: AFTER_BEGIN_WAF → BEFORE_RUN_WAF_END
+     *                       AFTER_ON_REQ_WAF → BEFORE_RUN_WAF_END */
+    BEFORE_RUN_WAF_END,
+
+    /* Set on the thread of the final WAF run, after the WAF has run.
+     * Incoming transitions: BEFORE_RUN_WAF_END → AFTER_RUN_WAF_END */
+    AFTER_RUN_WAF_END,
+
+    // possible final states:
+    // - DISABLED
+    // - AFTER_BEGIN_WAF_BLOCK (blocked on 1st WAF run)
+    // - AFTER_ON_REQ_WAF_BLOCK (blocked on req body WAF run)
+    // - BEFORE_RUN_WAF_END (submission of last WAF run failed)
+    // - AFTER_RUN_WAF_END (WAF finished)
+  };
+
+  std::unique_ptr<std::atomic<stage>> stage_;
+  [[maybe_unused]] stage transition_to_stage(stage stage) {
+    stage_->store(stage, std::memory_order_release);
+    return stage;
+  }
+  [[maybe_unused]] bool checked_transition_to_stage(stage from, stage to) {
+    return stage_->compare_exchange_strong(from, to, std::memory_order_acq_rel);
+  }
 
   std::shared_ptr<OwnedDdwafHandle> waf_handle_;
   std::vector<OwnedDdwafResult> results_;
   OwnedDdwafContext ctx_{nullptr};
   DdwafMemres memres_;
 
-  enum class stage {
-    DISABLED,
-    START,
-    ENTERED_ON_START,
-    AFTER_BEGIN_WAF,
-    AFTER_BEGIN_WAF_BLOCK,  // in this case we won't run the waf at the end
-    BEFORE_RUN_WAF_END,
-    AFTER_RUN_WAF_END,
+  static inline constexpr auto kMaxFilterData = 40 * 1024;
+
+  struct FilterCtx {
+    ngx_chain_t *out;  // the buffered request body
+    ngx_chain_t **out_last{&out};
+    std::size_t out_total;
+    bool found_last;
+
+    void clear(ngx_pool_t &pool) noexcept;
   };
-  std::unique_ptr<std::atomic<stage>> stage_;
+  FilterCtx filter_ctx_{};
 };
 
 }  // namespace datadog::nginx::security
