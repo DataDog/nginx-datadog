@@ -94,18 +94,79 @@ class Context {
   ngx_int_t buffer_chain(ngx_pool_t &pool, ngx_chain_t *in, bool consume);
 
   enum class stage {
+    /* Set on on_request_start (NGX_HTTP_ACCESS_PHASE) if there's no thread
+     * pool mapped for the request.
+     * Incoming transitions: START → DISABLED */
     DISABLED,
+
+    /* Initial state, upon DatadogContext creation on on_enter
+     * (NGX_HTTP_REWRITE_PHASE) */
     START,
+
+    /* Set on on_request_start (NGX_HTTP_ACCESS_PHASE) in normal conditions.
+     * The request may be suspended for 1st WAF run after entering this stage.
+     * If submission fails, the stage will remain at this value (will not
+     * transition to AFTER_BEGIN_WAF/AFTER_BEGIN_WAF_BLOCK).
+     * Incoming transitions: START → ENTERED_ON_START. */
     ENTERED_ON_START,
+
+    /* After the 1st WAF run, the state transitions to this stage if WAF did not
+     * indicate a block. The write happens on the WAF thread with the request
+     * suspended.
+     * Incoming transitions: ENTERED_ON_START → AFTER_BEGIN_WAF */
     AFTER_BEGIN_WAF,
-    AFTER_BEGIN_WAF_BLOCK,  // in this case we won't run the waf at the end
+
+    /* Similar to AFTER_BEGIN_WAF, but when the WAF told us to block.
+     * In this case we won't further run the WAF.
+     * Incoming transitions: ENTERED_ON_START → AFTER_BEGIN_WAF_BLOCK */
+    AFTER_BEGIN_WAF_BLOCK,
+
+    /* Set on the request body filter when its first call is a preread
+     * call. The filter transitions to COLLECTING_ON_REQ_DATA before the it
+     * returns.
+     * Incoming transitions: AFTER_BEGIN_WAF → COLLECTING_ON_REQ_DATA_PREREAD */
     COLLECTING_ON_REQ_DATA_PREREAD,
+
+    /* The request body filter is collecting data to call the WAF.
+     * Incoming transitions: AFTER_BEGIN_WAF → COLLECTING_ON_REQ_DATA_PREREAD
+     *                       COLLECTING_ON_REQ_DATA_PREREAD →
+     *                         COLLECTING_ON_REQ_DATA */
     COLLECTING_ON_REQ_DATA,
+
+    /* The request body filter is suspended after the submiting the WAF task
+     * on the request body.
+     * Incoming transitions: COLLECTING_ON_REQ_DATA → SUSPENDED_ON_REQ_WAF */
     SUSPENDED_ON_REQ_WAF,
+
+    /* Set on the complete() handler of the WAF task (main thread, if request
+     * is live after the WAF completes) if we're not to block. Also set directly
+     * in the request body filter if there is no data to run the WAF on or if
+     * submission of the WAF task fails.
+     * Incoming transitions: SUSPENDED_ON_REQ_WAF → AFTER_ON_REQ_WAF
+     *                       COLLECTING_ON_REQ_DATA → AFTER_ON_REQ_WAF (no data)
+     */
     AFTER_ON_REQ_WAF,
+
+    /* Set on the complete() handler of the WAF if we're to block.
+     * Incoming transitions: SUSPENDED_ON_REQ_WAF → AFTER_ON_REQ_WAF_BLOCK */
     AFTER_ON_REQ_WAF_BLOCK,
+
+    /* Set on the 1st call of the output body filter, just before trying to
+     * submit the WAF final run.
+     * Incoming transitions: AFTER_BEGIN_WAF → BEFORE_RUN_WAF_END
+     *                       AFTER_ON_REQ_WAF → BEFORE_RUN_WAF_END */
     BEFORE_RUN_WAF_END,
+
+    /* Set on the thread of the final WAF run, after the WAF has run.
+     * Incoming transitions: BEFORE_RUN_WAF_END → AFTER_RUN_WAF_END */
     AFTER_RUN_WAF_END,
+
+    // possible final states:
+    // - DISABLED
+    // - AFTER_BEGIN_WAF_BLOCK (blocked on 1st WAF run)
+    // - AFTER_ON_REQ_WAF_BLOCK (blocked on req body WAF run)
+    // - BEFORE_RUN_WAF_END (submission of last WAF run failed)
+    // - AFTER_RUN_WAF_END (WAF finished)
   };
 
   std::unique_ptr<std::atomic<stage>> stage_;
@@ -129,6 +190,8 @@ class Context {
     ngx_chain_t **out_last{&out};
     std::size_t out_total;
     bool found_last;
+
+    void clear(ngx_pool_t &pool) noexcept;
   };
   FilterCtx filter_ctx_{};
 };

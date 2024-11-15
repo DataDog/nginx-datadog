@@ -1,6 +1,8 @@
 #pragma once
 
-// adapted from: https://en.cppreference.com/w/cpp/language/coroutines
+// adapted from: <https://en.cppreference.com/w/cpp/language/coroutines>
+// once std::generator is available, this can likely be removed.
+// see <https://en.cppreference.com/w/cpp/coroutine/generator>
 #include <coroutine>
 #include <exception>
 #include <stdexcept>

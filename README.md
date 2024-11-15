@@ -47,6 +47,10 @@ The naming convention is:
 
 Supported architectures (`<arch>`) are `amd64` and `arm64`.
 
+While it _may_ be possible to build the extension against an older version, this
+is not guaranteed; in particular, AppSec builds require a feature introduced in
+version 1.21.4.
+
 
 Default Behavior
 ----------------

@@ -1,5 +1,4 @@
 import json
-
 from .. import case
 
 from pathlib import Path
@@ -526,3 +525,29 @@ class TestSecAddresses(case.TestCase):
         self.assertEqual(
             result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
             'matched value')
+
+    def test_string_value_no_match(self):
+        self.orch.send_nginx_http_request(
+            '/http',
+            80,
+            method='POST',
+            headers={'content-type': 'text/plain'},
+            req_body='another value')
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service("agent")
+        entries = [
+            json.loads(line) for line in log_lines if line.startswith("[[{")
+        ]
+
+        found_appsec = False
+        for entry in entries:
+            for trace in entry:
+                for span in trace:
+                    if span.get("metrics", {}).get("_dd.appsec.enabled"):
+                        found_appsec = True
+                    if span.get("meta", {}).get("_dd.appsec.json"):
+                        self.fail("Unexpected appsec report found in trace")
+
+        if not found_appsec:
+            self.fail("No appsec span found in traces")

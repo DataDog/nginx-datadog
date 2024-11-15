@@ -605,17 +605,17 @@ std::optional<BlockSpecification> Context::run_waf_start(
   ddwaf_result result;
   auto code =
       ddwaf_run(ctx_.resource, data, nullptr, &result, Library::waf_timeout());
-  if (code == DDWAF_MATCH) {
-    results_.emplace_back(result);
-  } else {
-    ddwaf_result_free(&result);
-  }
 
   std::optional<BlockSpecification> block_spec;
-  ddwaf_map_obj actions_arr{result.actions};
-  if (code == DDWAF_MATCH && !actions_arr.empty()) {
-    ActionsResult actions_res{actions_arr};
-    block_spec = resolve_block_spec(actions_arr, *req.connection->log);
+  if (code == DDWAF_MATCH) {
+    results_.emplace_back(result);
+    ddwaf_map_obj actions_arr{result.actions};
+    if (!actions_arr.empty()) {
+      ActionsResult actions_res{actions_arr};
+      block_spec = resolve_block_spec(actions_arr, *req.connection->log);
+    }
+  } else {
+    ddwaf_result_free(&result);
   }
 
   if (block_spec) {
@@ -752,7 +752,7 @@ ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
       is_last = is_last || cl->buf->last_buf;
     }
 
-    bool run_waf = new_size >= kMaxFilterData || is_last;
+    bool run_waf = is_last || new_size >= kMaxFilterData;
     if (run_waf) {
       // do not consume the buffer so that this filter is not called again
       if (buffer_chain(*request.pool, in, false) != NGX_OK) {
@@ -807,6 +807,8 @@ ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
       // pass saved buffers downstream
       auto rc = ngx_http_next_request_body_filter(&request, filter_ctx_.out);
 
+      filter_ctx_.clear(*request.pool);
+
       for (auto *cl = filter_ctx_.out; cl;) {
         auto *ln = cl;
         cl = cl->next;
@@ -833,12 +835,16 @@ ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
       }
     }
   } else {
-    ngx_log_error(NGX_LOG_NOTICE, request.connection->log, 0,
-                  "unexpected filter call in stage %d", st);
+    if (st != stage::DISABLED            /* no WAF for this request */
+        && st != stage::ENTERED_ON_START /* could not submit 1st WAF task */
+        && st != stage::AFTER_BEGIN_WAF_BLOCK /* blocked by 1st WAF task */) {
+      ngx_log_error(NGX_LOG_NOTICE, request.connection->log, 0,
+                    "unexpected filter call in stage %d", st);
+    }
     return ngx_http_next_request_body_filter(&request, in);
   }
 
-  // we continue to call the filter chain, but don't pass any data
+  // we continue to call the next filter, but don't pass any data
   return ngx_http_next_request_body_filter(&request, nullptr);
 }
 
@@ -852,11 +858,13 @@ ngx_int_t Context::buffer_chain(ngx_pool_t &pool, ngx_chain_t *in,
 
     auto *buf = in_ch->buf;
     auto size = buf->last - buf->pos;
-    if (consume) {  // copy the buffer and consume the original
+    if (consume || buf->recycled) {  // copy the buffer and consume the original
       ngx_buf_t *new_buf = ngx_create_temp_buf(&pool, size);
       if (!new_buf) {
         return NGX_ERROR;
       }
+
+      new_buf->tag = &ngx_http_datadog_module;
 
       new_buf->last = ngx_copy(new_buf->pos, buf->pos, size);
       buf->pos = buf->last;
@@ -879,6 +887,16 @@ ngx_int_t Context::buffer_chain(ngx_pool_t &pool, ngx_chain_t *in,
   }
 
   return NGX_OK;
+}
+
+void Context::FilterCtx::clear(ngx_pool_t &pool) noexcept {
+  for (ngx_chain_t *cl = out; cl;) {
+    ngx_chain_t *ln = cl;
+    cl = cl->next;
+    ngx_free_chain(&pool, ln);
+  }
+  out = nullptr;
+  out_last = &out;
 }
 
 ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
@@ -939,15 +957,16 @@ std::optional<BlockSpecification> Context::run_waf_req_post(
   ddwaf_result result;
   DDWAF_RET_CODE const code = ddwaf_run(ctx_.resource, &input, nullptr, &result,
                                         Library::waf_timeout());
-  if (code == DDWAF_MATCH) {
-    results_.emplace_back(result);
-  } else {
+  if (code != DDWAF_MATCH) {
     ddwaf_result_free(&result);
+    return std::nullopt;
   }
+
+  results_.emplace_back(result);
 
   std::optional<BlockSpecification> block_spec;
   ddwaf_map_obj actions_arr{result.actions};
-  if (code == DDWAF_MATCH && !actions_arr.empty()) {
+  if (!actions_arr.empty()) {
     ActionsResult actions_res{actions_arr};
     block_spec = resolve_block_spec(actions_arr, *request.connection->log);
   }
@@ -1000,7 +1019,8 @@ void Context::on_main_log_request(ngx_http_request_t &request,
 void Context::do_on_main_log_request(ngx_http_request_t &request,
                                      dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
-  if (st != stage::AFTER_RUN_WAF_END && st != stage::AFTER_BEGIN_WAF_BLOCK) {
+  if (st != stage::AFTER_RUN_WAF_END && st != stage::AFTER_BEGIN_WAF_BLOCK &&
+      st != stage::AFTER_ON_REQ_WAF_BLOCK) {
     return;
   }
 
