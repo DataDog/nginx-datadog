@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
+#include <stdexcept>
 
 extern "C" {
 #include <ngx_core.h>

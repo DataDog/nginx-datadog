@@ -19,6 +19,7 @@ if (NGINX_SRC_DIR STREQUAL "" AND NGINX_VERSION STREQUAL "")
 endif()
 option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
+option(ENABLE_FUZZERS "For building fuzzers" OFF)
 
 if (NGINX_DATADOG_RUM_ENABLED AND NGINX_DATADOG_ASM_ENABLED)
   message(FATAL_ERROR "ASM and RUM features are mutually exclusive")
@@ -28,6 +29,9 @@ include(CTest)
 
 if(BUILD_TESTING)
   add_subdirectory(test/unit)
+endif()
+if(ENABLE_FUZZERS)
+  add_subdirectory(test/fuzz)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -176,6 +180,10 @@ if(NGINX_DATADOG_RUM_ENABLED)
 
   target_link_libraries(ngx_http_datadog_module inject_browser_sdk)
 
+endif()
+
+if(ENABLE_FUZZERS)
+  target_compile_options(ngx_http_datadog_objs PUBLIC -fsanitize=fuzzer,address,undefined,leak)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
