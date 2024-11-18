@@ -29,7 +29,7 @@ import tempfile
 import urllib.request
 import tarfile
 
-from ingress_nginx import build_init_container
+from ingress_nginx import build_init_container, create_multiarch_images
 
 
 class VerboseDict(dict):
@@ -146,6 +146,7 @@ def get_workflow_jobs(workflow_id: str):
 
 
 def download_file(url, destination):
+    print(f"Downloading {url} to {destination}")
     response = urllib.request.urlopen(url)
     with open(destination, "wb") as output:
         shutil.copyfileobj(response, output)
@@ -302,6 +303,8 @@ def release_ingress_nginx(args) -> int:
     if not jobs:
         return 1
 
+    collected_images = {}
+
     for job in jobs:
         if job["name"].startswith("build ingress-nginx"):
             match = re.match(r"build ingress-nginx-(v[\d.]+) on (amd64|arm64)",
@@ -314,25 +317,39 @@ def release_ingress_nginx(args) -> int:
                 f"/project/gh/DataDog/nginx-datadog/{job['job_number']}/artifacts"
             )
             module_url = None
+            module_dbg_url = None
             for artifact in artifacts:
                 name = artifact["path"]
                 if name == "ngx_http_datadog_module.so":
                     module_url = artifact["url"]
+                if name == "ngx_http_datadog_module.so.debug":
+                    module_dbg_url = artifact["url"]
 
-            if module_url is None:
+            if module_url is None or module_dbg_url is None:
                 raise Exception(
-                    f"Job number {job['job_number']} doesn't have an 'ngx_http_datadog_module.so' build artifact."
+                    f"Job number {job['job_number']} doesn't have an 'ngx_http_datadog_module.so/.so.debug' build artifact."
                 )
 
             with tempfile.TemporaryDirectory() as work_dir:
                 module_path = Path(work_dir) / "ngx_http_datadog_module.so"
                 download_file(module_url, module_path)
 
+                module_dbg_path = Path(
+                    work_dir) / "ngx_http_datadog_module.so.debug"
+                download_file(module_dbg_url, module_dbg_path)
+
                 args.push = True
                 args.platform = f"linux/{arch}"
-                args.image_name = f"{args.registry}:{version}"
+                args.image_name = f"{args.registry}:{version}-{arch}"
                 args.module_path = work_dir
                 build_init_container(args)
+
+                image_no_arch = f"{args.registry}:{version}"
+                if image_no_arch not in collected_images:
+                    collected_images[image_no_arch] = []
+                collected_images[image_no_arch].append(args.image_name)
+
+    create_multiarch_images(collected_images)
 
     return 0
 

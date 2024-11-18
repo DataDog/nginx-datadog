@@ -1,8 +1,16 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: nginx-ingress-controller
-  namespace: default
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
 data:
-  enable-opentelemetry: false
-  http-snippet: "load_module /datadog_mount/ngx_http_datadog_module.so;"
+  enable-opentelemetry: "false"
+  error-log-level: notice
+  main-snippet: |
+    load_module /opt/datadog-modules/ngx_http_datadog_module.so;
+    # if AppSec is enabled (adjust parameters):
+    #thread_pool waf_thread_pool threads=2 max_queue=16;
+  http-snippet: |
+    # if AppSec is enabled
+    #datadog_appsec_enabled on;
+    #datadog_waf_thread_pool_name waf_thread_pool;

@@ -9,6 +9,7 @@
           parameters:
             arch:
             - 'amd64'
+            - 'arm64'
             version:
             - v1.11.3
             - v1.11.2

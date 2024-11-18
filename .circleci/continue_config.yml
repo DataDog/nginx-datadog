@@ -120,6 +120,7 @@ jobs:
             arch:
                 enum:
                     - amd64
+                    - arm64
                 type: enum
             version:
                 type: string
@@ -132,6 +133,7 @@ jobs:
                 environment:
                     BUILD_TYPE: RelWithDebInfo
                     INGRESS_NGINX_VERSION: << parameters.version >>
+                    WAF: "ON"
             - persist_to_workspace:
                 paths:
                     - .musl-build/ngx_http_datadog_module.so
@@ -481,6 +483,7 @@ workflows:
                     parameters:
                         arch:
                             - amd64
+                            - arm64
                         version:
                             - v1.11.3
                             - v1.11.2

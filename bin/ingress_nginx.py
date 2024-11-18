@@ -142,13 +142,18 @@ def prepare(args) -> int:
 def build_init_container(args) -> int:
     dockerfile_path = os.path.join(PROJECT_DIR, "injection", "ingress-nginx")
     run_cmd(
-        f"docker build --progress=plain --build-context build={args.module_path} --platform {args.platform} --tag {args.image_name} {dockerfile_path}"
+        f"docker build --progress=plain --no-cache --build-context build={args.module_path} --platform {args.platform} --tag {args.image_name} {dockerfile_path}"
     )
 
     if args.push:
         run_cmd(f"docker push {args.image_name}")
 
     return 0
+
+
+def create_multiarch_images(tag_map: dict):
+    for image, tags in tag_map.items():
+        run_cmd(f"docker buildx imagetools create -t {image} {' '.join(tags)}")
 
 
 def main() -> int:
