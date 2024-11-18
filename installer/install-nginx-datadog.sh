@@ -12,7 +12,7 @@
 #
 # 1. download the script
 #
-#   $ curl -fsSL https://raw.githubusercontent.com/DataDog/nginx-datadog/master/rum-injection-installer/install-nginx-datadog.sh -o install-nginx-datadog.sh
+#   $ curl -fsSL https://raw.githubusercontent.com/DataDog/nginx-datadog/master/installer/install-nginx-datadog.sh -o install-nginx-datadog.sh
 #
 # 2. run the script either as root, or using sudo to perform the installation.
 #
