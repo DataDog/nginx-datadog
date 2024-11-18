@@ -36,16 +36,13 @@ jobs:
         - 'OFF'
     name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
 - build_ingress_nginx_module:
-    name: build ingress-nginx-<< matrix.version >> on << matrix.arch >> WAF << matrix.waf >>
+    name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
     matrix:
       parameters:
         arch:
         - 'amd64'
         version:
         - v1.11.3
-        waf:
-        - "ON"
-        - "OFF"
 - coverage:
     name: Coverage on 1.27.0 with WAF ON
 - test:
@@ -104,13 +101,11 @@ jobs:
 - test_ingress:
     name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
     requires:
-    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
     matrix:
       parameters:
         arch:
         - amd64
-        waf:
-        - "OFF"
         base-image:
         - registry.k8s.io/ingress-nginx/controller
         nginx-version:

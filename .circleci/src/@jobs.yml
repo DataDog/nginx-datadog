@@ -173,11 +173,6 @@ jobs:
         type: string
       arch:
         type: string
-      waf:
-        type: enum
-        enum:
-        - 'ON'
-        - 'OFF'
     executor:
       name: docker-<< parameters.arch >>
       image: cimg/python:3.10.13
@@ -328,18 +323,13 @@ jobs:
         enum:
         - 'amd64'
         - 'arm64'
-      waf:
-        type: enum
-        enum:
-        - "ON"
-        - "OFF"
     steps:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
     - run:
         command: 'make build-ingress-nginx'
         environment:
-          WAF: "<< parameters.waf >>"
+          WAF: ON
           BUILD_TYPE: RelWithDebInfo
           INGRESS_NGINX_VERSION: "<< parameters.version >>"
     - persist_to_workspace:

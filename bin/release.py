@@ -29,7 +29,7 @@ import tempfile
 import urllib.request
 import tarfile
 
-from ingress_nginx import build_init_container
+from ingress_nginx import build_init_container, create_multiarch_images
 
 
 class VerboseDict(dict):
@@ -303,18 +303,15 @@ def release_ingress_nginx(args) -> int:
     if not jobs:
         return 1
 
+    collected_images = {}
+
     for job in jobs:
         if job["name"].startswith("build ingress-nginx"):
-            match = re.match(
-                r"build ingress-nginx-(v[\d.]+) on (amd64|arm64) WAF (ON|OFF)",
-                job["name"])
+            match = re.match(r"build ingress-nginx-(v[\d.]+) on (amd64|arm64)",
+                             job["name"])
             if match is None:
                 raise Exception(f'Job name does not match regex "{re}": {job}')
-            version, arch, waf = match.groups()
-            if waf == "ON":
-                waf_suffix = "-appsec"
-            else:
-                waf_suffix = ""
+            version, arch = match.groups()
 
             artifacts = send_ci_request_paged(
                 f"/project/gh/DataDog/nginx-datadog/{job['job_number']}/artifacts"
@@ -343,9 +340,16 @@ def release_ingress_nginx(args) -> int:
 
                 args.push = True
                 args.platform = f"linux/{arch}"
-                args.image_name = f"{args.registry}:{version}{waf_suffix}-{arch}"
+                args.image_name = f"{args.registry}:{version}-{arch}"
                 args.module_path = work_dir
                 build_init_container(args)
+
+                image_no_arch = f"{args.registry}:{version}"
+                if image_no_arch not in collected_images:
+                    collected_images[image_no_arch] = []
+                collected_images[image_no_arch].append(args.image_name)
+
+    create_multiarch_images(collected_images)
 
     return 0
 

@@ -21,7 +21,7 @@ To manually deploy the ingress-nginx controller with Datadog tracing:
 1. Deploy the default ingress-nginx controller:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/refs/tags/controller-v1.11.3/deploy/static/provider/cloud/deploy.yaml
 ```
 
 2. **Modify the controller spec**: You need to add an init container to load the Datadog module into the NGINX environment. 
@@ -33,8 +33,7 @@ spec:
     spec:
       initContainers:
         - name: init-datadog
-          # choose tag as appropriate, e.g. v1.11.3-appsec-amd64, v1.11.3-arm64
-          image: datadog/ingress-nginx-injection:v1.10.0-amd64
+          image: datadog/ingress-nginx-injection:v1.10.0
           command: ['/datadog/init_module.sh', '/opt/datadog-modules']
           volumeMounts:
             - name: nginx-module

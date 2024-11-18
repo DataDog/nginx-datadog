@@ -151,6 +151,11 @@ def build_init_container(args) -> int:
     return 0
 
 
+def create_multiarch_images(tag_map: dict):
+    for image, tags in tag_map.items():
+        run_cmd(f"docker buildx imagetools create -t {image} {' '.join(tags)}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Script managing ingress-nginx")
