@@ -74,6 +74,9 @@ all_versions = all_specs.map(&:version).uniq.sort
 
 puts <<-YAML.gsub(/^/, '    ')
 - build_amd64:
+    filters:
+        tags:
+          only: /^v.*/
     matrix:
       parameters:
         nginx-version:
@@ -83,6 +86,9 @@ puts <<-YAML.gsub(/^/, '    ')
         - 'OFF'
     name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
 - build_arm64:
+    filters:
+        tags:
+          only: /^v.*/
     matrix:
       parameters:
         nginx-version:
@@ -96,6 +102,9 @@ YAML
 all_specs.group_by(&:version).each do |version, specs|
     puts <<~YAML.gsub(/^/, '    ')
     - test:
+        filters:
+            tags:
+              only: /^v.*/
         matrix:
           parameters:
             arch:
