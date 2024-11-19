@@ -90,7 +90,7 @@ type LogsPayload struct {
 	Logs []LogMessage `json:"logs"`
 }
 
-func NewTelemetrySender(agentHost, serviceName, env string) (*TelemetrySender, error) {
+func NewTelemetrySender(agentUri, serviceName, env string) (*TelemetrySender, error) {
 	app, err := initApplication(serviceName, env)
 	if err != nil {
 		return nil, NewInstallerError(TelemetryError, fmt.Errorf("failed to initialize application info: %w", err))
@@ -99,7 +99,7 @@ func NewTelemetrySender(agentHost, serviceName, env string) (*TelemetrySender, e
 	host := initHost()
 
 	return &TelemetrySender{
-		AgentEndpoint:    agentHost + AgentEndpoint,
+		AgentEndpoint:    ensureProtocol(agentUri) + AgentEndpoint,
 		RuntimeID:        uuid.New().String(),
 		Application:      app,
 		Host:             host,
@@ -274,7 +274,7 @@ func (ts *TelemetrySender) sendTelemetry(requestType string, payload interface{}
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return NewInstallerError(TelemetryError, fmt.Errorf("unexpected status code: %d", resp.StatusCode))
 	}
 

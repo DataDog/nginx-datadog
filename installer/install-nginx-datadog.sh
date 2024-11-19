@@ -25,6 +25,25 @@ error() {
     exit 1
 }
 
+resolve_agent_uri() {
+    if [ -n "$EXPLICIT_AGENT_URI" ]; then
+        AGENT_URI="$EXPLICIT_AGENT_URI"
+        return
+    fi
+
+    if [ -n "$DD_TRACE_AGENT_URL" ]; then
+        AGENT_URI="$DD_TRACE_AGENT_URL"
+        return
+    fi
+
+    if [ -n "$DD_AGENT_HOST" ] && [ -n "$DD_TRACE_AGENT_PORT" ]; then
+        AGENT_URI="http://${DD_AGENT_HOST}:${DD_TRACE_AGENT_PORT}"
+        return
+    fi
+
+    AGENT_URI="http://localhost:8126"
+}
+
 check_architecture() {
     if command -v arch >/dev/null 2>&1; then
         ARCH=$(arch)
@@ -64,8 +83,11 @@ check_dependencies() {
 
 verify_connection() {
     if ! curl -s -o /dev/null -w "%{http_code}" "${AGENT_URI}/info" | grep -q "200"; then
-        error "Cannot infer the Datadog agent endpoint at ${AGENT_URI}. Please ensure the agent is running and accessible \
- or specify the correct agent URL with the --agentUri flag."
+        error "Cannot infer the Datadog agent endpoint at ${AGENT_URI}. Please ensure the agent is running and accessible, \
+or configure the agent URL using one of:
+- The --agentUri command line flag
+- DD_TRACE_AGENT_URL environment variable
+- DD_AGENT_HOST and DD_TRACE_AGENT_PORT environment variables"
     fi
 }
 
@@ -115,7 +137,7 @@ main() {
     ARGS_COPY=$*
     SKIP_VERIFY=false
     SKIP_DOWNLOAD=false
-    AGENT_URI="http://localhost:8126"
+    EXPLICIT_AGENT_URI=""
     HELP=false
 
     while [ "$#" -gt 0 ]; do
@@ -123,10 +145,12 @@ main() {
             --skipVerify) SKIP_VERIFY=true; shift 1;;
             --skipDownload) SKIP_DOWNLOAD=true; shift 1;;
             --help) HELP=true; shift 1;;
-            --agentUri) AGENT_URI="$2"; shift 2;;
+            --agentUri) EXPLICIT_AGENT_URI="$2"; shift 2;;
             *) shift 1;;
         esac
     done
+
+    resolve_agent_uri
 
     if [ $HELP = false ] ; then
         verify_connection
@@ -136,9 +160,13 @@ main() {
         download_installer_and_verify
     fi
 
-    # shellcheck disable=SC2086
-    # Pass all arguments appending computed ones (arch...)
-    ./nginx-configurator $ARGS_COPY --arch "$ARCH"
+    if [ -z "$EXPLICIT_AGENT_URI" ]; then
+        # shellcheck disable=SC2086
+        ./nginx-configurator $ARGS_COPY --agentUri "$AGENT_URI" --arch "$ARCH"
+    else
+        # shellcheck disable=SC2086
+        ./nginx-configurator $ARGS_COPY --arch "$ARCH"
+    fi
 
     if [ $SKIP_DOWNLOAD = false ] ; then
         rm -f nginx-configurator

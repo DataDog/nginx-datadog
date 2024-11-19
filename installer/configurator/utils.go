@@ -135,3 +135,10 @@ func envBool(key string) bool {
 	value = strings.TrimSpace(strings.ToLower(value))
 	return value != "false" && value != "0"
 }
+
+func ensureProtocol(url string) string {
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return "http://" + url
+	}
+	return url
+}
