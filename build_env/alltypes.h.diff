@@ -1,6 +1,42 @@
---- bits/alltypes.h	2023-11-06 11:49:18.000000000 +0000
-+++ bits/alltypes.h	2024-04-22 09:30:09.927560000 +0000
-@@ -383,12 +383,20 @@
+--- bits/alltypes.h
++++ bits/alltypes.h
+@@ -299,17 +299,32 @@
+ #endif
+ 
+ #if defined(__NEED_pthread_mutexattr_t) && !defined(__DEFINED_pthread_mutexattr_t)
+-typedef struct { unsigned __attr; } pthread_mutexattr_t;
++typedef struct { union { unsigned __attr;
++#ifdef __aarch64__
++	long __glibc_compat;
++#endif
++};
++} pthread_mutexattr_t;
+ #define __DEFINED_pthread_mutexattr_t
+ #endif
+ 
+ #if defined(__NEED_pthread_condattr_t) && !defined(__DEFINED_pthread_condattr_t)
+-typedef struct { unsigned __attr; } pthread_condattr_t;
++typedef struct { union { unsigned __attr;
++#ifdef __aarch64__
++	long __glibc_compat;
++#endif
++};
++} pthread_condattr_t;
+ #define __DEFINED_pthread_condattr_t
+ #endif
+ 
+ #if defined(__NEED_pthread_barrierattr_t) && !defined(__DEFINED_pthread_barrierattr_t)
+-typedef struct { unsigned __attr; } pthread_barrierattr_t;
++typedef struct { union { unsigned __attr;
++#ifdef __aarch64__
++	long __glibc_compat;
++#endif
++};
++} pthread_barrierattr_t;
+ #define __DEFINED_pthread_barrierattr_t
+ #endif
+ 
+@@ -383,12 +398,20 @@
  
  
  #if defined(__NEED_pthread_attr_t) && !defined(__DEFINED_pthread_attr_t)
