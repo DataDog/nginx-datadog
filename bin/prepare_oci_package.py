@@ -90,6 +90,9 @@ def main() -> int:
 
     os.mkdir("sources")
 
+    with open(os.path.join("sources", "version"), "w") as f:
+        f.write(args.version_tag)
+
     for nginx_version, artifact_url in artifacts:
         out_dir = os.path.join("sources", nginx_version)
 

@@ -10,10 +10,10 @@ arch=${ARCH:-$(uname -m)}
 
 case "$(uname -m)" in
   aarch64|arm64)
-    echo "arm64"
+    arch="arm64"
     ;;
   x86_64|amd64)
-    echo "amd64"
+    arch="amd64"
     ;;
   *)
     exit 1
