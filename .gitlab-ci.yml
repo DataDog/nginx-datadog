@@ -2,6 +2,9 @@ stages:
   - benchmarks
   - shared-pipeline # OCI packaging
 
+variables:
+  REPO_LANG: dd-trace-cpp
+
 include:
   - local: .gitlab/benchmarks.yml
   - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
