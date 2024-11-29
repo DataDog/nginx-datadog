@@ -3,7 +3,7 @@ stages:
   - shared-pipeline # OCI packaging
 
 variables:
-  REPO_LANG: nginx-datadog
+  REPO_LANG: nginx
 
 include:
   - local: .gitlab/benchmarks.yml
