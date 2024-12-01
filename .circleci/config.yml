@@ -14,3 +14,8 @@ workflows:
             installer/.* run-installer-workflow true
           base-revision: master
           config-path: .circleci/continue_config.yml
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              only: /.*/

@@ -367,13 +367,14 @@ def release_module(args) -> int:
         return 1
 
     with tempfile.TemporaryDirectory() as work_dir:
+        work_dir = Path(work_dir)
         print("Working directory is", work_dir)
 
         for job in jobs:
             # See the response schema for a list of statuses:
             # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
             if job["name"].startswith("build ") and not job["name"].startswith(
-                    "build installer ") and not job["name"].startsWith(
+                    "build installer ") and not job["name"].startswith(
                         "build ingress-nginx"):
                 # name should be something like "build 1.25.4 on arm64 WAF ON"
                 match = re.match(

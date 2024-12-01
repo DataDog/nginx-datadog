@@ -479,6 +479,9 @@ workflows:
     build-and-test-all:
         jobs:
             - build_ingress_nginx_module:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -497,6 +500,9 @@ workflows:
                             - v1.9.6
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - test_ingress:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -518,6 +524,9 @@ workflows:
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
             - build_amd64:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         nginx-version:
@@ -546,6 +555,9 @@ workflows:
                             - "OFF"
                 name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
             - build_arm64:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         nginx-version:
@@ -574,6 +586,9 @@ workflows:
                             - "OFF"
                 name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -592,6 +607,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -628,6 +646,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -645,23 +666,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - nginx:1.27.2-alpine
-                            - nginx:1.27.2
-                        nginx-version:
-                            - 1.27.2
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -679,6 +686,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -696,6 +706,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -713,6 +726,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -730,6 +746,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -747,6 +766,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -764,6 +786,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -781,6 +806,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -798,6 +826,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -815,6 +846,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -832,6 +866,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -849,6 +886,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -866,6 +906,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -883,6 +926,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -900,6 +946,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -917,6 +966,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
@@ -934,6 +986,9 @@ workflows:
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
+                filters:
+                    tags:
+                        only: /^v.*/
                 matrix:
                     parameters:
                         arch:
