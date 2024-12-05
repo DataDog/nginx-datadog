@@ -69,6 +69,7 @@
             - 1.27.0
             - 1.27.1
             - 1.27.2
+            - 1.27.3
             waf:
             - 'ON'
             - 'OFF'
@@ -93,6 +94,7 @@
             - 1.27.0
             - 1.27.1
             - 1.27.2
+            - 1.27.3
             waf:
             - 'ON'
             - 'OFF'
@@ -115,6 +117,26 @@
             - nginx:1.24.0
             nginx-version:
             - 1.24.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test:
+        filters:
+            tags:
+              only: /^v.*/
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.27.3-alpine
+            - nginx:1.27.3
+            nginx-version:
+            - 1.27.3
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
