@@ -105,7 +105,7 @@ download_installer_and_verify() {
     echo "Latest installer tag: $LATEST_TAG"
 
     BASE_URL="https://github.com/DataDog/nginx-datadog/releases/download/${LATEST_TAG}"
-    BINARY_URL="${BASE_URL}/proxy-configurator-${ARCH}.tgz"
+    BINARY_URL="${BASE_URL}/nginx-configurator-${ARCH}.tgz"
     SIGNATURE_URL="${BINARY_URL}.asc"
     PUBKEY_URL="${BASE_URL}/pubkey.gpg"
 
@@ -117,16 +117,16 @@ download_installer_and_verify() {
 
         gpg --import pubkey.gpg || error "Failed to import public key"
 
-        if ! gpg --verify "proxy-configurator-${ARCH}.tgz.asc" "proxy-configurator-${ARCH}.tgz"; then
+        if ! gpg --verify "nginx-configurator-${ARCH}.tgz.asc" "nginx-configurator-${ARCH}.tgz"; then
             error "Signature verification failed"
         fi
     fi
 
-    tar -xzf "proxy-configurator-${ARCH}.tgz" || error "Failed to extract binary"
+    tar -xzf "nginx-configurator-${ARCH}.tgz" || error "Failed to extract binary"
 
-    rm -f "proxy-configurator-${ARCH}.tgz" "proxy-configurator-${ARCH}.tgz.asc" "pubkey.gpg"
+    rm -f "nginx-configurator-${ARCH}.tgz" "nginx-configurator-${ARCH}.tgz.asc" "pubkey.gpg"
 
-    chmod +x proxy-configurator
+    chmod +x nginx-configurator
 
     echo "Binary downloaded, verified, and extracted successfully."
 }
