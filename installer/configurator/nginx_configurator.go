@@ -264,7 +264,7 @@ func transformConfig(n *NginxConfigurator, content []byte, agentUri string, appI
 	datadogConfig := fmt.Sprintf(`    datadog_agent_url %s;
 
     # Disable APM Tracing. Remove the next line to enable APM Tracing.
-    datadog_tracing off;
+    datadog_disable;
 
     # Enable RUM Injection
     datadog_rum on;
