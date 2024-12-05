@@ -282,6 +282,8 @@ jobs:
     parameters:
       base-dockerfile:
         type: string
+      proxy-kind:
+        type: string
     machine:
       image: ubuntu-2204:current
     steps:
@@ -291,13 +293,14 @@ jobs:
     - run:
           name: Move the configurator go binary to the installer directory
           working_directory: ./installer
-          command: cp /tmp/workspace/nginx-configurator .
+          command: cp /tmp/workspace/proxy-configurator .
     - run:
         name: Run installer tests
-        command: docker compose -f installer/test/docker-compose.yml up --build --exit-code-from nginx
+        command: docker compose -f installer/test/docker-compose.yml up --build --exit-code-from proxy
         environment:
           DD_API_KEY: fakekey
-          NGINX_DOCKERFILE: << parameters.base-dockerfile >>
+          PROXY_DOCKERFILE: << parameters.base-dockerfile >>
+          PROXY_KIND: << parameters.proxy-kind >>
   installer_download_test:
     machine:
       image: ubuntu-2204:current
@@ -308,7 +311,7 @@ jobs:
         command: docker compose -f installer/test/docker-compose-download.yml up --build --exit-code-from nginx
         environment:
           DD_API_KEY: fakekey
-          NGINX_DOCKERFILE: bookworm.Dockerfile
+          NGINX_DOCKERFILE: nginx.bookworm.Dockerfile
   build_ingress_nginx_module:
     machine:
       image: ubuntu-2204:current

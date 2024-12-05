@@ -1,22 +1,22 @@
 #!/bin/sh
 
-# NGINX Datadog's Module installation script.
+# NGINX & httpd Datadog's Module installation script.
 #
 # This script is intended as a convenient way to install
-# and configure Datadog's Module for NGINX.
+# and configure Datadog's Module for NGINX and httpd.
 #
 # Usage
 # ==============================================================================
 #
-# To install the latest version of NGINX Datadog's Module:
+# To install the latest version of NGINX or httpd Datadog's Module:
 #
 # 1. download the script
 #
-#   $ curl -fsSL https://raw.githubusercontent.com/DataDog/nginx-datadog/master/rum-injection-installer/install-nginx-datadog.sh -o install-nginx-datadog.sh
+#   $ curl -fsSL https://raw.githubusercontent.com/DataDog/nginx-datadog/master/rum-injection-installer/install-proxy-datadog.sh -o install-proxy-datadog.sh
 #
 # 2. run the script either as root, or using sudo to perform the installation.
 #
-#   $ sudo sh install-nginx-datadog.sh
+#   $ sudo sh install-proxy-datadog.sh
 #
 set -e
 
@@ -105,7 +105,7 @@ download_installer_and_verify() {
     echo "Latest installer tag: $LATEST_TAG"
 
     BASE_URL="https://github.com/DataDog/nginx-datadog/releases/download/${LATEST_TAG}"
-    BINARY_URL="${BASE_URL}/nginx-configurator-${ARCH}.tgz"
+    BINARY_URL="${BASE_URL}/proxy-configurator-${ARCH}.tgz"
     SIGNATURE_URL="${BINARY_URL}.asc"
     PUBKEY_URL="${BASE_URL}/pubkey.gpg"
 
@@ -117,16 +117,16 @@ download_installer_and_verify() {
 
         gpg --import pubkey.gpg || error "Failed to import public key"
 
-        if ! gpg --verify "nginx-configurator-${ARCH}.tgz.asc" "nginx-configurator-${ARCH}.tgz"; then
+        if ! gpg --verify "proxy-configurator-${ARCH}.tgz.asc" "proxy-configurator-${ARCH}.tgz"; then
             error "Signature verification failed"
         fi
     fi
 
-    tar -xzf "nginx-configurator-${ARCH}.tgz" || error "Failed to extract binary"
+    tar -xzf "proxy-configurator-${ARCH}.tgz" || error "Failed to extract binary"
 
-    rm -f "nginx-configurator-${ARCH}.tgz" "nginx-configurator-${ARCH}.tgz.asc" "pubkey.gpg"
+    rm -f "proxy-configurator-${ARCH}.tgz" "proxy-configurator-${ARCH}.tgz.asc" "pubkey.gpg"
 
-    chmod +x nginx-configurator
+    chmod +x proxy-configurator
 
     echo "Binary downloaded, verified, and extracted successfully."
 }
@@ -162,14 +162,14 @@ main() {
 
     if [ -z "$EXPLICIT_AGENT_URI" ]; then
         # shellcheck disable=SC2086
-        ./nginx-configurator $ARGS_COPY --agentUri "$AGENT_URI" --arch "$ARCH"
+        ./proxy-configurator $ARGS_COPY --agentUri "$AGENT_URI" --arch "$ARCH"
     else
         # shellcheck disable=SC2086
-        ./nginx-configurator $ARGS_COPY --arch "$ARCH"
+        ./proxy-configurator $ARGS_COPY --arch "$ARCH"
     fi
 
     if [ $SKIP_DOWNLOAD = false ] ; then
-        rm -f nginx-configurator
+        rm -f proxy-configurator
     fi
 
     exit 0

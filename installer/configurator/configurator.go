@@ -13,10 +13,13 @@ var InstallerVersion = "0.1.2"
 var IntegrationVersion = "unset"
 var IntegrationName = "unset"
 
-func validateInput(appID, site, clientToken, arch string, sessionSampleRate, sessionReplaySampleRate int) error {
+func validateInput(proxyKind, appID, site, clientToken, arch string, sessionSampleRate, sessionReplaySampleRate int) error {
 
 	log.Debug("Validating input arguments")
 
+	if proxyKind != "nginx" && proxyKind != "httpd" {
+		return NewInstallerError(ArgumentError, fmt.Errorf("proxyKind must be either 'nginx' or 'httpd', found '%s'", proxyKind))
+	}
 	if appID == "" {
 		return NewInstallerError(ArgumentError, fmt.Errorf("--appId is required"))
 	}
@@ -82,6 +85,7 @@ var start time.Time
 func main() {
 	start = time.Now()
 
+	proxyKind := flag.String("proxyKind", "", "Proxy kind to install (nginx or httpd)")
 	appID := flag.String("appId", "", "Application ID")
 	site := flag.String("site", "", "Site")
 	clientToken := flag.String("clientToken", "", "Client Token")
@@ -109,7 +113,7 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	}
 
-	sender, err := NewTelemetrySender(*agentUri, "rum-installer-nginx", "prod")
+	sender, err := NewTelemetrySender(*agentUri, "rum-installer-"+*proxyKind, "prod")
 	if err != nil {
 		handleError(err, sender, "", *dryRun)
 	}
@@ -118,11 +122,19 @@ func main() {
 		log.Info("Dry run enabled. No changes will be made.")
 	}
 
-	if err := validateInput(*appID, *site, *clientToken, *arch, *sessionSampleRate, *sessionReplaySampleRate); err != nil {
+	if err := validateInput(*proxyKind, *appID, *site, *clientToken, *arch, *sessionSampleRate, *sessionReplaySampleRate); err != nil {
 		handleError(err, sender, *appID, *dryRun)
 	}
 
-	var configurator ProxyConfigurator = &NginxConfigurator{}
+	var configurator ProxyConfigurator
+	switch *proxyKind {
+	case "nginx":
+		configurator = &NginxConfigurator{}
+	case "httpd":
+		configurator = &HttpdConfigurator{}
+	default:
+		handleError(NewInstallerError(ArgumentError, fmt.Errorf("--proxyKind unexpected value")), sender, *appID, *dryRun)
+	}
 
 	if err := configurator.VerifyRequirements(); err != nil {
 		handleError(err, sender, *appID, *dryRun)
@@ -141,7 +153,7 @@ func main() {
 			handleError(err, sender, *appID, *dryRun)
 		}
 
-		log.Info("Datadog NGINX module has been successfully installed and configured. Please reload NGINX or restart the service for the changes to take effect")
+		log.Info("Datadog " + *proxyKind + " module has been successfully installed and configured. " + configurator.GetFinalConfigMessage())
 	}
 
 	if !*dryRun {

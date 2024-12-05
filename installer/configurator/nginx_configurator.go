@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -142,9 +140,7 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 		return err
 	}
 
-	// TODO: Use the releases once the module is actually released with RUM
-	// baseURL := fmt.Sprintf("https://github.com/DataDog/nginx-datadog/releases/latest/download/")
-	baseURL := "https://ddagent-windows-unstable.s3.amazonaws.com/inject-browser-sdk/nginx/latest/"
+	baseURL := "https://github.com/DataDog/nginx-datadog/releases/latest/download/"
 	moduleURL := baseURL + fmt.Sprintf("ngx_http_datadog_module-%s-%s.so.tgz", arch, n.Version)
 
 	moduleContent, err := downloadFile(moduleURL)
@@ -239,6 +235,10 @@ func (n *NginxConfigurator) validateConfig(configPath string) error {
 	return nil
 }
 
+func (n *NginxConfigurator) GetFinalConfigMessage() string {
+	return "Please reload NGINX or restart the service for the changes to take effect"
+}
+
 // Insert load_module directive at the beginning of the file
 // Find http and bracket { on possibly multiple lines
 // Insert the datadog configuration after the http block
@@ -303,37 +303,6 @@ func (n *NginxConfigurator) testNginxLoadsModule(modulePath string) error {
 	log.Debug("Successfully validated default configuration with module loaded")
 
 	return nil
-}
-
-func verifySignatureGPG(moduleFile, signatureFile, publicKeyFile string) error {
-	importCmd := exec.Command("gpg", "--import", publicKeyFile)
-	if output, err := importCmd.CombinedOutput(); err != nil {
-		return NewInstallerError(NginxError, fmt.Errorf("failed to import public key: %v\nOutput: %s", err, output))
-	}
-
-	log.Debug("Imported public key ", publicKeyFile)
-
-	verifyCmd := exec.Command("gpg", "--verify", signatureFile, moduleFile)
-	if output, err := verifyCmd.CombinedOutput(); err != nil {
-		return NewInstallerError(NginxError, fmt.Errorf("signature verification failed: %v\nOutput: %s", err, output))
-	}
-
-	log.Debug("Verified signature ", signatureFile, " for module ", moduleFile)
-
-	return nil
-}
-
-// Helper function to download a file
-func downloadFile(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	log.Debug("Downloaded file: ", url)
-
-	return io.ReadAll(resp.Body)
 }
 
 // Gets the configuration file from 'nginx -T'

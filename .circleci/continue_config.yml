@@ -222,7 +222,7 @@ jobs:
                 command: docker compose -f installer/test/docker-compose-download.yml up --build --exit-code-from nginx
                 environment:
                     DD_API_KEY: fakekey
-                    NGINX_DOCKERFILE: bookworm.Dockerfile
+                    NGINX_DOCKERFILE: nginx.bookworm.Dockerfile
                 name: Run installer download tests
     installer_test:
         machine:
@@ -230,19 +230,22 @@ jobs:
         parameters:
             base-dockerfile:
                 type: string
+            proxy-kind:
+                type: string
         steps:
             - checkout
             - attach_workspace:
                 at: /tmp/workspace
             - run:
-                command: cp /tmp/workspace/nginx-configurator .
+                command: cp /tmp/workspace/proxy-configurator .
                 name: Move the configurator go binary to the installer directory
                 working_directory: ./installer
             - run:
-                command: docker compose -f installer/test/docker-compose.yml up --build --exit-code-from nginx
+                command: docker compose -f installer/test/docker-compose.yml up --build --exit-code-from proxy
                 environment:
                     DD_API_KEY: fakekey
-                    NGINX_DOCKERFILE: << parameters.base-dockerfile >>
+                    PROXY_DOCKERFILE: << parameters.base-dockerfile >>
+                    PROXY_KIND: << parameters.proxy-kind >>
                 name: Run installer tests
     shellcheck:
         docker:
@@ -968,10 +971,23 @@ workflows:
                 matrix:
                     parameters:
                         base-dockerfile:
-                            - bookworm.Dockerfile
-                            - alpine.Dockerfile
-                            - al2023.Dockerfile
-                name: test installer with << matrix.base-dockerfile >> base image
+                            - nginx.bookworm.Dockerfile
+                            - nginx.alpine.Dockerfile
+                            - nginx.al2023.Dockerfile
+                        proxy-kind:
+                            - nginx
+                name: test NGINX installer with << matrix.base-dockerfile >> base image
+                requires:
+                    - build installer on amd64
+                    - build installer on arm64
+            - installer_test:
+                matrix:
+                    parameters:
+                        base-dockerfile:
+                            - httpd.bookworm.Dockerfile
+                        proxy-kind:
+                            - nginx
+                name: test httpd installer with << matrix.base-dockerfile >> base image
                 requires:
                     - build installer on amd64
                     - build installer on arm64

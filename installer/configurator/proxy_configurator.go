@@ -10,4 +10,6 @@ type ProxyConfigurator interface {
 	ModifyConfig(appID, site, clientToken, agentUri string, sessionSampleRate, sessionReplaySampleRate int, dryRun bool) error
 	// Validates the proxy still works after the config modifications
 	ValidateConfig() error
+	// Returns a message to display to the user after the installation, usually indicating to restart the server
+	GetFinalConfigMessage() string
 }

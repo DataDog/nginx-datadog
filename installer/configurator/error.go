@@ -9,6 +9,7 @@ const (
 	ArgumentError
 	InternalError
 	NginxError
+	HttpdError
 	TelemetryError
 )
 
@@ -22,6 +23,8 @@ func (e ErrorType) String() string {
 		return "InternalError"
 	case NginxError:
 		return "NginxError"
+	case HttpdError:
+		return "HttpdError"
 	case TelemetryError:
 		return "TelemetryError"
 	default:

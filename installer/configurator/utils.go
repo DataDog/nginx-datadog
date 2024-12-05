@@ -2,11 +2,14 @@ package main
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -122,6 +125,48 @@ func extractTarGzFile(srcPath, destPath string) error {
 	return nil
 }
 
+func unzipFile(srcPath, destPath string) error {
+	reader, err := zip.OpenReader(srcPath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+
+	for _, file := range reader.File {
+		// Create destination directory for extracted file
+		filePath := filepath.Join(destPath, file.Name)
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(filePath, os.ModePerm)
+			continue
+		}
+
+		// Create destination directory for file if it doesn't exist
+		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+			return err
+		}
+
+		// Create destination file
+		destFile, err := os.Create(filePath)
+		if err != nil {
+			return err
+		}
+		defer destFile.Close()
+
+		// Open source file from zip
+		srcFile, err := file.Open()
+		if err != nil {
+			return err
+		}
+		defer srcFile.Close()
+
+		// Copy contents
+		if _, err := io.Copy(destFile, srcFile); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func keyValuePairsAsTags(pairs map[string]string) string {
 	result := make([]string, 0, len(pairs))
 	for key, value := range pairs {
@@ -141,4 +186,50 @@ func ensureProtocol(url string) string {
 		return "http://" + url
 	}
 	return url
+}
+
+func commandExists(cmd string) bool {
+	_, err := exec.LookPath(cmd)
+	return err == nil
+}
+
+func verifySignatureGPG(moduleFile, signatureFile, publicKeyFile string) error {
+	log.Infof("!!!!!!!! running 'gpg --import %s'", publicKeyFile)
+	importCmd := exec.Command("gpg", "--import", publicKeyFile)
+	if output, err := importCmd.CombinedOutput(); err != nil {
+		return NewInstallerError(InternalError, fmt.Errorf("failed to import public key: %v\nOutput: %s", err, output))
+	}
+
+	log.Debug("Imported public key ", publicKeyFile)
+
+	log.Infof("!!!!!!!! running 'gpg --verify %s %s'", signatureFile, moduleFile)
+	verifyCmd := exec.Command("gpg", "--verify", signatureFile, moduleFile)
+	if output, err := verifyCmd.CombinedOutput(); err != nil {
+		return NewInstallerError(InternalError, fmt.Errorf("signature verification failed: %v\nOutput: %s", err, output))
+	}
+
+	log.Debug("Verified signature ", signatureFile, " for module ", moduleFile)
+
+	return nil
+}
+
+func downloadFile(url string) ([]byte, error) {
+	log.Debug("Downloading file: ", url)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return respBytes, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 400 {
+		return respBytes, NewInstallerError(InternalError, fmt.Errorf("failed to download file with status code %s: %s", resp.Status, string(respBytes)))
+	}
+
+	return respBytes, nil
 }
