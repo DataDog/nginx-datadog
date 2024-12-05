@@ -194,7 +194,6 @@ func commandExists(cmd string) bool {
 }
 
 func verifySignatureGPG(moduleFile, signatureFile, publicKeyFile string) error {
-	log.Infof("!!!!!!!! running 'gpg --import %s'", publicKeyFile)
 	importCmd := exec.Command("gpg", "--import", publicKeyFile)
 	if output, err := importCmd.CombinedOutput(); err != nil {
 		return NewInstallerError(InternalError, fmt.Errorf("failed to import public key: %v\nOutput: %s", err, output))
@@ -202,7 +201,6 @@ func verifySignatureGPG(moduleFile, signatureFile, publicKeyFile string) error {
 
 	log.Debug("Imported public key ", publicKeyFile)
 
-	log.Infof("!!!!!!!! running 'gpg --verify %s %s'", signatureFile, moduleFile)
 	verifyCmd := exec.Command("gpg", "--verify", signatureFile, moduleFile)
 	if output, err := verifyCmd.CombinedOutput(); err != nil {
 		return NewInstallerError(InternalError, fmt.Errorf("signature verification failed: %v\nOutput: %s", err, output))
