@@ -11,7 +11,7 @@ variables:
     - when: manual
   image: $BASE_CI_IMAGE
   script:
-    - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - git clone --branch dmehala/add-traceparent-test https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - bp-runner bp-runner.yml --debug
   artifacts:
     name: "artifacts"
@@ -54,4 +54,12 @@ baseline:
 only-tracing:
   extends: .benchmarks
   variables:
+    DD_BENCHMARKS_SCENARIO: default
     DD_BENCHMARKS_CONFIGURATION: only-tracing
+
+only-tracing-w3c-propagation:
+  extends: .benchmarks
+  variables:
+    DD_BENCHMARKS_SCENARIO: w3c_trace_propagation
+    DD_BENCHMARKS_CONFIGURATION: only-tracing
+
