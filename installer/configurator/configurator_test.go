@@ -120,7 +120,8 @@ func TestValidateInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateInput(tt.appID, tt.site, tt.clientToken, tt.arch, tt.sessionSampleRate, tt.sessionReplaySampleRate)
+			// Validations are the same, testing only for nginx
+			err := validateInput("nginx", tt.appID, tt.site, tt.clientToken, tt.arch, tt.sessionSampleRate, tt.sessionReplaySampleRate)
 
 			if tt.expectedError == "" {
 				if err != nil {
