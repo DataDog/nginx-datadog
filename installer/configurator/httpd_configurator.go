@@ -317,14 +317,3 @@ func (h *HttpdConfigurator) runConfigTest(configFile string) error {
 
 	return nil
 }
-
-// TODO: Remove
-func runCommand(name string, args ...string) {
-	log.Debug("Running command: ", name)
-	cmd := exec.Command(name, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Error("Failed to run command: %v", err)
-	}
-	log.Debug("Command result: ", string(output))
-}
