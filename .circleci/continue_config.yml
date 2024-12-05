@@ -986,7 +986,7 @@ workflows:
                         base-dockerfile:
                             - httpd.bookworm.Dockerfile
                         proxy-kind:
-                            - nginx
+                            - httpd
                 name: test httpd installer with << matrix.base-dockerfile >> base image
                 requires:
                     - build installer on amd64
