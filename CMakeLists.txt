@@ -170,16 +170,14 @@ if(NGINX_DATADOG_ASM_ENABLED)
     src/security/waf_remote_cfg.cpp)
   target_compile_definitions(ngx_http_datadog_objs PUBLIC WITH_WAF)
 endif()
+
 if(NGINX_DATADOG_RUM_ENABLED)
-  target_sources(ngx_http_datadog_module
+  target_sources(ngx_http_datadog_objs
     PRIVATE
     src/rum/config.cpp
     src/rum/injection.cpp
   )
-  target_compile_definitions(ngx_http_datadog_module PRIVATE WITH_RUM)
-
-  target_link_libraries(ngx_http_datadog_module inject_browser_sdk)
-
+  target_compile_definitions(ngx_http_datadog_objs PUBLIC WITH_RUM)
 endif()
 
 if(ENABLE_FUZZERS)
@@ -224,6 +222,11 @@ target_link_libraries(ngx_http_datadog_module PRIVATE
 if(NGINX_DATADOG_ASM_ENABLED)
   target_link_libraries(ngx_http_datadog_objs PUBLIC libddwaf_objects)
   target_link_libraries(ngx_http_datadog_module PUBLIC libddwaf_objects)
+endif()
+
+if(NGINX_DATADOG_RUM_ENABLED)
+  target_link_libraries(ngx_http_datadog_objs PUBLIC inject_browser_sdk)
+  target_link_libraries(ngx_http_datadog_module PUBLIC inject_browser_sdk)
 endif()
 
 # Remove the "lib" prefix to match NGINX convention

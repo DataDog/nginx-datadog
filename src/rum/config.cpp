@@ -11,21 +11,22 @@
 namespace {
 
 char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
-  auto *rum_config =
-      static_cast<std::unordered_map<std::string, std::string> *>(conf);
+  auto &rum_config =
+      *static_cast<std::unordered_map<std::string, std::vector<std::string>> *>(
+          conf);
 
   if (cf->args->nelts < 2) {
     char *err_msg =
         static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char *)err_msg, 256,
-                 "invalid number of arguments. Expected exactly two: a key and "
-                 "a value.");
+    ngx_snprintf(
+        (u_char *)err_msg, 256,
+        "invalid number of arguments. Expected at least two arguments.");
     return err_msg;
   }
 
-  ngx_str_t *values = (ngx_str_t *)(cf->args->elts);
+  ngx_str_t *arg_values = (ngx_str_t *)(cf->args->elts);
 
-  std::string_view key = datadog::nginx::to_string_view(values[0]);
+  std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
   if (key.empty()) {
     char *err_msg =
         static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
@@ -33,21 +34,18 @@ char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
     return err_msg;
   }
 
-  std::string_view value = datadog::nginx::to_string_view(values[1]);
-  if (value.empty()) {
-    char *err_msg =
-        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char *)err_msg, 256, "empty value");
-    return err_msg;
+  std::vector<std::string> values;
+  for (size_t i = 1; i < cf->args->nelts; ++i) {
+    values.emplace_back(datadog::nginx::to_string(arg_values[i]));
   }
 
-  (*rum_config)[std::string(key)] = std::string(value);
+  rum_config[std::string(key)] = std::move(values);
   return NGX_CONF_OK;
 }
 
 static std::string make_rum_json_config(
     int config_version,
-    const std::unordered_map<std::string, std::string> &config) {
+    const std::unordered_map<std::string, std::vector<std::string>> &config) {
   rapidjson::Document doc;
   doc.SetObject();
 
@@ -55,21 +53,30 @@ static std::string make_rum_json_config(
   doc.AddMember("majorVersion", config_version, allocator);
 
   rapidjson::Value rum(rapidjson::kObjectType);
-  for (const auto &[key, value] : config) {
-    if (key == "majorVersion") {
-      continue;
-    } else if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
+  for (const auto &[key, values] : config) {
+    if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
       rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                    rapidjson::Value(std::stod(value)).Move(), allocator);
+                    rapidjson::Value(std::stod(values[0])).Move(), allocator);
     } else if (key == "trackResources" || key == "trackLongTasks" ||
                key == "trackUserInteractions") {
-      auto b = (value == "true" ? true : false);
+      auto b = (values[0] == "true" ? true : false);
       rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                     rapidjson::Value(b).Move(), allocator);
     } else {
-      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                    rapidjson::Value(value.c_str(), allocator).Move(),
-                    allocator);
+      if (values.size() == 1) {
+        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                      rapidjson::Value(values[0].c_str(), allocator).Move(),
+                      allocator);
+      } else {
+        rapidjson::Value array(rapidjson::kArrayType);
+        for (const auto &e : values) {
+          array.PushBack(rapidjson::Value(e.c_str(), allocator).Move(),
+                         allocator);
+        }
+
+        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                      array.Move(), allocator);
+      }
     }
   }
 
@@ -123,7 +130,7 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
     return err_msg;
   }
 
-  std::unordered_map<std::string, std::string> rum_config;
+  std::unordered_map<std::string, std::vector<std::string>> rum_config;
 
   ngx_conf_t save = *cf;
   cf->handler = set_config;
