@@ -257,24 +257,24 @@ jobs:
     steps:
     - checkout
     - run: go test -C ./installer/configurator -v
-    - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
+    - run: CGO_ENABLED=0 go -C ./installer/configurator build -o proxy-configurator
     - store_artifacts:
-        path: "./installer/configurator/nginx-configurator"
-        destination: nginx-configurator
+        path: "./installer/configurator/proxy-configurator"
+        destination: proxy-configurator
     machine:
       image: ubuntu-2204:current
     resource_class: arm.medium
   build_installer_amd64:
     steps:
     - checkout
-    - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
+    - run: CGO_ENABLED=0 go -C ./installer/configurator build -o proxy-configurator
     - persist_to_workspace:
         root: "./installer/configurator"
         paths:
-          - "nginx-configurator"
+          - "proxy-configurator"
     - store_artifacts:
-        path: "./installer/configurator/nginx-configurator"
-        destination: nginx-configurator
+        path: "./installer/configurator/proxy-configurator"
+        destination: proxy-configurator
     machine:
       image: ubuntu-2204:current
     resource_class: medium

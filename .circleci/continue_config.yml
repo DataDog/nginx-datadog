@@ -149,14 +149,14 @@ jobs:
         resource_class: medium
         steps:
             - checkout
-            - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
+            - run: CGO_ENABLED=0 go -C ./installer/configurator build -o proxy-configurator
             - persist_to_workspace:
                 paths:
-                    - nginx-configurator
+                    - proxy-configurator
                 root: ./installer/configurator
             - store_artifacts:
-                destination: nginx-configurator
-                path: ./installer/configurator/nginx-configurator
+                destination: proxy-configurator
+                path: ./installer/configurator/proxy-configurator
     build_installer_arm64:
         machine:
             image: ubuntu-2204:current
@@ -164,10 +164,10 @@ jobs:
         steps:
             - checkout
             - run: go test -C ./installer/configurator -v
-            - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
+            - run: CGO_ENABLED=0 go -C ./installer/configurator build -o proxy-configurator
             - store_artifacts:
-                destination: nginx-configurator
-                path: ./installer/configurator/nginx-configurator
+                destination: proxy-configurator
+                path: ./installer/configurator/proxy-configurator
     check-ci-definition:
         docker:
             - image: circleci/circleci-cli:latest

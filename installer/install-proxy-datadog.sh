@@ -128,6 +128,8 @@ download_installer_and_verify() {
 
     chmod +x nginx-configurator
 
+    mv nginx-configurator proxy-configurator # TODO @pmartinez remove this
+
     echo "Binary downloaded, verified, and extracted successfully."
 }
 
