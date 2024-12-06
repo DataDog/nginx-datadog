@@ -46,7 +46,7 @@ jobs:
         waf:
         - 'ON'
         - 'OFF'
-    name: build << matrix.resty-version >> on amd64 WAF << matrix.waf >>
+    name: build openresty << matrix.resty-version >> on amd64 WAF << matrix.waf >>
 - build_openresty_arm64:
     matrix:
       parameters:
@@ -58,7 +58,7 @@ jobs:
         waf:
         - 'ON'
         - 'OFF'
-    name: build << matrix.resty-version >> on arm64 WAF << matrix.waf >>
+    name: build openresty << matrix.resty-version >> on arm64 WAF << matrix.waf >>
 - build_ingress_nginx_module:
     name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
     matrix:
@@ -102,9 +102,9 @@ jobs:
         - openresty/openresty:1.27.1.1
         resty-version:
         - 1.27.1.1
-    name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+    name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
     requires:
-    - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
 - test:
     matrix:
       parameters:

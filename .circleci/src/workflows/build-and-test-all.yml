@@ -126,7 +126,7 @@
             waf:
             - 'ON'
             - 'OFF'
-        name: build << matrix.resty-version >> on amd64 WAF << matrix.waf >>
+        name: build openresty << matrix.resty-version >> on amd64 WAF << matrix.waf >>
     - build_openresty_arm64:
         matrix:
           parameters:
@@ -142,7 +142,7 @@
             waf:
             - 'ON'
             - 'OFF'
-        name: build << matrix.resty-version >> on arm64 WAF << matrix.waf >>
+        name: build openresty << matrix.resty-version >> on arm64 WAF << matrix.waf >>
     - test:
         filters:
             tags:
@@ -204,6 +204,9 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
+        filters:
+            tags:
+              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -573,9 +576,9 @@
             - openresty/openresty:1.27.1.1-alpine
             resty-version:
             - 1.27.1.1
-        name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
         matrix:
           parameters:
@@ -589,9 +592,9 @@
             - openresty/openresty:1.25.3.2-alpine
             resty-version:
             - 1.25.3.2
-        name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
         matrix:
           parameters:
@@ -605,9 +608,9 @@
             - openresty/openresty:1.25.3.1-alpine
             resty-version:
             - 1.25.3.1
-        name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
         matrix:
           parameters:
@@ -621,9 +624,9 @@
             - openresty/openresty:1.21.4.4-alpine
             resty-version:
             - 1.21.4.4
-        name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
         matrix:
           parameters:
@@ -637,9 +640,9 @@
             - openresty/openresty:1.21.4.3-alpine
             resty-version:
             - 1.21.4.3
-        name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
         matrix:
           parameters:
@@ -653,9 +656,9 @@
             - openresty/openresty:1.21.4.2-alpine
             resty-version:
             - 1.21.4.2
-        name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
         matrix:
           parameters:
@@ -669,9 +672,9 @@
             - openresty/openresty:1.21.4.1-alpine
             resty-version:
             - 1.21.4.1
-        name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
         matrix:
           parameters:
@@ -685,6 +688,6 @@
             - openresty/openresty:1.19.9.2-alpine
             resty-version:
             - 1.19.9.2
-        name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>

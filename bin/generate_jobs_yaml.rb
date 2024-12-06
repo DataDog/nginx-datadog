@@ -124,7 +124,7 @@ puts <<-YAML.gsub(/^/, '    ')
         waf:
         - 'ON'
         - 'OFF'
-    name: build << matrix.resty-version >> on amd64 WAF << matrix.waf >>
+    name: build openresty << matrix.resty-version >> on amd64 WAF << matrix.waf >>
 - build_openresty_arm64:
     matrix:
       parameters:
@@ -133,7 +133,7 @@ puts <<-YAML.gsub(/^/, '    ')
         waf:
         - 'ON'
         - 'OFF'
-    name: build << matrix.resty-version >> on arm64 WAF << matrix.waf >>
+    name: build openresty << matrix.resty-version >> on arm64 WAF << matrix.waf >>
 YAML
 
 all_nginx_specs.group_by(&:version).each do |version, specs|
@@ -175,9 +175,9 @@ all_resty_specs.group_by(&:version).each do |version, specs|
           - #{specs.map(&:image).join("\n        - ")}
           resty-version:
           - #{version}
-      name: test << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+      name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
       requires:
-      - build << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+      - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
   YAML
 end
 

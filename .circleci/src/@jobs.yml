@@ -129,11 +129,11 @@ jobs:
             environment:
                 BUILD_TYPE: RelWithDebInfo
                 RESTY_VERSION: << parameters.resty-version >>
-        - persist_to_workspace:
-            paths:
-                - .openresty-build/ngx_http_datadog_module.so
-                - .openresty-build/ngx_http_datadog_module.so.debug
-            root: .
+      - persist_to_workspace:
+        root: "."
+        paths:
+          - ".openresty-build/ngx_http_datadog_module.so"
+          - ".openresty-build/ngx_http_datadog_module.so.debug"
         - store_artifacts:
             destination: ngx_http_datadog_module.so
             path: .openresty-build/ngx_http_datadog_module.so
@@ -166,10 +166,10 @@ jobs:
                 BUILD_TYPE: RelWithDebInfo
                 RESTY_VERSION: << parameters.resty-version >>
         - persist_to_workspace:
-            paths:
-                - .openresty-build/ngx_http_datadog_module.so
-                - .openresty-build/ngx_http_datadog_module.so.debug
-            root: .
+          root: "."
+          paths:
+            - ".openresty-build/ngx_http_datadog_module.so"
+            - ".openresty-build/ngx_http_datadog_module.so.debug"
         - store_artifacts:
             destination: ngx_http_datadog_module.so
             path: .openresty-build/ngx_http_datadog_module.so
