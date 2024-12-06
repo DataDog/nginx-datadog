@@ -97,88 +97,88 @@ jobs:
       RUM: "<< parameters.rum >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
   build_openresty_amd64:
-    environment:
-        ARCH: x86_64
-        MAKE_JOB_COUNT: 8
-        RESTY_VERSION: << parameters.resty-version >>
-        WAF: << parameters.waf >>
-    machine:
-        image: ubuntu-2204:current
     parameters:
-        resty-version:
-            type: string
-        waf:
-            enum:
-                - "ON"
-                - "OFF"
-            type: enum
-    resource_class: xlarge
+      resty-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
     steps:
-        - checkout
-        - run: git submodule sync && git submodule update --init --recursive
-        - run:
-            command: |
-                if [[ $CIRCLE_TAG =~ ^v ]]; then
-                  bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
-                else
-                  echo "Not a release"
-                fi
-            name: Verify versions (release tag only)
-        - run:
-            command: make build-openresty
-            environment:
-                BUILD_TYPE: RelWithDebInfo
-                RESTY_VERSION: << parameters.resty-version >>
-      - persist_to_workspace:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        name: Verify versions (release tag only)
+        command: |
+          if [[ $CIRCLE_TAG =~ ^v ]]; then
+            bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+          else
+            echo "Not a release"
+          fi
+    - run:
+        command: 'make build-openresty'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          RESTY_VERSION: "<< parameters.resty-version >>"
+    - persist_to_workspace:
         root: "."
         paths:
           - ".openresty-build/ngx_http_datadog_module.so"
           - ".openresty-build/ngx_http_datadog_module.so.debug"
-        - store_artifacts:
-            destination: ngx_http_datadog_module.so
-            path: .openresty-build/ngx_http_datadog_module.so
-        - store_artifacts:
-            destination: ngx_http_datadog_module.so.debug
-            path: .openresty-build/ngx_http_datadog_module.so.debug
-  build_openresty_arm64:
-    environment:
-        ARCH: aarch64
-        MAKE_JOB_COUNT: 8
-        RESTY_VERSION: << parameters.resty-version >>
-        WAF: << parameters.waf >>
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
     machine:
-        image: ubuntu-2204:current
+      image: ubuntu-2204:current
+    resource_class: xlarge
+    environment:
+      ARCH: x86_64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      RESTY_VERSION: "<< parameters.resty-version >>"
+  build_openresty_arm64:
     parameters:
-        resty-version:
-            type: string
-        waf:
-            enum:
-                - "ON"
-                - "OFF"
-            type: enum
-    resource_class: arm.xlarge
+      resty-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
     steps:
-        - checkout
-        - run: git submodule sync && git submodule update --init --recursive
-        - run:
-            command: make build-openresty
-            environment:
-                BUILD_TYPE: RelWithDebInfo
-                RESTY_VERSION: << parameters.resty-version >>
-        - persist_to_workspace:
-          root: "."
-          paths:
-            - ".openresty-build/ngx_http_datadog_module.so"
-            - ".openresty-build/ngx_http_datadog_module.so.debug"
-        - store_artifacts:
-            destination: ngx_http_datadog_module.so
-            path: .openresty-build/ngx_http_datadog_module.so
-        - store_artifacts:
-            destination: ngx_http_datadog_module.so.debug
-            path: .openresty-build/ngx_http_datadog_module.so.debug
-        - store_artifacts:
-            destination: openresty-version-info
-            path: openresty-version-info
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        command: 'make build-openresty'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          RESTY_VERSION: "<< parameters.resty-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".openresty-build/ngx_http_datadog_module.so"
+          - ".openresty-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    - store_artifacts:
+        path: openresty-version-info
+        destination: openresty-version-info
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.xlarge
+    environment:
+      ARCH: aarch64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      RESTY_VERSION: "<< parameters.resty-version >>"
   coverage:
     environment:
       DOCKER_BUILDKIT: 1
