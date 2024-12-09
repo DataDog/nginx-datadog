@@ -2,6 +2,8 @@
 
 version_table = <<-TAB
 amazonlinux:2023.3.20240219.0 1.24.0
+nginx:1.27.3-alpine 1.27.3
+nginx:1.27.3 1.27.3
 nginx:1.27.2-alpine 1.27.2
 nginx:1.27.2 1.27.2
 nginx:1.27.1-alpine 1.27.1
