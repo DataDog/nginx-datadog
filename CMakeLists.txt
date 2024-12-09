@@ -184,6 +184,7 @@ if(NGINX_DATADOG_RUM_ENABLED)
     PRIVATE
     src/rum/config.cpp
     src/rum/injection.cpp
+    src/rum/telemetry.cpp
   )
   target_compile_definitions(ngx_http_datadog_objs PUBLIC WITH_RUM)
 endif()
