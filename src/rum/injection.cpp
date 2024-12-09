@@ -9,6 +9,7 @@ extern "C" {
 #include "datadog_conf.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
+#include "telemetry.h"
 
 namespace datadog {
 namespace nginx {
@@ -92,6 +93,7 @@ ngx_int_t InjectionHandler::on_header_filter(
       ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                     "RUM SDK injection skipped: resource may already have RUM "
                     "SDK injected.");
+      telemetry::injection_skip::already_injected->inc();
       return next_header_filter(r);
     }
   }
@@ -99,12 +101,14 @@ ngx_int_t InjectionHandler::on_header_filter(
   if (r->header_only || r->headers_out.content_length_n == 0) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: empty content");
+    telemetry::injection_skip::no_content->inc();
     return next_header_filter(r);
   }
 
   if (!is_html_content(&r->headers_out.content_type)) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: not an HTML page");
+    telemetry::injection_skip::invalid_content_type->inc();
     return next_header_filter(r);
   }
 
@@ -112,6 +116,7 @@ ngx_int_t InjectionHandler::on_header_filter(
       content_encoding != nullptr && content_encoding->value.len != 0) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: compressed html content");
+    telemetry::injection_skip::compressed_html->inc();
     return next_header_filter(r);
   }
 
@@ -176,6 +181,7 @@ ngx_int_t InjectionHandler::on_body_filter(
       state_ = state::injected;
       ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                     "RUM SDK injected successfully injected");
+      telemetry::injection_succeed->inc();
       return output(r, output_chain, next_body_filter);
     }
   }
@@ -192,6 +198,7 @@ ngx_int_t InjectionHandler::on_body_filter(
 
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection failed: no injection point found");
+    telemetry::injection_failed->inc();
   }
 
   return output(r, output_chain, next_body_filter);
