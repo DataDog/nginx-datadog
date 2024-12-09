@@ -64,7 +64,8 @@ lint: .clang-format
 clean:
 	rm -rf \
 		.build \
-		.musl-build
+		.musl-build \
+		.openresty-build
 
 .PHONY: clobber
 clobber: clean
@@ -116,7 +117,7 @@ build-musl-aux build-musl-cov-aux:
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
-		-DNGINX_VERSION="$(NGINX_VERSION)" \
+ 		-DNGINX_VERSION="$(NGINX_VERSION)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
@@ -132,11 +133,20 @@ build-openresty:
 		--env BUILD_TYPE=$(BUILD_TYPE) \
 		--env RESTY_VERSION=$(RESTY_VERSION) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
-		--env NGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
 		--env WAF=$(WAF) \
  		--mount type=bind,source="$(PWD)",target=/mnt/repo \
 		$(DOCKER_REPOS):latest \
-		bash -c "cd /mnt/repo && ./bin/openresty/build_common.sh ${RESTY_VERSION} && make build-musl-aux"
+		bash -c "cd /mnt/repo && ./bin/openresty/build_common.sh ${RESTY_VERSION} && make build-openresty-aux"
+
+.PHONY: build-openresty-aux
+build-openresty-aux:
+	cmake -B .openresty-build \
+		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
+		-DNGINX_PATCH_AWAY_LIBC=ON \
+		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+		-DNGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
+		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
+		&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 
 .PHONY: test
 test: build-musl
