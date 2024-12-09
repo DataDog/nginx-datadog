@@ -16,9 +16,8 @@ namespace nginx {
 namespace rum {
 namespace {
 
-ngx_table_elt_t *search_header(ngx_http_request_t *request,
-                               std::string_view key) {
-  ngx_list_part_t *part = &request->headers_in.headers.part;
+ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key) {
+  ngx_list_part_t *part = &headers.part;
   auto *h = static_cast<ngx_table_elt_t *>(part->elts);
 
   for (std::size_t i = 0;; i++) {
@@ -87,7 +86,8 @@ ngx_int_t InjectionHandler::on_header_filter(
     return next_header_filter(r);
   }
 
-  if (auto injected_header = search_header(r, "x-datadog-rum-injected");
+  if (auto injected_header =
+          search_header(r->headers_in.headers, "x-datadog-rum-injected");
       injected_header != nullptr) {
     if (nginx::to_string_view(injected_header->value) == "1") {
       ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
@@ -157,6 +157,15 @@ ngx_int_t InjectionHandler::on_header_filter(
 ngx_int_t InjectionHandler::on_body_filter(
     ngx_http_request_t *r, datadog_loc_conf_t *cfg, ngx_chain_t *in,
     ngx_http_output_body_filter_pt &next_body_filter) {
+  if (rum_first_csp_) {
+    if (auto csp =
+            search_header(r->headers_out.headers, "content-security-policy");
+        csp != nullptr) {
+      telemetry::content_security_policy->inc();
+    }
+    rum_first_csp_ = false;
+  }
+
   if (!cfg->rum_enable || in == nullptr || state_ != state::searching) {
     return next_body_filter(r, in);
   }
