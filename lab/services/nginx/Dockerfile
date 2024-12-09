@@ -22,4 +22,5 @@ ENTRYPOINT ["nginx"]
 CMD ["-g", "daemon off;"]
 
 # Override the default configuration with a minimal one.
-COPY ./nginx.conf /etc/nginx/nginx.conf
+ARG NGINX_CONF_PATH
+COPY ./nginx.conf ${NGINX_CONF_PATH}

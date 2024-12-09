@@ -2,9 +2,10 @@
 /nginx/
 
 # build arifacts
-*.so
+*.so*
 /.build
 /.musl-build
+/.openresty-build
 
 # text editor noise
 .*.sw?
@@ -12,6 +13,7 @@
 
 # file used as part of the build configuration
 /nginx-version-info
+/openresty-version-info
 
 # scratch directory for preparing releases
 /.release/
