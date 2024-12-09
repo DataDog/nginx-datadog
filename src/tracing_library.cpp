@@ -17,6 +17,8 @@
 #include <iterator>
 #include <ostream>
 
+#include "rum/telemetry.h"
+
 extern "C" {
 #include <inttypes.h>
 }
@@ -92,6 +94,24 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
         !has_custom_ruleset,         // no custom ruleset => ruleset via rem cfg
         !appsec_enabling_explicit);  // no explicit => control via rem cfg
   }
+#endif
+
+#ifdef WITH_RUM
+  config.additional_metrics.push_back(
+      rum::telemetry::configuration_failed_invalid_json);
+  config.additional_metrics.push_back(
+      rum::telemetry::injection_skip::already_injected);
+  config.additional_metrics.push_back(
+      rum::telemetry::injection_skip::invalid_content_type);
+  config.additional_metrics.push_back(
+      rum::telemetry::injection_skip::no_content);
+  config.additional_metrics.push_back(
+      rum::telemetry::injection_skip::compressed_html);
+  config.additional_metrics.push_back(rum::telemetry::injection_succeed);
+  config.additional_metrics.push_back(rum::telemetry::injection_failed);
+  config.additional_metrics.push_back(rum::telemetry::configuration_succeed);
+  config.additional_metrics.push_back(
+      rum::telemetry::configuration_failed_invalid_json);
 #endif
 
   auto final_config = dd::finalize_config(config);
