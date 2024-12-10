@@ -112,6 +112,7 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   config.additional_metrics.push_back(rum::telemetry::configuration_succeed);
   config.additional_metrics.push_back(
       rum::telemetry::configuration_failed_invalid_json);
+  config.additional_metrics.push_back(rum::telemetry::content_security_policy);
 #endif
 
   auto final_config = dd::finalize_config(config);
