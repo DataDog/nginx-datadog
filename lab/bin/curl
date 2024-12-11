@@ -1,4 +1,0 @@
-#!/bin/sh
-
-docker compose exec -it client curl "$@"
-
