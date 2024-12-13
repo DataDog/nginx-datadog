@@ -136,7 +136,7 @@ build-openresty:
 		--env WAF=$(WAF) \
  		--mount type=bind,source="$(PWD)",target=/mnt/repo \
 		$(DOCKER_REPOS):latest \
-		bash -c "cd /mnt/repo && ./bin/openresty/build_common.sh ${RESTY_VERSION} && make build-openresty-aux"
+		bash -c "cd /mnt/repo && ./bin/openresty/build_openresty.sh ${RESTY_VERSION} && make build-openresty-aux"
 
 .PHONY: build-openresty-aux
 build-openresty-aux:
@@ -157,6 +157,11 @@ test: build-musl
 test-openresty: build-openresty
 	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
 	RESTY_TEST=ON test/bin/run $(TEST_ARGS)
+
+.PHONY: example-openresty
+example-openresty: build-openresty
+	cp -v .openresty-build/ngx_http_datadog_module.so* example/openresty/services/openresty
+	./example/openresty/bin/run
 
 .PHONY: coverage
 coverage:
@@ -182,16 +187,6 @@ coverage:
 test-parallel: build-in-docker
 	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
 	test/bin/run_parallel $(TEST_ARGS)
-
-.PHONY: lab
-lab: build-musl
-	cp -v .musl-build/ngx_http_datadog_module.so* lab/services/nginx/
-	lab/bin/run $(TEST_ARGS)
-
-.PHONY: lab-openresty
-openresty-lab: build-openresty
-	cp -v .openresty-build/ngx_http_datadog_module.so* lab/services/nginx/
-	RESTY_TEST=ON lab/bin/run $(TEST_ARGS)
 
 .PHONY: circleci-config
 circleci-config:

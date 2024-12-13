@@ -1,22 +1,24 @@
 #!/bin/sh
 
+if [ -z "${ARCH}" ]; then
+    export ARCH=$(arch)
+fi
+
 cd "$(dirname "$0")/../"
 
 set -e
 
-if [ $(echo ${RESTY_TEST}) = "ON" ] ; then
-    . ../openresty-version-info
-    cp ../test/cases/auto_propagation/openresty_base_conf/* ../test/cases/auto_propagation/conf/
+if [[ "${RESTY_TEST}" = "ON" ]]; then
+    export BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
 else
-    . ../nginx-version-info
-    cp ../test/cases/auto_propagation/nginx_base_conf/* ../test/cases/auto_propagation/conf/
+    export BASE_IMAGE="nginx:${NGINX_VERSION}-alpine"
 fi
-export BASE_IMAGE
+
 
 printf "      arch : %s\n" "${ARCH}"
 printf "base image : %s\n" "${BASE_IMAGE}"
+printf "openresty  : %s\n" "${RESTY_TEST}"
 printf " test args : %s\n" "$@"
 
 docker compose build --parallel --progress=plain
 python3 -m unittest "$@"
-# docker-compose up --abort-on-container-exit

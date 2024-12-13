@@ -726,6 +726,8 @@ exit "$rcode"
                 "--",
                 "nginx",
                 "nginx",
+                "-g",
+                "pid /run/nginx.pid;",
                 "-c",
                 nginx_conf_path,
                 "-s",
