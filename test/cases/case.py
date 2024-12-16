@@ -38,10 +38,14 @@ class TestCase(unittest.TestCase):
                             or rum_value == "n" or rum_value == "No"
                             or rum_value == "NO" or rum_value == "")
         openresty_value = os.environ.get("RESTY_TEST", "OFF")
-        cls.openresty_disabled = (openresty_value == "OFF" or openresty_value == "FALSE"
-                                  or openresty_value == "0" or openresty_value == "N"
-                                  or openresty_value == "n" or openresty_value == "No"
-                                  or openresty_value == "NO" or openresty_value == "")
+        cls.openresty_disabled = (openresty_value == "OFF"
+                                  or openresty_value == "FALSE"
+                                  or openresty_value == "0"
+                                  or openresty_value == "N"
+                                  or openresty_value == "n"
+                                  or openresty_value == "No"
+                                  or openresty_value == "NO"
+                                  or openresty_value == "")
 
     def setUp(self):
         if (type(self).waf_disabled and hasattr(type(self), "requires_waf")
@@ -52,7 +56,8 @@ class TestCase(unittest.TestCase):
                 and type(self).requires_rum):
             self.skipTest("RUM is disabled")
 
-        if (type(self).openresty_disabled and hasattr(type(self), "requires_openresty")
+        if (type(self).openresty_disabled
+                and hasattr(type(self), "requires_openresty")
                 and type(self).requires_openresty):
             self.skipTest("OpenResty is disabled")
 

@@ -188,7 +188,6 @@ jobs:
     - run:
         name: Install Python dependencies
         command: pip install -r requirements.txt
-    - run: echo -e "ARCH=amd64\nBASE_IMAGE=nginx:1.26.0\n" > nginx-version-info
     - run:
         command: 'make coverage'
         environment:
@@ -197,6 +196,7 @@ jobs:
           BUILD_TYPE: RelWithDebInfo
           NGINX_VERSION: 1.26.0
           WAF: ON
+          BASE_IMAGE: nginx:1.26.0
     - codecov/upload:
         upload_args: '--disable-search'
         file: .musl-build/coverage.lcov
@@ -232,6 +232,7 @@ jobs:
       DOCKER_BUILDKIT: 1
       WAF: "<< parameters.waf >>"
       RUM: "<< parameters.rum >>"
+      BASE_IMAGE: "<<parameters.base-image>>"
     steps:
     - checkout
     - run:
@@ -240,7 +241,6 @@ jobs:
     - attach_workspace:
         at: "/tmp/workspace"
     - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
-    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > nginx-version-info
     - setup_remote_docker:
         docker_layer_caching: true
     - run: test/bin/run --verbose --failfast
@@ -268,6 +268,7 @@ jobs:
       # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
       WAF: "<< parameters.waf >>"
+      BASE_IMAGE: "<<parameters.base-image>>"
     steps:
     - checkout
     - run:
@@ -276,7 +277,6 @@ jobs:
     - attach_workspace:
         at: "/tmp/workspace"
     - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > openresty-version-info
     - setup_remote_docker:
         docker_layer_caching: true
     - run: RESTY_TEST=ON test/bin/run --verbose --failfast
@@ -299,6 +299,7 @@ jobs:
       # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
       NGINX_FLAVOR: "ingress-nginx"
+      BASE_IMAGE: "<<parameters.base-image>>:<<parameters.nginx-version>>"
     steps:
     - checkout
     - run:
@@ -307,7 +308,6 @@ jobs:
     - attach_workspace:
         at: "/tmp/workspace"
     - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
-    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >>:<< parameters.nginx-version >> > nginx-version-info
     - setup_remote_docker:
         docker_layer_caching: true
     - run: test/bin/run --verbose --failfast

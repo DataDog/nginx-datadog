@@ -3,13 +3,14 @@ set -e
 
 cd "$(dirname "$0")"/..
 
-if [[ -z "$RESTY_VERSION" ]]; then
+if [ -z "$RESTY_VERSION" ]; then
     export RESTY_VERSION=1.27.1.1
 fi
 
-export NGINX_VERSION=$(echo "$RESTY_VERSION" | awk -F. '{print $1"."$2"."$3}')
+NGINX_VERSION="$(echo "$RESTY_VERSION" | awk -F. '{print $1"."$2"."$3}')"
+export NGINX_VERSION
 
-if [[ -z "$BASE_IMAGE" ]]; then
+if [ -z "$BASE_IMAGE" ]; then
     BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
     export BASE_IMAGE
 fi

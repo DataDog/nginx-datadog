@@ -40,7 +40,6 @@ openresty/openresty:1.21.4.4-alpine 1.21.4.4
 openresty/openresty:1.21.4.3-alpine 1.21.4.3
 openresty/openresty:1.21.4.2-alpine 1.21.4.2
 openresty/openresty:1.21.4.1-alpine 1.21.4.1
-openresty/openresty:1.19.9.2-alpine 1.19.9.2
 TAB
 
 SpecLine = Struct.new(:image, :version)

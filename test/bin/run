@@ -1,19 +1,21 @@
 #!/bin/sh
 
 if [ -z "${ARCH}" ]; then
-    export ARCH=$(arch)
+    ARCH="$(arch)"
+    export ARCH
 fi
 
 cd "$(dirname "$0")/../"
 
 set -e
 
-if [[ "${RESTY_TEST}" = "ON" ]]; then
+if [ -z "${BASE_IMAGE}" ]; then
+    if [ "${RESTY_TEST}" = "ON" ]; then
     export BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
-else
-    export BASE_IMAGE="nginx:${NGINX_VERSION}-alpine"
+    else
+        export BASE_IMAGE="nginx:${NGINX_VERSION}-alpine"
+    fi
 fi
-
 
 printf "      arch : %s\n" "${ARCH}"
 printf "base image : %s\n" "${BASE_IMAGE}"

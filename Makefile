@@ -136,7 +136,7 @@ build-openresty:
 		--env WAF=$(WAF) \
  		--mount type=bind,source="$(PWD)",target=/mnt/repo \
 		$(DOCKER_REPOS):latest \
-		bash -c "cd /mnt/repo && ./bin/openresty/build_openresty.sh ${RESTY_VERSION} && make build-openresty-aux"
+		bash -c "cd /mnt/repo && ./bin/openresty/build_openresty.sh && make build-openresty-aux"
 
 .PHONY: build-openresty-aux
 build-openresty-aux:

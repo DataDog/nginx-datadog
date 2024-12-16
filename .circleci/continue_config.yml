@@ -273,11 +273,11 @@ jobs:
             - run:
                 command: pip install -r requirements.txt
                 name: Install Python dependencies
-            - run: echo -e "ARCH=amd64\nBASE_IMAGE=nginx:1.26.0\n" > nginx-version-info
             - run:
                 command: make coverage
                 environment:
                     ARCH: x86_64
+                    BASE_IMAGE: nginx:1.26.0
                     BUILD_TYPE: RelWithDebInfo
                     MAKE_JOB_COUNT: 8
                     NGINX_VERSION: 1.26.0
@@ -365,6 +365,7 @@ jobs:
                 working_directory: ./system-tests
     test:
         environment:
+            BASE_IMAGE: <<parameters.base-image>>
             DOCKER_BUILDKIT: 1
             RUM: << parameters.rum >>
             WAF: << parameters.waf >>
@@ -398,7 +399,6 @@ jobs:
             - attach_workspace:
                 at: /tmp/workspace
             - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
-            - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > nginx-version-info
             - setup_remote_docker:
                 docker_layer_caching: true
             - run: test/bin/run --verbose --failfast
@@ -407,6 +407,7 @@ jobs:
                 path: test/logs/test.log
     test-openresty:
         environment:
+            BASE_IMAGE: <<parameters.base-image>>
             DOCKER_BUILDKIT: 1
             WAF: << parameters.waf >>
         executor:
@@ -433,7 +434,6 @@ jobs:
             - attach_workspace:
                 at: /tmp/workspace
             - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-            - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > openresty-version-info
             - setup_remote_docker:
                 docker_layer_caching: true
             - run: RESTY_TEST=ON test/bin/run --verbose --failfast
@@ -442,6 +442,7 @@ jobs:
                 path: test/logs/test.log
     test_ingress:
         environment:
+            BASE_IMAGE: <<parameters.base-image>>:<<parameters.nginx-version>>
             DOCKER_BUILDKIT: 1
             NGINX_FLAVOR: ingress-nginx
         executor:
@@ -463,7 +464,6 @@ jobs:
             - attach_workspace:
                 at: /tmp/workspace
             - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
-            - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >>:<< parameters.nginx-version >> > nginx-version-info
             - setup_remote_docker:
                 docker_layer_caching: true
             - run: test/bin/run --verbose --failfast
@@ -519,7 +519,6 @@ workflows:
                 matrix:
                     parameters:
                         resty-version:
-                            - 1.19.9.2
                             - 1.21.4.4
                             - 1.25.3.2
                             - 1.27.1.1
@@ -531,7 +530,6 @@ workflows:
                 matrix:
                     parameters:
                         resty-version:
-                            - 1.19.9.2
                             - 1.21.4.4
                             - 1.25.3.2
                             - 1.27.1.1
@@ -574,7 +572,6 @@ workflows:
                             - arm64
                         base-image:
                             - openresty/openresty:1.27.1.1-alpine
-                            - openresty/openresty:1.27.1.1
                         resty-version:
                             - 1.27.1.1
                         waf:
@@ -736,7 +733,6 @@ workflows:
                 matrix:
                     parameters:
                         resty-version:
-                            - 1.19.9.2
                             - 1.21.4.1
                             - 1.21.4.2
                             - 1.21.4.3
@@ -752,7 +748,6 @@ workflows:
                 matrix:
                     parameters:
                         resty-version:
-                            - 1.19.9.2
                             - 1.21.4.1
                             - 1.21.4.2
                             - 1.21.4.3
@@ -1045,6 +1040,118 @@ workflows:
                 name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test-openresty:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - openresty/openresty:1.27.1.1-alpine
+                        resty-version:
+                            - 1.27.1.1
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test-openresty:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - openresty/openresty:1.25.3.2-alpine
+                        resty-version:
+                            - 1.25.3.2
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test-openresty:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - openresty/openresty:1.25.3.1-alpine
+                        resty-version:
+                            - 1.25.3.1
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test-openresty:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - openresty/openresty:1.21.4.4-alpine
+                        resty-version:
+                            - 1.21.4.4
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test-openresty:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - openresty/openresty:1.21.4.3-alpine
+                        resty-version:
+                            - 1.21.4.3
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test-openresty:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - openresty/openresty:1.21.4.2-alpine
+                        resty-version:
+                            - 1.21.4.2
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test-openresty:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - openresty/openresty:1.21.4.1-alpine
+                        resty-version:
+                            - 1.21.4.1
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
         when:
             or:
                 - << pipeline.parameters.build_all >>

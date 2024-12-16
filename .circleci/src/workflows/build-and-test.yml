@@ -39,7 +39,6 @@ jobs:
     matrix:
       parameters:
         resty-version:
-        - 1.19.9.2
         - 1.21.4.4
         - 1.25.3.2
         - 1.27.1.1
@@ -51,7 +50,6 @@ jobs:
     matrix:
       parameters:
         resty-version:
-        - 1.19.9.2
         - 1.21.4.4
         - 1.25.3.2
         - 1.27.1.1
@@ -99,7 +97,6 @@ jobs:
         - 'OFF'
         base-image:
         - openresty/openresty:1.27.1.1-alpine
-        - openresty/openresty:1.27.1.1
         resty-version:
         - 1.27.1.1
     name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>

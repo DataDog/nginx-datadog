@@ -3,6 +3,7 @@ from .. import formats
 
 from pathlib import Path
 
+
 class TestOpenResty(case.TestCase):
     requires_openresty = True
 
