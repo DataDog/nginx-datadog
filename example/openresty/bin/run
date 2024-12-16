@@ -1,19 +1,17 @@
 #!/bin/sh
 set -e
 
-if [[ -n "$RESTY_VERSION" ]]; then
-    export  NGINX_VERSION=$(echo "$RESTY_VERSION" | awk -F. '{print $1"."$2"."$3}')
-    echo "$NGINX_VERSION"
-else
-    >&2 echo 'The environment variable RESTY_VERSION must be set' "$BASE_IMAGE"
-    exit 1
-fi
-
-
 cd "$(dirname "$0")"/..
 
-BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
-export BASE_IMAGE
+if [[ -z "$RESTY_VERSION" ]]; then
+    export RESTY_VERSION=1.27.1.1
+fi
+export NGINX_VERSION=$(echo "$RESTY_VERSION" | awk -F. '{print $1"."$2"."$3}')
+
+if [[ -z "$RESTY_VERSION" ]]; then
+    BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
+    export BASE_IMAGE
+fi
 
 # Fail fast in case the base image is not supported.
 # For now, we only support nginx, nginx-alpine, and amazonlinux images.
