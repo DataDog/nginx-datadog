@@ -13,6 +13,13 @@ COPY index.html /datadog-tests/html
 # Override the default configuration with a minimal one.
 COPY ./nginx.conf /datadog-tests/nginx.conf
 
+ARG RESTY_TEST
+# the uwsgi_params are not at the same location of openresty and nginx containers
+RUN if [ "${RESTY_TEST}" = "ON" ]; then \
+        ln -s /usr/local/openresty/nginx/logs/nginx.pid /run/nginx.pid; \
+        ln -s /usr/local/openresty/nginx/conf/uwsgi_params /etc/nginx/uwsgi_params; \
+    fi
+
 # Install the `kill` command (`procps` package on Debian), so that one-off
 # nginx instances that are started via `docker compose exec` can be signaled to
 # gracefully shutdown.

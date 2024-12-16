@@ -9,6 +9,7 @@ services:
       dockerfile: ./Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE}
+        RESTY_TEST: ${RESTY_TEST:-OFF}
     environment:
       DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS: 1
     cap_add:
