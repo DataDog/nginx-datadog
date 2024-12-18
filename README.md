@@ -92,43 +92,133 @@ Requirements:
 
 For enhanced usability, we provide a [GNU make][1] compatible [Makefile](Makefile).
 
-```shell
-NGINX_VERSION=1.25.2 make build
+The nginx-datadog module **depends on two git submodules**:
+  - [libddwaf](https://github.com/DataDog/libddwaf)
+  - [dd-trace-cpp](https://github.com/DataDog/dd-trace-cpp)
+
+Building the module with any of the below commands will init and update them. Otherwise you can do it yourself with:
+```bash
+git submodule update --init --recursive
 ```
+
+The easiest way to build the project is through [Docker][2].
+
+Build module using Docker
+---------------
+### Linux, MacOS AMD64
+```shell
+NGINX_VERSION=1.25.2 make build-musl
+```
+
+### MacOS with Apple Silicon
+```shell
+NGINX_VERSION=1.25.2 ARCH=aarch64 make build-musl
+```
+The resulting nginx module is `.musl-build\ngx_http_datadog_module.so`
+
+The `build-musl` target builds against musl and libc++ a glibc-compatible
+module. The Dockerfile for the docker image used in the process can be found in
+[build_env/Dockerfile](./build_env/Dockerfile).
+
+### AppSec-supporting module
+
 
 You can set the environment variable `WAF` to `ON` to build an AppSec-supporting
 module:
 
 ```shell
-WAF=ON NGINX_VERSION=1.25.2 make build
+WAF=ON NGINX_VERSION=1.25.2 make build-musl
 ```
 
-The resulting nginx module is `.build/ngx\_http\_datadog\_module.so`
+## Build OpenResty compatible module using Docker
+
+### Linux, MacOS AMD64
+```shell
+RESTY_VERSION=1.27.1.1 make build-openresty
+```
+
+### MacOS with Apple Silicon
+```shell
+RESTY_VERSION=1.27.1.1 ARCH=aarch64 make build-openresty
+```
+
+The resulting nginx module is `.openresty-build/ngx\_http\_datadog\_module.so`
+
+Build in Local Environment
+--------------------------
+```shell
+NGINX_VERSION=1.25.2 make build
+```
+
+The resulting nginx module is `.build/ngx\_http\_datadog\_module.so`.
+
+If you encounter some **difficulties** building the module on **MacOS**, please look at the **troubleshooting section**.
 
 The `build` target does the following:
 
 - Download a source release of nginx based on the `NGINX\_VERSION` environment variable.
 - Initialize the source tree of `dd-trace-cpp` as a git submodule.
+- Initialize the source tree of `libddwaf`as a git submodule.
 - Build `dd-trace-cpp` and the Datadog nginx module together using
   CMake.
 
 `make clean` deletes CMake's build directory. `make clobber` deletes
 everything done by the build.
 
-Build in Docker
----------------
+Testing
+-------
+
+The makefile contains two target for testing:
+- build-and-test: builds and use the resultant module for testing
+- test: use the existing built module for testing
+
+To run one or the other, you can use:
+
+### Linux, MacOS AMD64
 ```shell
-make build-musl
+NGINX_VERSION=1.25.2 make build-and-test
+```
+### MacOS with Apple Silicon
+```shell
+NGINX_VERSION=1.25.2 ARCH=aarch64 make build-and-test
+```
+By default, it will launch the test on the `nginx:${NGINX_VERSION}-alpine` docker image.
+If you want to use another nginx image you can use:
+```shell
+BASE_IMAGE=nginx:1.25.2-jammy make build-and-test
+```
+#
+### Additional test options
+To run the tests related to AppSec:
+```shell
+WAF=ON NGINX_VERSION=1.25.2 make build-and-test
 ```
 
-The `build-musl` target builds against musl and libc++ a glibc-compatible
-module. The Dockerfile for the docker image used in the process can be found in
-[build_env/Dockerfile](./build_env/Dockerfile).
+To run the tests using an openresty image:
+```shell
+RESTY_VERSION=1.27.1.1 make test-openresty
+```
+You can also specificy the openresty base image rather then the version using the `BASE_IMAGE` parameter.
 
-Test
-----
-See [test/README.md](test/README.md).
+You can pass on arguments to test suites using :
+```shell
+TEST_ARGS="foo=bar" NGINX_VERSION=1.25.2 make test
+```
 
+For more information on tests, see [test/README.md](test/README.md).
+
+Troubleshooting
+----------------
+### fatal error: 'pcre2.h' file not found on MacOS
+
+If during the build of the module, you encounter this error, please ensure that pcre2 is installed on your device. If not, you can install it with:
+```shell
+brew install pcre2
+```
+If the build still does not work, you can use the flag `PCRE2_PATH` to specify the pcre2 installation folder it:
+```shell
+PCRE2_PATH=/opt/homebrew/Cellar/pcre2/10.44 NGINX_VERSION=1.25.2 make build
+```
 Acknowledgements
 ----------------
 This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).

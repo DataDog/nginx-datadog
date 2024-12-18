@@ -13,15 +13,17 @@ COVERAGE ?= OFF
 BUILD_TESTING ?= ON
 DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain
 CIRCLE_CFG ?= .circleci/continue_config.yml
+ifneq ($(PCRE2_PATH),)
+	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
+endif
 
 SHELL := /bin/bash
 
 .PHONY: build
 build: build-deps sources
-	# -DCMAKE_C_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_CXX_FLAGS=-I/opt/homebrew/Cellar/pcre2/10.42/include/ -DCMAKE_LDFLAGS=-L/opt/homebrew/Cellar/pcre2/10.42/lib -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
-	cmake -B$(BUILD_DIR) -DNGINX_SRC_DIR=$(NGINX_SRC_DIR) \
+	cmake -B $(BUILD_DIR) -DNGINX_SRC_DIR=$(NGINX_SRC_DIR) \
 		-DNGINX_COVERAGE=$(COVERAGE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) -DNGINX_DATADOG_RUM_ENABLED=$(RUM) . \
-		-DBUILD_TESTING=$(BUILD_TESTING) \
+		-DBUILD_TESTING=$(BUILD_TESTING) $(CMAKE_PCRE_OPTIONS)\
 		&& cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
 	chmod 755 $(BUILD_DIR)/ngx_http_datadog_module.so
 	@echo 'build successful 👍'
@@ -149,12 +151,22 @@ build-openresty-aux:
 		&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 
 .PHONY: test
-test: build-musl
+test:
 	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
 	test/bin/run $(TEST_ARGS)
 
 .PHONY: test-openresty
-test-openresty: build-openresty
+test-openresty:
+	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
+	RESTY_TEST=ON test/bin/run $(TEST_ARGS)
+
+.PHONY: build-and-test
+build-and-test: build-musl
+	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
+	test/bin/run $(TEST_ARGS)
+
+.PHONY: build-and-test-openresty
+build-and-test-openresty: build-openresty
 	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
 	RESTY_TEST=ON test/bin/run $(TEST_ARGS)
 
