@@ -149,7 +149,7 @@ Build in Local Environment
 NGINX_VERSION=1.25.2 make build
 ```
 
-The resulting nginx module is `.build/ngx\_http\_datadog\_module.so`.
+The resulting nginx module is `.build/ngx_http_datadog_module.so`.
 
 If you encounter some **difficulties** building the module on **MacOS**, please look at the **troubleshooting section**.
 
