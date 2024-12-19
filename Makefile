@@ -7,6 +7,7 @@ RUM ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 NGINX_SRC_DIR ?= $(PWD)/nginx
+NGINX_VERSION ?= $(if $(RESTY_VERSION),$(shell echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}'))
 ARCH ?= $(shell arch)
 COVERAGE ?= OFF
 BUILD_TESTING ?= ON
@@ -63,7 +64,8 @@ lint: .clang-format
 clean:
 	rm -rf \
 		.build \
-		.musl-build
+		.musl-build \
+		.openresty-build
 
 .PHONY: clobber
 clobber: clean
@@ -95,6 +97,9 @@ build-push-musl-toolchain:
 
 .PHONY: build-musl build-musl-cov
 build-musl build-musl-cov:
+ifndef NGINX_VERSION
+	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
+endif
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
 		--env ARCH=$(ARCH) \
@@ -115,17 +120,54 @@ build-musl-aux build-musl-cov-aux:
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
-		-DNGINX_VERSION="$(NGINX_VERSION)" \
+ 		-DNGINX_VERSION="$(NGINX_VERSION)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
+.PHONY: build-openresty
+build-openresty:
+ifndef RESTY_VERSION
+	$(error RESTY_VERSION is not set. Please set RESTY_VERSION environment variable)
+endif
+	@export NGINX_VERSION=$$(echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}');
+	docker run --init --rm \
+		--platform $(DOCKER_PLATFORM) \
+		--env ARCH=$(ARCH) \
+		--env BUILD_TYPE=$(BUILD_TYPE) \
+		--env RESTY_VERSION=$(RESTY_VERSION) \
+		--env NGINX_VERSION=$(NGINX_VERSION) \
+		--env WAF=$(WAF) \
+ 		--mount type=bind,source="$(PWD)",target=/mnt/repo \
+		$(DOCKER_REPOS):latest \
+		bash -c "cd /mnt/repo && ./bin/openresty/build_openresty.sh && make build-openresty-aux"
+
+.PHONY: build-openresty-aux
+build-openresty-aux:
+	cmake -B .openresty-build \
+		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
+		-DNGINX_PATCH_AWAY_LIBC=ON \
+		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+		-DNGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
+		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
+		&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
+
 .PHONY: test
 test: build-musl
 	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
 	test/bin/run $(TEST_ARGS)
+
+.PHONY: test-openresty
+test-openresty:
+	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
+	test/bin/run $(TEST_ARGS)
+
+.PHONY: example-openresty
+example-openresty: build-openresty
+	cp -v .openresty-build/ngx_http_datadog_module.so* example/openresty/services/openresty
+	./example/openresty/bin/run
 
 .PHONY: coverage
 coverage:
@@ -151,11 +193,6 @@ coverage:
 test-parallel: build-in-docker
 	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
 	test/bin/run_parallel $(TEST_ARGS)
-
-.PHONY: lab
-lab: build-musl
-	cp -v .musl-build/ngx_http_datadog_module.so* lab/services/nginx/
-	lab/bin/run $(TEST_ARGS)
 
 .PHONY: circleci-config
 circleci-config:
