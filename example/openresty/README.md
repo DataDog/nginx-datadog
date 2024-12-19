@@ -6,14 +6,8 @@ This directory is a [docker-compose][4] setup containing the following
 services:
 - `openresty` runs an instance of openresty that:
     - accepts HTTP on port 80,
-    - accepts gRPC on port 1337,
-    - serves as a reverse proxy for the `http`, `fastcgi`, and `grpc` services, and
     - is configured by [services/openresty/nginx.conf](services/openresty/nginx.conf).
-- `http` runs a NodeJS HTTP server that listens on port 8080.
-- `fastcgi` runs a NodeJS FastCGI server that listens on port 8080.
-- `grpc` runs a NodeJS gRPC server that listens on port 1337.
-- `uwsgi` runs a Python uWSGI server that listens on port 8080.
-- `client` contains the command line tools `curl` and `grpcurl`.
+- `client` contains the command line tools `curl`.
 
 Because client command line tools are available within the `client` service,
 this example requires only `docker-compose` and a working Docker environment as
@@ -67,7 +61,3 @@ Command Line Tools
   `curl` has access to the network internal to `docker-compose`.  For example,
   `bin/curl http://openresty` sends a request to the `openresty` service, because that
   service is known by the host name "nginx" within `docker-compose`.
-- [bin/grpcurl](bin/grpcurl) executes `grpcurl` in plaintext mode within the
-  `client` service.  It exists for the same reason as `bin/curl`.  For example,
-  `bin/grpcurl nginx:1337 upstream.Upstream.GetMetadata` requests gRPC service
-  metadata from the `nginx` service listening on port 1337.

@@ -42,8 +42,6 @@ class TestOpenResty(case.TestCase):
                 continue
             for chunk in trace:
                 first, *rest = chunk
-                print(first)
-                print(rest)
                 if first['service'] == 'nginx':
                     # Just one span from nginx.
                     openresty_sent_a_trace = True

@@ -436,7 +436,7 @@ jobs:
             - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: RESTY_TEST=ON test/bin/run --verbose --failfast
+            - run: test/bin/run --verbose --failfast
             - store_artifacts:
                 destination: test.log‡
                 path: test/logs/test.log
@@ -733,10 +733,6 @@ workflows:
                 matrix:
                     parameters:
                         resty-version:
-                            - 1.21.4.1
-                            - 1.21.4.2
-                            - 1.21.4.3
-                            - 1.21.4.4
                             - 1.25.3.1
                             - 1.25.3.2
                             - 1.27.1.1
@@ -748,10 +744,6 @@ workflows:
                 matrix:
                     parameters:
                         resty-version:
-                            - 1.21.4.1
-                            - 1.21.4.2
-                            - 1.21.4.3
-                            - 1.21.4.4
                             - 1.25.3.1
                             - 1.25.3.2
                             - 1.27.1.1
@@ -1082,70 +1074,6 @@ workflows:
                             - openresty/openresty:1.25.3.1-alpine
                         resty-version:
                             - 1.25.3.1
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - openresty/openresty:1.21.4.4-alpine
-                        resty-version:
-                            - 1.21.4.4
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - openresty/openresty:1.21.4.3-alpine
-                        resty-version:
-                            - 1.21.4.3
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - openresty/openresty:1.21.4.2-alpine
-                        resty-version:
-                            - 1.21.4.2
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - openresty/openresty:1.21.4.1-alpine
-                        resty-version:
-                            - 1.21.4.1
                         waf:
                             - "ON"
                             - "OFF"

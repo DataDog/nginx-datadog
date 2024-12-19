@@ -10,16 +10,15 @@ cd "$(dirname "$0")/../"
 set -e
 
 if [ -z "${BASE_IMAGE}" ]; then
-    if [ "${RESTY_TEST}" = "ON" ]; then
-    export BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
-    else
+    if [ -z "${RESTY_VERSION}" ]; then
         export BASE_IMAGE="nginx:${NGINX_VERSION}-alpine"
+    else
+        export BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
     fi
 fi
 
 printf "      arch : %s\n" "${ARCH}"
 printf "base image : %s\n" "${BASE_IMAGE}"
-printf "openresty  : %s\n" "${RESTY_TEST}"
 printf " test args : %s\n" "$@"
 
 docker compose build --parallel --progress=plain

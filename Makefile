@@ -97,6 +97,9 @@ build-push-musl-toolchain:
 
 .PHONY: build-musl build-musl-cov
 build-musl build-musl-cov:
+ifndef NGINX_VERSION
+	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
+endif
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
 		--env ARCH=$(ARCH) \
@@ -126,6 +129,9 @@ build-musl-aux build-musl-cov-aux:
 
 .PHONY: build-openresty
 build-openresty:
+ifndef RESTY_VERSION
+	$(error RESTY_VERSION is not set. Please set RESTY_VERSION environment variable)
+endif
 	@export NGINX_VERSION=$$(echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}');
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
@@ -154,9 +160,9 @@ test: build-musl
 	test/bin/run $(TEST_ARGS)
 
 .PHONY: test-openresty
-test-openresty: build-openresty
+test-openresty:
 	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-	RESTY_TEST=ON test/bin/run $(TEST_ARGS)
+	test/bin/run $(TEST_ARGS)
 
 .PHONY: example-openresty
 example-openresty: build-openresty

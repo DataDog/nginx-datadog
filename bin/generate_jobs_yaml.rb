@@ -36,10 +36,6 @@ resty_version_table = <<-TAB
 openresty/openresty:1.27.1.1-alpine 1.27.1.1
 openresty/openresty:1.25.3.2-alpine 1.25.3.2
 openresty/openresty:1.25.3.1-alpine 1.25.3.1
-openresty/openresty:1.21.4.4-alpine 1.21.4.4
-openresty/openresty:1.21.4.3-alpine 1.21.4.3
-openresty/openresty:1.21.4.2-alpine 1.21.4.2
-openresty/openresty:1.21.4.1-alpine 1.21.4.1
 TAB
 
 SpecLine = Struct.new(:image, :version)

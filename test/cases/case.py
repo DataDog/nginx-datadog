@@ -37,7 +37,7 @@ class TestCase(unittest.TestCase):
                             or rum_value == "0" or rum_value == "N"
                             or rum_value == "n" or rum_value == "No"
                             or rum_value == "NO" or rum_value == "")
-        openresty_value = os.environ.get("RESTY_TEST", "OFF")
+        openresty_value = os.environ.get("OPENRESTY", "OFF")
         cls.openresty_disabled = (openresty_value == "OFF"
                                   or openresty_value == "FALSE"
                                   or openresty_value == "0"

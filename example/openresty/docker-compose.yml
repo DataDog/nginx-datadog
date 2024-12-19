@@ -8,14 +8,9 @@ services:
       dockerfile: ./Dockerfile
       args:
         BASE_IMAGE: ${BASE_IMAGE}
-        NGINX_VERSION: ${NGINX_VERSION}
     environment:
       - DD_AGENT_HOST=agent
     depends_on:
-      - http
-      - fastcgi
-      - grpc
-      - uwsgi
       - agent
 
   # `agent` is the Datadog Agent to which traces are sent.
@@ -34,54 +29,6 @@ services:
       - DD_CONTAINER_EXCLUDE=name:datadog-agent
       - DD_LOG_LEVEL=ERROR
     image: 'datadog/agent'
-
-  # `http` is an HTTP server that is reverse proxied by `nginx`.
-  http:
-    build:
-      context: ./services/http
-      dockerfile: ./Dockerfile
-    environment:
-      - DD_ENV=prod
-      - DD_AGENT_HOST=agent
-      - DD_SERVICE=http
-    depends_on:
-      - agent
-
-  # `fastcgi` is a FastCGI server that is reverse proxied by `nginx`.
-  fastcgi:
-    build:
-      context: ./services/fastcgi
-      dockerfile: ./Dockerfile
-    environment:
-      - DD_ENV=prod
-      - DD_AGENT_HOST=agent
-      - DD_SERVICE=fastcgi
-    depends_on:
-      - agent
-
-  # `grpc` is a gRPC server that is reverse proxied by `nginx`.
-  grpc:
-    build:
-      context: ./services/grpc
-      dockerfile: ./Dockerfile
-    environment:
-      - DD_ENV=prod
-      - DD_AGENT_HOST=agent
-      - DD_SERVICE=grpc
-    depends_on:
-      - agent
-
-  # `uwsgi` is a uWSGI server that is reverse proxied by `nginx`.
-  uwsgi:
-    build:
-      context: ./services/uwsgi
-      dockerfile: ./Dockerfile
-    environment:
-      - DD_ENV=prod
-      - DD_AGENT_HOST=agent
-      - DD_SERVICE=uwsgi
-    depends_on:
-      - agent
 
   # `client` is a container that exists solely so that the host can
   # `docker-compose exec` into it to run command line tools such as `curl` and
