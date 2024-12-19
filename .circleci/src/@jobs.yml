@@ -207,8 +207,8 @@ jobs:
           name: clone system-tests repo
           command: git clone https://github.com/DataDog/system-tests.git
       - run:
-          name: Install python 3.9
-          command: sudo apt-get install python3.9-venv
+          name: Install python 3.12
+          command: sudo apt-get install python3.12-venv
       - run:
           name: Move the module to the system-tests directory
           working_directory: ./system-tests
