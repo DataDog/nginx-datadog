@@ -255,7 +255,7 @@ jobs:
             - run: find bin/ test/ example/ installer/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
     system_tests:
         machine:
-            image: ubuntu-2004:current
+            image: ubuntu-2404:current
         resource_class: large
         steps:
             - attach_workspace:
