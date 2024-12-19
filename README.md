@@ -116,8 +116,7 @@ NGINX_VERSION=1.25.2 ARCH=aarch64 make build-musl
 ```
 The resulting nginx module is `.musl-build\ngx_http_datadog_module.so`
 
-The `build-musl` target builds against musl and libc++ a glibc-compatible
-module. The Dockerfile for the docker image used in the process can be found in
+The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee portability. The Dockerfile for the docker image used in the process can be found in
 [build_env/Dockerfile](./build_env/Dockerfile).
 
 ### AppSec-supporting module
