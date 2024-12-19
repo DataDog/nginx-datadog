@@ -155,7 +155,7 @@ If you encounter some **difficulties** building the module on **MacOS**, please 
 
 The `build` target does the following:
 
-- Download a source release of nginx based on the `NGINX\_VERSION` environment variable.
+- Download a source release of nginx based on the `NGINX_VERSION` environment variable.
 - Initialize the source tree of `dd-trace-cpp` as a git submodule.
 - Initialize the source tree of `libddwaf`as a git submodule.
 - Build `dd-trace-cpp` and the Datadog nginx module together using
