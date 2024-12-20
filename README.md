@@ -105,19 +105,21 @@ The easiest way to build the project is through [Docker][2].
 
 Build module using Docker
 ---------------
-### Linux, MacOS AMD64
 ```shell
 NGINX_VERSION=1.25.2 make build-musl
 ```
 
-### MacOS with Apple Silicon
-```shell
-NGINX_VERSION=1.25.2 ARCH=aarch64 make build-musl
-```
-The resulting nginx module is `.musl-build\ngx_http_datadog_module.so`
+The resulting nginx module is `.musl-build\ngx_http_datadog_module.so`. \
+The  module will only work on Linux machine. To build a MacOS compatible module, see [Build in local environment](#build-in-local-environment)
 
 The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee portability. The Dockerfile for the docker image used in the process can be found in
 [build_env/Dockerfile](./build_env/Dockerfile).
+
+If you build on **MacOS** with **Apple Silicon** you need to use:
+```shell
+NGINX_VERSION=1.25.2 ARCH=aarch64 make build-musl
+```
+
 
 ### AppSec-supporting module
 
@@ -131,17 +133,17 @@ WAF=ON NGINX_VERSION=1.25.2 make build-musl
 
 ## Build OpenResty compatible module using Docker
 
-### Linux, MacOS AMD64
 ```shell
 RESTY_VERSION=1.27.1.1 make build-openresty
 ```
 
-### MacOS with Apple Silicon
+The resulting nginx module is `.openresty-build/ngx\_http\_datadog\_module.so`. \
+The  module will only work on Linux machine.
+
+If you build on **MacOS** with **Apple Silicon** you need to use:
 ```shell
 RESTY_VERSION=1.27.1.1 ARCH=aarch64 make build-openresty
 ```
-
-The resulting nginx module is `.openresty-build/ngx\_http\_datadog\_module.so`
 
 Build in Local Environment
 --------------------------
@@ -184,7 +186,7 @@ NGINX_VERSION=1.25.2 ARCH=aarch64 make build-and-test
 By default, it will launch the test on the `nginx:${NGINX_VERSION}-alpine` docker image.
 If you want to use another nginx image you can use:
 ```shell
-BASE_IMAGE=nginx:1.25.2-jammy make build-and-test
+BASE_IMAGE=nginx:1.25.2-alpine-slim make build-and-test
 ```
 #
 ### Additional test options
