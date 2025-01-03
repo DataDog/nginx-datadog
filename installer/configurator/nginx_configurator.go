@@ -45,19 +45,6 @@ func (n *NginxConfigurator) VerifyRequirements() error {
 	log.Info("Detected NGINX version: ", n.Version)
 	IntegrationVersion = n.Version
 
-	minSupportedVersion, maxSupportedVersion, err := getSupportedModuleVersions()
-	if err != nil {
-		return NewInstallerError(NginxError, fmt.Errorf("could not retrieve the supported versions for nginx-datadog"))
-	}
-
-	log.Debug(fmt.Sprintf("Got lowest and highest supported versions for nginx-datadog from module release assets: [%s-%s]", minSupportedVersion, maxSupportedVersion))
-
-	if compareVersions(n.Version, minSupportedVersion) < 0 || compareVersions(n.Version, maxSupportedVersion) > 0 {
-		return NewInstallerError(NginxError, fmt.Errorf("nginx version %s is not supported, must be in range [%s-%s]", n.Version, minSupportedVersion, maxSupportedVersion))
-	}
-
-	log.Info("The installed NGINX version is supported")
-
 	return nil
 }
 
@@ -142,14 +129,13 @@ func (n *NginxConfigurator) DownloadAndInstallModule(arch string, skipVerify boo
 		return err
 	}
 
-	// TODO: Use the releases once the module is actually released with RUM
-	// baseURL := fmt.Sprintf("https://github.com/DataDog/nginx-datadog/releases/latest/download/")
-	baseURL := "https://ddagent-windows-unstable.s3.amazonaws.com/inject-browser-sdk/nginx/latest/"
+	baseURL := "https://rum-auto-instrumentation.s3.us-east-1.amazonaws.com/nginx/latest/"
 	moduleURL := baseURL + fmt.Sprintf("ngx_http_datadog_module-%s-%s.so.tgz", arch, n.Version)
 
 	moduleContent, err := downloadFile(moduleURL)
 	if err != nil {
-		return NewInstallerError(NginxError, fmt.Errorf("failed to download module: %v", err))
+		return NewInstallerError(NginxError, fmt.Errorf("failed to download module %s. "+
+			"This is likely because this NGINX version (%s) is not supported: %v", moduleURL, n.Version, err))
 	}
 
 	tmpDir, err := os.MkdirTemp("", "nginx-module-verification")
