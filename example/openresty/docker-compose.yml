@@ -1,0 +1,41 @@
+version: "3.2"
+services:
+
+  # `openresty` is an instance of openresty that has the Datadog tracing module loaded.
+  openresty:
+    build:
+      context: ./services/openresty
+      dockerfile: ./Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE}
+    environment:
+      - DD_AGENT_HOST=agent
+    depends_on:
+      - agent
+
+  # `agent` is the Datadog Agent to which traces are sent.
+  # `agent` needs an API key set in the environment as the
+  # `DD_API_KEY` environment variable.
+  agent:
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - '/proc/:/host/proc/:ro'
+      - '/sys/fs/cgroup/:/host/sys/fs/cgroup:ro'
+    environment:
+      - DD_API_KEY
+      - DD_APM_ENABLED=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE=name:datadog-agent
+      - DD_LOG_LEVEL=ERROR
+    image: 'datadog/agent'
+
+  # `client` is a container that exists solely so that the host can
+  # `docker-compose exec` into it to run command line tools such as `curl` and
+  # `grpcurl`.  This way, the host's network doesn't need access to the network
+  # created by docker-compose.  The host interacts with the docker-compose
+  # services via `docker-compose` and `docker` commands only.
+  client:
+    build:
+      context: ./services/client
+      dockerfile: ./Dockerfile

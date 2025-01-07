@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+
+cd "$(dirname "$0")"/..
+
+if [ -z "$RESTY_VERSION" ]; then
+    export RESTY_VERSION=1.27.1.1
+fi
+
+if [ -z "$BASE_IMAGE" ]; then
+    BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
+    export BASE_IMAGE
+fi
+
+# Fail fast in case the base image is not supported.
+# For now, we only support nginx, nginx-alpine, and amazonlinux images.
+case "$BASE_IMAGE" in
+    openresty/openresty:*) ;;
+    *)
+      >&2 echo 'BASE_IMAGE value "%s" is invalid.' "$BASE_IMAGE"
+      exit 1
+      ;;
+esac
+
+if [ "$DD_API_KEY" = '' ]; then
+    >&2 echo 'The environment variable DD_API_KEY must be set to a Datadog API key.'
+    exit 1
+fi
+
+docker-compose up --build --abort-on-container-exit --remove-orphans

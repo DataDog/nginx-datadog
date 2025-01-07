@@ -96,6 +96,89 @@ jobs:
       WAF: "<< parameters.waf >>"
       RUM: "<< parameters.rum >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
+  build_openresty_amd64:
+    parameters:
+      resty-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        name: Verify versions (release tag only)
+        command: |
+          if [[ $CIRCLE_TAG =~ ^v ]]; then
+            bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+          else
+            echo "Not a release"
+          fi
+    - run:
+        command: 'make build-openresty'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          RESTY_VERSION: "<< parameters.resty-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".openresty-build/ngx_http_datadog_module.so"
+          - ".openresty-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    machine:
+      image: ubuntu-2204:current
+    resource_class: xlarge
+    environment:
+      ARCH: x86_64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      RESTY_VERSION: "<< parameters.resty-version >>"
+  build_openresty_arm64:
+    parameters:
+      resty-version:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    steps:
+    - checkout
+    - run: git submodule sync && git submodule update --init --recursive
+    - run:
+        command: 'make build-openresty'
+        environment:
+          BUILD_TYPE: RelWithDebInfo
+          RESTY_VERSION: "<< parameters.resty-version >>"
+    - persist_to_workspace:
+        root: "."
+        paths:
+          - ".openresty-build/ngx_http_datadog_module.so"
+          - ".openresty-build/ngx_http_datadog_module.so.debug"
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so"
+        destination: ngx_http_datadog_module.so
+    - store_artifacts:
+        path: ".openresty-build/ngx_http_datadog_module.so.debug"
+        destination: ngx_http_datadog_module.so.debug
+    - store_artifacts:
+        path: openresty-version-info
+        destination: openresty-version-info
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.xlarge
+    environment:
+      ARCH: aarch64
+      MAKE_JOB_COUNT: 8
+      WAF: "<< parameters.waf >>"
+      RESTY_VERSION: "<< parameters.resty-version >>"
   coverage:
     environment:
       DOCKER_BUILDKIT: 1
@@ -105,7 +188,6 @@ jobs:
     - run:
         name: Install Python dependencies
         command: pip install -r requirements.txt
-    - run: echo -e "ARCH=amd64\nBASE_IMAGE=nginx:1.26.0\n" > nginx-version-info
     - run:
         command: 'make coverage'
         environment:
@@ -114,6 +196,7 @@ jobs:
           BUILD_TYPE: RelWithDebInfo
           NGINX_VERSION: 1.26.0
           WAF: ON
+          BASE_IMAGE: nginx:1.26.0
     - codecov/upload:
         upload_args: '--disable-search'
         file: .musl-build/coverage.lcov
@@ -149,6 +232,7 @@ jobs:
       DOCKER_BUILDKIT: 1
       WAF: "<< parameters.waf >>"
       RUM: "<< parameters.rum >>"
+      BASE_IMAGE: "<<parameters.base-image>>"
     steps:
     - checkout
     - run:
@@ -157,13 +241,48 @@ jobs:
     - attach_workspace:
         at: "/tmp/workspace"
     - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
-    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >> > nginx-version-info
     - setup_remote_docker:
         docker_layer_caching: true
     - run: test/bin/run --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
+  test-openresty:
+    parameters:
+      base-image:
+        type: string
+        default: ''
+      resty-version:
+        type: string
+      arch:
+        type: string
+      waf:
+        type: enum
+        enum:
+        - 'ON'
+        - 'OFF'
+    executor:
+      name: docker-<< parameters.arch >>
+      image: cimg/python:3.10.13
+    environment:
+      # https://github.com/containers/podman/issues/13889
+      DOCKER_BUILDKIT: 1
+      WAF: "<< parameters.waf >>"
+      BASE_IMAGE: "<<parameters.base-image>>"
+    steps:
+    - checkout
+    - run:
+        name: Install Python dependencies
+        command: pip install -r requirements.txt
+    - attach_workspace:
+        at: "/tmp/workspace"
+    - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
+    - setup_remote_docker:
+        docker_layer_caching: true
+    - run: test/bin/run --verbose --failfast
+    - store_artifacts:
+        path: test/logs/test.log
+        destination: test.log‡
   test_ingress:
     parameters:
       base-image:
@@ -180,6 +299,7 @@ jobs:
       # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
       NGINX_FLAVOR: "ingress-nginx"
+      BASE_IMAGE: "<<parameters.base-image>>:<<parameters.nginx-version>>"
     steps:
     - checkout
     - run:
@@ -188,7 +308,6 @@ jobs:
     - attach_workspace:
         at: "/tmp/workspace"
     - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
-    - run: printf "ARCH=%s\nBASE_IMAGE=%s\n" << parameters.arch >> << parameters.base-image >>:<< parameters.nginx-version >> > nginx-version-info
     - setup_remote_docker:
         docker_layer_caching: true
     - run: test/bin/run --verbose --failfast
