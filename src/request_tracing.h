@@ -39,6 +39,7 @@ class RequestTracing {
  private:
   ngx_http_request_t *request_;
   datadog_main_conf_t *main_conf_;
+  datadog_srv_conf_t *srv_conf_;
   ngx_http_core_loc_conf_t *core_loc_conf_;
   datadog_loc_conf_t *loc_conf_;
   std::optional<dd::Span> request_span_;

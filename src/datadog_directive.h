@@ -54,6 +54,8 @@ char *set_datadog_service_name(ngx_conf_t *, ngx_command_t *,
 char *set_datadog_environment(ngx_conf_t *, ngx_command_t *,
                               void *conf) noexcept;
 
+char *set_datadog_version(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
+
 char *set_datadog_agent_url(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 
 char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,

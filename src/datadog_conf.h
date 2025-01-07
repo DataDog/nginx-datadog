@@ -105,10 +105,6 @@ struct datadog_main_conf_t {
   // configuration, so that the rules can be sorted before use by the tracer
   // config.
   std::vector<sampling_rule_t> sampling_rules;
-  // `service_name` is set by the `datadog_service_name` directive.
-  std::optional<configured_value_t> service_name;
-  // `environment` is set by the `datadog_environment` directive.
-  std::optional<configured_value_t> environment;
   // `agent_url` is set by the `datadog_agent_url` directive.
   std::optional<configured_value_t> agent_url;
 
@@ -180,6 +176,15 @@ struct datadog_sample_rate_condition_t {
   // match this `datadog_sample_rate` directive. It depends on `directive` and
   // `same_line_index`.
   std::string tag_value() const;
+};
+
+struct datadog_srv_conf_t {
+  // `service_name` is set by the `datadog_service_name` directive.
+  std::optional<configured_value_t> service_name;
+  // `service_env` is set by the `datadog_environment` directive.
+  std::optional<configured_value_t> service_env;
+  // `service_version` is set by the `datadog_version` directive.
+  std::optional<configured_value_t> service_version;
 };
 
 struct datadog_loc_conf_t {

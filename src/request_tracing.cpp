@@ -177,6 +177,8 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
     : request_{request},
       main_conf_{static_cast<datadog_main_conf_t *>(
           ngx_http_get_module_main_conf(request_, ngx_http_datadog_module))},
+      srv_conf_{static_cast<datadog_srv_conf_t *>(
+          ngx_http_get_module_srv_conf(request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
   // `main_conf_` would be null when no `http` block appears in the nginx
@@ -191,6 +193,16 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
                  "starting Datadog request span for %p", request_);
 
   dd::SpanConfig config;
+  if (srv_conf_->service_name) {
+    config.service = srv_conf_->service_name->value;
+  }
+  if (srv_conf_->service_env) {
+    config.environment = srv_conf_->service_env->value;
+  }
+  if (srv_conf_->service_version) {
+    config.version = srv_conf_->service_version->value;
+  }
+
   auto start_timestamp =
       to_system_timestamp(request->start_sec, request->start_msec);
   config.start = estimate_past_time_point(start_timestamp);

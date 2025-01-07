@@ -44,6 +44,8 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept;
 static ngx_int_t datadog_master_process_post_config(ngx_cycle_t *cycle) noexcept;
 static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept;
 static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept;
+static void *create_datadog_srv_conf(ngx_conf_t *conf) noexcept;
+static char *merge_datadog_srv_conf(ngx_conf_t *cf, void *parent, void *child) noexcept;
 static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept;
 static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent, void *child) noexcept;
 // clang-format on
@@ -245,16 +247,23 @@ static ngx_command_t datadog_commands[] = {
       nullptr},
 
     { ngx_string("datadog_service_name"),
-      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
       set_datadog_service_name,
-      NGX_HTTP_MAIN_CONF_OFFSET,
+      NGX_HTTP_SRV_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("datadog_environment"),
-      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
       set_datadog_environment,
-      NGX_HTTP_MAIN_CONF_OFFSET,
+      NGX_HTTP_SRV_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_version"),
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
+      set_datadog_version,
+      NGX_HTTP_SRV_CONF_OFFSET,
       0,
       nullptr},
 
@@ -378,8 +387,8 @@ static ngx_http_module_t datadog_module_ctx = {
     datadog_module_init,      /* postconfiguration */
     create_datadog_main_conf, /* create main configuration */
     nullptr,                      /* init main configuration */
-    nullptr,                      /* create server configuration */
-    nullptr,                      /* merge server configuration */
+    create_datadog_srv_conf,                      /* create server configuration */
+    merge_datadog_srv_conf,                      /* merge server configuration */
     create_datadog_loc_conf,  /* create location configuration */
     merge_datadog_loc_conf    /* merge location configuration */
 };
@@ -689,6 +698,23 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
 }
 
 //------------------------------------------------------------------------------
+// create_datadog_srv_conf
+//------------------------------------------------------------------------------
+static void *create_datadog_srv_conf(ngx_conf_t *conf) noexcept {
+  void *memory = ngx_pcalloc(conf->pool, sizeof(datadog_srv_conf_t));
+  if (memory == nullptr) {
+    return nullptr;  // error
+  }
+
+  auto srv_conf = new (memory) datadog_srv_conf_t{};
+  if (register_destructor(conf->pool, srv_conf)) {
+    return nullptr;  // error
+  }
+
+  return srv_conf;
+}
+
+//------------------------------------------------------------------------------
 // create_datadog_loc_conf
 //------------------------------------------------------------------------------
 static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
@@ -735,6 +761,27 @@ char *merge_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
 }
 
 }  // namespace
+
+//------------------------------------------------------------------------------
+// merge_datadog_srv_conf
+//------------------------------------------------------------------------------
+static char *merge_datadog_srv_conf(ngx_conf_t *cf, void *parent,
+                                    void *child) noexcept {
+  auto parent_srv_conf = static_cast<datadog_srv_conf_t *>(parent);
+  auto child_srv_conf = static_cast<datadog_srv_conf_t *>(child);
+
+  if (!child_srv_conf->service_name) {
+    child_srv_conf->service_name = parent_srv_conf->service_name;
+  }
+  if (!child_srv_conf->service_env) {
+    child_srv_conf->service_env = parent_srv_conf->service_env;
+  }
+  if (!child_srv_conf->service_version) {
+    child_srv_conf->service_version = parent_srv_conf->service_version;
+  }
+
+  return NGX_CONF_OK;
+}
 
 //------------------------------------------------------------------------------
 // merge_datadog_loc_conf
