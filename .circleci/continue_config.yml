@@ -338,7 +338,7 @@ jobs:
             - run: find bin/ test/ example/ installer/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
     system_tests:
         machine:
-            image: ubuntu-2004:current
+            image: ubuntu-2404:current
         resource_class: large
         steps:
             - attach_workspace:
@@ -347,8 +347,8 @@ jobs:
                 command: git clone https://github.com/DataDog/system-tests.git
                 name: clone system-tests repo
             - run:
-                command: sudo apt-get install python3.9-venv
-                name: Install python 3.9
+                command: sudo apt-get install python3.12-venv
+                name: Install python 3.12
             - run:
                 command: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so binaries/ngx_http_datadog_module-appsec-amd64-1.25.4.so
                 name: Move the module to the system-tests directory
