@@ -49,7 +49,8 @@ def find_mismatches(pattern, subject):
                 }
                 return
             for i in range(len(pattern)):
-                yield from yield_mismatches(path + f".{i}", pattern[i], subject[i])
+                yield from yield_mismatches(path + f".{i}", pattern[i],
+                                            subject[i])
         elif isinstance(pattern, dict):
             for key, subpattern in pattern.items():
                 if key not in subject:
@@ -60,9 +61,8 @@ def find_mismatches(pattern, subject):
                         "actual": subject,
                     }
                 else:
-                    yield from yield_mismatches(
-                        f"{path}.{key}", subpattern, subject[key]
-                    )
+                    yield from yield_mismatches(f"{path}.{key}", subpattern,
+                                                subject[key])
         elif pattern != subject:
             yield {
                 "path": path,
@@ -75,6 +75,7 @@ def find_mismatches(pattern, subject):
 
 
 class TestConfiguration(case.TestCase):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.default_config = None
@@ -83,7 +84,8 @@ class TestConfiguration(case.TestCase):
         conf_path = Path(__file__).parent / "conf" / "in_http.conf"
         conf_text = conf_path.read_text()
 
-        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
         status, _, body = self.orch.send_nginx_http_request("/")
@@ -100,7 +102,11 @@ class TestConfiguration(case.TestCase):
             "service": "foosvc",
             "environment": "fooment",
             "version": "1.5.0",
-            "collector": {"config": {"traces_url": "http://bogus:1234/v0.4/traces"}},
+            "collector": {
+                "config": {
+                    "traces_url": "http://bogus:1234/v0.4/traces"
+                }
+            },
             "injection_styles": ["B3", "Datadog"],
             "extraction_styles": ["B3", "Datadog"],
         }
@@ -112,7 +118,8 @@ class TestConfiguration(case.TestCase):
         conf_path = Path(__file__).parent / "conf" / "in_server.conf"
         conf_text = conf_path.read_text()
 
-        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
         self.assertEqual(0, status, log_lines)
 
         status, _, body = self.orch.send_nginx_http_request("/", port=80)
@@ -145,11 +152,11 @@ class TestConfiguration(case.TestCase):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
 
-        status, log_lines = self.orch.nginx_test_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_test_config(
+            conf_text, conf_path.name)
         self.assertNotEqual(0, status)
-        self.assertTrue(
-            any(diagnostic_excerpt in line for line in log_lines), log_lines
-        )
+        self.assertTrue(any(diagnostic_excerpt in line for line in log_lines),
+                        log_lines)
 
     def test_duplicate_service_name(self):
         self.run_error_test(
@@ -178,42 +185,48 @@ class TestConfiguration(case.TestCase):
     def test_duplicate_propagation_styles(self):
         self.run_error_test(
             conf_relative_path="./conf/duplicate/propagation_styles.conf",
-            diagnostic_excerpt="Datadog propagation styles are already configured.",
+            diagnostic_excerpt=
+            "Datadog propagation styles are already configured.",
         )
 
     def run_wrong_block_test(self, conf_relative_path):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
 
-        status, log_lines = self.orch.nginx_test_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_test_config(
+            conf_text, conf_path.name)
         self.assertNotEqual(0, status)
         excerpt = "directive is not allowed here"
         self.assertTrue(any(excerpt in line for line in log_lines), log_lines)
 
     def test_error_in_main_service_name(self):
-        return self.run_wrong_block_test("./conf/error_in_main/service_name.conf")
+        return self.run_wrong_block_test(
+            "./conf/error_in_main/service_name.conf")
 
     def test_error_in_main_environment(self):
-        return self.run_wrong_block_test("./conf/error_in_main/environment.conf")
+        return self.run_wrong_block_test(
+            "./conf/error_in_main/environment.conf")
 
     def test_error_in_main_agent_url(self):
         return self.run_wrong_block_test("./conf/error_in_main/agent_url.conf")
 
     def test_error_in_main_propagation_styles(self):
-        return self.run_wrong_block_test("./conf/error_in_main/propagation_styles.conf")
+        return self.run_wrong_block_test(
+            "./conf/error_in_main/propagation_styles.conf")
 
     def test_error_in_server_agent_url(self):
-        return self.run_wrong_block_test("./conf/error_in_server/agent_url.conf")
+        return self.run_wrong_block_test(
+            "./conf/error_in_server/agent_url.conf")
 
     def test_error_in_server_propagation_styles(self):
         return self.run_wrong_block_test(
-            "./conf/error_in_server/propagation_styles.conf"
-        )
+            "./conf/error_in_server/propagation_styles.conf")
 
     def run_precedence_test(self, conf_relative_path):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
-        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
         self.assertEqual(status, 0, log_lines)
 
         status, _, body = self.orch.send_nginx_http_request("/http")
@@ -224,14 +237,15 @@ class TestConfiguration(case.TestCase):
         self.assertIn("x-datadog-sampling-priority", headers)
 
     def test_datadog_tracing_precedence(self):
-        return self.run_precedence_test("./conf/datadog_tracing_precedence.conf")
+        return self.run_precedence_test(
+            "./conf/datadog_tracing_precedence.conf")
 
     def test_datadog_unified_service_tagging_precedence(self):
-        conf_path = (
-            Path(__file__).parent / "conf" / "datadog_unified_service_tagging.conf"
-        )
+        conf_path = (Path(__file__).parent / "conf" /
+                     "datadog_unified_service_tagging.conf")
         conf_text = conf_path.read_text()
-        status, log_lines = self.orch.nginx_replace_config(conf_text, conf_path.name)
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
         self.assertEqual(status, 0, log_lines)
 
         status, _, body1 = self.orch.send_nginx_http_request("/http", port=80)
