@@ -14,6 +14,18 @@ const ignoreRequestBody = request => {
 
 const requestListener = function (request, response) {
   ignoreRequestBody(request);
+  if (request.url === '/auth') {
+    const auth = request.headers.authorization;
+    if (auth === 'mysecret') {
+      response.writeHead(200);
+      response.end('');
+    } else {
+      response.writeHead(401, { "content-type": "text/plain" });
+      response.end('Unauthorized');
+    }
+    return;
+  }
+
   const responseBody = JSON.stringify({
     "service": "http",
     "headers": request.headers

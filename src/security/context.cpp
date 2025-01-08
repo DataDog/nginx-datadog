@@ -218,7 +218,7 @@ class PolTaskCtx {
 
     if (ngx_thread_task_post(pool, &get_task()) != NGX_OK) {
       ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
-                    "failed to post task");
+                    "failed to post task %p", &get_task());
 
       req_.main->count--;
       restore_handlers();
@@ -227,8 +227,9 @@ class PolTaskCtx {
       return false;
     }
 
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                   "refcount after task submit: %d", req_.main->count);
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                   "task %p submitted. Request refcount: %d", &get_task(),
+                   req_.main->count);
 
     return true;
   }
@@ -243,23 +244,27 @@ class PolTaskCtx {
     // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
   }
 
-  static void handler(void *self, ngx_log_t *log) noexcept {
-    static_cast<Self *>(self)->handle(log);
+  ngx_log_t *req_log() const noexcept { return req_.connection->log; }
+
+  static void handler(void *self, ngx_log_t *tp_log) noexcept {
+    static_cast<Self *>(self)->handle(tp_log);
   }
 
   // runs on the thread pool
-  void handle(ngx_log_t *log) noexcept {
+  void handle(ngx_log_t *tp_log) noexcept {
     try {
-      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                    "before task main: %p", &req_);
-      block_spec_ = static_cast<Self *>(this)->do_handle(*log);
-      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                    "after task main: %p", &req_);
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0, "before task %p main",
+                    this);
+      block_spec_ = static_cast<Self *>(this)->do_handle(*tp_log);
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0, "after task %p main",
+                    this);
       ran_on_thread_.store(true, std::memory_order_release);
     } catch (std::exception &e) {
-      ngx_log_error(NGX_LOG_ERR, log, 0, "task failed: %s", e.what());
+      ngx_log_error(NGX_LOG_ERR, tp_log, 0, "task %p failed: %s", this,
+                    e.what());
     } catch (...) {
-      ngx_log_error(NGX_LOG_ERR, log, 0, "task failed: unknown failure");
+      ngx_log_error(NGX_LOG_ERR, tp_log, 0, "task %p failed: unknown failure",
+                    this);
     }
   }
 
@@ -276,22 +281,28 @@ class PolTaskCtx {
     restore_handlers();
 
     auto count = req_.main->count;
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
+                  "refcount before decrement upon task %p completion: %d", this,
+                  count);
     if (count > 1) {
       // ngx_del_event(connection->read, NGX_READ_EVENT, 0) may've been called
       // by ngx_http_block_reading
       if (ngx_handle_read_event(req_.connection->read, 0) != NGX_OK) {
         ngx_http_finalize_request(&req_, NGX_HTTP_INTERNAL_SERVER_ERROR);
-        ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
-                      "failed to re-enable read event");
+        ngx_log_error(NGX_LOG_ERR, req_log(), 0,
+                      "failed to re-enable read event after task %p", this);
       } else {
         req_.main->count--;
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req_log(), 0,
+                       "calling complete on task %p", this);
         static_cast<Self *>(this)->complete();
       }
     } else {
-      ngx_log_debug0(
-          NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-          "skipping run of completion handler because we're the only "
-          "reference to the request; finalizing instead");
+      ngx_log_debug1(
+          NGX_LOG_DEBUG_HTTP, req_log(), 0,
+          "skipping run of completion handler for task %p because "
+          "we're the only reference to the request; finalizing instead",
+          this);
       ngx_http_finalize_request(&req_, NGX_DONE);
     }
 
@@ -307,8 +318,20 @@ class PolTaskCtx {
   }
 
   void restore_handlers() noexcept {
-    req_.read_event_handler = prev_read_evt_handler_;
-    req_.write_event_handler = prev_write_evt_handler_;
+    if (req_.read_event_handler == ngx_http_block_reading) {
+      req_.read_event_handler = prev_read_evt_handler_;
+    } else {
+      ngx_log_error(NGX_LOG_ERR, req_log(), 0,
+                    "unexpected read event handler %p",
+                    req_.read_event_handler);
+    }
+    if (req_.write_event_handler == PolTaskCtx<Self>::empty_write_handler) {
+      req_.write_event_handler = prev_write_evt_handler_;
+    } else {
+      ngx_log_error(NGX_LOG_ERR, req_log(), 0,
+                    "unexpected write event handler %p",
+                    req_.write_event_handler);
+    }
   }
 
   static void empty_write_handler(ngx_http_request_t *req) {
@@ -322,7 +345,6 @@ class PolTaskCtx {
     }
   }
 
- private:
   friend Self;
   ngx_http_request_t &req_;
   Context &ctx_;
@@ -336,7 +358,7 @@ class PolTaskCtx {
 class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
   using PolTaskCtx::PolTaskCtx;
 
-  std::optional<BlockSpecification> do_handle(ngx_log_t &log) {
+  std::optional<BlockSpecification> do_handle(ngx_log_t &tp_log) {
     return ctx_.run_waf_start(req_, span_);
   }
 
@@ -359,7 +381,7 @@ class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
       }
     } else {
       req_.phase_handler++;  // move past us
-      ngx_http_core_run_phases(&req_);
+      ngx_post_event(req_.connection->write, &ngx_posted_events);
     }
 
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
@@ -648,7 +670,7 @@ ngx_int_t Context::output_body_filter(ngx_http_request_t &request,
 class PolReqBodyWafCtx : public PolTaskCtx<PolReqBodyWafCtx> {
   using PolTaskCtx::PolTaskCtx;
 
-  std::optional<BlockSpecification> do_handle(ngx_log_t &log) {
+  std::optional<BlockSpecification> do_handle(ngx_log_t &tp_log) {
     return ctx_.run_waf_req_post(req_, span_);
   }
 
@@ -688,7 +710,7 @@ class PolReqBodyWafCtx : public PolTaskCtx<PolReqBodyWafCtx> {
 class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
   using PolTaskCtx::PolTaskCtx;
 
-  std::optional<BlockSpecification> do_handle(ngx_log_t &log) {
+  std::optional<BlockSpecification> do_handle(ngx_log_t &tp_log) {
     return ctx_.run_waf_end(req_, span_);
   }
 
