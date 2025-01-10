@@ -128,6 +128,12 @@ func main() {
 		handleError(err, sender, *appID, *dryRun)
 	}
 
+	// TODO: Re-enable once we again have signatures available
+	if !*skipVerify {
+		log.Debug("Temporarily skipping module signature verification")
+		*skipVerify = true
+	}
+
 	if err := configurator.DownloadAndInstallModule(*arch, *skipVerify); err != nil {
 		handleError(err, sender, *appID, *dryRun)
 	}
