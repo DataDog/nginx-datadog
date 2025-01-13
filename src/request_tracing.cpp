@@ -230,7 +230,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // succeeds, then `request_span_` is part of the extracted trace.
   if (!parent && loc_conf_->trust_incoming_span) {
     NgxHeaderReader reader{&request->headers_in.headers};
-    auto maybe_span = tracer->extract_span(reader);
+    auto maybe_span = tracer->extract_span(reader, config);
     if (auto *error = maybe_span.if_error()) {
       if (error->code != dd::Error::NO_SPAN_TO_EXTRACT) {
         ngx_log_error(
