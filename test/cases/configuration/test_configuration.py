@@ -92,7 +92,7 @@ class TestConfiguration(case.TestCase):
         self.assertEqual(200, status)
 
         config = json.loads(body)
-        # See `conf/in_http.conf` or `config/in_server.conf`, which contains the following:
+        # See `conf/in_http.conf`, which contains the following:
         #
         #     datadog_service_name foosvc;
         #     datadog_environment fooment;
@@ -143,6 +143,41 @@ class TestConfiguration(case.TestCase):
             "service": "foosvc2",
             "environment": "shadow",
             "version": "1.5.0-staging",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv2)
+        self.assertEqual(mismatches, [])
+
+    def test_in_location_block(self):
+        conf_path = Path(__file__).parent / "conf" / "in_location.conf"
+        conf_text = conf_path.read_text()
+
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
+        self.assertEqual(0, status, log_lines)
+
+        status, _, body = self.orch.send_nginx_http_request("/first", port=80)
+        self.assertEqual(200, status)
+
+        status, _, body2 = self.orch.send_nginx_http_request("/second",
+                                                             port=80)
+        self.assertEqual(200, status)
+
+        config_srv1 = json.loads(body)
+        pattern = {
+            "service": "a",
+            "environment": "first-env",
+            "version": "1.5.0-first",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv1)
+        self.assertEqual(mismatches, [])
+
+        config_srv2 = json.loads(body2)
+        pattern = {
+            "service": "b",
+            "environment": "second-env",
+            "version": "1.5.0-second",
         }
 
         mismatches = find_mismatches(pattern, config_srv2)
@@ -257,6 +292,9 @@ class TestConfiguration(case.TestCase):
         status, _, body3 = self.orch.send_nginx_http_request("/http", port=82)
         self.assertEqual(status, 200)
 
+        status, _, body4 = self.orch.send_nginx_http_request("/", port=82)
+        self.assertEqual(status, 200)
+
         config_srv1 = json.loads(body1)
         pattern = {
             "service": "http_block",
@@ -285,4 +323,14 @@ class TestConfiguration(case.TestCase):
         }
 
         mismatches = find_mismatches(pattern, config_srv3)
+        self.assertEqual(mismatches, [])
+
+        config_srv4 = json.loads(body4)
+        pattern = {
+            "service": "location_block",
+            "environment": "server2-location",
+            "version": "1.5.0-server2-location",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv4)
         self.assertEqual(mismatches, [])

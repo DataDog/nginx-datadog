@@ -51,15 +51,15 @@ The Datadog tracing module defines the following configuration directives.
 ### `datadog_service_name`
 - **syntax** `datadog_service_name <name>`
 - **default**: `nginx`
-- **context**: `http`, `server`
+- **context**: `http`, `server`, `location`
 
 Set the service name to associate with each span produced by this module.
-May overwrite `DD_SERV` environment variable.
+May overwrite `DD_SERVICE` environment variable.
 
 ### `datadog_environment`
 - **syntax** `datadog_environment <environment>`
 - **default**: (no value)
-- **context**: `http`, `server`
+- **context**: `http`, `server`, `location`
 
 Set the service version to associate with each span produce by the `http` or `server` block.
 May overwrite `DD_ENV` environment variable.
@@ -67,7 +67,7 @@ May overwrite `DD_ENV` environment variable.
 ### `datadog_version`
 - **syntax** `datadog_version <version>`
 - **default**: (no value)
-- **context**: `http`, `server`
+- **context**: `http`, `server`, `location`
 
 Set the name of the environment within which nginx is running. Common values
 include `prod`, `dev`, and `staging`.

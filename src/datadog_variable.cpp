@@ -143,7 +143,8 @@ static ngx_int_t expand_configuration_variable(
   rapidjson::Document doc;
   if (doc.Parse(tracer->config().c_str()).HasParseError()) {
     auto errorCode = doc.GetParseError();
-    (void)errorCode;
+    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                  "failed to parse tracer configuration: %d", errorCode);
     const ngx_str_t json_str = to_ngx_str(request->pool, tracer->config());
     variable_value->len = json_str.len;
     variable_value->data = json_str.data;
@@ -152,24 +153,24 @@ static ngx_int_t expand_configuration_variable(
   auto& alloc = doc.GetAllocator();
 
   // override
-  const auto& srv_conf = *static_cast<datadog::nginx::datadog_srv_conf_t*>(
-      ngx_http_get_module_srv_conf(request, ngx_http_datadog_module));
-  if (srv_conf.service_name) {
+  const auto& loc_conf = *static_cast<datadog::nginx::datadog_loc_conf_t*>(
+      ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
+  if (loc_conf.service_name) {
     doc.AddMember("service",
-                  rapidjson::Value(srv_conf.service_name->value.c_str(), alloc),
+                  rapidjson::Value(loc_conf.service_name->value.c_str(), alloc),
                   alloc);
   }
 
-  if (srv_conf.service_env) {
+  if (loc_conf.service_env) {
     doc.AddMember("environment",
-                  rapidjson::Value(srv_conf.service_env->value.c_str(), alloc),
+                  rapidjson::Value(loc_conf.service_env->value.c_str(), alloc),
                   alloc);
   }
 
-  if (srv_conf.service_version) {
+  if (loc_conf.service_version) {
     doc.AddMember(
         "version",
-        rapidjson::Value(srv_conf.service_version->value.c_str(), alloc),
+        rapidjson::Value(loc_conf.service_version->value.c_str(), alloc),
         alloc);
   }
 

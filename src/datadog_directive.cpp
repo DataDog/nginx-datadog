@@ -454,19 +454,19 @@ char *set_datadog_service_name(ngx_conf_t *cf, ngx_command_t *command,
 
   auto location = command_source_location(command, cf);
 
-  auto &srv_conf = *static_cast<datadog_srv_conf_t *>(conf);
-  if (srv_conf.service_name) {
+  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
+  if (loc_conf.service_name) {
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                   "Duplicate call to \"%V\". First call was at %V:%d. "
                   "Duplicate call is at %V:%d.",
-                  &srv_conf.service_name->location.directive_name,
-                  &srv_conf.service_name->location.file_name,
-                  srv_conf.service_name->location.line, &location.file_name,
+                  &loc_conf.service_name->location.directive_name,
+                  &loc_conf.service_name->location.file_name,
+                  loc_conf.service_name->location.line, &location.file_name,
                   location.line);
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  srv_conf.service_name = {.location = location,
+  loc_conf.service_name = {.location = location,
                            .value = std::string(service_name)};
   return NGX_OK;
 }
@@ -485,19 +485,19 @@ char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command,
 
   auto location = command_source_location(command, cf);
 
-  auto &srv_conf = *static_cast<datadog_srv_conf_t *>(conf);
-  if (srv_conf.service_env) {
+  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
+  if (loc_conf.service_env) {
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                   "Duplicate call to \"%V\". First call was at %V:%d. "
                   "Duplicate call is at %V:%d.",
-                  &srv_conf.service_env->location.directive_name,
-                  &srv_conf.service_env->location.file_name,
-                  srv_conf.service_env->location.line, &location.file_name,
+                  &loc_conf.service_env->location.directive_name,
+                  &loc_conf.service_env->location.file_name,
+                  loc_conf.service_env->location.line, &location.file_name,
                   location.line);
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  srv_conf.service_env = {.location = location,
+  loc_conf.service_env = {.location = location,
                           .value = std::string(service_env)};
   return NGX_OK;
 }
@@ -516,19 +516,19 @@ char *set_datadog_version(ngx_conf_t *cf, ngx_command_t *command,
 
   auto location = command_source_location(command, cf);
 
-  auto &srv_conf = *static_cast<datadog_srv_conf_t *>(conf);
-  if (srv_conf.service_version) {
+  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
+  if (loc_conf.service_version) {
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                   "Duplicate call to \"%V\". First call was at %V:%d. "
                   "Duplicate call is at %V:%d.",
-                  &srv_conf.service_version->location.directive_name,
-                  &srv_conf.service_version->location.file_name,
-                  srv_conf.service_version->location.line, &location.file_name,
+                  &loc_conf.service_version->location.directive_name,
+                  &loc_conf.service_version->location.file_name,
+                  loc_conf.service_version->location.line, &location.file_name,
                   location.line);
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  srv_conf.service_version = {.location = location,
+  loc_conf.service_version = {.location = location,
                               .value = std::string(service_version)};
   return NGX_OK;
 }

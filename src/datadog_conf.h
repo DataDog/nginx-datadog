@@ -178,15 +178,6 @@ struct datadog_sample_rate_condition_t {
   std::string tag_value() const;
 };
 
-struct datadog_srv_conf_t {
-  // `service_name` is set by the `datadog_service_name` directive.
-  std::optional<configured_value_t> service_name;
-  // `service_env` is set by the `datadog_environment` directive.
-  std::optional<configured_value_t> service_env;
-  // `service_version` is set by the `datadog_version` directive.
-  std::optional<configured_value_t> service_version;
-};
-
 struct datadog_loc_conf_t {
   ngx_flag_t enable_tracing = NGX_CONF_UNSET;
   ngx_flag_t enable_locations = NGX_CONF_UNSET;
@@ -195,6 +186,12 @@ struct datadog_loc_conf_t {
   NgxScript resource_name_script;
   NgxScript loc_resource_name_script;
   ngx_flag_t trust_incoming_span = NGX_CONF_UNSET;
+  // `service_name` is set by the `datadog_service_name` directive.
+  std::optional<configured_value_t> service_name;
+  // `service_env` is set by the `datadog_environment` directive.
+  std::optional<configured_value_t> service_env;
+  // `service_version` is set by the `datadog_version` directive.
+  std::optional<configured_value_t> service_version;
   ngx_array_t *tags;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
   // `nullptr` if this context has no parent.

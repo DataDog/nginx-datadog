@@ -177,8 +177,6 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
     : request_{request},
       main_conf_{static_cast<datadog_main_conf_t *>(
           ngx_http_get_module_main_conf(request_, ngx_http_datadog_module))},
-      srv_conf_{static_cast<datadog_srv_conf_t *>(
-          ngx_http_get_module_srv_conf(request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
   // `main_conf_` would be null when no `http` block appears in the nginx
@@ -192,19 +190,26 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
                  "starting Datadog request span for %p", request_);
 
+  std::optional<std::string> service;
+  if (loc_conf_->service_name) {
+    service = loc_conf_->service_name->value;
+  }
+  std::optional<std::string> env;
+  if (loc_conf_->service_env) {
+    env = loc_conf_->service_env->value;
+  }
+  std::optional<std::string> version;
+  if (loc_conf_->service_version) {
+    version = loc_conf_->service_version->value;
+  }
+
   dd::SpanConfig config;
-  if (srv_conf_->service_name) {
-    config.service = srv_conf_->service_name->value;
-  }
-  if (srv_conf_->service_env) {
-    config.environment = srv_conf_->service_env->value;
-  }
-  if (srv_conf_->service_version) {
-    config.version = srv_conf_->service_version->value;
-  }
 
   auto start_timestamp =
       to_system_timestamp(request->start_sec, request->start_msec);
+  config.service = service;
+  config.environment = env;
+  config.version = version;
   config.start = estimate_past_time_point(start_timestamp);
   config.name = get_request_operation_name(request_, core_loc_conf_, loc_conf_);
 
@@ -253,6 +258,9 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
         "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
+    config.service = service;
+    config.environment = env;
+    config.version = version;
     config.name = get_loc_operation_name(request_, core_loc_conf_, loc_conf_);
     span_.emplace(request_span_->create_child(config));
   }
@@ -283,7 +291,20 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
         "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
+    if (loc_conf_->service_name) {
+      config.service = loc_conf_->service_name->value;
+    }
+    std::optional<std::string> env;
+    if (loc_conf_->service_env) {
+      config.environment = loc_conf_->service_env->value;
+    }
+    std::optional<std::string> version;
+    if (loc_conf_->service_version) {
+      config.version = loc_conf_->service_version->value;
+    }
+
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
+
     assert(request_span_);  // postcondition of our constructor
     span_.emplace(request_span_->create_child(config));
   }
