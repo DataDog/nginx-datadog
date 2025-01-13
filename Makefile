@@ -224,4 +224,5 @@ build-musl-aux-ingress:
 		-DNGINX_SRC_DIR="$(NGINX_SRC_DIR)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" \
 		-DNGINX_COVERAGE=$(COVERAGE) . \
+		-DNGINX_DATADOG_FLAVOR="ingress-nginx" \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v

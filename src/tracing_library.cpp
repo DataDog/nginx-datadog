@@ -83,6 +83,26 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
 #endif
 
   auto final_config = dd::finalize_config(config);
+
+#if defined(DD_NGINX_FLAVOR)
+  if (std::string_view(DD_NGINX_FLAVOR) == "ingress-nginx") {
+    // NOTE(@dmehala): ingress-nginx regularly poll an healthcheck endpoint.
+    // To avoid reporting traces, set the sampling rate to `0` for this
+    // endpoint. This is done after `finalize_config` because it can
+    // environment variables override the programmatic configuration.
+    final_config->trace_sampler.rules.emplace_back(
+        datadog::tracing::TraceSamplerRule{
+            .rate = datadog::tracing::Rate::zero(),
+            .matcher =
+                datadog::tracing::SpanMatcher{
+                    .service = "*",
+                    .name = "*",
+                    .resource = "GET /is-dynamic-lb-initialized",
+                    .tags = {}},
+            .mechanism = datadog::tracing::SamplingMechanism::RULE});
+  }
+#endif
+
   if (!final_config) {
     return final_config.error();
   }

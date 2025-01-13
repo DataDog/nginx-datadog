@@ -20,6 +20,7 @@ endif()
 option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 option(ENABLE_FUZZERS "For building fuzzers" OFF)
+set(NGINX_DATADOG_FLAVOR "nginx" CACHE STRING "NGINX flavor")
 
 if (NGINX_DATADOG_RUM_ENABLED AND NGINX_DATADOG_ASM_ENABLED)
   message(FATAL_ERROR "ASM and RUM features are mutually exclusive")
@@ -126,10 +127,13 @@ configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
 
+# Define `DD_NGINX_FLAVOR`
+
 target_sources(ngx_http_datadog_module PRIVATE ${CMAKE_BINARY_DIR}/version.cpp)
 
 add_library(ngx_http_datadog_objs OBJECT)
 set_target_properties(ngx_http_datadog_objs PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(ngx_http_datadog_objs PUBLIC DD_NGINX_FLAVOR="${NGINX_DATADOG_FLAVOR}")
 target_sources(ngx_http_datadog_objs
   PRIVATE
     src/array_util.cpp
