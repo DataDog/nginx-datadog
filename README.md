@@ -1,12 +1,10 @@
 <img alt="datadog tracing nginx" src="mascot.svg" height="200"/>
 
-Datadog NGINX Module
-====================
+# Datadog NGINX Module
 This repository contains the source code for the `ngx_http_datadog_module`, an NGINX module
-that integrates Datadog [APM][13] and [Application Security Management][14] into NGINX.
+that integrates Datadog [APM][1] and [Application Security Management][2] into NGINX.
 
-Usage
------
+## Usage
 1. Download a gzipped tarball from a [recent release][12], extract it to
    wherever nginx looks for modules (e.g. `/usr/lib/nginx/modules/`).
 2. Add the following line to the top of the main nginx configuration (e.g.
@@ -19,11 +17,10 @@ load_module modules/ngx_http_datadog_module.so;
 Tracing is automatically added to all endpoints by default. For more
 information, see [the API documentation](doc/API.md).
 
-Compatibility
--------------
+## Compatibility
 > [!IMPORTANT]
 > We provide support for NGINX versions up to their End Of Life, extended by one
-> year.  [Aligned with the NGINX release cycle][11], this entails support for
+> year.  [Aligned with the NGINX release cycle][4], this entails support for
 > the four most recent NGINX versions.
 >
 > If you plan to add tracing features to an older NGINX version using our
@@ -31,7 +28,7 @@ Compatibility
 
 There are two tarballs (the actual executable module and, separately, the debug
 symbols) per each combination of: 1) nginx version, 2) architecture, 3) whether
-AppSec is built in or not.  The main tarball contains a single file,
+AppSec is built in or not. The main tarball contains a single file,
 `ngx_http_datadog_module.so`, which is the Datadog nginx module.
 
 The naming convention is:
@@ -51,11 +48,9 @@ While it _may_ be possible to build the extension against an older version, this
 is not guaranteed; in particular, AppSec builds require a feature introduced in
 version 1.21.4.
 
-
-Default Behavior
-----------------
+## Default Behavior
 Unless otherwise configured, `ngx_http_datadog_module` adds the following
-default behavior to nginx:
+default behavior to NGINX:
 
 ### Tracing
 - Connect to the Datadog agent at `http://localhost:8126`.
@@ -63,14 +58,12 @@ default behavior to nginx:
     - Service name is "nginx".
     - Operation name is "nginx.request".
     - Resource name is `"$request_method $uri"`, e.g. "GET /api/book/0-345-24223-8/title".
-    - Includes multiple `http.*` [tags][8].
-
+    - Includes multiple `http.*` [tags][5].
 
 Custom configuration can be specified via the [datadog\_*](doc/API.md) family of
-directives in nginx's configuration file, or via [environment variables][9].
+directives in nginx's configuration file, or via [environment variables][6].
 
-Enabling AppSec
----------------
+## Enabling AppSec
 
 To enable AppSec, besides using the correct binary (the relase artifact with
 "-appsec") in the name, it's necessary to edit the nginx configuration:
@@ -82,161 +75,83 @@ To enable AppSec, besides using the correct binary (the relase artifact with
 
 For more information, see [the documentation](doc/API.md).
 
-Build
------
-Requirements:
-- Recent C and C++ toolchain (`clang` or `gcc/g++`) (must support at least some
-  C++20 features).
-- CMake `v3.24` or newer.
-- Architecture must be `x86_64` or `arm64`.
+## Building the module
+If the version of NGINX you’re using is no longer supported by this repository,
+you can build the module by following the steps below.
 
-For enhanced usability, we provide a [GNU make][1] compatible [Makefile](Makefile).
+This repository uses [git submodules][7] for some of its dependencies.
+To ensure all dependencies are available or updated before building, run the
+following command:
 
-The nginx-datadog module **depends on two git submodules**:
-  - [libddwaf](https://github.com/DataDog/libddwaf)
-  - [dd-trace-cpp](https://github.com/DataDog/dd-trace-cpp)
-
-Building the module with any of the below commands will init and update them. Otherwise you can do it yourself with:
-```bash
+```shell
 git submodule update --init --recursive
 ```
 
-The easiest way to build the project is through [Docker][2].
+### Prerequisites
+Before building the module, ensure your environment meets the following requirements:
 
-Build module using Docker
----------------
+- Recent C and C++ toolchain (`clang` or `gcc/g++`) (must support at least some
+  C++20 features).
+- make.
+- CMake `v3.24` or newer.
+- Architecture is either `x86_64` or `arm64`.
+
+### Building using Docker
+We recommend using Docker which greatly simplify the build process for various environments.
+Below are specific commands and options for different build targets.
+
+> [!IMPORTANT]
+> Be sure to match the version of NGINX, OpenResty, or ingress-nginx with the version you 
+> are using in your environment to avoid compatibility issues.
+
+#### Building for NGINX
 ```shell
-NGINX_VERSION=1.25.2 make build-musl
+WAF=ON ARCH=amd64 NGINX_VERSION=1.27.1 make build-musl
 ```
 
-The resulting nginx module is `.musl-build\ngx_http_datadog_module.so`. \
-The  module will only work on Linux machine. To build a MacOS compatible module, see [Build in local environment](#build-in-local-environment)
+Options:
+  - `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
+  - `ARCH=<amd64|aarch64>`: Specify the CPU architecture.
+  - `NGINX_VERSION=<version>`: Specify the NGINX version to build.
 
-The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee portability. The Dockerfile for the docker image used in the process can be found in
-[build_env/Dockerfile](./build_env/Dockerfile).
+The NGINX module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 
-If you build on **MacOS** with **Apple Silicon** you need to use:
-```shell
-NGINX_VERSION=1.25.2 ARCH=aarch64 make build-musl
-```
+> [!NOTES]
+> The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee portability.
 
-
-### AppSec-supporting module
-
-
-You can set the environment variable `WAF` to `ON` to build an AppSec-supporting
-module:
+### Building for OpenResty using Docker
+To build the module for OpenResty:
 
 ```shell
-WAF=ON NGINX_VERSION=1.25.2 make build-musl
+WAF=ON ARCH=amd64 RESTY_VERSION=1.27.1.1 make build-openresty
 ```
 
-## Build OpenResty compatible module using Docker
+Options:
+  - `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
+  - `ARCH=<amd64|aarch64>`: Specify the CPU architecture.
+  - `RESTY_VERSION=<version>`: Specify the OpenResty version to build.
+
+### Building for ingress-nginx using Docker
+To build the module for [ingress-nginx][8]:
 
 ```shell
-RESTY_VERSION=1.27.1.1 make build-openresty
+WAF=ON ARCH=amd64 INGRESS_NGINX_VERSION=1.11.2 make build-ingress-nginx
 ```
 
-The resulting nginx module is `.openresty-build/ngx\_http\_datadog\_module.so`. \
-The  module will only work on Linux machine.
+Options:
+  - `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
+  - `ARCH=<amd64|aarch64>`: Specify the CPU architecture.
+  - `INGRESS_NGINX_VERSION=<version>`: Specify the version [ingress-nginx][8] to build.
 
-If you build on **MacOS** with **Apple Silicon** you need to use:
-```shell
-RESTY_VERSION=1.27.1.1 ARCH=aarch64 make build-openresty
-```
+## Acknowledgements
+This project is based largely on previous work. See [CREDITS.md](CREDITS.md).
 
-Build in Local Environment
---------------------------
-```shell
-NGINX_VERSION=1.25.2 make build
-```
-
-The resulting nginx module is `.build/ngx_http_datadog_module.so`.
-
-If you encounter some **difficulties** building the module on **MacOS**, please look at the **troubleshooting section**.
-
-The `build` target does the following:
-
-- Download a source release of nginx based on the `NGINX_VERSION` environment variable.
-- Initialize the source tree of `dd-trace-cpp` as a git submodule.
-- Initialize the source tree of `libddwaf`as a git submodule.
-- Build `dd-trace-cpp` and the Datadog nginx module together using
-  CMake.
-
-`make clean` deletes CMake's build directory. `make clobber` deletes
-everything done by the build.
-
-Testing
--------
-
-The makefile contains two target for testing:
-- build-and-test: builds and use the resultant module for testing
-- test: use the existing built module for testing
-
-To run one or the other, you can use:
-
-### Linux, MacOS AMD64
-```shell
-NGINX_VERSION=1.25.2 make build-and-test
-```
-### MacOS with Apple Silicon
-```shell
-NGINX_VERSION=1.25.2 ARCH=aarch64 make build-and-test
-```
-By default, it will launch the test on the `nginx:${NGINX_VERSION}-alpine` docker image.
-If you want to use another nginx image you can use:
-```shell
-BASE_IMAGE=nginx:1.25.2-alpine-slim make build-and-test
-```
-#
-### Additional test options
-To run the tests related to AppSec:
-```shell
-WAF=ON NGINX_VERSION=1.25.2 make build-and-test
-```
-
-To run the tests using an openresty image:
-```shell
-RESTY_VERSION=1.27.1.1 make test-openresty
-```
-You can also specificy the openresty base image rather then the version using the `BASE_IMAGE` parameter.
-
-You can pass on arguments to test suites using :
-```shell
-TEST_ARGS="foo=bar" NGINX_VERSION=1.25.2 make test
-```
-
-For more information on tests, see [test/README.md](test/README.md).
-
-Troubleshooting
-----------------
-### fatal error: 'pcre2.h' file not found on MacOS
-
-If during the build of the module, you encounter this error, please ensure that pcre2 is installed on your device. If not, you can install it with:
-```shell
-brew install pcre2
-```
-If the build still does not work, you can use the flag `PCRE2_PATH` to specify the pcre2 installation folder it:
-```shell
-PCRE2_PATH=/opt/homebrew/Cellar/pcre2/10.44 NGINX_VERSION=1.25.2 make build
-```
-Acknowledgements
-----------------
-This project is based largely on previous work.  See [CREDITS.md](CREDITS.md).
-
-[1]: https://www.gnu.org/software/make/
-[2]: https://www.docker.com/
-[3]: https://hub.docker.com/_/nginx?tab=tags
-[4]: https://cmake.org/
-[5]: https://hub.docker.com/layers/nginx/library/nginx/1.19.1-alpine/images/sha256-966f134cf5ddeb12a56ede0f40fff754c0c0a749182295125f01a83957391d84
-[6]: https://www.gnu.org/software/libc/
-[7]: https://www.musl-libc.org/
-[8]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
-[9]: https://github.com/DataDog/dd-trace-cpp/blob/main/include/datadog/environment.h
-[10]: https://hub.docker.com/_/amazonlinux
-[11]: https://www.nginx.com/blog/nginx-1-18-1-19-released/
-[12]: https://github.com/DataDog/nginx-datadog/releases
-[13]: https://docs.datadoghq.com/tracing/
-[14]: https://docs.datadoghq.com/security/application_security/
-
+[1]: https://docs.datadoghq.com/tracing/
+[2]: https://docs.datadoghq.com/security/application_security/
+[3]: https://github.com/DataDog/nginx-datadog/releases
+[4]: https://www.nginx.com/blog/nginx-1-18-1-19-released/
+[5]: https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203
+[6]: https://github.com/DataDog/dd-trace-cpp/blob/main/include/datadog/environment.h
+[7]: https://git-scm.com/book/en/v2/Git-Tools-Submodules
+[8]: https://github.com/kubernetes/ingress-nginx
 <!-- vim: set tw=80: -->
