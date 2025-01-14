@@ -1,6 +1,7 @@
 <img alt="datadog tracing nginx" src="mascot.svg" height="200"/>
 
 # Datadog NGINX Module
+[![codecov](https://codecov.io/gh/DataDog/nginx-datadog/graph/badge.svg?token=SZCZI1FAYU)](https://codecov.io/gh/DataDog/nginx-datadog)
 This repository contains the source code for the `ngx_http_datadog_module`, an NGINX module
 that integrates Datadog [APM][1] and [Application Security Management][2] into NGINX.
 
@@ -105,6 +106,9 @@ Below are specific commands and options for different build targets.
 > are using in your environment to avoid compatibility issues.
 
 #### Building for NGINX
+> [!NOTE]
+> The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee portability.
+
 ```shell
 WAF=ON ARCH=amd64 NGINX_VERSION=1.27.1 make build-musl
 ```
@@ -115,9 +119,6 @@ Options:
   - `NGINX_VERSION=<version>`: Specify the NGINX version to build.
 
 The NGINX module will be generated at `.musl-build\ngx_http_datadog_module.so`.
-
-> [!NOTES]
-> The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee portability.
 
 ### Building for OpenResty using Docker
 To build the module for OpenResty:
