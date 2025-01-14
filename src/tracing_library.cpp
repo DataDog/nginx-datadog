@@ -15,16 +15,13 @@
 #include <cassert>
 #include <cstdio>
 #include <iterator>
-#include <ostream>
 
 extern "C" {
 #include <inttypes.h>
 }
 
 #include "datadog_conf.h"
-#include "dd.h"
 #include "ngx_event_scheduler.h"
-#include "ngx_logger.h"
 #ifdef WITH_WAF
 #include "security/waf_remote_cfg.h"
 #endif
@@ -40,20 +37,11 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
   config.integration_name = "nginx";
   config.integration_version = NGINX_VERSION;
+  config.service = "nginx";
 
   if (!nginx_conf.propagation_styles.empty()) {
     config.injection_styles = config.extraction_styles =
         nginx_conf.propagation_styles;
-  }
-
-  if (nginx_conf.service_name) {
-    config.service = nginx_conf.service_name->value;
-  } else {
-    config.service = "nginx";
-  }
-
-  if (nginx_conf.environment) {
-    config.environment = nginx_conf.environment->value;
   }
 
   if (nginx_conf.agent_url) {

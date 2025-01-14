@@ -245,16 +245,23 @@ static ngx_command_t datadog_commands[] = {
       nullptr},
 
     { ngx_string("datadog_service_name"),
-      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       set_datadog_service_name,
-      NGX_HTTP_MAIN_CONF_OFFSET,
+      NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
     { ngx_string("datadog_environment"),
-      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
       set_datadog_environment,
-      NGX_HTTP_MAIN_CONF_OFFSET,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      nullptr},
+
+    { ngx_string("datadog_version"),
+      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
+      set_datadog_version,
+      NGX_HTTP_LOC_CONF_OFFSET,
       0,
       nullptr},
 
@@ -751,6 +758,16 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
                        TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
+
+  if (!conf->service_name) {
+    conf->service_name = prev->service_name;
+  }
+  if (!conf->service_env) {
+    conf->service_env = prev->service_env;
+  }
+  if (!conf->service_version) {
+    conf->service_version = prev->service_version;
+  }
 
   if (const auto rc = merge_script(
           cf, prev->operation_name_script, conf->operation_name_script,

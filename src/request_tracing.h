@@ -3,7 +3,6 @@
 #include <datadog/span.h>
 
 #include <chrono>
-#include <memory>
 #include <optional>
 #include <string_view>
 

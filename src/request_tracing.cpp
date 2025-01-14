@@ -190,9 +190,26 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
                  "starting Datadog request span for %p", request_);
 
+  std::optional<std::string> service;
+  if (loc_conf_->service_name) {
+    service = loc_conf_->service_name->value;
+  }
+  std::optional<std::string> env;
+  if (loc_conf_->service_env) {
+    env = loc_conf_->service_env->value;
+  }
+  std::optional<std::string> version;
+  if (loc_conf_->service_version) {
+    version = loc_conf_->service_version->value;
+  }
+
   dd::SpanConfig config;
+
   auto start_timestamp =
       to_system_timestamp(request->start_sec, request->start_msec);
+  config.service = service;
+  config.environment = env;
+  config.version = version;
   config.start = estimate_past_time_point(start_timestamp);
   config.name = get_request_operation_name(request_, core_loc_conf_, loc_conf_);
 
@@ -213,7 +230,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // succeeds, then `request_span_` is part of the extracted trace.
   if (!parent && loc_conf_->trust_incoming_span) {
     NgxHeaderReader reader{&request->headers_in.headers};
-    auto maybe_span = tracer->extract_span(reader);
+    auto maybe_span = tracer->extract_span(reader, config);
     if (auto *error = maybe_span.if_error()) {
       if (error->code != dd::Error::NO_SPAN_TO_EXTRACT) {
         ngx_log_error(
@@ -241,6 +258,9 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
         "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
+    config.service = service;
+    config.environment = env;
+    config.version = version;
     config.name = get_loc_operation_name(request_, core_loc_conf_, loc_conf_);
     span_.emplace(request_span_->create_child(config));
   }
@@ -271,7 +291,20 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
         "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
+    if (loc_conf_->service_name) {
+      config.service = loc_conf_->service_name->value;
+    }
+    std::optional<std::string> env;
+    if (loc_conf_->service_env) {
+      config.environment = loc_conf_->service_env->value;
+    }
+    std::optional<std::string> version;
+    if (loc_conf_->service_version) {
+      config.version = loc_conf_->service_version->value;
+    }
+
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
+
     assert(request_span_);  // postcondition of our constructor
     span_.emplace(request_span_->create_child(config));
   }

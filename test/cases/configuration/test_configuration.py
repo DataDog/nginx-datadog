@@ -80,7 +80,7 @@ class TestConfiguration(case.TestCase):
         super().__init__(*args, **kwargs)
         self.default_config = None
 
-    def test_in_http(self):
+    def test_in_http_block(self):
         conf_path = Path(__file__).parent / "conf" / "in_http.conf"
         conf_text = conf_path.read_text()
 
@@ -92,17 +92,16 @@ class TestConfiguration(case.TestCase):
         self.assertEqual(200, status)
 
         config = json.loads(body)
-        # See conf/in_http.conf, which contains the following:
+        # See `conf/in_http.conf`, which contains the following:
         #
         #     datadog_service_name foosvc;
         #     datadog_environment fooment;
         #     datadog_agent_url http://bogus:1234;
         #     datadog_propagation_styles B3 Datadog;
         pattern = {
-            "defaults": {
-                "service": "foosvc",
-                "environment": "fooment"
-            },
+            "service": "foosvc",
+            "environment": "fooment",
+            "version": "1.5.0",
             "collector": {
                 "config": {
                     "traces_url": "http://bogus:1234/v0.4/traces"
@@ -113,6 +112,75 @@ class TestConfiguration(case.TestCase):
         }
 
         mismatches = find_mismatches(pattern, config)
+        self.assertEqual(mismatches, [])
+
+    def test_in_server_block(self):
+        conf_path = Path(__file__).parent / "conf" / "in_server.conf"
+        conf_text = conf_path.read_text()
+
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
+        self.assertEqual(0, status, log_lines)
+
+        status, _, body = self.orch.send_nginx_http_request("/", port=80)
+        self.assertEqual(200, status)
+
+        status, _, body2 = self.orch.send_nginx_http_request("/", port=81)
+        self.assertEqual(200, status)
+
+        config_srv1 = json.loads(body)
+        pattern = {
+            "service": "foosvc",
+            "environment": "main",
+            "version": "1.5.0-main",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv1)
+        self.assertEqual(mismatches, [])
+
+        config_srv2 = json.loads(body2)
+        pattern = {
+            "service": "foosvc2",
+            "environment": "shadow",
+            "version": "1.5.0-staging",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv2)
+        self.assertEqual(mismatches, [])
+
+    def test_in_location_block(self):
+        conf_path = Path(__file__).parent / "conf" / "in_location.conf"
+        conf_text = conf_path.read_text()
+
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
+        self.assertEqual(0, status, log_lines)
+
+        status, _, body = self.orch.send_nginx_http_request("/first", port=80)
+        self.assertEqual(200, status)
+
+        status, _, body2 = self.orch.send_nginx_http_request("/second",
+                                                             port=80)
+        self.assertEqual(200, status)
+
+        config_srv1 = json.loads(body)
+        pattern = {
+            "service": "a",
+            "environment": "first-env",
+            "version": "1.5.0-first",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv1)
+        self.assertEqual(mismatches, [])
+
+        config_srv2 = json.loads(body2)
+        pattern = {
+            "service": "b",
+            "environment": "second-env",
+            "version": "1.5.0-second",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv2)
         self.assertEqual(mismatches, [])
 
     def run_error_test(self, conf_relative_path, diagnostic_excerpt):
@@ -135,6 +203,12 @@ class TestConfiguration(case.TestCase):
         self.run_error_test(
             conf_relative_path="./conf/duplicate/environment.conf",
             diagnostic_excerpt='Duplicate call to "datadog_environment"',
+        )
+
+    def test_duplicate_version(self):
+        self.run_error_test(
+            conf_relative_path="./conf/duplicate/version.conf",
+            diagnostic_excerpt='Duplicate call to "datadog_version"',
         )
 
     def test_duplicate_agent_url(self):
@@ -175,14 +249,6 @@ class TestConfiguration(case.TestCase):
         return self.run_wrong_block_test(
             "./conf/error_in_main/propagation_styles.conf")
 
-    def test_error_in_server_service_name(self):
-        return self.run_wrong_block_test(
-            "./conf/error_in_server/service_name.conf")
-
-    def test_error_in_server_environment(self):
-        return self.run_wrong_block_test(
-            "./conf/error_in_server/environment.conf")
-
     def test_error_in_server_agent_url(self):
         return self.run_wrong_block_test(
             "./conf/error_in_server/agent_url.conf")
@@ -208,3 +274,63 @@ class TestConfiguration(case.TestCase):
     def test_datadog_tracing_precedence(self):
         return self.run_precedence_test(
             "./conf/datadog_tracing_precedence.conf")
+
+    def test_datadog_unified_service_tagging_precedence(self):
+        conf_path = (Path(__file__).parent / "conf" /
+                     "datadog_unified_service_tagging.conf")
+        conf_text = conf_path.read_text()
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
+        self.assertEqual(status, 0, log_lines)
+
+        status, _, body1 = self.orch.send_nginx_http_request("/http", port=80)
+        self.assertEqual(status, 200)
+
+        status, _, body2 = self.orch.send_nginx_http_request("/http", port=81)
+        self.assertEqual(status, 200)
+
+        status, _, body3 = self.orch.send_nginx_http_request("/http", port=82)
+        self.assertEqual(status, 200)
+
+        status, _, body4 = self.orch.send_nginx_http_request("/", port=82)
+        self.assertEqual(status, 200)
+
+        config_srv1 = json.loads(body1)
+        pattern = {
+            "service": "http_block",
+            "environment": "http",
+            "version": "1.5.0-http",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv1)
+        self.assertEqual(mismatches, [])
+
+        config_srv2 = json.loads(body2)
+        pattern = {
+            "service": "server1_block",
+            "environment": "server1",
+            "version": "1.5.0-server1",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv2)
+        self.assertEqual(mismatches, [])
+
+        config_srv3 = json.loads(body3)
+        pattern = {
+            "service": "server2_block",
+            "environment": "server2",
+            "version": "1.5.0-server2",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv3)
+        self.assertEqual(mismatches, [])
+
+        config_srv4 = json.loads(body4)
+        pattern = {
+            "service": "location_block",
+            "environment": "server2-location",
+            "version": "1.5.0-server2-location",
+        }
+
+        mismatches = find_mismatches(pattern, config_srv4)
+        self.assertEqual(mismatches, [])
