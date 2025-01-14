@@ -6331,7 +6331,7 @@
         "category": "vulnerability_trigger",
         "cwe": "22",
         "capec": "1000/255/153/126",
-        "confidence": "1",
+        "confidence": "0",
         "module": "rasp"
       },
       "conditions": [
@@ -6379,7 +6379,7 @@
         "category": "vulnerability_trigger",
         "cwe": "77",
         "capec": "1000/152/248/88",
-        "confidence": "1",
+        "confidence": "0",
         "module": "rasp"
       },
       "conditions": [
@@ -6427,7 +6427,7 @@
         "category": "vulnerability_trigger",
         "cwe": "77",
         "capec": "1000/152/248/88",
-        "confidence": "1",
+        "confidence": "0",
         "module": "rasp"
       },
       "conditions": [
@@ -6475,7 +6475,7 @@
         "category": "vulnerability_trigger",
         "cwe": "918",
         "capec": "1000/225/115/664",
-        "confidence": "1",
+        "confidence": "0",
         "module": "rasp"
       },
       "conditions": [
@@ -6523,7 +6523,7 @@
         "category": "vulnerability_trigger",
         "cwe": "89",
         "capec": "1000/152/248/66",
-        "confidence": "1",
+        "confidence": "0",
         "module": "rasp"
       },
       "conditions": [
@@ -7765,7 +7765,7 @@
                 ]
               }
             ],
-            "regex": "nmap (nse|scripting engine|icap-client/)"
+            "regex": "nmap (nse|scripting engine)"
           },
           "operator": "match_regex"
         }
@@ -8531,126 +8531,6 @@
               }
             ],
             "regex": "^feroxbuster/"
-          },
-          "operator": "match_regex"
-        }
-      ],
-      "transformers": []
-    },
-    {
-      "id": "ua0-600-64x",
-      "name": "ddg_win",
-      "tags": {
-        "type": "attack_tool",
-        "category": "attack_attempt",
-        "cwe": "200",
-        "capec": "1000/118/169",
-        "tool_name": "ddg_win",
-        "confidence": "1",
-        "module": "waf"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.headers.no_cookies",
-                "key_path": [
-                  "user-agent"
-                ]
-              }
-            ],
-            "regex": "\\bddg_win\\b"
-          },
-          "operator": "match_regex"
-        }
-      ],
-      "transformers": []
-    },
-    {
-      "id": "ua0-600-65x",
-      "name": "ISS",
-      "tags": {
-        "type": "commercial_scanner",
-        "category": "attack_attempt",
-        "cwe": "200",
-        "capec": "1000/118/169",
-        "tool_name": "iss",
-        "confidence": "0",
-        "module": "waf"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.headers.no_cookies",
-                "key_path": [
-                  "user-agent"
-                ]
-              }
-            ],
-            "regex": "\\bisscyberriskcrawler/\\d\\.\\d"
-          },
-          "operator": "match_regex"
-        }
-      ],
-      "transformers": []
-    },
-    {
-      "id": "ua0-600-66x",
-      "name": "BountyBot",
-      "tags": {
-        "type": "attack_tool",
-        "category": "attack_attempt",
-        "cwe": "200",
-        "capec": "1000/118/169",
-        "tool_name": "bountybot",
-        "confidence": "1",
-        "module": "waf"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.headers.no_cookies",
-                "key_path": [
-                  "user-agent"
-                ]
-              }
-            ],
-            "regex": "\\bbountybot\\b"
-          },
-          "operator": "match_regex"
-        }
-      ],
-      "transformers": []
-    },
-    {
-      "id": "ua0-600-67x",
-      "name": "ZumBot",
-      "tags": {
-        "type": "attack_tool",
-        "category": "attack_attempt",
-        "cwe": "200",
-        "capec": "1000/118/169",
-        "tool_name": "zumbot",
-        "confidence": "1",
-        "module": "waf"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.headers.no_cookies",
-                "key_path": [
-                  "user-agent"
-                ]
-              }
-            ],
-            "regex": "\\bzumbot\\b"
           },
           "operator": "match_regex"
         }
