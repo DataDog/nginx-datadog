@@ -1,7 +1,7 @@
 <img alt="datadog tracing nginx" src="mascot.svg" height="200"/>
 
-# Datadog NGINX Module
 [![codecov](https://codecov.io/gh/DataDog/nginx-datadog/graph/badge.svg?token=SZCZI1FAYU)](https://codecov.io/gh/DataDog/nginx-datadog)
+# Datadog NGINX Module
 This repository contains the source code for the `ngx_http_datadog_module`, an NGINX module
 that integrates Datadog [APM][1] and [Application Security Management][2] into NGINX.
 
