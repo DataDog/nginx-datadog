@@ -25,6 +25,7 @@ extern "C" {
 #ifdef WITH_WAF
 #include "security/waf_remote_cfg.h"
 #endif
+#include "nginx_flavors.h"
 #include "string_util.h"
 
 namespace datadog {
@@ -83,6 +84,24 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
 #endif
 
   auto final_config = dd::finalize_config(config);
+
+  if constexpr (kNginx_flavor == nginx::flavor::ingress_nginx) {
+    // NOTE(@dmehala): ingress-nginx regularly poll an healthcheck endpoint.
+    // To avoid reporting traces, set the sampling rate to `0` for this
+    // endpoint. This is done after `finalize_config` because it can
+    // environment variables override the programmatic configuration.
+    final_config->trace_sampler.rules.emplace_back(
+        datadog::tracing::TraceSamplerRule{
+            .rate = datadog::tracing::Rate::zero(),
+            .matcher =
+                datadog::tracing::SpanMatcher{
+                    .service = "*",
+                    .name = "*",
+                    .resource = "GET /is-dynamic-lb-initialized",
+                    .tags = {}},
+            .mechanism = datadog::tracing::SamplingMechanism::RULE});
+  }
+
   if (!final_config) {
     return final_config.error();
   }
