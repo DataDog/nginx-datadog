@@ -212,6 +212,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   config.version = version;
   config.start = estimate_past_time_point(start_timestamp);
   config.name = get_request_operation_name(request_, core_loc_conf_, loc_conf_);
+  config.resource = get_request_resource_name(request_, loc_conf_);
 
   // By the end of this function, we will have a `request_span_`.
   //
@@ -372,18 +373,6 @@ void RequestTracing::on_log_request() {
   add_status_tags(request_, *request_span_);
   add_script_tags(main_conf_->tags, request_, *request_span_);
   add_upstream_name(request_, *request_span_);
-
-  // When datadog_operation_name points to a variable, then it can be
-  // initialized or modified at any phase of the request, so set the span
-  // operation name at request exit phase, which will take the latest value of
-  // the variable pointed to by the datadog_operation_name directive. Similarly
-  // with resource name.
-  auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
-      ngx_http_get_module_loc_conf(request_, ngx_http_core_module));
-  request_span_->set_name(
-      get_request_operation_name(request_, core_loc_conf, loc_conf_));
-  request_span_->set_resource_name(
-      get_request_resource_name(request_, loc_conf_));
 
   request_span_->set_end_time(finish_timestamp);
 
