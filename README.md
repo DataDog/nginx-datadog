@@ -121,6 +121,9 @@ Options:
 The NGINX module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 
 ### Building for OpenResty using Docker
+> [!NOTE]
+> The `build-openresty` target builds against [musl](https://www.musl-libc.org/) to guarantee portability.
+
 To build the module for OpenResty:
 
 ```shell
@@ -133,6 +136,9 @@ Options:
   - `RESTY_VERSION=<version>`: Specify the OpenResty version to build.
 
 ### Building for ingress-nginx using Docker
+> [!NOTE]
+> The `build-ingress-nginx` target builds against [musl](https://www.musl-libc.org/) to guarantee portability.
+
 To build the module for [ingress-nginx][8]:
 
 ```shell
