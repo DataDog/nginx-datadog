@@ -6,13 +6,13 @@ ingress-nginx init container and the installer.
 Usage:
 ======
 To release nginx-datadog modules:
-./release.py nginx-module --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID>
+./release.py --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID> nginx-module
 
 To release ingress-nginx docker init containers:
-./release.py ingres-nginx --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID>
+./release.py --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID> ingres-nginx
 
 To release the installer:
-./release.py installer --ci-token <CI_TOKEN> --version-tag v0.3.3 --workflow-id <CI_RELEASE_WORKFLOW_ID>
+./release.py --ci-token <CI_TOKEN> --version-tag v0.3.3 --workflow-id <CI_RELEASE_WORKFLOW_ID> installer
 """
 
 import re
@@ -20,7 +20,6 @@ import argparse
 import itertools
 import json
 import os
-from pathlib import Path
 import shlex
 import shutil
 import subprocess
@@ -28,7 +27,10 @@ import sys
 import tempfile
 import urllib.request
 import tarfile
+import typing
 
+from pathlib import Path
+from collections import defaultdict
 from ingress_nginx import build_init_container, create_multiarch_images
 
 
@@ -291,7 +293,7 @@ def release_installer(args) -> int:
     return 0
 
 
-def release_ingress_nginx(args) -> int:
+def release_ingress_nginx(args: typing.Any) -> int:
     """
     This subcommand function retrieves the modules from the CI workflow, builds the ingress-nginx init container,
     and publishes it to a Docker registry.
@@ -303,7 +305,7 @@ def release_ingress_nginx(args) -> int:
     if not jobs:
         return 1
 
-    collected_images = {}
+    collected_images = defaultdict(list)
 
     for job in jobs:
         if job["name"].startswith("build ingress-nginx"):
@@ -313,41 +315,37 @@ def release_ingress_nginx(args) -> int:
                 raise Exception(f'Job name does not match regex "{re}": {job}')
             version, arch = match.groups()
 
+            image_version = f"{version}-dd.{args.version_tag}"
+
             artifacts = send_ci_request_paged(
                 f"/project/gh/DataDog/nginx-datadog/{job['job_number']}/artifacts"
             )
             module_url = None
-            module_dbg_url = None
             for artifact in artifacts:
                 name = artifact["path"]
                 if name == "ngx_http_datadog_module.so":
                     module_url = artifact["url"]
-                if name == "ngx_http_datadog_module.so.debug":
-                    module_dbg_url = artifact["url"]
 
-            if module_url is None or module_dbg_url is None:
+            if module_url is None:
                 raise Exception(
-                    f"Job number {job['job_number']} doesn't have an 'ngx_http_datadog_module.so/.so.debug' build artifact."
+                    f"Job number {job['job_number']} doesn't have an \"ngx_http_datadog_module.so\" build artifact."
                 )
 
             with tempfile.TemporaryDirectory() as work_dir:
                 module_path = Path(work_dir) / "ngx_http_datadog_module.so"
                 download_file(module_url, module_path)
 
-                module_dbg_path = Path(
-                    work_dir) / "ngx_http_datadog_module.so.debug"
-                download_file(module_dbg_url, module_dbg_path)
-
                 args.push = True
                 args.platform = f"linux/{arch}"
-                args.image_name = f"{args.registry}:{version}-{arch}"
+                args.image_name = f"{args.registry}:{image_version}-{arch}"
                 args.module_path = work_dir
                 build_init_container(args)
 
-                image_no_arch = f"{args.registry}:{version}"
-                if image_no_arch not in collected_images:
-                    collected_images[image_no_arch] = []
+                image_no_arch = f"{args.registry}:{image_version}"
+
                 collected_images[image_no_arch].append(args.image_name)
+                collected_images[f"{args.registry}:{version}"].append(
+                    args.image_name)
 
     create_multiarch_images(collected_images)
 
@@ -373,9 +371,9 @@ def release_module(args) -> int:
         for job in jobs:
             # See the response schema for a list of statuses:
             # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
-            if job["name"].startswith("build ") and not job["name"].startswith(
-                    "build installer ") and not job["name"].startswith(
-                        "build ingress-nginx"):
+            if (job["name"].startswith("build ")
+                    and not job["name"].startswith("build installer ")
+                    and not job["name"].startswith("build ingress-nginx")):
                 # name should be something like "build 1.25.4 on arm64 WAF ON"
                 match = re.match(
                     r"build ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",

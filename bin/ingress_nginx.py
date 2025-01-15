@@ -23,6 +23,7 @@ import subprocess
 import urllib.request
 import tarfile
 import shutil
+import typing
 
 CWD = os.getcwd()
 DRY_RUN = False
@@ -151,7 +152,7 @@ def build_init_container(args) -> int:
     return 0
 
 
-def create_multiarch_images(tag_map: dict):
+def create_multiarch_images(tag_map: dict[str, typing.Any]) -> None:
     for image, tags in tag_map.items():
         run_cmd(f"docker buildx imagetools create -t {image} {' '.join(tags)}")
 
