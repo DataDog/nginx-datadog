@@ -126,7 +126,7 @@ end
 
 all_resty_specs.group_by(&:version).each do |version, specs|
   puts <<~YAML.gsub(/^/, '    ')
-  - test-openresty:
+  - test:
       matrix:
         parameters:
           arch:
@@ -137,11 +137,11 @@ all_resty_specs.group_by(&:version).each do |version, specs|
           - 'OFF'
           base-image:
           - #{specs.map(&:image).join("\n        - ")}
-          resty-version:
+          nginx-version:
           - #{version}
-      name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+      name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
       requires:
-      - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+      - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
   YAML
 end
 

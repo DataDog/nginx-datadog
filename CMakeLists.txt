@@ -85,6 +85,18 @@ include(./cmake/deps/rapidjson.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
+# get dd-trace-cpp version
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/dd-trace-cpp/src/datadog/version.cpp DD_TRACE_VERSION_CPP_CONTENTS REGEX "#define DD_TRACE_VERSION( |_NUM )")
+string(REGEX MATCH "#define DD_TRACE_VERSION \"[^\"]*" DD_TRACE_CPP_VERSION ${DD_TRACE_VERSION_CPP_CONTENTS})
+string(REGEX REPLACE "[^\"]+\"" "" DD_TRACE_CPP_VERSION ${DD_TRACE_CPP_VERSION})
+unset(DD_TRACE_VERSION_CPP_CONTENTS)
+
+# get rules version
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/security/recommended.json ASM_RULES REGEX "rules_version")
+string(REGEX REPLACE "\"rules_version\": \"(.*)\"" "\\1" RULES_VERSION ${ASM_RULES})
+string(STRIP "${RULES_VERSION}" RULES_VERSION)
+unset(ASM_RULES)
+
 if(NGINX_DATADOG_ASM_ENABLED)
   # we need neither but libddwaf requires one enabled
   set(LIBDDWAF_BUILD_STATIC ON)
@@ -122,14 +134,10 @@ include(./cmake/generate_build_id.cmake)
 # Known issue: this command is only run during the CMake configuration stage.
 # Possible solution: <https://jonathanhamberg.com/post/cmake-embedding-git-hash/>
 make_build_id(NGINX_DATADOG_BUILD_ID)
-configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
+configure_file(src/version.h.in ${CMAKE_BINARY_DIR}/src/version.h)
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
-
-# Define `DD_NGINX_FLAVOR`
-
-target_sources(ngx_http_datadog_module PRIVATE ${CMAKE_BINARY_DIR}/version.cpp)
 
 add_library(ngx_http_datadog_objs OBJECT)
 set_target_properties(ngx_http_datadog_objs PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -211,6 +219,7 @@ endif()
 target_include_directories(ngx_http_datadog_objs
   PUBLIC
     src/
+    ${CMAKE_BINARY_DIR}
 )
 
 target_link_libraries(ngx_http_datadog_objs PUBLIC

@@ -247,42 +247,6 @@ jobs:
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
-  test-openresty:
-    parameters:
-      base-image:
-        type: string
-        default: ''
-      resty-version:
-        type: string
-      arch:
-        type: string
-      waf:
-        type: enum
-        enum:
-        - 'ON'
-        - 'OFF'
-    executor:
-      name: docker-<< parameters.arch >>
-      image: cimg/python:3.10.13
-    environment:
-      # https://github.com/containers/podman/issues/13889
-      DOCKER_BUILDKIT: 1
-      WAF: "<< parameters.waf >>"
-      BASE_IMAGE: "<<parameters.base-image>>"
-    steps:
-    - checkout
-    - run:
-        name: Install Python dependencies
-        command: pip install -r requirements.txt
-    - attach_workspace:
-        at: "/tmp/workspace"
-    - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-    - setup_remote_docker:
-        docker_layer_caching: true
-    - run: test/bin/run --verbose --failfast
-    - store_artifacts:
-        path: test/logs/test.log
-        destination: test.log‡
   test_ingress:
     parameters:
       base-image:

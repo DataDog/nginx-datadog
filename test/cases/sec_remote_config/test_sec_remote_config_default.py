@@ -7,14 +7,13 @@ from pathlib import Path
 from .. import case
 
 
+@case.skipUnlessWaf
 class TestSecRemoteConfig(case.TestCase):
     """Test with remote activation and remote rules"""
 
-    requires_waf = True
-
     def setUp(self):
         super().setUp()
-        conf_path = Path(__file__).parent / f'./conf/http_default.conf'
+        conf_path = Path(__file__).parent / f"./conf/http_default.conf"
         conf_text = conf_path.read_text()
         status, log_lines = self.orch.nginx_replace_config(
             conf_text, conf_path.name)
@@ -29,14 +28,15 @@ class TestSecRemoteConfig(case.TestCase):
 
     def wait_for_req_with_version(self, exp_version, timeout_secs):
         line = self.orch.wait_for_log_message(
-            'agent',
-            f'Remote config request with version {exp_version}.*',
-            timeout_secs=timeout_secs)
-        data = line.split(': ', 1)[1]
+            "agent",
+            f"Remote config request with version {exp_version}.*",
+            timeout_secs=timeout_secs,
+        )
+        data = line.split(": ", 1)[1]
         try:
             return json.loads(data)
         except json.JSONDecodeError:
-            self.fail(f'Failed to parse JSON from: {data}')
+            self.fail(f"Failed to parse JSON from: {data}")
             raise
 
     @staticmethod
@@ -53,13 +53,13 @@ class TestSecRemoteConfig(case.TestCase):
                 "path":
                 key,
                 "raw":
-                base64.b64encode(content.encode('utf-8')).decode('iso-8859-1'),
+                base64.b64encode(content.encode("utf-8")).decode("iso-8859-1"),
             } for key, content in spec.items()],
             "targets":
             base64.b64encode(
                 json.dumps({
                     "signatures": [],
-                    'signed': {
+                    "signed": {
                         "_type": "targets",
                         "expires": "2034-8-08T18:08:04Z",
                         "spec_version": "1.0.0",
@@ -68,7 +68,7 @@ class TestSecRemoteConfig(case.TestCase):
                             "agent_refresh_interval":
                             1,
                             "opaque_backend_state":
-                            "<value of opaque backend state>"
+                            "<value of opaque backend state>",
                         },
                         "targets": {
                             key: {
@@ -79,13 +79,13 @@ class TestSecRemoteConfig(case.TestCase):
                                 "hashes": {
                                     "sha256":
                                     hashlib.sha256(content.encode(
-                                        'utf-8')).digest().hex()
-                                }
+                                        "utf-8")).digest().hex()
+                                },
                             }
                             for key, content in spec.items()
-                        }
-                    }
-                }).encode('utf-8')).decode('iso-8859-1')
+                        },
+                    },
+                }).encode("utf-8")).decode("iso-8859-1"),
         }
         return json.dumps(data), version
 
@@ -103,31 +103,31 @@ class TestSecRemoteConfig(case.TestCase):
 
     def test_remote_activation(self):
         version = self.apply_cfg({
-            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            "datadog/2/ASM_FEATURES/asm_features_activation/config":
             '{"asm":{"enabled":true}}'
         })
         rem_cfg_req = self.wait_for_req_with_version(version, 15)
         state = next((el
-                      for el in rem_cfg_req['client']['state']['config_states']
-                      if el['id'] == 'asm_features_activation'))
-        self.assertEqual(state['apply_state'], 2)
+                      for el in rem_cfg_req["client"]["state"]["config_states"]
+                      if el["id"] == "asm_features_activation"))
+        self.assertEqual(state["apply_state"], 2)
 
         code, _, _ = self.orch.send_nginx_http_request(
-            '/', headers={'User-agent': 'dd-test-scanner-log-block'})
+            "/", headers={"User-agent": "dd-test-scanner-log-block"})
         self.assertEqual(403, code)
 
         # Now drop the configuration
         self.drop_cfg()
 
         code, _, _ = self.orch.send_nginx_http_request(
-            '/', headers={'User-agent': 'dd-test-scanner-log-block'})
+            "/", headers={"User-agent": "dd-test-scanner-log-block"})
         self.assertEqual(200, code)
 
     def test_waf_data(self):
         version = self.apply_cfg({
-            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            "datadog/2/ASM_FEATURES/asm_features_activation/config":
             '{"asm":{"enabled":true}}',
-            'datadog/2/ASM_DATA/mydata/config':
+            "datadog/2/ASM_DATA/mydata/config":
             json.dumps({
                 "rules_data": [{
                     "id":
@@ -137,35 +137,35 @@ class TestSecRemoteConfig(case.TestCase):
                     "data": [{
                         "expiration": 0,
                         "value": "1.2.3.0/24"
-                    }]
+                    }],
                 }]
-            })
+            }),
         })
         rem_cfg_req = self.wait_for_req_with_version(version, 15)
         state = next((el
-                      for el in rem_cfg_req['client']['state']['config_states']
-                      if el['id'] == 'mydata'))
-        self.assertEqual(state['apply_state'], 2)
+                      for el in rem_cfg_req["client"]["state"]["config_states"]
+                      if el["id"] == "mydata"))
+        self.assertEqual(state["apply_state"], 2)
 
         code, _, _ = self.orch.send_nginx_http_request(
-            '/', headers={'X-real-ip': '1.2.3.100'})
+            "/", headers={"X-real-ip": "1.2.3.100"})
         self.assertEqual(403, code)
 
         code, _, _ = self.orch.send_nginx_http_request(
-            '/', headers={'X-real-ip': '1.2.4.1'})
+            "/", headers={"X-real-ip": "1.2.4.1"})
         self.assertEqual(200, code)
 
         self.drop_cfg()
 
         code, _, _ = self.orch.send_nginx_http_request(
-            '/', headers={'X-real-ip': '1.2.3.100'})
+            "/", headers={"X-real-ip": "1.2.3.100"})
         self.assertEqual(200, code)
 
     def test_asm_dd(self):
         version = self.apply_cfg({
-            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            "datadog/2/ASM_FEATURES/asm_features_activation/config":
             '{"asm":{"enabled":true}}',
-            'datadog/2/ASM_DD/full_cfg/config':
+            "datadog/2/ASM_DD/full_cfg/config":
             json.dumps({
                 "version":
                 "2.1",
@@ -176,51 +176,51 @@ class TestSecRemoteConfig(case.TestCase):
                     "Partially match values",
                     "tags": {
                         "type": "security_scanner",
-                        "category": "attack_attempt"
+                        "category": "attack_attempt",
                     },
                     "conditions": [{
                         "parameters": {
                             "inputs": [{
                                 "address": "server.request.query"
                             }],
-                            "regex": ".*matched.+value.*"
+                            "regex": ".*matched.+value.*",
                         },
-                        "operator": "match_regex"
+                        "operator": "match_regex",
                     }],
                     "transformers": ["values_only"],
-                    "on_match": ["block"]
-                }]
-            })
+                    "on_match": ["block"],
+                }],
+            }),
         })
         rem_cfg_req = self.wait_for_req_with_version(version, 15)
         state = next((el
-                      for el in rem_cfg_req['client']['state']['config_states']
-                      if el['id'] == 'full_cfg'))
-        self.assertEqual(state['apply_state'], 2)
+                      for el in rem_cfg_req["client"]["state"]["config_states"]
+                      if el["id"] == "full_cfg"))
+        self.assertEqual(state["apply_state"], 2)
 
-        code, _, _ = self.orch.send_nginx_http_request('/?a=matched+value')
+        code, _, _ = self.orch.send_nginx_http_request("/?a=matched+value")
         self.assertEqual(403, code)
 
         self.drop_cfg()
 
-        code, _, _ = self.orch.send_nginx_http_request('/?a=matched+value')
+        code, _, _ = self.orch.send_nginx_http_request("/?a=matched+value")
         self.assertEqual(200, code)
 
     def test_asm(self):
         version = self.apply_cfg({
-            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            "datadog/2/ASM_FEATURES/asm_features_activation/config":
             '{"asm":{"enabled":true}}',
-            'datadog/2/ASM/custom_user_cfg_2/config':
+            "datadog/2/ASM/custom_user_cfg_2/config":
             json.dumps({
                 "actions": [{
                     "id": "block_custom",
                     "type": "block_request",
                     "parameters": {
                         "status_code": "408",
-                    }
+                    },
                 }]
             }),
-            'datadog/2/ASM/custom_user_cfg_1/config':
+            "datadog/2/ASM/custom_user_cfg_1/config":
             json.dumps({
                 "custom_rules": [{
                     "id":
@@ -229,16 +229,16 @@ class TestSecRemoteConfig(case.TestCase):
                     "Partially match values",
                     "tags": {
                         "type": "security_scanner",
-                        "category": "attack_attempt"
+                        "category": "attack_attempt",
                     },
                     "conditions": [{
                         "parameters": {
                             "inputs": [{
                                 "address": "server.request.query"
                             }],
-                            "regex": ".*matched.+value.*"
+                            "regex": ".*matched.+value.*",
                         },
-                        "operator": "match_regex"
+                        "operator": "match_regex",
                     }],
                     "transformers": ["values_only"],
                     "on_match": ["block_custom"],
@@ -257,9 +257,9 @@ class TestSecRemoteConfig(case.TestCase):
                             "inputs": [{
                                 "address": "server.request.query"
                             }],
-                            "regex": "excluded"
-                        }
-                    }]
+                            "regex": "excluded",
+                        },
+                    }],
                 }],
                 "rules_override": [{
                     "rules_target": [{
@@ -268,63 +268,66 @@ class TestSecRemoteConfig(case.TestCase):
                     "on_match": ["block_custom2"],
                     "enabled": True,
                 }],
-                "actions": [{
-                    "id": "block_custom",
-                    "type": "block_request",
-                    "parameters": {
-                        "status_code": "407",
-                    }
-                }, {
-                    "id": "block_custom2",
-                    "type": "block_request",
-                    "parameters": {
-                        "status_code": "410",
-                    }
-                }]
+                "actions": [
+                    {
+                        "id": "block_custom",
+                        "type": "block_request",
+                        "parameters": {
+                            "status_code": "407",
+                        },
+                    },
+                    {
+                        "id": "block_custom2",
+                        "type": "block_request",
+                        "parameters": {
+                            "status_code": "410",
+                        },
+                    },
+                ],
             }),
         })
 
         rem_cfg_req = self.wait_for_req_with_version(version, 15)
         state = next((el
-                      for el in rem_cfg_req['client']['state']['config_states']
-                      if el['id'] == 'custom_user_cfg_1'))
-        self.assertEqual(state['apply_state'], 2)
+                      for el in rem_cfg_req["client"]["state"]["config_states"]
+                      if el["id"] == "custom_user_cfg_1"))
+        self.assertEqual(state["apply_state"], 2)
         state = next((el
-                      for el in rem_cfg_req['client']['state']['config_states']
-                      if el['id'] == 'custom_user_cfg_2'))
-        self.assertEqual(state['apply_state'], 2)
+                      for el in rem_cfg_req["client"]["state"]["config_states"]
+                      if el["id"] == "custom_user_cfg_2"))
+        self.assertEqual(state["apply_state"], 2)
 
         # matches user rule 'partial_match_values'
-        code, _, _ = self.orch.send_nginx_http_request('/?a=matched+value1')
+        code, _, _ = self.orch.send_nginx_http_request("/?a=matched+value1")
         self.assertEqual(408, code)
 
         # matches exclusion rule 'excl1'
         code, _, _ = self.orch.send_nginx_http_request(
-            '/?b=excluded',
-            headers={'User-agent': 'dd-test-scanner-log-block'})
+            "/?b=excluded",
+            headers={"User-agent": "dd-test-scanner-log-block"})
         self.assertEqual(200, code)
 
         # action is overridden in rules_override to block_custom2 (code: 410)
         code, _, _ = self.orch.send_nginx_http_request(
-            '/', headers={'User-agent': 'dd-test-scanner-log-block'})
+            "/", headers={"User-agent": "dd-test-scanner-log-block"})
         self.assertEqual(410, code)
 
         version = self.apply_cfg({
-            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            "datadog/2/ASM_FEATURES/asm_features_activation/config":
             '{"asm":{"enabled":true}}'
         })
         self.wait_for_req_with_version(version, 15)
 
-        code, _, _ = self.orch.send_nginx_http_request('/?a=matched+value1')
+        code, _, _ = self.orch.send_nginx_http_request("/?a=matched+value1")
         self.assertEqual(200, code)
 
         code, _, _ = self.orch.send_nginx_http_request(
-            '/?b=excluded',
-            headers={'User-agent': 'dd-test-scanner-log-block'})
+            "/?b=excluded",
+            headers={"User-agent": "dd-test-scanner-log-block"})
         self.assertEqual(403, code)
 
         code, _, _ = self.orch.send_nginx_http_request(
-            '/', headers={'User-agent': 'dd-test-scanner-log-block'})
+            "/", headers={"User-agent": "dd-test-scanner-log-block"})
         self.assertEqual(403, code)
 
         self.drop_cfg()

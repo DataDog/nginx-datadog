@@ -39,8 +39,6 @@ jobs:
     matrix:
       parameters:
         resty-version:
-        - 1.21.4.4
-        - 1.25.3.2
         - 1.27.1.1
         waf:
         - 'ON'
@@ -50,8 +48,6 @@ jobs:
     matrix:
       parameters:
         resty-version:
-        - 1.21.4.4
-        - 1.25.3.2
         - 1.27.1.1
         waf:
         - 'ON'
@@ -86,7 +82,7 @@ jobs:
     requires:
     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
       >>
-- test-openresty:
+- test:
     matrix:
       parameters:
         arch:
@@ -97,11 +93,11 @@ jobs:
         - 'OFF'
         base-image:
         - openresty/openresty:1.27.1.1-alpine
-        resty-version:
+        nginx-version:
         - 1.27.1.1
-    name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+    name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
     requires:
-    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
 - test:
     matrix:
       parameters:

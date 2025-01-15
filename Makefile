@@ -148,13 +148,14 @@ endif
 
 .PHONY: build-openresty-aux
 build-openresty-aux:
-	cmake -B .openresty-build \
+	cmake -B .musl-build \
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+		-DNGINX_DATADOG_FLAVOR="openresty" \
 		-DNGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
-		&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
+		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 
 .PHONY: test
 test:
@@ -163,8 +164,8 @@ test:
 
 .PHONY: test-openresty
 test-openresty:
-	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-	RESTY_TEST=ON test/bin/run $(TEST_ARGS)
+	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
+	NGINX_FLAVOR=openresty test/bin/run $(TEST_ARGS)
 
 .PHONY: build-and-test
 build-and-test: build-musl
@@ -173,12 +174,12 @@ build-and-test: build-musl
 
 .PHONY: build-and-test-openresty
 build-and-test-openresty: build-openresty
-	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-	test/bin/run $(TEST_ARGS)
+	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
+	NGINX_FLAVOR=openresty test/bin/run $(TEST_ARGS)
 
 .PHONY: example-openresty
 example-openresty: build-openresty
-	cp -v .openresty-build/ngx_http_datadog_module.so* example/openresty/services/openresty
+	cp -v .musl-build/ngx_http_datadog_module.so* example/openresty/services/openresty
 	./example/openresty/bin/run
 
 .PHONY: coverage

@@ -5,19 +5,19 @@ from .. import case
 from pathlib import Path
 
 
+@case.skipUnlessWaf
 class TestSecBlocking(case.TestCase):
     config_setup_done = False
-    requires_waf = True
 
     def setUp(self):
         super().setUp()
         # avoid reconfiguration (cuts time almost in half)
         if not TestSecBlocking.config_setup_done:
-            waf_path = Path(__file__).parent / './conf/waf.json'
+            waf_path = Path(__file__).parent / "./conf/waf.json"
             waf_text = waf_path.read_text()
-            self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
+            self.orch.nginx_replace_file("/tmp/waf.json", waf_text)
 
-            conf_path = Path(__file__).parent / './conf/http.conf'
+            conf_path = Path(__file__).parent / "./conf/http.conf"
             conf_text = conf_path.read_text()
 
             status, log_lines = self.orch.nginx_replace_config(
@@ -27,125 +27,125 @@ class TestSecBlocking(case.TestCase):
             TestSecBlocking.config_setup_done = True
 
         # Consume any previous logging from the agent.
-        self.orch.sync_service('agent')
+        self.orch.sync_service("agent")
 
     def run_with_ua(self, user_agent, accept):
-        headers = {'User-Agent': user_agent, 'Accept': accept}
+        headers = {"User-Agent": user_agent, "Accept": accept}
         status, headers, body = self.orch.send_nginx_http_request(
-            '/http', 80, headers)
+            "/http", 80, headers)
 
         self.orch.reload_nginx()
-        log_lines = self.orch.sync_service('agent')
+        log_lines = self.orch.sync_service("agent")
         headers = dict(headers)
         headers = {k.lower(): v for k, v in headers.items()}
         return status, headers, body, log_lines
 
     def run_with_body(self, content_type, req_body):
         status, headers, body = self.orch.send_nginx_http_request(
-            '/http',
+            "/http",
             80,
-            headers={'content-type': content_type},
+            headers={"content-type": content_type},
             req_body=req_body)
 
         self.orch.reload_nginx()
-        log_lines = self.orch.sync_service('agent')
+        log_lines = self.orch.sync_service("agent")
         headers = dict(headers)
         headers = {k.lower(): v for k, v in headers.items()}
         return status, headers, body, log_lines
 
     def assert_has_report(self, log_lines):
         traces = [
-            json.loads(line) for line in log_lines if line.startswith('[[{')
+            json.loads(line) for line in log_lines if line.startswith("[[{")
         ]
 
         def predicate(x):
-            return x[0][0]['meta'].get('appsec.blocked') == 'true'
+            return x[0][0]["meta"].get("appsec.blocked") == "true"
 
         trace = next((trace for trace in traces if predicate(trace)), None)
         if trace is None:
-            self.fail('No trace found with appsec.blocked=true')
+            self.fail("No trace found with appsec.blocked=true")
 
         # check if we also get appsec report
-        if '_dd.appsec.json' not in trace[0][0]['meta']:
-            self.fail('No appsec report found in trace')
+        if "_dd.appsec.json" not in trace[0][0]["meta"]:
+            self.fail("No appsec report found in trace")
 
-        appsec_rep = json.loads(trace[0][0]['meta']['_dd.appsec.json'])
+        appsec_rep = json.loads(trace[0][0]["meta"]["_dd.appsec.json"])
 
-        self.assertEqual(appsec_rep['triggers'][0]['rule']['on_match'][0],
-                         'block')
+        self.assertEqual(appsec_rep["triggers"][0]["rule"]["on_match"][0],
+                         "block")
 
     def test_default_action(self):
         status, headers, body, log_lines = self.run_with_ua(
-            'block_default', '*/*')
+            "block_default", "*/*")
         self.assertEqual(status, 403)
-        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertEqual(headers["content-type"], "application/json")
         self.assertRegex(body, r'"title":"You\'ve been blocked')
         self.assert_has_report(log_lines)
 
     def test_default_action_html(self):
-        status, headers, body, _ = self.run_with_ua('block_default',
-                                                    'text/html')
+        status, headers, body, _ = self.run_with_ua("block_default",
+                                                    "text/html")
         self.assertEqual(status, 403)
-        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
-        self.assertRegex(body, r'<title>You\'ve been blocked')
+        self.assertEqual(headers["content-type"], "text/html;charset=utf-8")
+        self.assertRegex(body, r"<title>You\'ve been blocked")
 
     def test_default_action_html_quality(self):
         status, headers, body, _ = self.run_with_ua(
-            'block_default', 'application/json;q=0.5, text/html')
+            "block_default", "application/json;q=0.5, text/html")
         self.assertEqual(status, 403)
-        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
-        self.assertRegex(body, r'<title>You\'ve been blocked')
+        self.assertEqual(headers["content-type"], "text/html;charset=utf-8")
+        self.assertRegex(body, r"<title>You\'ve been blocked")
 
     def test_default_action_html_specificity(self):
         status, headers, body, _ = self.run_with_ua(
-            'block_default', 'application/json;q=0.5,text/html;q=0.6,'
-            'text/*;q=0.4')
+            "block_default", "application/json;q=0.5,text/html;q=0.6,"
+            "text/*;q=0.4")
         self.assertEqual(status, 403)
-        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
-        self.assertRegex(body, r'<title>You\'ve been blocked')
+        self.assertEqual(headers["content-type"], "text/html;charset=utf-8")
+        self.assertRegex(body, r"<title>You\'ve been blocked")
 
     def test_default_action_html_order(self):
         status, headers, body, _ = self.run_with_ua(
-            'block_default', 'text/html, application/json')
+            "block_default", "text/html, application/json")
         self.assertEqual(status, 403)
-        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
-        self.assertRegex(body, r'<title>You\'ve been blocked')
+        self.assertEqual(headers["content-type"], "text/html;charset=utf-8")
+        self.assertRegex(body, r"<title>You\'ve been blocked")
 
     def test_html_action(self):
-        status, headers, body, _ = self.run_with_ua('block_html',
-                                                    'application/json')
+        status, headers, body, _ = self.run_with_ua("block_html",
+                                                    "application/json")
         self.assertEqual(status, 403)
-        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+        self.assertEqual(headers["content-type"], "text/html;charset=utf-8")
 
     def test_json_action(self):
-        status, headers, body, _ = self.run_with_ua('block_json', 'text/html')
+        status, headers, body, _ = self.run_with_ua("block_json", "text/html")
         self.assertEqual(status, 403)
-        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertEqual(headers["content-type"], "application/json")
 
     def test_block_alt_code(self):
-        status, headers, body, _ = self.run_with_ua('block_alt_code', '*/*')
+        status, headers, body, _ = self.run_with_ua("block_alt_code", "*/*")
         self.assertEqual(status, 501)
-        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertEqual(headers["content-type"], "application/json")
 
     def test_redirect_action(self):
-        status, headers, _, _ = self.run_with_ua('redirect', '*/*')
+        status, headers, _, _ = self.run_with_ua("redirect", "*/*")
         self.assertEqual(status, 301)
-        self.assertEqual(headers['location'], 'https://www.cloudflare.com')
+        self.assertEqual(headers["location"], "https://www.cloudflare.com")
 
     def test_redirect_bad_status(self):
-        status, headers, _, _ = self.run_with_ua('redirect_bad_status', '*/*')
+        status, headers, _, _ = self.run_with_ua("redirect_bad_status", "*/*")
         self.assertEqual(status, 303)
-        self.assertEqual(headers['location'], 'https://www.cloudflare.com')
+        self.assertEqual(headers["location"], "https://www.cloudflare.com")
 
     def test_block_body_json(self):
-        status, _, _, log_lines = self.run_with_body('application/json',
+        status, _, _, log_lines = self.run_with_body("application/json",
                                                      '{"a": "block_default"}')
         self.assertEqual(status, 403)
         self.assert_has_report(log_lines)
 
     def test_block_body_json_long(self):
         status, _, _, log_lines = self.run_with_body(
-            'application/json',
-            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024))
+            "application/json",
+            '{"a": "block_default", "b": "' + ("a" * 1024 * 1024))
         self.assertEqual(status, 403)
         self.assert_has_report(log_lines)

@@ -1,0 +1,40 @@
+#pragma once
+
+#include <string_view>
+
+extern "C" {
+
+#include <nginx.h>
+
+inline constexpr std::string_view datadog_version_tracer =
+    "@DD_TRACE_CPP_VERSION@";
+
+inline constexpr std::string_view datadog_semver_nginx_mod =
+    "@PROJECT_VERSION@";
+inline constexpr std::string_view datadog_version_nginx_mod =
+    "[nginx_mod version @PROJECT_VERSION@]";
+inline constexpr std::string_view datadog_build_id_nginx_mod =
+    "@NGINX_DATADOG_BUILD_ID@";
+
+inline constexpr std::string_view datadog_semver_nginx = NGINX_VERSION;
+inline constexpr std::string_view datadog_version_nginx =
+    "[nginx version " NGINX_VERSION "]";
+
+#if defined(WITH_WAF)
+inline constexpr std::string_view datadog_semver_waf_rules = "@RULES_VERSION@";
+inline constexpr std::string_view datadog_version_waf_rules =
+    "[waf_rules version @RULES_VERSION@]";
+
+inline constexpr std::string_view datadog_semver_libddwaf =
+    "@LIBDDWAF_VERSION@";
+inline constexpr std::string_view datadog_version_libddwaf =
+    "[libddwaf version @LIBDDWAF_VERSION@]";
+#endif
+
+#if defined(WITH_RUM)
+inline constexpr std::string_view datadog_semver_rum_injector =
+    "@RUM_SDK_INJECTOR_VERSION@";
+inline constexpr std::string_view datadog_version_rum_injector =
+    "[inject-browser-sdk version @RUM_SDK_INJECTOR_VERSION@]";
+#endif
+}
