@@ -769,6 +769,11 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
     conf->service_version = prev->service_version;
   }
 
+  if (const auto rc = merge_script(cf, prev->service_name_var,
+                                   conf->service_name_var, "$service_name")) {
+    return rc;
+  }
+
   if (const auto rc = merge_script(
           cf, prev->operation_name_script, conf->operation_name_script,
           TracingLibrary::default_request_operation_name_pattern())) {

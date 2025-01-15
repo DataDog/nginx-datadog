@@ -9,14 +9,13 @@
 #include <cassert>
 #include <chrono>
 #include <ctime>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
 
 #include "array_util.h"
-#include "dd.h"
 #include "global_tracer.h"
+#include "nginx_flavors.h"
 #include "ngx_header_reader.h"
 #include "ngx_header_writer.h"
 #include "ngx_http_datadog_module.h"
@@ -38,6 +37,34 @@ bool should_delegate(ngx_http_request_t *request,
   return loc_conf->sampling_delegation_enabled &&
          loc_conf->allow_sampling_delegation_in_subrequests;
 }
+
+std::optional<std::string> get_service_name(const datadog_loc_conf_t &loc_conf,
+                                            ngx_http_request_t *req) {
+  // Infer the servie name, in priority order:
+  // 1. `datadog_service_name`
+  // 2. [only for ingress-nginx] value of `$service_name`.
+  // 3. Name of the server from `server_name` directive.
+  // 4. Default value.
+  if (loc_conf.service_name) {
+    return loc_conf.service_name->value;
+  }
+
+  if constexpr (kNginx_flavor == nginx::flavor::ingress_nginx) {
+    const auto res = loc_conf.service_name_var.run(req);
+    if (res.len > 0) {
+      return to_string(res);
+    }
+  }
+
+  const auto *srv_loc = static_cast<ngx_http_core_srv_conf_t *>(
+      ngx_http_get_module_srv_conf(req, ngx_http_core_module));
+  if (srv_loc != nullptr && srv_loc->server_name.len > 0) {
+    return to_string(srv_loc->server_name);
+  }
+
+  return std::nullopt;
+}
+
 }  // namespace
 
 static std::string get_loc_operation_name(
@@ -190,10 +217,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
                  "starting Datadog request span for %p", request_);
 
-  std::optional<std::string> service;
-  if (loc_conf_->service_name) {
-    service = loc_conf_->service_name->value;
-  }
+  std::optional<std::string> service = get_service_name(*loc_conf_, request);
   std::optional<std::string> env;
   if (loc_conf_->service_env) {
     env = loc_conf_->service_env->value;
