@@ -205,15 +205,15 @@ jobs:
                     RESTY_VERSION: << parameters.resty-version >>
             - persist_to_workspace:
                 paths:
-                    - .openresty-build/ngx_http_datadog_module.so
-                    - .openresty-build/ngx_http_datadog_module.so.debug
+                    - .musl-build/ngx_http_datadog_module.so
+                    - .musl-build/ngx_http_datadog_module.so.debug
                 root: .
             - store_artifacts:
                 destination: ngx_http_datadog_module.so
-                path: .openresty-build/ngx_http_datadog_module.so
+                path: .musl-build/ngx_http_datadog_module.so
             - store_artifacts:
                 destination: ngx_http_datadog_module.so.debug
-                path: .openresty-build/ngx_http_datadog_module.so.debug
+                path: .musl-build/ngx_http_datadog_module.so.debug
     build_openresty_arm64:
         environment:
             ARCH: aarch64
@@ -241,18 +241,15 @@ jobs:
                     RESTY_VERSION: << parameters.resty-version >>
             - persist_to_workspace:
                 paths:
-                    - .openresty-build/ngx_http_datadog_module.so
-                    - .openresty-build/ngx_http_datadog_module.so.debug
+                    - .musl-build/ngx_http_datadog_module.so
+                    - .musl-build/ngx_http_datadog_module.so.debug
                 root: .
             - store_artifacts:
                 destination: ngx_http_datadog_module.so
-                path: .openresty-build/ngx_http_datadog_module.so
+                path: .musl-build/ngx_http_datadog_module.so
             - store_artifacts:
                 destination: ngx_http_datadog_module.so.debug
-                path: .openresty-build/ngx_http_datadog_module.so.debug
-            - store_artifacts:
-                destination: openresty-version-info
-                path: openresty-version-info
+                path: .musl-build/ngx_http_datadog_module.so.debug
     check-ci-definition:
         docker:
             - image: circleci/circleci-cli:latest

@@ -124,13 +124,13 @@ jobs:
     - persist_to_workspace:
         root: "."
         paths:
-          - ".openresty-build/ngx_http_datadog_module.so"
-          - ".openresty-build/ngx_http_datadog_module.so.debug"
+          - ".musl-build/ngx_http_datadog_module.so"
+          - ".musl-build/ngx_http_datadog_module.so.debug"
     - store_artifacts:
-        path: ".openresty-build/ngx_http_datadog_module.so"
+        path: ".musl-build/ngx_http_datadog_module.so"
         destination: ngx_http_datadog_module.so
     - store_artifacts:
-        path: ".openresty-build/ngx_http_datadog_module.so.debug"
+        path: ".musl-build/ngx_http_datadog_module.so.debug"
         destination: ngx_http_datadog_module.so.debug
     machine:
       image: ubuntu-2204:current
@@ -160,17 +160,14 @@ jobs:
     - persist_to_workspace:
         root: "."
         paths:
-          - ".openresty-build/ngx_http_datadog_module.so"
-          - ".openresty-build/ngx_http_datadog_module.so.debug"
+          - ".musl-build/ngx_http_datadog_module.so"
+          - ".musl-build/ngx_http_datadog_module.so.debug"
     - store_artifacts:
-        path: ".openresty-build/ngx_http_datadog_module.so"
+        path: ".musl-build/ngx_http_datadog_module.so"
         destination: ngx_http_datadog_module.so
     - store_artifacts:
-        path: ".openresty-build/ngx_http_datadog_module.so.debug"
+        path: ".musl-build/ngx_http_datadog_module.so.debug"
         destination: ngx_http_datadog_module.so.debug
-    - store_artifacts:
-        path: openresty-version-info
-        destination: openresty-version-info
     machine:
       image: ubuntu-2204:current
     resource_class: arm.xlarge
