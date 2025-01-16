@@ -207,6 +207,12 @@ def main() -> int:
         help="Push the generated init-container to the registry",
         action="store_true",
     )
+    build_init_container_parser.add_argument(
+        "--platform",
+        help="Docker targeted platform",
+        choices=["linux/amd64", "linux/arm64"],
+        required=True,
+    )
 
     args = parser.parse_args()
     return args.func(args)
