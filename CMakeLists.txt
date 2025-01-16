@@ -128,7 +128,8 @@ include(./cmake/generate_build_id.cmake)
 # Known issue: this command is only run during the CMake configuration stage.
 # Possible solution: <https://jonathanhamberg.com/post/cmake-embedding-git-hash/>
 make_build_id(NGINX_DATADOG_BUILD_ID)
-configure_file(src/version.h.in ${CMAKE_BINARY_DIR}/version.h)
+# configure_file(src/version.h.in ${CMAKE_BINARY_DIR}/version.h)
+configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
@@ -213,7 +214,6 @@ endif()
 target_include_directories(ngx_http_datadog_objs
   PUBLIC
     src/
-    ${CMAKE_BINARY_DIR}
 )
 
 target_link_libraries(ngx_http_datadog_objs PUBLIC
