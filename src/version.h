@@ -4,8 +4,6 @@
 
 extern "C" {
 
-#include <nginx.h>
-
 extern const std::string_view datadog_version_tracer;
 
 extern const std::string_view datadog_semver_nginx_mod;

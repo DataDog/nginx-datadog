@@ -2,6 +2,8 @@
 
 extern "C" {
 
+#include <nginx.h>
+
 const std::string_view datadog_version_tracer = "@DD_TRACE_CPP_VERSION@";
 
 const std::string_view datadog_semver_nginx_mod = "@PROJECT_VERSION@";
