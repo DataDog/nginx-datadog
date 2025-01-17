@@ -240,10 +240,9 @@ jobs:
         command: pip install -r requirements.txt
     - attach_workspace:
         at: "/tmp/workspace"
-    - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
     - setup_remote_docker:
         docker_layer_caching: true
-    - run: test/bin/run --verbose --failfast
+    - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image ${BASE_IMAGE} --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
@@ -276,10 +275,9 @@ jobs:
         command: pip install -r requirements.txt
     - attach_workspace:
         at: "/tmp/workspace"
-    - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
     - setup_remote_docker:
         docker_layer_caching: true
-    - run: test/bin/run --verbose --failfast
+    - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image ${BASE_IMAGE} --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log‡
@@ -307,10 +305,9 @@ jobs:
         command: pip install -r requirements.txt
     - attach_workspace:
         at: "/tmp/workspace"
-    - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
     - setup_remote_docker:
         docker_layer_caching: true
-    - run: test/bin/run --verbose --failfast
+    - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image ${BASE_IMAGE} --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
