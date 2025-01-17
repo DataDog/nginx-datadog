@@ -138,7 +138,10 @@ jobs:
                         export ARCH=aarch64
                         ;;
                       *)
+                        echo "Unsupported architecture: <<parameters.arch>>"
                         exit 1
+                        ;;
+                    esac
 
                     make build-ingress-nginx
                 environment:

@@ -441,17 +441,20 @@ jobs:
     - run: git submodule sync && git submodule update --init --recursive
     - run:
         command: |
-          case "<<parameters.arch>>" in
-            amd64)
-              export ARCH=x86_64
-              ;;
-            arm64)
-              export ARCH=aarch64
-              ;;
-            *)
-              exit 1
+            case "<<parameters.arch>>" in
+              amd64)
+                export ARCH=x86_64
+                ;;
+              arm64)
+                export ARCH=aarch64
+                ;;
+              *)
+                echo "Unsupported architecture: <<parameters.arch>>"
+                exit 1
+                ;;
+            esac
 
-          make build-ingress-nginx
+            make build-ingress-nginx
         environment:
           WAF: ON
           BUILD_TYPE: RelWithDebInfo
