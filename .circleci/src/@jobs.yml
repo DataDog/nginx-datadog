@@ -299,7 +299,7 @@ jobs:
       # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
       NGINX_FLAVOR: "ingress-nginx"
-      BASE_IMAGE: "<<parameters.base-image>>:<<parameters.nginx-version>>"
+      BASE_IMAGE: "<<parameters.base-image>>:v<<parameters.nginx-version>>"
     steps:
     - checkout
     - run:

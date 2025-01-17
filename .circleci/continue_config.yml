@@ -442,7 +442,7 @@ jobs:
                 path: test/logs/test.log
     test_ingress:
         environment:
-            BASE_IMAGE: <<parameters.base-image>>:<<parameters.nginx-version>>
+            BASE_IMAGE: <<parameters.base-image>>:v<<parameters.nginx-version>>
             DOCKER_BUILDKIT: 1
             NGINX_FLAVOR: ingress-nginx
         executor:
