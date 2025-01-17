@@ -423,9 +423,9 @@ jobs:
           DD_API_KEY: fakekey
           NGINX_DOCKERFILE: bookworm.Dockerfile
   build_ingress_nginx_module:
-    machine:
+    executor:
+      name: docker-<< parameters.arch >>
       image: ubuntu-2204:current
-    resource_class: xlarge
     environment:
       MAKE_JOB_COUNT: 8
     parameters:

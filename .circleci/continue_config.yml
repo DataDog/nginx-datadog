@@ -114,8 +114,9 @@ jobs:
     build_ingress_nginx_module:
         environment:
             MAKE_JOB_COUNT: 8
-        machine:
+        executor:
             image: ubuntu-2204:current
+            name: docker-<< parameters.arch >>
         parameters:
             arch:
                 enum:
@@ -124,7 +125,6 @@ jobs:
                 type: enum
             version:
                 type: string
-        resource_class: xlarge
         steps:
             - checkout
             - run: git submodule sync && git submodule update --init --recursive
