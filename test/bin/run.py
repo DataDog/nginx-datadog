@@ -16,8 +16,7 @@ import os
 
 DRY_RUN = False
 PROJECT_DIR = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-)
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 
 def run_cmd(cmd: str, *args, **kwargs) -> None:
@@ -40,7 +39,9 @@ def main() -> int:
         choices=["linux/amd64", "linux/arm64"],
         required=True,
     )
-    parser.add_argument("--image", help="Docker NGINX image under tests", required=True)
+    parser.add_argument("--image",
+                        help="Docker NGINX image under tests",
+                        required=True)
     parser.add_argument(
         "--module-path",
         help="Path of the NGINX module under test",
@@ -56,12 +57,11 @@ def main() -> int:
     print(f"   NGINX module : {args.module_path}")
     print(f"      test args : {args.inputs}")
 
-    shutil.copy(
-        src=args.module_path, dst=os.path.join(PROJECT_DIR, "test", "services", "nginx")
-    )
+    shutil.copy(src=args.module_path,
+                dst=os.path.join(PROJECT_DIR, "test", "services", "nginx"))
 
     run_cmd(
-        f"docker compose --progress=plain build --build-arg BASE_IMAGE={args.image} --parallel",
+        f"docker compose build --build-arg BASE_IMAGE={args.image} --parallel --progress=plain",
         cwd=os.path.join(PROJECT_DIR, "test"),
     )
 
