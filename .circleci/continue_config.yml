@@ -205,15 +205,15 @@ jobs:
                     RESTY_VERSION: << parameters.resty-version >>
             - persist_to_workspace:
                 paths:
-                    - .openresty-build/ngx_http_datadog_module.so
-                    - .openresty-build/ngx_http_datadog_module.so.debug
+                    - .musl-build/ngx_http_datadog_module.so
+                    - .musl-build/ngx_http_datadog_module.so.debug
                 root: .
             - store_artifacts:
                 destination: ngx_http_datadog_module.so
-                path: .openresty-build/ngx_http_datadog_module.so
+                path: .musl-build/ngx_http_datadog_module.so
             - store_artifacts:
                 destination: ngx_http_datadog_module.so.debug
-                path: .openresty-build/ngx_http_datadog_module.so.debug
+                path: .musl-build/ngx_http_datadog_module.so.debug
     build_openresty_arm64:
         environment:
             ARCH: aarch64
@@ -241,18 +241,15 @@ jobs:
                     RESTY_VERSION: << parameters.resty-version >>
             - persist_to_workspace:
                 paths:
-                    - .openresty-build/ngx_http_datadog_module.so
-                    - .openresty-build/ngx_http_datadog_module.so.debug
+                    - .musl-build/ngx_http_datadog_module.so
+                    - .musl-build/ngx_http_datadog_module.so.debug
                 root: .
             - store_artifacts:
                 destination: ngx_http_datadog_module.so
-                path: .openresty-build/ngx_http_datadog_module.so
+                path: .musl-build/ngx_http_datadog_module.so
             - store_artifacts:
                 destination: ngx_http_datadog_module.so.debug
-                path: .openresty-build/ngx_http_datadog_module.so.debug
-            - store_artifacts:
-                destination: openresty-version-info
-                path: openresty-version-info
+                path: .musl-build/ngx_http_datadog_module.so.debug
     check-ci-definition:
         docker:
             - image: circleci/circleci-cli:latest
@@ -405,41 +402,6 @@ jobs:
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
-    test-openresty:
-        environment:
-            BASE_IMAGE: <<parameters.base-image>>
-            DOCKER_BUILDKIT: 1
-            WAF: << parameters.waf >>
-        executor:
-            image: cimg/python:3.10.13
-            name: docker-<< parameters.arch >>
-        parameters:
-            arch:
-                type: string
-            base-image:
-                default: ""
-                type: string
-            resty-version:
-                type: string
-            waf:
-                enum:
-                    - "ON"
-                    - "OFF"
-                type: enum
-        steps:
-            - checkout
-            - run:
-                command: pip install -r requirements.txt
-                name: Install Python dependencies
-            - attach_workspace:
-                at: /tmp/workspace
-            - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-            - setup_remote_docker:
-                docker_layer_caching: true
-            - run: test/bin/run --verbose --failfast
-            - store_artifacts:
-                destination: test.log‡
-                path: test/logs/test.log
     test_ingress:
         environment:
             BASE_IMAGE: <<parameters.base-image>>:<<parameters.nginx-version>>
@@ -519,8 +481,6 @@ workflows:
                 matrix:
                     parameters:
                         resty-version:
-                            - 1.21.4.4
-                            - 1.25.3.2
                             - 1.27.1.1
                         waf:
                             - "ON"
@@ -530,8 +490,6 @@ workflows:
                 matrix:
                     parameters:
                         resty-version:
-                            - 1.21.4.4
-                            - 1.25.3.2
                             - 1.27.1.1
                         waf:
                             - "ON"
@@ -543,7 +501,7 @@ workflows:
                         arch:
                             - amd64
                         version:
-                            - v1.11.3
+                            - 1.11.3
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - coverage:
                 name: Coverage on 1.27.0 with WAF ON
@@ -564,7 +522,7 @@ workflows:
                 name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
+            - test:
                 matrix:
                     parameters:
                         arch:
@@ -572,14 +530,14 @@ workflows:
                             - arm64
                         base-image:
                             - openresty/openresty:1.27.1.1-alpine
-                        resty-version:
+                        nginx-version:
                             - 1.27.1.1
                         waf:
                             - "ON"
                             - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+                    - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
                 matrix:
                     parameters:
@@ -620,7 +578,7 @@ workflows:
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
-                            - v1.11.3
+                            - 1.11.3
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
@@ -644,16 +602,16 @@ workflows:
                             - amd64
                             - arm64
                         version:
-                            - v1.11.3
-                            - v1.11.2
-                            - v1.11.1
-                            - v1.11.0
-                            - v1.10.4
-                            - v1.10.3
-                            - v1.10.2
-                            - v1.10.1
-                            - v1.10.0
-                            - v1.9.6
+                            - 1.11.3
+                            - 1.11.2
+                            - 1.11.1
+                            - 1.11.0
+                            - 1.10.4
+                            - 1.10.3
+                            - 1.10.2
+                            - 1.10.1
+                            - 1.10.0
+                            - 1.9.6
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - test_ingress:
                 filters:
@@ -666,16 +624,16 @@ workflows:
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
-                            - v1.11.3
-                            - v1.11.2
-                            - v1.11.1
-                            - v1.11.0
-                            - v1.10.4
-                            - v1.10.3
-                            - v1.10.2
-                            - v1.10.1
-                            - v1.10.0
-                            - v1.9.6
+                            - 1.11.3
+                            - 1.11.2
+                            - 1.11.1
+                            - 1.11.0
+                            - 1.10.4
+                            - 1.10.3
+                            - 1.10.2
+                            - 1.10.1
+                            - 1.10.0
+                            - 1.9.6
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
@@ -1032,7 +990,7 @@ workflows:
                 name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
+            - test:
                 matrix:
                     parameters:
                         arch:
@@ -1040,15 +998,15 @@ workflows:
                             - arm64
                         base-image:
                             - openresty/openresty:1.27.1.1-alpine
-                        resty-version:
+                        nginx-version:
                             - 1.27.1.1
                         waf:
                             - "ON"
                             - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
+                    - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
                 matrix:
                     parameters:
                         arch:
@@ -1056,15 +1014,15 @@ workflows:
                             - arm64
                         base-image:
                             - openresty/openresty:1.25.3.2-alpine
-                        resty-version:
+                        nginx-version:
                             - 1.25.3.2
                         waf:
                             - "ON"
                             - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
+                    - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
                 matrix:
                     parameters:
                         arch:
@@ -1072,14 +1030,14 @@ workflows:
                             - arm64
                         base-image:
                             - openresty/openresty:1.25.3.1-alpine
-                        resty-version:
+                        nginx-version:
                             - 1.25.3.1
                         waf:
                             - "ON"
                             - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+                    - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
         when:
             or:
                 - << pipeline.parameters.build_all >>

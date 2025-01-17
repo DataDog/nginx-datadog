@@ -147,7 +147,7 @@ WAF=ON ARCH=amd64 INGRESS_NGINX_VERSION=1.11.2 make build-ingress-nginx
 
 Options:
   - `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
-  - `ARCH=<amd64|aarch64>`: Specify the CPU architecture.
+  - `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
   - `INGRESS_NGINX_VERSION=<version>`: Specify the version [ingress-nginx][8] to build.
 
 ## Acknowledgements

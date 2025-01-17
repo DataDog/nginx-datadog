@@ -14,16 +14,16 @@
             - 'amd64'
             - 'arm64'
             version:
-            - v1.11.3
-            - v1.11.2
-            - v1.11.1
-            - v1.11.0
-            - v1.10.4
-            - v1.10.3
-            - v1.10.2
-            - v1.10.1
-            - v1.10.0
-            - v1.9.6
+            - 1.11.3
+            - 1.11.2
+            - 1.11.1
+            - 1.11.0
+            - 1.10.4
+            - 1.10.3
+            - 1.10.2
+            - 1.10.1
+            - 1.10.0
+            - 1.9.6
     - test_ingress:
         name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
         requires:
@@ -38,16 +38,16 @@
             base-image:
             - registry.k8s.io/ingress-nginx/controller
             nginx-version:
-            - v1.11.3
-            - v1.11.2
-            - v1.11.1
-            - v1.11.0
-            - v1.10.4
-            - v1.10.3
-            - v1.10.2
-            - v1.10.1
-            - v1.10.0
-            - v1.9.6
+            - 1.11.3
+            - 1.11.2
+            - 1.11.1
+            - 1.11.0
+            - 1.10.4
+            - 1.10.3
+            - 1.10.2
+            - 1.10.1
+            - 1.10.0
+            - 1.9.6
     # output of bin/generate_jobs_yaml.rb
     - build_amd64:
         filters:
@@ -402,7 +402,7 @@
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test-openresty:
+    - test:
         matrix:
           parameters:
             arch:
@@ -413,12 +413,12 @@
             - 'OFF'
             base-image:
             - openresty/openresty:1.27.1.1-alpine
-            resty-version:
+            nginx-version:
             - 1.27.1.1
-        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test-openresty:
+        - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test:
         matrix:
           parameters:
             arch:
@@ -429,12 +429,12 @@
             - 'OFF'
             base-image:
             - openresty/openresty:1.25.3.2-alpine
-            resty-version:
+            nginx-version:
             - 1.25.3.2
-        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-    - test-openresty:
+        - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test:
         matrix:
           parameters:
             arch:
@@ -445,8 +445,8 @@
             - 'OFF'
             base-image:
             - openresty/openresty:1.25.3.1-alpine
-            resty-version:
+            nginx-version:
             - 1.25.3.1
-        name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        name: test openresty << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
-        - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+        - build openresty << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>

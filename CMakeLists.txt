@@ -85,6 +85,12 @@ include(./cmake/deps/rapidjson.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
+# get dd-trace-cpp version
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/dd-trace-cpp/src/datadog/version.cpp DD_TRACE_VERSION_CPP_CONTENTS REGEX "#define DD_TRACE_VERSION( |_NUM )")
+string(REGEX MATCH "#define DD_TRACE_VERSION \"[^\"]*" DD_TRACE_CPP_VERSION ${DD_TRACE_VERSION_CPP_CONTENTS})
+string(REGEX REPLACE "[^\"]+\"" "" DD_TRACE_CPP_VERSION ${DD_TRACE_CPP_VERSION})
+unset(DD_TRACE_VERSION_CPP_CONTENTS)
+
 if(NGINX_DATADOG_ASM_ENABLED)
   # we need neither but libddwaf requires one enabled
   set(LIBDDWAF_BUILD_STATIC ON)
@@ -126,9 +132,6 @@ configure_file(src/version.cpp.in ${CMAKE_BINARY_DIR}/version.cpp)
 
 # The shared library (nginx module) that we are building.
 add_library(ngx_http_datadog_module SHARED)
-
-# Define `DD_NGINX_FLAVOR`
-
 target_sources(ngx_http_datadog_module PRIVATE ${CMAKE_BINARY_DIR}/version.cpp)
 
 add_library(ngx_http_datadog_objs OBJECT)

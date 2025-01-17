@@ -3,9 +3,46 @@
 from . import orchestration
 
 import os
-import sys
 import time
 import unittest
+
+from enum import Enum
+
+
+def skipUnlessWaf(func):
+    """
+    Skip test unless the module is built with AppSec.
+    """
+    return unittest.skipUnless(
+        os.environ.get("WAF", "") == "ON", "Requires AppSec enabled")(func)
+
+
+def skipUnlessRum(func):
+    """
+    Skip test unless the module is built with RUM.
+    """
+    return unittest.skipUnless(
+        os.environ.get("RUM", "") == "ON", "Requires RUM enabled")(func)
+
+
+class NginxFlavor(Enum):
+    INGRESS_NGINX = 1
+    OPENRESTY = 2
+    VANILLA = 3
+    UNKNOWN = 4
+
+    @staticmethod
+    def from_str(label):
+        if label in ("ingress-nginx", "ingress_nginx"):
+            return NginxFlavor.INGRESS_NGINX
+        elif label in ("openresty", "open resty", "open-resty"):
+            return NginxFlavor.OPENRESTY
+        else:
+            return NginxFlavor.UNKNOWN
+
+
+def nginx_flavor() -> NginxFlavor:
+    return NginxFlavor.from_str(os.environ.get("NGINX_FLAVOR", ""))
 
 
 class TestCase(unittest.TestCase):
@@ -37,30 +74,8 @@ class TestCase(unittest.TestCase):
                             or rum_value == "0" or rum_value == "N"
                             or rum_value == "n" or rum_value == "No"
                             or rum_value == "NO" or rum_value == "")
-        openresty_value = os.environ.get("OPENRESTY", "OFF")
-        cls.openresty_disabled = (openresty_value == "OFF"
-                                  or openresty_value == "FALSE"
-                                  or openresty_value == "0"
-                                  or openresty_value == "N"
-                                  or openresty_value == "n"
-                                  or openresty_value == "No"
-                                  or openresty_value == "NO"
-                                  or openresty_value == "")
 
     def setUp(self):
-        if (type(self).waf_disabled and hasattr(type(self), "requires_waf")
-                and type(self).requires_waf):
-            self.skipTest("WAF is disabled")
-
-        if (type(self).rum_disabled and hasattr(type(self), "requires_rum")
-                and type(self).requires_rum):
-            self.skipTest("RUM is disabled")
-
-        if (type(self).openresty_disabled
-                and hasattr(type(self), "requires_openresty")
-                and type(self).requires_openresty):
-            self.skipTest("OpenResty is disabled")
-
         context = self.orch_context = orchestration.singleton()
         self.orch = context.__enter__()
         self.begin = time.monotonic()

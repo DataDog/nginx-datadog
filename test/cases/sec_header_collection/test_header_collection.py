@@ -5,9 +5,9 @@ from .. import case
 from pathlib import Path
 
 
+@case.skipUnlessWaf
 class TestHeaderCollection(case.TestCase):
     config_setup_done = False
-    requires_waf = True
 
     req_headers_unconditional = [
         "Content-Type",
@@ -58,11 +58,11 @@ class TestHeaderCollection(case.TestCase):
         super().setUp()
         # avoid reconfiguration (cuts time almost in half)
         if not TestHeaderCollection.config_setup_done:
-            waf_path = Path(__file__).parent / './conf/waf.json'
+            waf_path = Path(__file__).parent / "./conf/waf.json"
             waf_text = waf_path.read_text()
-            self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
+            self.orch.nginx_replace_file("/tmp/waf.json", waf_text)
 
-            conf_path = Path(__file__).parent / './conf/http.conf'
+            conf_path = Path(__file__).parent / "./conf/http.conf"
             conf_text = conf_path.read_text()
 
             status, log_lines = self.orch.nginx_replace_config(
@@ -72,25 +72,25 @@ class TestHeaderCollection(case.TestCase):
             TestHeaderCollection.config_setup_done = True
 
         # Consume any previous logging from the agent.
-        self.orch.sync_service('agent')
+        self.orch.sync_service("agent")
 
     def get_meta(self):
         self.orch.reload_nginx()
-        log_lines = self.orch.sync_service('agent')
+        log_lines = self.orch.sync_service("agent")
         entries = [
-            json.loads(line) for line in log_lines if line.startswith('[[{')
-            if '_dd.appsec.waf.version' in line
+            json.loads(line) for line in log_lines if line.startswith("[[{")
+            if "_dd.appsec.waf.version" in line
         ]
         self.assertEqual(len(entries), 1)
 
-        return entries[0][0][0]['meta']
+        return entries[0][0][0]["meta"]
 
     def test_no_req_attack(self):
         headers = {
             header: f"value for {header}"
             for header in TestHeaderCollection.req_headers_unconditional
         }
-        status, _, _ = self.orch.send_nginx_http_request('/http',
+        status, _, _ = self.orch.send_nginx_http_request("/http",
                                                          80,
                                                          headers=headers)
         self.assertEqual(status, 200)
@@ -112,19 +112,20 @@ class TestHeaderCollection(case.TestCase):
             for header in TestHeaderCollection.req_headers_unconditional
         }
         for header in TestHeaderCollection.req_headers_ip:
-            headers[header] = '1.2.3.4'
+            headers[header] = "1.2.3.4"
 
-        headers['content-language'] = 'en-US'
-        headers['content-encoding'] = 'identity'
-        headers['accept-language'] = 'en-US'
-        headers['accept-encoding'] = 'identity'
+        headers["content-language"] = "en-US"
+        headers["content-encoding"] = "identity"
+        headers["accept-language"] = "en-US"
+        headers["accept-encoding"] = "identity"
 
         status, _, _ = self.orch.send_nginx_http_request(
-            '/http?a=matched+value',
+            "/http?a=matched+value",
             80,
             headers=headers,
-            req_body='foobar',
-            method='POST')
+            req_body="foobar",
+            method="POST",
+        )
         self.assertEqual(status, 200)
 
         meta = self.get_meta()
@@ -150,7 +151,7 @@ class TestHeaderCollection(case.TestCase):
         self.assertIn("http.request.headers.content-length", meta)
 
     def test_resp_no_attack(self):
-        status, _, _ = self.orch.send_nginx_http_request('/http', 80)
+        status, _, _ = self.orch.send_nginx_http_request("/http", 80)
         self.assertEqual(status, 200)
 
         meta = self.get_meta()

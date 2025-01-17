@@ -494,9 +494,15 @@ static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
 
 static ngx_int_t datadog_master_process_post_config(
     ngx_cycle_t *cycle) noexcept {
+  const std::string module_fullversion =
+      datadog_build_id_nginx_mod.empty()
+          ? std::string(datadog_semver_nginx_mod)
+          : std::format("{}+{}", datadog_semver_nginx_mod,
+                        datadog_build_id_nginx_mod);
+
   ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog status: enabled");
-  ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog version: %s (%s)",
-                datadog_semver_nginx_mod, datadog_build_id_nginx_mod);
+  ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog version: %s",
+                module_fullversion.c_str());
   ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog features:");
   ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "- tracing: dd-trace-cpp@%s",
                 datadog_version_tracer);

@@ -237,8 +237,8 @@ window.DD_RUM.onReady(function() {
 """
 
 
+@case.skipUnlessRum
 class TestRUMInjection(case.TestCase):
-    requires_rum = True
 
     def load_conf(self, conf_file):
         conf_path = Path(__file__).parent / "conf" / conf_file

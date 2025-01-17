@@ -1,13 +1,12 @@
 from .. import case
 
 import json
-import os
 from pathlib import Path
 from unittest import skipUnless
 
 
 @skipUnless(
-    os.getenv("NGINX_FLAVOR", "") == "ingress-nginx",
+    case.nginx_flavor() == case.NginxFlavor.INGRESS_NGINX,
     "Test embedded sampling rules only for ingress-nginx",
 )
 class TestIngressNginxRules(case.TestCase):
