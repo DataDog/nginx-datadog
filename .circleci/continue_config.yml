@@ -115,7 +115,7 @@ jobs:
         environment:
             MAKE_JOB_COUNT: 8
         executor:
-            image: ubuntu:22.04
+            image: datadog/docker-library:dd-trace-cpp-ci
             name: docker-<< parameters.arch >>
         parameters:
             arch:

@@ -425,7 +425,7 @@ jobs:
   build_ingress_nginx_module:
     executor:
       name: docker-<< parameters.arch >>
-      image: ubuntu:22.04
+      image: datadog/docker-library:dd-trace-cpp-ci 
     environment:
       MAKE_JOB_COUNT: 8
     parameters:
