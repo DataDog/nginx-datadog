@@ -425,7 +425,7 @@ jobs:
   build_ingress_nginx_module:
     executor:
       name: docker-<< parameters.arch >>
-      image: cimg/base
+      image: cimg/base:current-22.04
     environment:
       MAKE_JOB_COUNT: 8
     parameters:

@@ -115,7 +115,7 @@ jobs:
         environment:
             MAKE_JOB_COUNT: 8
         executor:
-            image: cimg/base
+            image: cimg/base:current-22.04
             name: docker-<< parameters.arch >>
         parameters:
             arch:
