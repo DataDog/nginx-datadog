@@ -129,7 +129,18 @@ jobs:
             - checkout
             - run: git submodule sync && git submodule update --init --recursive
             - run:
-                command: make build-ingress-nginx
+                command: |
+                    case "<<parameters.arch>>" in
+                      amd64)
+                        export ARCH=x86_64
+                        ;;
+                      arm64)
+                        export ARCH=aarch64
+                        ;;
+                      *)
+                        exit 1
+
+                    make build-ingress-nginx
                 environment:
                     BUILD_TYPE: RelWithDebInfo
                     INGRESS_NGINX_VERSION: << parameters.version >>
