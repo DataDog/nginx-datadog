@@ -13,6 +13,14 @@ executors:
             image:
                 type: string
         resource_class: arm.xlarge
+    ubuntu-amd64:
+        machine:
+            image: ubuntu-2204:current
+        resource_class: xlarge
+    ubuntu-arm64:
+        machine:
+            image: ubuntu-2204:current
+        resource_class: arm.xlarge
 jobs:
     build_amd64:
         environment:
@@ -115,8 +123,7 @@ jobs:
         environment:
             MAKE_JOB_COUNT: 8
         executor:
-            image: cimg/base:current
-            name: docker-<< parameters.arch >>
+            name: ubuntu-<< parameters.arch >>
         parameters:
             arch:
                 enum:

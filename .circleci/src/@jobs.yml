@@ -424,8 +424,7 @@ jobs:
           NGINX_DOCKERFILE: bookworm.Dockerfile
   build_ingress_nginx_module:
     executor:
-      name: docker-<< parameters.arch >>
-      image: cimg/base:current
+      name: ubuntu-<< parameters.arch >>
     environment:
       MAKE_JOB_COUNT: 8
     parameters:
