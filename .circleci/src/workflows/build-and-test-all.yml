@@ -54,12 +54,15 @@
             - 1.10.0
             - 1.9.6
     # output of bin/generate_jobs_yaml.rb
-    - build_amd64:
+    - build:
         filters:
             tags:
               only: /^v.*/
         matrix:
           parameters:
+            arch:
+            - amd64
+            - arm64
             nginx-version:
             - 1.24.0
             - 1.25.0
@@ -78,35 +81,13 @@
             waf:
             - 'ON'
             - 'OFF'
-        name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
-    - build_arm64:
-        filters:
-            tags:
-              only: /^v.*/
+        name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - build_openresty:
         matrix:
           parameters:
-            nginx-version:
-            - 1.24.0
-            - 1.25.0
-            - 1.25.1
-            - 1.25.2
-            - 1.25.3
-            - 1.25.4
-            - 1.25.5
-            - 1.26.0
-            - 1.26.1
-            - 1.26.2
-            - 1.27.0
-            - 1.27.1
-            - 1.27.2
-            - 1.27.3
-            waf:
-            - 'ON'
-            - 'OFF'
-        name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
-    - build_openresty_amd64:
-        matrix:
-          parameters:
+            arch:
+            - amd64
+            - arm64
             resty-version:
             - 1.25.3.1
             - 1.25.3.2
@@ -114,18 +95,7 @@
             waf:
             - 'ON'
             - 'OFF'
-        name: build openresty << matrix.resty-version >> on amd64 WAF << matrix.waf >>
-    - build_openresty_arm64:
-        matrix:
-          parameters:
-            resty-version:
-            - 1.25.3.1
-            - 1.25.3.2
-            - 1.27.1.1
-            waf:
-            - 'ON'
-            - 'OFF'
-        name: build openresty << matrix.resty-version >> on arm64 WAF << matrix.waf >>
+        name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
         filters:
             tags:

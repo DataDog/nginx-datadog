@@ -1,5 +1,5 @@
 jobs:
-  build_amd64:
+  build:
     parameters:
       nginx-version:
         type: string
@@ -14,16 +14,21 @@ jobs:
         - 'ON'
         - 'OFF'
         default: 'OFF'
+      arch:
+        type: enum
+        enum:
+        - 'amd64'
+        - 'arm64'
     steps:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
     - run:
-        name: Verify versions (release tag only)
+        name: Set ARCH env var
         command: |
-          if [[ $CIRCLE_TAG =~ ^v ]]; then
-            bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+          if [ "<< parameters.arch >>" == "amd64" ]; then
+            echo 'export ARCH=x86_64' >> $BASH_ENV;
           else
-            echo "Not a release"
+            echo 'export ARCH=aarch64' >> $BASH_ENV;
           fi
     - run:
         command: 'make build-musl'
@@ -41,62 +46,14 @@ jobs:
     - store_artifacts:
         path: ".musl-build/ngx_http_datadog_module.so.debug"
         destination: ngx_http_datadog_module.so.debug
-    machine:
-      image: ubuntu-2204:current
-    resource_class: xlarge
+    executor:
+      name: ubuntu-<< parameters.arch >>
     environment:
-      ARCH: x86_64
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
       RUM: "<< parameters.rum >>"
       NGINX_VERSION: "<< parameters.nginx-version >>"
-  build_arm64:
-    parameters:
-      nginx-version:
-        type: string
-      waf:
-        type: enum
-        enum:
-        - 'ON'
-        - 'OFF'
-      rum:
-        type: enum
-        enum:
-        - 'ON'
-        - 'OFF'
-        default: 'OFF'
-    steps:
-    - checkout
-    - run: git submodule sync && git submodule update --init --recursive
-    - run:
-        command: 'make build-musl'
-        environment:
-          BUILD_TYPE: RelWithDebInfo
-          NGINX_VERSION: "<< parameters.nginx-version >>"
-    - persist_to_workspace:
-        root: "."
-        paths:
-          - ".musl-build/ngx_http_datadog_module.so"
-          - ".musl-build/ngx_http_datadog_module.so.debug"
-    - store_artifacts:
-        path: ".musl-build/ngx_http_datadog_module.so"
-        destination: ngx_http_datadog_module.so
-    - store_artifacts:
-        path: ".musl-build/ngx_http_datadog_module.so.debug"
-        destination: ngx_http_datadog_module.so.debug
-    - store_artifacts:
-        path: nginx-version-info
-        destination: nginx-version-info
-    machine:
-      image: ubuntu-2204:current
-    resource_class: arm.xlarge
-    environment:
-      ARCH: aarch64
-      MAKE_JOB_COUNT: 8
-      WAF: "<< parameters.waf >>"
-      RUM: "<< parameters.rum >>"
-      NGINX_VERSION: "<< parameters.nginx-version >>"
-  build_openresty_amd64:
+  build_openresty:
     parameters:
       resty-version:
         type: string
@@ -105,17 +62,20 @@ jobs:
         enum:
         - 'ON'
         - 'OFF'
+      arch:
+        type: enum
+        enum:
+        - 'amd64'
+        - 'arm64'
     steps:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
-    - run:
-        name: Verify versions (release tag only)
-        command: |
-          if [[ $CIRCLE_TAG =~ ^v ]]; then
-            bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
-          else
-            echo "Not a release"
-          fi
+    - run: |
+        if [ "<< parameters.arch >>" == "amd64" ]; then
+          echo 'export ARCH=x86_64' >> $BASH_ENV;
+        else
+          echo 'export ARCH=aarch64' >> $BASH_ENV;
+        fi
     - run:
         command: 'make build-openresty'
         environment:
@@ -132,50 +92,9 @@ jobs:
     - store_artifacts:
         path: ".openresty-build/ngx_http_datadog_module.so.debug"
         destination: ngx_http_datadog_module.so.debug
-    machine:
-      image: ubuntu-2204:current
-    resource_class: xlarge
+    executor:
+      name: ubuntu-<< parameters.arch >>
     environment:
-      ARCH: x86_64
-      MAKE_JOB_COUNT: 8
-      WAF: "<< parameters.waf >>"
-      RESTY_VERSION: "<< parameters.resty-version >>"
-  build_openresty_arm64:
-    parameters:
-      resty-version:
-        type: string
-      waf:
-        type: enum
-        enum:
-        - 'ON'
-        - 'OFF'
-    steps:
-    - checkout
-    - run: git submodule sync && git submodule update --init --recursive
-    - run:
-        command: 'make build-openresty'
-        environment:
-          BUILD_TYPE: RelWithDebInfo
-          RESTY_VERSION: "<< parameters.resty-version >>"
-    - persist_to_workspace:
-        root: "."
-        paths:
-          - ".openresty-build/ngx_http_datadog_module.so"
-          - ".openresty-build/ngx_http_datadog_module.so.debug"
-    - store_artifacts:
-        path: ".openresty-build/ngx_http_datadog_module.so"
-        destination: ngx_http_datadog_module.so
-    - store_artifacts:
-        path: ".openresty-build/ngx_http_datadog_module.so.debug"
-        destination: ngx_http_datadog_module.so.debug
-    - store_artifacts:
-        path: openresty-version-info
-        destination: openresty-version-info
-    machine:
-      image: ubuntu-2204:current
-    resource_class: arm.xlarge
-    environment:
-      ARCH: aarch64
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
       RESTY_VERSION: "<< parameters.resty-version >>"
@@ -342,6 +261,14 @@ jobs:
     resource_class: small
     steps:
     - checkout
+    - run:
+        name: Verify versions (release tag only)
+        command: |
+          if [[ $CIRCLE_TAG =~ ^v ]]; then
+            bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+          else
+            echo "Not a release"
+          fi
     - run:
         name: Install Python dependencies
         command: |

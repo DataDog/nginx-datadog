@@ -53,51 +53,36 @@ end
 all_resty_versions = all_resty_specs.map(&:version).uniq.sort
 
 puts <<-YAML.gsub(/^/, '    ')
-- build_amd64:
+- build:
     filters:
         tags:
           only: /^v.*/
     matrix:
       parameters:
+        arch:
+        - amd64
+        - arm64
         nginx-version:
         - #{all_nginx_versions.join("\n        - ")}
         waf:
         - 'ON'
         - 'OFF'
-    name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
-- build_arm64:
-    filters:
-        tags:
-          only: /^v.*/
-    matrix:
-      parameters:
-        nginx-version:
-        - #{all_nginx_versions.join("\n        - ")}
-        waf:
-        - 'ON'
-        - 'OFF'
-    name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
+    name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
 YAML
 
 puts <<-YAML.gsub(/^/, '    ')
-- build_openresty_amd64:
+- build_openresty:
     matrix:
       parameters:
+        arch:
+        - amd64
+        - arm64
         resty-version:
         - #{all_resty_versions.join("\n        - ")}
         waf:
         - 'ON'
         - 'OFF'
-    name: build openresty << matrix.resty-version >> on amd64 WAF << matrix.waf >>
-- build_openresty_arm64:
-    matrix:
-      parameters:
-        resty-version:
-        - #{all_resty_versions.join("\n        - ")}
-        waf:
-        - 'ON'
-        - 'OFF'
-    name: build openresty << matrix.resty-version >> on arm64 WAF << matrix.waf >>
+    name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
 YAML
 
 all_nginx_specs.group_by(&:version).each do |version, specs|
