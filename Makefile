@@ -215,7 +215,7 @@ circleci-config:
 
 .PHONY: build-ingress-nginx
 build-ingress-nginx:
-	python3 bin/ingress_nginx.py prepare --ingress-nginx-version $(INGRESS_NGINX_VERSION) --output nginx-controller-$(INGRESS_NGINX_VERSION)
+	python3 bin/ingress_nginx.py prepare --ingress-nginx-version v$(INGRESS_NGINX_VERSION) --output nginx-controller-$(INGRESS_NGINX_VERSION)
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
 		--env ARCH=$(ARCH) \
