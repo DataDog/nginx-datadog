@@ -439,22 +439,14 @@ jobs:
     steps:
     - checkout
     - run: git submodule sync && git submodule update --init --recursive
+    - run: |
+        if [ "<< parameters.arch >>" == "amd64" ]; then
+          echo 'export ARCH=x86_64' >> $BASH_ENV;
+        else
+          echo 'export ARCH=aarch64' >> $BASH_ENV;
+        fi
     - run:
-        command: |
-            case "<<parameters.arch>>" in
-              amd64)
-                export ARCH=x86_64
-                ;;
-              arm64)
-                export ARCH=aarch64
-                ;;
-              *)
-                echo "Unsupported architecture: <<parameters.arch>>"
-                exit 1
-                ;;
-            esac
-
-            make build-ingress-nginx
+        command: make build-ingress-nginx
         environment:
           WAF: ON
           BUILD_TYPE: RelWithDebInfo
