@@ -365,7 +365,6 @@ jobs:
                 working_directory: ./system-tests
     test:
         environment:
-            BASE_IMAGE: <<parameters.base-image>>
             DOCKER_BUILDKIT: 1
             RUM: << parameters.rum >>
             WAF: << parameters.waf >>
@@ -400,13 +399,12 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image ${BASE_IMAGE} --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
+            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
     test-openresty:
         environment:
-            BASE_IMAGE: <<parameters.base-image>>
             DOCKER_BUILDKIT: 1
             WAF: << parameters.waf >>
         executor:
@@ -434,13 +432,12 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image ${BASE_IMAGE} --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
+            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log‡
                 path: test/logs/test.log
     test_ingress:
         environment:
-            BASE_IMAGE: <<parameters.base-image>>:v<<parameters.nginx-version>>
             DOCKER_BUILDKIT: 1
             NGINX_FLAVOR: ingress-nginx
         executor:
@@ -463,7 +460,7 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image ${BASE_IMAGE} --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
+            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>>:v<<parameters.nginx-version>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
