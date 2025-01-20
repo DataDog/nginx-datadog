@@ -353,9 +353,6 @@ jobs:
         parameters:
             arch:
                 type: string
-            base-image:
-                default: ""
-                type: string
             resty-version:
                 type: string
             waf:
@@ -372,7 +369,7 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
+            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image openresty/openresty:<<parameters.resty-version>>-alpine --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log‡
                 path: test/logs/test.log
@@ -437,10 +434,6 @@ workflows:
                         arch:
                             - amd64
                             - arm64
-                        base-image:
-                            - openresty/openresty:1.25.3.1-alpine
-                            - openresty/openresty:1.25.3.2-alpine
-                            - openresty/openresty:1.27.1.1-alpine
                         resty-version:
                             - 1.27.1.1
                             - 1.25.3.1
@@ -448,7 +441,7 @@ workflows:
                         waf:
                             - "ON"
                             - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                name: test openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
                 requires:
                     - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
         when:
