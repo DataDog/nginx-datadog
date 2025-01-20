@@ -13,17 +13,29 @@ executors:
             image:
                 type: string
         resource_class: arm.xlarge
+    ubuntu-amd64:
+        machine:
+            image: ubuntu-2204:current
+        resource_class: xlarge
+    ubuntu-arm64:
+        machine:
+            image: ubuntu-2204:current
+        resource_class: arm.xlarge
 jobs:
-    build_amd64:
+    build:
         environment:
-            ARCH: x86_64
             MAKE_JOB_COUNT: 8
             NGINX_VERSION: << parameters.nginx-version >>
             RUM: << parameters.rum >>
             WAF: << parameters.waf >>
-        machine:
-            image: ubuntu-2204:current
+        executor:
+            name: ubuntu-<< parameters.arch >>
         parameters:
+            arch:
+                enum:
+                    - amd64
+                    - arm64
+                type: enum
             nginx-version:
                 type: string
             rum:
@@ -37,18 +49,17 @@ jobs:
                     - "ON"
                     - "OFF"
                 type: enum
-        resource_class: xlarge
         steps:
             - checkout
             - run: git submodule sync && git submodule update --init --recursive
             - run:
                 command: |
-                    if [[ $CIRCLE_TAG =~ ^v ]]; then
-                      bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+                    if [ "<< parameters.arch >>" == "amd64" ]; then
+                      echo 'export ARCH=x86_64' >> $BASH_ENV;
                     else
-                      echo "Not a release"
+                      echo 'export ARCH=aarch64' >> $BASH_ENV;
                     fi
-                name: Verify versions (release tag only)
+                name: Set ARCH env var
             - run:
                 command: make build-musl
                 environment:
@@ -65,57 +76,11 @@ jobs:
             - store_artifacts:
                 destination: ngx_http_datadog_module.so.debug
                 path: .musl-build/ngx_http_datadog_module.so.debug
-    build_arm64:
-        environment:
-            ARCH: aarch64
-            MAKE_JOB_COUNT: 8
-            NGINX_VERSION: << parameters.nginx-version >>
-            RUM: << parameters.rum >>
-            WAF: << parameters.waf >>
-        machine:
-            image: ubuntu-2204:current
-        parameters:
-            nginx-version:
-                type: string
-            rum:
-                default: "OFF"
-                enum:
-                    - "ON"
-                    - "OFF"
-                type: enum
-            waf:
-                enum:
-                    - "ON"
-                    - "OFF"
-                type: enum
-        resource_class: arm.xlarge
-        steps:
-            - checkout
-            - run: git submodule sync && git submodule update --init --recursive
-            - run:
-                command: make build-musl
-                environment:
-                    BUILD_TYPE: RelWithDebInfo
-                    NGINX_VERSION: << parameters.nginx-version >>
-            - persist_to_workspace:
-                paths:
-                    - .musl-build/ngx_http_datadog_module.so
-                    - .musl-build/ngx_http_datadog_module.so.debug
-                root: .
-            - store_artifacts:
-                destination: ngx_http_datadog_module.so
-                path: .musl-build/ngx_http_datadog_module.so
-            - store_artifacts:
-                destination: ngx_http_datadog_module.so.debug
-                path: .musl-build/ngx_http_datadog_module.so.debug
-            - store_artifacts:
-                destination: nginx-version-info
-                path: nginx-version-info
     build_ingress_nginx_module:
         environment:
             MAKE_JOB_COUNT: 8
-        machine:
-            image: ubuntu-2204:current
+        executor:
+            name: ubuntu-<< parameters.arch >>
         parameters:
             arch:
                 enum:
@@ -124,10 +89,15 @@ jobs:
                 type: enum
             version:
                 type: string
-        resource_class: xlarge
         steps:
             - checkout
             - run: git submodule sync && git submodule update --init --recursive
+            - run: |
+                if [ "<< parameters.arch >>" == "amd64" ]; then
+                  echo 'export ARCH=x86_64' >> $BASH_ENV;
+                else
+                  echo 'export ARCH=aarch64' >> $BASH_ENV;
+                fi
             - run:
                 command: make build-ingress-nginx
                 environment:
@@ -170,15 +140,19 @@ jobs:
             - store_artifacts:
                 destination: nginx-configurator
                 path: ./installer/configurator/nginx-configurator
-    build_openresty_amd64:
+    build_openresty:
         environment:
-            ARCH: x86_64
             MAKE_JOB_COUNT: 8
             RESTY_VERSION: << parameters.resty-version >>
             WAF: << parameters.waf >>
-        machine:
-            image: ubuntu-2204:current
+        executor:
+            name: ubuntu-<< parameters.arch >>
         parameters:
+            arch:
+                enum:
+                    - amd64
+                    - arm64
+                type: enum
             resty-version:
                 type: string
             waf:
@@ -186,18 +160,15 @@ jobs:
                     - "ON"
                     - "OFF"
                 type: enum
-        resource_class: xlarge
         steps:
             - checkout
             - run: git submodule sync && git submodule update --init --recursive
-            - run:
-                command: |
-                    if [[ $CIRCLE_TAG =~ ^v ]]; then
-                      bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
-                    else
-                      echo "Not a release"
-                    fi
-                name: Verify versions (release tag only)
+            - run: |
+                if [ "<< parameters.arch >>" == "amd64" ]; then
+                  echo 'export ARCH=x86_64' >> $BASH_ENV;
+                else
+                  echo 'export ARCH=aarch64' >> $BASH_ENV;
+                fi
             - run:
                 command: make build-openresty
                 environment:
@@ -214,45 +185,6 @@ jobs:
             - store_artifacts:
                 destination: ngx_http_datadog_module.so.debug
                 path: .openresty-build/ngx_http_datadog_module.so.debug
-    build_openresty_arm64:
-        environment:
-            ARCH: aarch64
-            MAKE_JOB_COUNT: 8
-            RESTY_VERSION: << parameters.resty-version >>
-            WAF: << parameters.waf >>
-        machine:
-            image: ubuntu-2204:current
-        parameters:
-            resty-version:
-                type: string
-            waf:
-                enum:
-                    - "ON"
-                    - "OFF"
-                type: enum
-        resource_class: arm.xlarge
-        steps:
-            - checkout
-            - run: git submodule sync && git submodule update --init --recursive
-            - run:
-                command: make build-openresty
-                environment:
-                    BUILD_TYPE: RelWithDebInfo
-                    RESTY_VERSION: << parameters.resty-version >>
-            - persist_to_workspace:
-                paths:
-                    - .openresty-build/ngx_http_datadog_module.so
-                    - .openresty-build/ngx_http_datadog_module.so.debug
-                root: .
-            - store_artifacts:
-                destination: ngx_http_datadog_module.so
-                path: .openresty-build/ngx_http_datadog_module.so
-            - store_artifacts:
-                destination: ngx_http_datadog_module.so.debug
-                path: .openresty-build/ngx_http_datadog_module.so.debug
-            - store_artifacts:
-                destination: openresty-version-info
-                path: openresty-version-info
     check-ci-definition:
         docker:
             - image: circleci/circleci-cli:latest
@@ -292,6 +224,14 @@ jobs:
         resource_class: small
         steps:
             - checkout
+            - run:
+                command: |
+                    if [[ $CIRCLE_TAG =~ ^v ]]; then
+                      bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+                    else
+                      echo "Not a release"
+                    fi
+                name: Verify versions (release tag only)
             - run:
                 command: |
                     pip install -r requirements.txt
@@ -365,7 +305,6 @@ jobs:
                 working_directory: ./system-tests
     test:
         environment:
-            BASE_IMAGE: <<parameters.base-image>>
             DOCKER_BUILDKIT: 1
             RUM: << parameters.rum >>
             WAF: << parameters.waf >>
@@ -398,16 +337,14 @@ jobs:
                 name: Install Python dependencies
             - attach_workspace:
                 at: /tmp/workspace
-            - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: test/bin/run --verbose --failfast
+            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
     test-openresty:
         environment:
-            BASE_IMAGE: <<parameters.base-image>>
             DOCKER_BUILDKIT: 1
             WAF: << parameters.waf >>
         executor:
@@ -433,16 +370,14 @@ jobs:
                 name: Install Python dependencies
             - attach_workspace:
                 at: /tmp/workspace
-            - run: mv -v /tmp/workspace/.openresty-build/ngx_http_datadog_module.so* test/services/nginx/
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: test/bin/run --verbose --failfast
+            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log‡
                 path: test/logs/test.log
     test_ingress:
         environment:
-            BASE_IMAGE: <<parameters.base-image>>:<<parameters.nginx-version>>
             DOCKER_BUILDKIT: 1
             NGINX_FLAVOR: ingress-nginx
         executor:
@@ -463,10 +398,9 @@ jobs:
                 name: Install Python dependencies
             - attach_workspace:
                 at: /tmp/workspace
-            - run: mv -v /tmp/workspace/.musl-build/ngx_http_datadog_module.so* test/services/nginx/
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: test/bin/run --verbose --failfast
+            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>>:v<<parameters.nginx-version>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
@@ -492,9 +426,12 @@ workflows:
                 name: run shellcheck on shell scripts
                 requires:
                     - check-ci-definition
-            - build_amd64:
+            - build:
                 matrix:
                     parameters:
+                        arch:
+                            - amd64
+                            - arm64
                         nginx-version:
                             - 1.22.1
                             - 1.24.0
@@ -503,47 +440,27 @@ workflows:
                         waf:
                             - "ON"
                             - "OFF"
-                name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
-            - build_arm64:
+                name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - build_openresty:
                 matrix:
                     parameters:
-                        nginx-version:
-                            - 1.22.1
-                            - 1.24.0
-                            - 1.27.3
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
-            - build_openresty_amd64:
-                matrix:
-                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
                         resty-version:
-                            - 1.21.4.4
-                            - 1.25.3.2
                             - 1.27.1.1
                         waf:
                             - "ON"
                             - "OFF"
-                name: build openresty << matrix.resty-version >> on amd64 WAF << matrix.waf >>
-            - build_openresty_arm64:
-                matrix:
-                    parameters:
-                        resty-version:
-                            - 1.21.4.4
-                            - 1.25.3.2
-                            - 1.27.1.1
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: build openresty << matrix.resty-version >> on arm64 WAF << matrix.waf >>
+                name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
             - build_ingress_nginx_module:
                 matrix:
                     parameters:
                         arch:
                             - amd64
+                            - arm64
                         version:
-                            - v1.11.3
+                            - 1.12.0
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - coverage:
                 name: Coverage on 1.27.0 with WAF ON
@@ -617,10 +534,11 @@ workflows:
                     parameters:
                         arch:
                             - amd64
+                            - arm64
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
-                            - v1.11.3
+                            - 1.12.0
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
@@ -644,16 +562,18 @@ workflows:
                             - amd64
                             - arm64
                         version:
-                            - v1.11.3
-                            - v1.11.2
-                            - v1.11.1
-                            - v1.11.0
-                            - v1.10.4
-                            - v1.10.3
-                            - v1.10.2
-                            - v1.10.1
-                            - v1.10.0
-                            - v1.9.6
+                            - 1.12.0
+                            - 1.11.4
+                            - 1.11.3
+                            - 1.11.2
+                            - 1.11.1
+                            - 1.11.0
+                            - 1.10.4
+                            - 1.10.3
+                            - 1.10.2
+                            - 1.10.1
+                            - 1.10.0
+                            - 1.9.6
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - test_ingress:
                 filters:
@@ -663,28 +583,34 @@ workflows:
                     parameters:
                         arch:
                             - amd64
+                            - arm64
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
-                            - v1.11.3
-                            - v1.11.2
-                            - v1.11.1
-                            - v1.11.0
-                            - v1.10.4
-                            - v1.10.3
-                            - v1.10.2
-                            - v1.10.1
-                            - v1.10.0
-                            - v1.9.6
+                            - 1.12.0
+                            - 1.11.4
+                            - 1.11.3
+                            - 1.11.2
+                            - 1.11.1
+                            - 1.11.0
+                            - 1.10.4
+                            - 1.10.3
+                            - 1.10.2
+                            - 1.10.1
+                            - 1.10.0
+                            - 1.9.6
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
-            - build_amd64:
+            - build:
                 filters:
                     tags:
                         only: /^v.*/
                 matrix:
                     parameters:
+                        arch:
+                            - amd64
+                            - arm64
                         nginx-version:
                             - 1.24.0
                             - 1.25.0
@@ -703,35 +629,13 @@ workflows:
                         waf:
                             - "ON"
                             - "OFF"
-                name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
-            - build_arm64:
-                filters:
-                    tags:
-                        only: /^v.*/
+                name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - build_openresty:
                 matrix:
                     parameters:
-                        nginx-version:
-                            - 1.24.0
-                            - 1.25.0
-                            - 1.25.1
-                            - 1.25.2
-                            - 1.25.3
-                            - 1.25.4
-                            - 1.25.5
-                            - 1.26.0
-                            - 1.26.1
-                            - 1.26.2
-                            - 1.27.0
-                            - 1.27.1
-                            - 1.27.2
-                            - 1.27.3
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
-            - build_openresty_amd64:
-                matrix:
-                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
                         resty-version:
                             - 1.25.3.1
                             - 1.25.3.2
@@ -739,18 +643,7 @@ workflows:
                         waf:
                             - "ON"
                             - "OFF"
-                name: build openresty << matrix.resty-version >> on amd64 WAF << matrix.waf >>
-            - build_openresty_arm64:
-                matrix:
-                    parameters:
-                        resty-version:
-                            - 1.25.3.1
-                            - 1.25.3.2
-                            - 1.27.1.1
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: build openresty << matrix.resty-version >> on arm64 WAF << matrix.waf >>
+                name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
             - test:
                 filters:
                     tags:

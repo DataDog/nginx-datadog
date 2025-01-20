@@ -26,3 +26,11 @@ executors:
     docker:
     - image: "<< parameters.image >>"
     resource_class: arm.xlarge
+  ubuntu-amd64:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: xlarge
+  ubuntu-arm64:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.xlarge

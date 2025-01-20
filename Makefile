@@ -158,23 +158,17 @@ build-openresty-aux:
 
 .PHONY: test
 test:
-	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
-	test/bin/run $(TEST_ARGS)
+	python3 test/bin/run.py --platform ${ARCH} --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast $(TEST_ARGS)
 
 .PHONY: test-openresty
 test-openresty:
-	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-	RESTY_TEST=ON test/bin/run $(TEST_ARGS)
+	RESTY_TEST=ON python3 test/bin/run.py --platform ${ARCH} --image ${BASE_IMAGE} --module-path .openresty-build/ngx_http_datadog_module.so -- --verbose --failfast $(TEST_ARGS)
 
 .PHONY: build-and-test
-build-and-test: build-musl
-	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
-	test/bin/run $(TEST_ARGS)
+build-and-test: build-musl test
 
 .PHONY: build-and-test-openresty
-build-and-test-openresty: build-openresty
-	cp -v .openresty-build/ngx_http_datadog_module.so* test/services/nginx/
-	test/bin/run $(TEST_ARGS)
+build-and-test-openresty: build-openresty test-openresty
 
 .PHONY: example-openresty
 example-openresty: build-openresty
@@ -188,9 +182,8 @@ coverage:
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(DOCKER_REPOS):latest \
 		/bin/sh -c 'cd /mnt/repo/.musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests'
-	cp -v .musl-build/ngx_http_datadog_module.so* test/services/nginx/
 	rm -f test/coverage_data.tar.gz
-	test/bin/run --verbose --failfast
+	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(DOCKER_REPOS):latest \
@@ -215,7 +208,7 @@ circleci-config:
 
 .PHONY: build-ingress-nginx
 build-ingress-nginx:
-	python3 bin/ingress_nginx.py prepare --ingress-nginx-version $(INGRESS_NGINX_VERSION) --output nginx-controller-$(INGRESS_NGINX_VERSION)
+	python3 bin/ingress_nginx.py prepare --ingress-nginx-version v$(INGRESS_NGINX_VERSION) --output nginx-controller-$(INGRESS_NGINX_VERSION)
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
 		--env ARCH=$(ARCH) \

@@ -12,9 +12,12 @@ jobs:
     name: run shellcheck on shell scripts
     requires: 
     - check-ci-definition
-- build_amd64:
+- build:
     matrix:
       parameters:
+        arch:
+        - amd64
+        - arm64
         nginx-version:
         - 1.22.1
         - 1.24.0
@@ -23,48 +26,28 @@ jobs:
         waf:
         - 'ON'
         - 'OFF'
-    name: build << matrix.nginx-version >> on amd64 WAF << matrix.waf >>
-- build_arm64:
+    name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+- build_openresty:
     matrix:
       parameters:
-        nginx-version:
-        - 1.22.1
-        - 1.24.0
-        - 1.27.3
-        waf:
-        - 'ON'
-        - 'OFF'
-    name: build << matrix.nginx-version >> on arm64 WAF << matrix.waf >>
-- build_openresty_amd64:
-    matrix:
-      parameters:
+        arch:
+        - amd64
+        - arm64
         resty-version:
-        - 1.21.4.4
-        - 1.25.3.2
         - 1.27.1.1
         waf:
         - 'ON'
         - 'OFF'
-    name: build openresty << matrix.resty-version >> on amd64 WAF << matrix.waf >>
-- build_openresty_arm64:
-    matrix:
-      parameters:
-        resty-version:
-        - 1.21.4.4
-        - 1.25.3.2
-        - 1.27.1.1
-        waf:
-        - 'ON'
-        - 'OFF'
-    name: build openresty << matrix.resty-version >> on arm64 WAF << matrix.waf >>
+    name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
 - build_ingress_nginx_module:
     name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
     matrix:
       parameters:
         arch:
         - 'amd64'
+        - 'arm64'
         version:
-        - v1.11.3
+        - 1.12.0
 - coverage:
     name: Coverage on 1.27.0 with WAF ON
 - test:
@@ -144,10 +127,11 @@ jobs:
       parameters:
         arch:
         - amd64
+        - arm64
         base-image:
         - registry.k8s.io/ingress-nginx/controller
         nginx-version:
-        - v1.11.3
+        - 1.12.0
 - system_tests:
     name: Run system tests
     requires:
