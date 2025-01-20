@@ -83,6 +83,9 @@
             - 'OFF'
         name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - build_openresty:
+        filters:
+            tags:
+              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -378,6 +381,9 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
+        filters:
+          tags:
+            only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -394,6 +400,9 @@
         requires:
         - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
+        filters:
+          tags:
+            only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -410,6 +419,9 @@
         requires:
         - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test-openresty:
+        filters:
+          tags:
+            only: /^v.*/
         matrix:
           parameters:
             arch:

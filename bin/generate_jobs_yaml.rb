@@ -72,6 +72,9 @@ YAML
 
 puts <<-YAML.gsub(/^/, '    ')
 - build_openresty:
+    filters:
+        tags:
+          only: /^v.*/
     matrix:
       parameters:
         arch:
@@ -112,6 +115,9 @@ end
 all_resty_specs.group_by(&:version).each do |version, specs|
   puts <<~YAML.gsub(/^/, '    ')
   - test-openresty:
+      filters:
+        tags:
+          only: /^v.*/
       matrix:
         parameters:
           arch:
