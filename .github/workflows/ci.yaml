@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  update-nginx-datadog:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # read secrets
+      contents: write # Creates a branch
+      pull-requests: write # Creates a PR
+    env:
+      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 'DataDog/appsec-event-rules'
+     - name: Checkout nginx-datadog
+        uses: actions/checkout@v4
+        with:
+          repository: 'DataDog/nginx-datadog'
+          path: 'nginx-datadog'
+      - run: cp build/recommended.json nginx-datadog/src/security/recommended.json
+      - name: Set git branch name
+        run: |
+          echo "branch_id=deps/appsec-rules-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "tag_id=${GITHUB_REF##*/}" >> "$GITHUB_ENV"
+      - name: Create Branch
+        working-directory: nginx-datadog
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url --push origin https://your_username:$GITHUB_TOKEN@github.com/DataDog/nginx-datadog
+          git checkout -b ${branch_id}
+          git add src/security/recommended.json
+          git commit -m "deps(appsec): bump rules to ${tag_id}"
+          git push 
+      # - name: Create Pull Request
+      #   run: |
+      #     curl -L \
+      #       -X POST \
+      #       -H "Accept: application/vnd.github+json" \
+      #       -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+      #       -H "X-GitHub-Api-Version: 2022-11-28" \
+      #       https://api.github.com/repos/DataDog/nginx-datadog/pulls \
+      #       -d '{"title":"deps: bump rules to ${tag_id}","body":"Updates appsec rules!","head":"${branch}","base":"master"}'
