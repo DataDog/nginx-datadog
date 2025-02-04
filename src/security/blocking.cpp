@@ -332,7 +332,9 @@ void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
   }
 
   // TODO: bypass header filters?
-  auto res = ngx_http_send_header(&req);
+  ngx_int_t res = ngx_http_send_header(&req);
+  ngx_log_debug1(NGX_LOG_DEBUG, req.connection->log, 0,
+                 "Status %d returned by ngx_http_send_header", res);
   if (res == NGX_ERROR || res > NGX_OK || req.header_only) {
     ngx_http_finalize_request(&req, res);
     return;
