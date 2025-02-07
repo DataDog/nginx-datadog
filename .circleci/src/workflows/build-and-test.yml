@@ -22,7 +22,7 @@ jobs:
         - 1.22.1
         - 1.24.0
         - 1.25.4
-        - 1.27.3
+        - 1.27.4
         waf:
         - 'ON'
         - 'OFF'
@@ -60,10 +60,10 @@ jobs:
         - 'ON'
         - 'OFF'
         base-image:
-        - nginx:1.27.3-alpine
-        - nginx:1.27.3
+        - nginx:1.27.4-alpine
+        - nginx:1.27.4
         nginx-version:
-        - 1.27.3
+        - 1.27.4
     name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
       >> WAF << matrix.waf >>
     requires:

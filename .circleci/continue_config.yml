@@ -287,7 +287,7 @@ jobs:
                 command: git clone https://github.com/DataDog/system-tests.git
                 name: clone system-tests repo
             - run:
-                command: sudo apt-get install python3.12-venv
+                command: "sudo apt update -y \nsudo apt install -y python3.12-venv\n"
                 name: Install python 3.12
             - run:
                 command: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so binaries/ngx_http_datadog_module-appsec-amd64-1.25.4.so
@@ -436,7 +436,7 @@ workflows:
                             - 1.22.1
                             - 1.24.0
                             - 1.25.4
-                            - 1.27.3
+                            - 1.27.4
                         waf:
                             - "ON"
                             - "OFF"
@@ -471,10 +471,10 @@ workflows:
                             - amd64
                             - arm64
                         base-image:
-                            - nginx:1.27.3-alpine
-                            - nginx:1.27.3
+                            - nginx:1.27.4-alpine
+                            - nginx:1.27.4
                         nginx-version:
-                            - 1.27.3
+                            - 1.27.4
                         waf:
                             - "ON"
                             - "OFF"
@@ -622,10 +622,12 @@ workflows:
                             - 1.26.0
                             - 1.26.1
                             - 1.26.2
+                            - 1.26.3
                             - 1.27.0
                             - 1.27.1
                             - 1.27.2
                             - 1.27.3
+                            - 1.27.4
                         waf:
                             - "ON"
                             - "OFF"
@@ -659,6 +661,26 @@ workflows:
                             - nginx:1.24.0
                         nginx-version:
                             - 1.24.0
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                filters:
+                    tags:
+                        only: /^v.*/
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:1.27.4-alpine
+                            - nginx:1.27.4
+                        nginx-version:
+                            - 1.27.4
                         waf:
                             - "ON"
                             - "OFF"
@@ -739,6 +761,26 @@ workflows:
                             - nginx:1.27.0
                         nginx-version:
                             - 1.27.0
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                filters:
+                    tags:
+                        only: /^v.*/
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:1.26.3-alpine
+                            - nginx:1.26.3
+                        nginx-version:
+                            - 1.26.3
                         waf:
                             - "ON"
                             - "OFF"
