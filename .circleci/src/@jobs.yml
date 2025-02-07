@@ -240,7 +240,9 @@ jobs:
           command: git clone https://github.com/DataDog/system-tests.git
       - run:
           name: Install python 3.12
-          command: sudo apt update -y && apt install -y python3.12-venv
+          command: | 
+            sudo apt update -y 
+            sudo apt install -y python3.12-venv
       - run:
           name: Move the module to the system-tests directory
           working_directory: ./system-tests
