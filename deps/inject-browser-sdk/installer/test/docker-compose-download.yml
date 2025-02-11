@@ -1,0 +1,38 @@
+# Unless explicitly stated otherwise all files in this repository are licensed
+# under the Apache 2.0 License. This product includes software developed at
+# Datadog (https://www.datadoghq.com/).
+#
+# Copyright 2024-Present Datadog, Inc.
+
+services:
+  datadog-agent:
+    image: datadog/agent:latest
+    ports:
+      - "8126:8126"
+    environment:
+      - DD_API_KEY
+      - DD_APM_ENABLED=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8126/info"]
+        interval: 5s
+        timeout: 2s
+        retries: 5
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ${NGINX_DOCKERFILE}
+    depends_on:
+      datadog-agent:
+        condition: service_healthy
+    volumes:
+      - ..:/installer
+    command: >
+      sh -c "
+      cd /installer &&
+      sh install-proxy-datadog.sh --proxyKind nginx --verbose --appId 123 --site datadoghq.com --clientToken myToken --sessionSampleRate 100 --sessionReplaySampleRate 50 --agentUri http://datadog-agent:8126 \
+      | grep -q 'Binary downloaded, verified, and extracted successfully'"
