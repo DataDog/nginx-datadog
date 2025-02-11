@@ -1,13 +1,6 @@
-    when:
-      or:
-        -  << pipeline.parameters.build_all >>
-        - matches: { pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+", value: << pipeline.git.tag >> }
     jobs:
     - build_ingress_nginx_module:
         name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -30,9 +23,6 @@
         name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
         requires:
         - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -55,9 +45,6 @@
             - 1.9.6
     # output of bin/generate_jobs_yaml.rb
     - build:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -80,8 +67,9 @@
             - 1.27.2
             - 1.27.3
             - 1.27.4
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
         name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - build_openresty:
@@ -94,21 +82,20 @@
             - 1.25.3.1
             - 1.25.3.2
             - 1.27.1.1
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
         name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - amazonlinux:2023.3.20240219.0
@@ -120,16 +107,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.27.4-alpine
@@ -140,16 +125,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.27.3-alpine
@@ -160,16 +143,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.27.2-alpine
@@ -180,9 +161,6 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -200,16 +178,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.27.0-alpine
@@ -220,16 +196,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.26.3-alpine
@@ -240,16 +214,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.26.2-alpine
@@ -260,16 +232,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.26.1-alpine
@@ -280,9 +250,6 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -300,9 +267,6 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -320,9 +284,6 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -340,9 +301,6 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -360,16 +318,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.25.2-alpine
@@ -380,16 +336,14 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - nginx:1.25.1-alpine
@@ -400,9 +354,6 @@
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - test:
-        filters:
-            tags:
-              only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -457,8 +408,9 @@
             arch:
             - amd64
             - arm64
-            waf:
+            rum:
             - 'ON'
+            waf:
             - 'OFF'
             base-image:
             - openresty/openresty:1.25.3.1-alpine
