@@ -1,0 +1,40 @@
+variables:
+  REGISTRY: registry.ddbuild.io
+  AGENT_DEPLOY_IMAGE: datadog-agent-buildimages/gitlab_agent_deploy
+  CI_IMAGE_AGENT_DEPLOY: v47979770-a5a4cfd0
+  RELEASE_TAG:
+    value: null
+    description: 'The release tag to use for the installer release'
+
+.installer_release:
+  stage: release
+  tags: ["arch:amd64"]
+  needs: []
+  image: ${REGISTRY}/ci/${AGENT_DEPLOY_IMAGE}:${CI_IMAGE_AGENT_DEPLOY}
+  when: manual
+  allow_failure: false
+  script:
+    - mkdir downloads
+    - ./scripts/download-release-artifacts.sh $RELEASE_TAG ./downloads
+    - aws s3 cp
+      --region us-east-1
+      --sse AES256
+      --acl public-read
+      --recursive
+      "downloads"
+      s3://$S3_BUCKET/installer/$RELEASE_TAG/
+    - aws s3 cp
+      --region us-east-1
+      --sse AES256
+      --acl public-read
+      --recursive
+      "downloads"
+      s3://$S3_BUCKET/installer/latest/
+
+manual_installer_release:
+  extends: .installer_release
+  when: manual
+  rules:
+    - if: $RELEASE_TAG != null
+  variables:
+    S3_BUCKET: rum-auto-instrumentation

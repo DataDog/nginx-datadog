@@ -1,0 +1,10 @@
+include:
+  - local: .gitlab/iis.yml
+  - local: .gitlab/java.yml
+  - local: .gitlab/installer.yml
+
+stages:
+  - build
+  - test
+  - release
+

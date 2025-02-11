@@ -1,0 +1,114 @@
+# Unless explicitly stated otherwise all files in this repository are licensed
+# under the Apache 2.0 License. This product includes software developed at
+# Datadog (https://www.datadoghq.com/).
+#
+# Copyright 2024-Present Datadog, Inc.
+
+static_resources:
+  listeners:
+    - name: vanilla_listener
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8081
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                http_filters:
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                route_config:
+                  name: local_route
+                  max_direct_response_body_size_bytes: 49152 # 48KB
+                  virtual_hosts:
+                    - name: local_service
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            path: "/"
+                          direct_response:
+                            status: 200
+                            body:
+                              filename: "/var/www/index.html"
+                          response_headers_to_add:
+                            - header:
+                                key: "Content-Type"
+                                value: "text/html; charset=utf-8"
+    - name: rum_listener
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                http_filters:
+                  - name: datadog_rum
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+                      default_source_code:
+                        filename: /usr/local/lib/datadog_rum.lua
+                  - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+                route_config:
+                  name: local_route
+                  max_direct_response_body_size_bytes: 49152 # 48KB
+                  virtual_hosts:
+                    - name: local_service
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            path: "/"
+                          direct_response:
+                            status: 200
+                            body:
+                              filename: "/var/www/index.html"
+                          response_headers_to_add:
+                            - header:
+                                key: "Content-Type"
+                                value: "text/html; charset=utf-8"
+                          metadata:
+                            filter_metadata:
+                              envoy.filters.http.lua:
+                                datadog_rum:
+                                  enabled: true # default: true
+                                  stream_response: true # default: true
+                                  sdk_version: 5 # default: 5
+                                  cdn_region: "us1" # default: "us1"
+                                  inject_before: "</head>" # default: "</head>"
+                                  inject_times: 1 # default: 1
+                                  rum_init: # check https://docs.datadoghq.com/real_user_monitoring/browser/#configuration
+                                    applicationId: "<DATADOG_APPLICATION_ID>"
+                                    clientToken: "<DATADOG_CLIENT_TOKEN>"
+                                    site: "datadoghq.com"
+                                    service: "my-web-application"
+                                    env: "staging"
+                                    sampleRate: 100
+                                    sessionReplaySampleRate: 100
+                                    trackUserInteractions: true
+                                    trackResources: true
+                                    trackLongTasks: true
+                                    defaultPrivacyLevel: "mask-user-input"
+                        - match:
+                            path: "/norum"
+                          direct_response:
+                            status: 200
+                            body:
+                              filename: "/var/www/index.html"
+                          response_headers_to_add:
+                            - header:
+                                key: "Content-Type"
+                                value: "text/html; charset=utf-8"
+                          metadata:
+                            filter_metadata:
+                              envoy.filters.http.lua:
+                                datadog_rum:
+                                  enabled: false

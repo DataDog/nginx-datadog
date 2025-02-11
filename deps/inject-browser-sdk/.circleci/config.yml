@@ -1,0 +1,17 @@
+version: 2.1
+
+setup: true
+
+orbs:
+  path-filtering: circleci/path-filtering@1
+
+workflows:
+  always-run:
+    jobs:
+      - path-filtering/filter:
+          name: check-updated-files
+          mapping: |
+            injector_IIS/.* run-iis-workflow true
+            installer/.* run-installer-workflow true
+          base-revision: main 
+          config-path: .circleci/continue_config.yml

@@ -1,0 +1,43 @@
+when: << pipeline.parameters.run-installer-workflow >>
+jobs:
+  - check-ci-definition
+  - shellcheck:
+      name: run shellcheck on shell scripts
+      requires: 
+      - check-ci-definition
+  - build_installer_amd64:
+      name: build installer on amd64
+      requires: 
+      - check-ci-definition
+  - build_installer_arm64:
+      name: build installer on arm64
+      requires: 
+      - check-ci-definition
+  - installer_test:
+      matrix:
+        parameters:
+          base-dockerfile:
+          - 'nginx.bookworm.Dockerfile'
+          - 'nginx.alpine.Dockerfile'
+          - 'nginx.al2023.Dockerfile'
+          proxy-kind:
+          - 'nginx'
+      name: test NGINX installer with << matrix.base-dockerfile >> base image
+      requires:
+      - build installer on amd64
+      - build installer on arm64
+  - installer_test:
+      matrix:
+          parameters:
+            base-dockerfile:
+            - 'httpd.bookworm.Dockerfile'
+            - 'httpd.alpine.Dockerfile'
+            - 'httpd.al2023.Dockerfile'
+            proxy-kind:
+            - 'httpd'
+      name: test httpd installer with << matrix.base-dockerfile >> base image
+      requires:
+      - build installer on amd64
+      - build installer on arm64
+  - installer_download_test:
+      name: test installer download

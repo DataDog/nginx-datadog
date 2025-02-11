@@ -1,0 +1,172 @@
+---
+variables:
+  WINDOWS_BUILD_IMAGE: datadog-agent-buildimages/windows_ltsc2022_x64
+  CI_IMAGE_WIN_LTSC2022_X64_SUFFIX: ""
+  CI_IMAGE_WIN_LTSC2022_X64: v47979770-a5a4cfd0
+  E2E_RUNNER_IMAGE: test-infra-definitions/runner
+  #E2E_RUNNER_IMAGE_VERSION: dfdd12299b97
+  # To use images from test-infra-definitions dev branches, set the SUFFIX variable to -dev
+  # and check the job creating the image to make sure you have the right SHA prefix
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES_SUFFIX: ""
+  # Make sure to update test-infra-definitions version in go.mod as well
+  TEST_INFRA_DEFINITIONS_BUILDIMAGES: e79f06b7fce3
+  AGENT_DEPLOY_IMAGE: datadog-agent-buildimages/gitlab_agent_deploy
+  CI_IMAGE_AGENT_DEPLOY_SUFFIX: ""
+  CI_IMAGE_AGENT_DEPLOY: v47979770-a5a4cfd0
+  ARTIFACTS_DIR: artifacts
+  REGISTRY: registry.ddbuild.io
+  OLD_REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
+
+########################################
+# IIS build and test jobs
+########################################
+
+.IIS_build:
+  stage: build
+  tags: ["runner:windows-docker", "windowsversion:2022"]
+  needs: []
+  variables:
+    BUILD_CONFIGURATION: Release
+    ARCH: x64
+    GIT_DEPTH: 500 #Default is 20
+    GIT_SUBMODULE_STRATEGY: recursive
+  script:
+    - if (Test-Path build-out) { remove-item -recurse -force build-out }
+    - >
+      docker run --rm
+      -m 4096M
+      -v "$(Get-Location):c:\mnt"
+      -e BUILD_OUTDIR="c:\mnt\build-out\${CI_JOB_ID}"
+      -e BUILD_CONFIGURATION=$BUILD_CONFIGURATION
+      -e ARCH=$ARCH
+      -e TEST_DIR="c:\mnt\injector_IIS\test\"
+      -e WINDOWS_BUILDER=true
+      -e SIGN_WINDOWS_DD_WCS=true
+      -e AWS_NETWORKING=true
+      ${REGISTRY}/ci/${WINDOWS_BUILD_IMAGE}${CI_IMAGE_WIN_LTSC2022_X64_SUFFIX}:${CI_IMAGE_WIN_LTSC2022_X64}
+      c:\mnt\injector_IIS\scripts\build_injector_IIS.bat
+    # Copy output files to artifacts dir for use in later jobs
+    - if (Test-Path $ARTIFACTS_DIR) { remove-item -recurse -force $ARTIFACTS_DIR }
+    - mkdir $ARTIFACTS_DIR
+    - xcopy /e/s build-out\${CI_JOB_ID}\*.* $ARTIFACTS_DIR
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - $ARTIFACTS_DIR
+
+.IIS_build_when:
+  rules:
+    - changes:
+      - scheduled
+      when: never
+    - changes:
+        - injector_IIS/**/*
+        - lib/**/*
+        - .gitlab-ci.yml
+
+injector_IIS_build:
+  extends:
+    - .IIS_build
+    - .IIS_build_when
+
+manual_injector_IIS_build:
+  extends: .IIS_build
+  when: manual
+
+.injector_IIS_e2e_test_template:
+  stage: test
+  tags: ["arch:amd64"]
+  needs: []
+  image: ${OLD_REGISTRY}/ci/${E2E_RUNNER_IMAGE}${TEST_INFRA_DEFINITIONS_BUILDIMAGES_SUFFIX}:${TEST_INFRA_DEFINITIONS_BUILDIMAGES}
+  variables:
+    AWS_SSM_PREFIX: "ci.inject-browser-sdk."
+    KEY_PAIR_NAME: "ci.inject-browser-sdk"
+    KUBERNETES_MEMORY_REQUEST: 12Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+    E2E_OUTPUT_DIR: $CI_PROJECT_DIR/e2e-output
+  before_script:
+    # Read AWS config for agent-qa role from ddbuild's SSM, and then assume agent-qa role
+    - mkdir -p ~/.aws
+    - aws ssm get-parameter --region us-east-1 --name "${AWS_SSM_PREFIX}agent-qa-profile" --with-decryption --query "Parameter.Value" --out text >> ~/.aws/config
+    - export AWS_PROFILE="agent-qa-ci"
+    # Fetch SSH private and public keys from agent-qa's SSM
+    - mkdir -p ~/.ssh
+    - aws ssm get-parameter --region us-east-1 --name "${AWS_SSM_PREFIX}ssh_private_key_rsa" --with-decryption --query "Parameter.Value" --out text >> ~/.ssh/$KEY_PAIR_NAME
+    - aws ssm get-parameter --region us-east-1 --name "${AWS_SSM_PREFIX}ssh_public_key_rsa" --with-decryption --query "Parameter.Value" --out text >> ~/.ssh/${KEY_PAIR_NAME}.pub
+    - chmod 0400 ~/.ssh/$KEY_PAIR_NAME
+    - eval `ssh-agent -s`
+    - ssh-add ~/.ssh/$KEY_PAIR_NAME
+    # Use S3 backend to store stack status
+    - pulumi login "s3://dd-pulumi-state?region=us-east-1&awssdk=v2&profile=$AWS_PROFILE"
+    # Define the environment variables which the E2E framework will use to build a testing profile
+    - export E2E_PROFILE="ci"
+    - export CI_SECRET_PREFIX=$AWS_SSM_PREFIX
+    - export E2E_KEY_PAIR_NAME=$KEY_PAIR_NAME
+    - export E2E_PUBLIC_KEY_PATH="/root/.ssh/${KEY_PAIR_NAME}.pub"
+  script:
+    - mkdir -p injector_IIS/test/e2e_tests/test_assets
+    ## the msi will have a version-specific name, but there should be only one.
+    ## copy that to the filename expected by the test.
+    - cp ${ARTIFACTS_DIR}/*.msi injector_IIS/test/e2e_tests/test_assets/injector_IIS.msi
+    - cd injector_IIS/test/e2e_tests && go test -v -timeout 30m
+  artifacts:
+    expire_in: 2 weeks
+    when: always
+    paths:
+      - $E2E_OUTPUT_DIR
+
+injector_IIS_e2e_test:
+  extends:
+    - .injector_IIS_e2e_test_template
+    - .IIS_build_when
+  needs: ["injector_IIS_build"]
+
+manual_injector_IIS_e2e_test:
+  extends: .injector_IIS_e2e_test_template
+  when: manual
+  needs: ["manual_injector_IIS_build"]
+
+.injector_IIS_release:
+  stage: release
+  tags: ["arch:amd64"]
+  needs: []
+  image: ${REGISTRY}/ci/$AGENT_DEPLOY_IMAGE$CI_IMAGE_AGENT_DEPLOY_SUFFIX:$CI_IMAGE_AGENT_DEPLOY
+  when: manual
+  allow_failure: false
+  script:
+    - aws s3 cp
+      --region us-east-1
+      --sse AES256
+      --acl public-read
+      --recursive
+      --exclude "*"
+      --include "injector_IIS.msi"
+      $ARTIFACTS_DIR
+      s3://$S3_BUCKET/iis/$CI_COMMIT_SHORT_SHA/$ARCH/
+    - echo https://$S3_BUCKET.s3.amazonaws.com/iis/$CI_COMMIT_SHORT_SHA/$ARCH/injector_IIS.msi
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - $ARTIFACTS_DIR
+
+manual_injector_IIS_release:
+  extends: .injector_IIS_release
+  when: manual
+  needs: ["manual_injector_IIS_build"]
+  variables:
+    S3_BUCKET: rum-auto-instrumentation
+    BUILD_CONFIGURATION: Release
+    ARCH: x64
+
+promote_injector_IIS_release_candidate:
+  stage: release
+  tags: ["arch:amd64"]
+  image: ${REGISTRY}/ci/$AGENT_DEPLOY_IMAGE$CI_IMAGE_AGENT_DEPLOY_SUFFIX:$CI_IMAGE_AGENT_DEPLOY
+  when: manual
+  variables:
+    RC_COMMIT: ""
+    ARCH: x64
+    S3_BUCKET: rum-auto-instrumentation
+  script:
+    - aws s3 cp --region us-east-1 --sse AES256 --acl public-read s3://$S3_BUCKET/iis/$RC_COMMIT/$ARCH/injector_IIS.msi injector_IIS.msi
+    - aws s3 cp --region us-east-1 --sse AES256 --acl public-read injector_IIS.msi s3://$S3_BUCKET/iis/latest/$ARCH/
