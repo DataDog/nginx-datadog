@@ -1,0 +1,43 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+    <title>IIS Windows</title>
+    <style type="text/css">
+        <!--
+        body {
+            color:#000000;
+            background-color:#0072C6;
+            margin:0;
+        }
+
+        #container {
+            margin-left:auto;
+            margin-right:auto;
+            text-align:center;
+        }
+
+        a img {
+            border:none;
+        }
+
+        -->
+    </style>
+
+<script>
+(function(h,o,u,n,d) {
+  h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
+  d=o.createElement(u);d.async=1;d.src=n
+  n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
+})(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js','DD_RUM')
+window.DD_RUM.onReady(function() {
+  window.DD_RUM.init({"applicationId":"DATADOG_APPLICATION_ID","clientToken":"DATADOG_CLIENT_TOKEN","site":"datadoghq.com","service":"my-web-application","env":"production","version":"1.0.0","trackUserInteractions":true,"trackResources":true,"sessionSampleRate":100.0,"sessionReplaySampleRate":100.0,"trackLongTasks":true});
+});
+</script>
+</head>
+<body>
+<div id="container">
+    <a href="http://go.microsoft.com/fwlink/?linkid=66138&amp;clcid=0x409"><img src="iisstart.png" alt="IIS" width="960" height="600" /></a>
+</div>
+</body>
+</html>

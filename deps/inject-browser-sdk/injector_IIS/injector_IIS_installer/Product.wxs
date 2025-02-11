@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Unless explicitly stated otherwise all files in this repository are licensed
+ under the Apache 2.0 License. This product includes software developed at
+ Datadog (https://www.datadoghq.com/).
+
+ Copyright 2024-Present Datadog, Inc.
+-->
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+	 xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+	 <!-- This section will allow us to set the msi version based on values set on the command
+	      line (which in turn would be derived from the git version).  Use a default value so
+		  that dev building still functions -->
+	<?if $(var.MAJ_VER) and $(var.MAJ_VER) != "" ?>
+		<?define VERSION_MAJOR = $(var.MAJ_VER) ?>
+		<?define VERSION_MINOR = $(var.MIN_VER) ?>
+		<?define VERSION_PATCH = $(var.PATCH_VER) ?>
+		<?define VERSION_NUMBER = $(var.VERSION_MAJOR).$(var.VERSION_MINOR).$(var.VERSION_PATCH).0 ?>
+		<?else ?>
+		<?define VERSION_MAJOR =0 ?>
+		<?define VERSION_MINOR =97 ?>
+		<?define VERSION_PATCH =1 ?>
+		<?define VERSION_NUMBER = $(var.VERSION_MAJOR).$(var.VERSION_MINOR).$(var.VERSION_PATCH).0 ?>
+    <?endif ?>
+	<?define UPGRADE_CODE=A5E2C93A-4340-4D15-BA17-F3CA858D09CA?>
+	<!-- Define the product details -->
+	<!--compiler generates-->
+	<Product Id="*"
+             Name="!(loc.ProductName)"
+             Language="!(loc.LANG)"
+             Version="$(var.VERSION_NUMBER)"
+             Manufacturer="!(loc.ManufacturerName)"
+             UpgradeCode="$(var.UPGRADE_CODE)">
+		<!--MSI exec minimum-->
+		<Package Id="*"
+             Keywords="Installer"
+             Comments="!(loc.InstallerComment)"
+             Description="!(loc.ProductName) $(var.VERSION_NUMBER)"
+             Manufacturer="!(loc.ManufacturerName)"
+             InstallScope="perMachine"
+             InstallerVersion="400"
+             Languages="1033"
+             InstallPrivileges="elevated"
+             Compressed="yes" />
+
+		<!-- This removes entirely the previous version -->
+		<Upgrade Id="$(var.UPGRADE_CODE)">
+			<UpgradeVersion OnlyDetect='no'
+							Property='PREVIOUSFOUND'
+							Minimum='0.0.1' IncludeMinimum='yes'
+							Maximum="$(var.VERSION_NUMBER)" IncludeMaximum='yes'/>
+		</Upgrade>
+
+		<!-- Handle major upgrades -->
+		<MajorUpgrade DowngradeErrorMessage="A newer version of !(loc.ProductName) is already installed." />
+		<MediaTemplate EmbedCab="yes" />
+
+		<!-- Define the feature to be installed -->
+		<Feature Id="MainFeature" Title="Datadog RUM Feature" Level="1">
+			<ComponentRef Id="InjectorDLL" />
+			<ComponentRef Id="InjectorPsModule" />
+			<ComponentRef Id="InjectorConfiguration" />
+		</Feature>
+
+		<!-- No need to restart Windows after the installation -->
+		<Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable" />
+
+		<Property Id="IISRESTART" Secure="yes" Value="false"/>
+
+		<!--
+		This condition check enforces the fact that when running a quiet/unattended install (/q), the 
+		user `must` pass in the IISRESTART=true property to acknowledge that IIS will be restarted.  Otherwise
+		the install will immediately fail.
+
+		This check is bypassed when doing GUI operations as there is warning text included in the dialogs.
+		-->
+		<Condition Message="Must Acknowledge that IIS will be restarted with IISRESTART=true for unattended installs">
+			<![CDATA[(IISRESTART ~= "true" or UILevel > 2) or  (REMOVE="ALL" AND UPGRADINGPRODUCTCODE<>"")]]>
+		</Condition>
+
+		<Property Id="APPLICATIONDATADIRECTORY" />
+
+		<Property Id="WIXUI_INSTALLDIR" Value="PROJECTLOCATION" />
+		<UIRef Id="ProjectUI_InstallDir"/>
+    	<UI Id="ProjectUI_InstallDir">
+
+			<UIRef Id="WixUI_Common" />
+			<UIRef Id="WixUI_ErrorProgressText"/>
+			
+			<Property Id="DefaultUIFont">DlgFont8</Property>
+
+			<TextStyle Id="WixUI_Font_Normal_White" FaceName="Tahoma" Size="8" Red="255" Green="255" Blue="255" />
+			<TextStyle Id="WixUI_Font_Bigger_White" FaceName="Tahoma" Size="12" Red="255" Green="255" Blue="255" />
+			<TextStyle Id="WixUI_Font_Title_White" FaceName="Tahoma" Size="9" Bold="yes" Red="255" Green="255" Blue="255" />
+
+			<TextStyle Id="TahomaHeader" FaceName="Tahoma" Size="18" Bold="yes" />
+			<TextStyle Id="TahomaNormal" FaceName="Tahoma" Size="8" />
+
+			<TextStyle Id="DlgFont8" FaceName="Tahoma" Size="8" />
+			<TextStyle Id="DlgFont9" FaceName="Tahoma" Size="9" />
+			<TextStyle Id="DlgFontBold8" FaceName="Tahoma" Size="8" Bold="yes" />
+			<TextStyle Id="Verdana13Bold" FaceName="Verdana" Size="13" Bold="yes" />
+
+			<TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+			<TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+			<TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+
+			<?include assets\simpleeula.wxi ?>
+			<?include assets\customready.wxi ?>
+			<DialogRef Id="ErrorDlg" />
+			<DialogRef Id="FatalError" />
+			<DialogRef Id="FilesInUse" />
+			<DialogRef Id="MsiRMFilesInUse" />
+			<DialogRef Id="PrepareDlg" />
+			<DialogRef Id="ProgressDlg" />
+			<DialogRef Id="ResumeDlg" />
+			<DialogRef Id="UserExit" />
+			<DialogRef Id="WelcomeDlg" />
+			<DialogRef Id="CustomLicenseAgreementDlg"/>
+
+			<DialogRef Id="MaintenanceWelcomeDlg"/>
+			<DialogRef Id="MaintenanceTypeDlg"/>
+			<DialogRef Id="ResumeDlg"/>
+			<DialogRef Id="CustomVerifyReadyDlg"/>
+
+			<Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
+            <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+
+            <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="CustomLicenseAgreementDlg">NOT Installed</Publish>
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="CustomVerifyReadyDlg">Installed AND PATCH</Publish>
+
+            <Publish Dialog="CustomLicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
+            <Publish Dialog="CustomLicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">CustomLicenseAccepted = "1"</Publish>
+
+            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="CustomLicenseAgreementDlg">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="CustomVerifyReadyDlg" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+            
+            <Publish Dialog="CustomVerifyReadyDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1">NOT Installed</Publish>
+            <Publish Dialog="CustomVerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed AND NOT PATCH</Publish>
+            <Publish Dialog="CustomVerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2">Installed AND PATCH</Publish>
+
+            <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+
+            <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="CustomVerifyReadyDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="CustomVerifyReadyDlg">1</Publish>
+            <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+
+			<AdminUISequence>
+				<Show Dialog="FatalError" OnExit="error" />
+				<Show Dialog="UserExit" OnExit="cancel" />
+				<Show Dialog="ExitDialog" OnExit="success" />
+				<Show Dialog="MaintenanceWelcomeDlg" After="CostFinalize" />
+				<Show Dialog ="ProgressDlg" After="MaintenanceWelcomeDlg" />
+			  </AdminUISequence>
+			  <InstallUISequence>
+				<Show Dialog="FatalError" OnExit="error" />
+				<Show Dialog="UserExit" OnExit="cancel" />
+				<Show Dialog="ExitDialog" OnExit="success" />
+		
+				<Show Dialog="WelcomeDlg" After="MigrateFeatureStates"><![CDATA[NOT Installed]]></Show>
+				<Show Dialog="MaintenanceWelcomeDlg" Before="ProgressDlg" >Installed AND NOT RESUME AND NOT Preselected AND NOT PATCH</Show>
+		
+				<!--
+				<Show Dialog="ResumeDlg" After="WelcomeDlg"><![CDATA[Installed AND (RESUME OR Preselected)]]></Show>
+				-->
+				<!--
+				<Show Dialog="MaintenanceWelcomeDlg" After="ResumeDlg"><![CDATA[Installed AND NOT RESUME AND NOT Preselected]]></Show>
+				<Show Dialog="ProgressDlg" After="MaintenanceWelcomeDlg" />
+				-->
+			  </InstallUISequence>
+
+			<Property Id="ARPNOMODIFY" Value="1" />
+
+		</UI>
+
+		<WixVariable Id="WixUILicenseRtf" Value="assets\license.rtf"/>
+		<Icon Id="project.ico" SourceFile="assets\project.ico"/>
+		
+		<WixVariable Id="WixUIDialogBmp" Value="assets\dialog_background.bmp" />
+		<WixVariable Id="WixUIBannerBmp" Value="assets\banner_background.bmp" />
+	
+		<Property Id="ARPPRODUCTICON" Value="project.ico" />
+		<Property Id="ARPURLINFOABOUT">https://datadoghq.com/</Property>
+		<Property Id="ARPHELPLINK">https://datadoghq.com/support/</Property>
+
+    
+		<!-- Define the directory structure -->
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFiles64Folder">
+				<!-- Parent directory for injector.dll -->
+				<Directory Id="DatadogFolder" Name="!(loc.CompanyNameShort)">
+					<!-- Subdirectory for injector.dll -->
+					<Directory Id="PROJECTLOCATION" Name="!(loc.ProductName)"/>
+				</Directory>
+
+        <!-- Powershell Module Directory -->
+        <Directory Id="PsDir" Name="WindowsPowerShell">
+          <Directory Id="PsModuleDir" Name="Modules">
+            <Directory Id="PsDDRumModuleDir" Name="Datadog.RUM" />
+          </Directory>
+        </Directory>
+			</Directory>
+
+      <!-- Directory for configuration schema -->
+      <Directory Id="System64Folder">
+        <Directory Id="InetsrvDir" Name="inetsrv">
+          <Directory Id="InetsrvConfigDir" Name="config">
+            <Directory Id="InetsrvSchemaDir" Name="schema" />
+          </Directory>
+        </Directory>
+      </Directory>
+		</Directory>
+
+		<CustomAction Id="RegisterModule" 
+					  Directory="PROJECTLOCATION" 
+					  ExeCommand="[System64Folder]\inetsrv\appcmd.exe install module /name:DDRumModule /image:&quot;[PROJECTLOCATION]injector_IIS.dll&quot; /precondition:bitness64" 
+					  Execute="deferred" 
+					  Impersonate="no" 
+					  Return="check" />
+
+		<CustomAction Id="UnregisterModule" 
+					  Directory="PROJECTLOCATION" 
+					  ExeCommand="[System64Folder]\inetsrv\appcmd.exe uninstall module DDRumModule" 
+					  Execute="deferred" 
+					  Impersonate="no" 
+					  Return="check" />
+
+		<InstallExecuteSequence>
+			<Custom Action="RegisterModule" After="InstallFiles" >NOT Installed</Custom>
+			<Custom Action="UnregisterModule" After="StopServices">REMOVE="ALL"</Custom>
+		</InstallExecuteSequence>
+	</Product>
+
+		<!-- Define components and files to be installed -->
+		<Fragment>
+			<Component Id="InjectorDLL" Guid="{6664F998-97D1-4CAE-A7DD-FCA94A2C47FE}" Directory="PROJECTLOCATION">
+				<File Id="InjectorDLLFile" Name="injector_IIS.dll" Source="$(var.InjectorDll)" KeyPath="yes"/>
+				<RegistryValue Root="HKLM"
+				               Key="Software\!(loc.CompanyNameShort)\!(loc.ProductName)"
+                       Name="InstallPath"
+                       Type="string"
+                       Value="[PROJECTLOCATION]"/>
+        <util:EventSource
+          Name="Datadog-RUM-Instrumentation"
+          Log="Application"
+          EventMessageFile="[PROJECTLOCATION]injector_IIS.dll"
+          SupportsErrors="yes"
+          SupportsInformationals="yes"
+          SupportsWarnings="yes"
+        />
+			</Component>
+
+      <!-- NOTE: Powershell Modules MUST have the same name that the folder -->
+      <Component Id="InjectorPsModule" Guid="{06D432E4-D21E-4BCB-A7B7-BF9B57CD56FF}" Directory="PsDDRumModuleDir">
+				<File Id="ConfigScript" Name="Datadog.RUM.psm1" Source="..\resources\modules\Datadog.RUM.psm1"/>
+				<File Id="ConfigScriptManifest" Name="Datadog.RUM.psd1" Source="..\resources\modules\Datadog.RUM.psd1"/>
+      </Component>
+			
+      <Component Id="InjectorConfiguration" Guid="{8F1996EE-7046-468F-94F1-DC9526F3F965}" Directory="InetsrvSchemaDir">
+        <File Id="InjectorSchema" Name="RUM_schema.xml" Source="..\resources\RUM_schema.xml" />
+        <util:XmlConfig Id='ApplicationHostSectionElement' On='install' Action='create'
+                        File='[InetsrvDir]config\applicationHost.config' Node='element'
+                        ElementPath="/configuration/configSections/sectionGroup[\[]@name='system.webServer'[\]]" Name="section" Sequence="6"
+                        VerifyPath="/configuration/configSections/sectionGroup[\[]@name='system.webServer'[\]]/section[\[]@name='datadogRum'[\]]" />
+        <util:XmlConfig Id='ApplicationHostSectionNameAttrib' File='[InetsrvDir]config\applicationHost.config'
+                        ElementPath='ApplicationHostSectionElement' Sequence='7' Name='name' Value='datadogRum' />
+        <util:XmlConfig Id='ApplicationHostSectionOverrideAttrib' File='[InetsrvDir]config\applicationHost.config'
+                        ElementPath='ApplicationHostSectionElement' Sequence='8' Name='overrideModeDefault' Value='Allow' />
+        <!-- uninstall -->
+        <!-- NOTE(@dmehala): might also need to remove all datadogRum nodes in system.webServer and location (regardless of the path) -->
+        <util:XmlConfig Id='ApplicationHostSectionElementRemove' On='uninstall' Action='delete'
+                        File='[InetsrvDir]config\applicationHost.config' Node='element'
+                        ElementPath="/configuration/configSections/sectionGroup[\[]@name='system.webServer'[\]]" Sequence='103'
+                        VerifyPath="/configuration/configSections/sectionGroup[\[]@name='system.webServer'[\]]/section[\[]@name='datadogRum'[\]]" />
+      </Component>
+		</Fragment>
+</Wix>
