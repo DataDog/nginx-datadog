@@ -1,0 +1,219 @@
+jobs:
+    build-and-test-rum-framework:
+        docker:
+            - image: rust:1.74.0
+        steps:
+            - checkout
+            - run:
+                command: cargo build --verbose
+                name: Build
+            - run:
+                command: cargo test --verbose
+                name: Test
+    build-iis:
+        docker:
+            - image: public.ecr.aws/b1o7r7e0/inject-browser-sdk:builder-7f22c91
+        parameters:
+            build-type:
+                enum:
+                    - Debug
+                    - Release
+                    - RelWithDebInfo
+                type: enum
+        steps:
+            - checkout
+            - run:
+                command: |
+                    cmake --toolchain=../cmake/toolchain-x86_64-pc-windows-msvc.cmake -B build -DCMAKE_BUILD_TYPE=<< parameters.build-type >> -DIIS_INJECTOR_STATIC_CRT=1 -DIIS_BUILD_TESTS=1 -DIIS_INJECTOR_TEST_DIR="C:/Users/circleci/project/injector_IIS/test" .
+                    cmake --build build -j
+                name: Build
+                working_directory: injector_IIS
+            - persist_to_workspace:
+                paths:
+                    - injector_IIS/build
+                root: .
+    build_installer_amd64:
+        machine:
+            image: ubuntu-2204:current
+        resource_class: medium
+        steps:
+            - checkout
+            - run: CGO_ENABLED=0 go -C ./installer/configurator build -o proxy-configurator
+            - persist_to_workspace:
+                paths:
+                    - proxy-configurator
+                root: ./installer/configurator
+            - store_artifacts:
+                destination: proxy-configurator
+                path: ./installer/configurator/proxy-configurator
+            - store_artifacts:
+                destination: install-proxy-datadog.sh
+                path: ./installer/install-proxy-datadog.sh
+    build_installer_arm64:
+        machine:
+            image: ubuntu-2204:current
+        resource_class: arm.medium
+        steps:
+            - checkout
+            - run: go test -C ./installer/configurator -v
+            - run: CGO_ENABLED=0 go -C ./installer/configurator build -o proxy-configurator
+            - store_artifacts:
+                destination: proxy-configurator
+                path: ./installer/configurator/proxy-configurator
+            - store_artifacts:
+                destination: install-proxy-datadog.sh
+                path: ./installer/install-proxy-datadog.sh
+    check:
+        docker:
+            - image: rust:1.74.0
+        steps:
+            - checkout
+            - run:
+                command: |
+                    rustup component add rustfmt
+                    rustup component add clippy
+                name: Install Dependencies
+            - run:
+                command: ./scripts/codestyle.sh lint
+                name: Check codestyle
+    check-ci-definition:
+        docker:
+            - image: circleci/circleci-cli:latest
+        steps:
+            - checkout
+            - run:
+                command: "CIRCLE_CFG=generated-config.yml make circleci-config \ndiff .circleci/continue_config.yml generated-config.yml\n"
+                name: Verify
+    installer_download_test:
+        machine:
+            image: ubuntu-2204:current
+        steps:
+            - checkout
+            - run:
+                command: docker compose -f installer/test/docker-compose-download.yml up --build --exit-code-from nginx
+                environment:
+                    DD_API_KEY: fakekey
+                    NGINX_DOCKERFILE: nginx.bookworm.Dockerfile
+                name: Run installer download tests
+    installer_test:
+        machine:
+            image: ubuntu-2204:current
+        parameters:
+            base-dockerfile:
+                type: string
+            proxy-kind:
+                type: string
+        steps:
+            - checkout
+            - attach_workspace:
+                at: /tmp/workspace
+            - run:
+                command: cp /tmp/workspace/proxy-configurator .
+                name: Move the configurator go binary to the installer directory
+                working_directory: ./installer
+            - run:
+                command: docker compose -f installer/test/docker-compose.yml up --build --exit-code-from proxy
+                environment:
+                    DD_API_KEY: fakekey
+                    PROXY_DOCKERFILE: << parameters.base-dockerfile >>
+                    PROXY_KIND: << parameters.proxy-kind >>
+                name: Run installer tests
+    shellcheck:
+        docker:
+            - entrypoint: /bin/sh
+              image: koalaman/shellcheck-alpine:v0.9.0
+        steps:
+            - checkout
+            - run: find installer/ -type f -executable | xargs shellcheck
+    test-iis:
+        machine:
+            image: windows-server-2019-vs2019:current
+            resource_class: windows.medium
+            shell: powershell.exe -ExecutionPolicy Bypass
+        steps:
+            - checkout
+            - attach_workspace:
+                at: .
+            - run:
+                command: .\injector_IIS\build\test\unittests\iis_injector_tests.exe
+                name: Run Unit Tests
+            - run:
+                command: choco install -y wixtoolset
+                name: Install Dependencies
+            - run:
+                command: "& 'C:\\\\Program Files (x86)\\\\Microsoft Visual Studio\\\\2019\\\\Community\\\\Common7\\\\Tools\\\\Launch-VsDevShell.ps1' \nMSBuild.exe injector_IIS\\injector_IIS_installer\\injector_IIS_installer.wixproj /m:4 /p:Configuration=Debug /p:Platform=x64 /p:InjectorDll=${pwd}\\injector_IIS\\build\\iis_injector.dll\n"
+                name: Build .msi package
+            - store_artifacts:
+                destination: injector_IIS_installer.msi
+                path: injector_IIS\injector_IIS_installer\bin\x64\Debug\en-us\injector_IIS_installer.msi
+            - run:
+                command: docker run -e WEBSERVER-FLAVOR=iis -v ${pwd}:C:\inject-browser-sdk datadog/docker-library:rum-auto-instrumentation-windows-iis-latest powershell -Command "C:\inject-browser-sdk\injector_IIS\scripts\SetupIntegrationTestEnvironment.ps1; pytest C:\inject-browser-sdk\tests\integration_tests\scenario -v"
+                name: Run End-to-End Tests
+orbs:
+    codecov: codecov/codecov@4.1.0
+parameters:
+    run-iis-workflow:
+        default: false
+        type: boolean
+    run-installer-workflow:
+        default: false
+        type: boolean
+version: 2.1
+workflows:
+    iis:
+        jobs:
+            - build-iis:
+                build-type: Debug
+            - test-iis:
+                requires:
+                    - build-iis
+        when: << pipeline.parameters.run-iis-workflow >>
+    installer:
+        jobs:
+            - check-ci-definition
+            - shellcheck:
+                name: run shellcheck on shell scripts
+                requires:
+                    - check-ci-definition
+            - build_installer_amd64:
+                name: build installer on amd64
+                requires:
+                    - check-ci-definition
+            - build_installer_arm64:
+                name: build installer on arm64
+                requires:
+                    - check-ci-definition
+            - installer_test:
+                matrix:
+                    parameters:
+                        base-dockerfile:
+                            - nginx.bookworm.Dockerfile
+                            - nginx.alpine.Dockerfile
+                            - nginx.al2023.Dockerfile
+                        proxy-kind:
+                            - nginx
+                name: test NGINX installer with << matrix.base-dockerfile >> base image
+                requires:
+                    - build installer on amd64
+                    - build installer on arm64
+            - installer_test:
+                matrix:
+                    parameters:
+                        base-dockerfile:
+                            - httpd.bookworm.Dockerfile
+                            - httpd.alpine.Dockerfile
+                            - httpd.al2023.Dockerfile
+                        proxy-kind:
+                            - httpd
+                name: test httpd installer with << matrix.base-dockerfile >> base image
+                requires:
+                    - build installer on amd64
+                    - build installer on arm64
+            - installer_download_test:
+                name: test installer download
+        when: << pipeline.parameters.run-installer-workflow >>
+    rum-framework:
+        jobs:
+            - check
+            - build-and-test-rum-framework
+
