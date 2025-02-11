@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = [
+  "lib/inject-browser-sdk",
+  "lib/inject-browser-sdk-ffi",
+  "cmd/check_conf",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+rust-version = "1.73.0"
+
+[workspace.lints.clippy]
+implicit_return = "deny"
+needless_return = "allow"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+opt-level = "z"     # Optimize for size.
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+panic = "abort"     # Abort on panic
+strip = true        # Automatically strip symbols from the binary.

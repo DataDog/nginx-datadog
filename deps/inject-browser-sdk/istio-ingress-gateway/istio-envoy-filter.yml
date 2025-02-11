@@ -1,0 +1,111 @@
+# Unless explicitly stated otherwise all files in this repository are licensed
+# under the Apache 2.0 License. This product includes software developed at
+# Datadog (https://www.datadoghq.com/).
+#
+# Copyright 2024-Present Datadog, Inc.
+
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: datadog-rum-injection
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: GATEWAY
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+            subFilter:
+              name: "envoy.filters.http.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.lua
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+          inlineCode: |
+            function datadog_rum()
+              -- The following values are placeholders and should be replaced with your own values.
+              -- Reference documentation: https://docs.datadoghq.com/real_user_monitoring/browser/#configuration
+              -- LIMITATIONS: Configuration values with type 'function' or 'regexp' are not supported.
+              local sdk_version = '5'
+              local cdn_region = 'us1'
+              local config = {
+                applicationId = '<DATADOG_APPLICATION_ID>',
+                clientToken = '<DATADOG_CLIENT_TOKEN>',
+                site = 'datadoghq.com',
+                service = 'my-web-application',
+                env = 'staging',
+                sampleRate = 100,
+                sessionReplaySampleRate = 20,
+                trackUserInteractions = true,
+                trackResources = true,
+                trackLongTasks = true,
+                defaultPrivacyLevel = 'mask-user-input',
+              }
+              -- END CONFIGURATION - Do not modify the following lines.
+              local script = [[
+                <script type="text/javascript">
+                  (function(h,o,u,n,d) {
+                    h=h[d]=h[d]||{q:[],onReady:function(c){h.q.push(c)}}
+                    d=o.createElement(u);d.async=1;d.src=n
+                    n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
+                  })(window,document,'script','https://www.datadoghq-browser-agent.com/]] .. 
+                    cdn_region .. [[/v]] .. sdk_version .. [[/datadog-rum.js','DD_RUM')
+                  window.DD_RUM.onReady(function() {
+                    window.DD_RUM.init(]] .. serialize_obj(config) .. [[);
+                  })                
+                </script>
+                ]]
+              return script
+            end
+
+            function envoy_on_response(response_handle)
+              local contentType = response_handle:headers():get('content-type')
+              if (contentType == nil or string.sub(contentType, 1, #('text/html')) ~= 'text/html') then
+                return
+              end
+              local body = response_handle:body()
+              if (body == nil) then
+                return
+              end
+              local body_string = tostring(body:getBytes(0, body:length()))
+              local insertion_point = string.find(body_string, '</head>')
+              if insertion_point then
+                local modified_body = string.sub(body_string, 1, insertion_point - 1) ..
+                  datadog_rum() .. string.sub(body_string, insertion_point)
+                response_handle:body():setBytes(modified_body)
+                response_handle:headers():replace('content-length', string.len(modified_body))
+
+                -- Session Replay needs the 'worker-src' directive to be set to 'blob:'
+                -- Alternatively you can self-host the worker. See https://docs.datadoghq.com/integrations/content_security_policy_logs/#web-worker
+                -- If you already have a 'connect-src' directive you may also need to add Datadog intake endpoints to it
+                -- Reference: https://docs.datadoghq.com/real_user_monitoring/#supported-endpoints-for-sdk-domains
+                local contentSecurityPolicy = response_handle:headers():get('content-security-policy')
+                local cspAdditions = '; worker-src blob:;'
+                response_handle:headers():replace('content-security-policy', (contentSecurityPolicy or '')..cspAdditions)
+              end
+            end
+
+            function serialize_obj(obj)
+              if type(obj) == 'table' then
+                local s = '{ '
+                for k,v in pairs(obj) do
+                    s = s .. '"'..k..'": ' .. serialize_obj(v) .. ','
+                end
+                return s .. '} '
+              elseif type(obj) == 'string' then
+                return '"'..obj..'"'
+              elseif type(obj) == 'number' or type(obj) == 'boolean' then
+                return tostring(obj)
+              else
+                return ''
+              end
+            end
+

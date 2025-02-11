@@ -1,0 +1,27 @@
+.env
+.idea
+.luarocks
+.DS_Store
+.vscode/
+.pytest_cache/
+
+__pycache__/
+
+lua
+lua_modules
+luarocks
+node_modules
+
+doc/
+target/
+
+# IIS
+injector_IIS/include/
+injector_IIS/test/e2e_testsa/test_assets/injector_IIS_installer.msi
+injector_IIS/test/e2e_testsa/vendor
+build_out/
+build-out/
+*.msi
+
+# Installer
+installer/proxy-configurator
