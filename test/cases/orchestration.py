@@ -318,7 +318,7 @@ def docker_compose_services():
     return result.stdout.split()
 
 
-def curl(url, headers, stderr=None, method="GET", body=None):
+def curl(url, headers, stderr=None, method="GET", body=None, http_version=1):
 
     def header_args():
         if isinstance(headers, dict):
@@ -329,6 +329,15 @@ def curl(url, headers, stderr=None, method="GET", body=None):
             for name, value in headers:
                 yield "--header"
                 yield f"{name}: {value}"
+
+    if http_version == 1:
+        version_arg = "--http1.1"
+    elif http_version == 2:
+        version_arg = "--http2-prior-knowledge"
+    elif http_version == 3:
+        version_arg = "--http3-only"
+    else:
+        raise Exception(f"Unknown HTTP version: {http_version}")
 
     # "curljson.sh" is a script that lives in the "client" docker compose
     # service.  It's a wrapper around "curl" that outputs a JSON object of
@@ -353,6 +362,8 @@ def curl(url, headers, stderr=None, method="GET", body=None):
         "curljson.sh",
         f"-X{method}",
         *header_args(),
+        '-k',
+        version_arg,
         *body_args,
         url,
     )
@@ -526,22 +537,36 @@ class Orchestration:
         if result.returncode != 0:
             raise Exception("Failed to create tarball")
 
+    @staticmethod
+    def nginx_version():
+        result = subprocess.run(docker_compose_command("exec", "--", "nginx",
+                                                       "nginx", "-v"),
+                                capture_output=True,
+                                text=True,
+                                check=True)
+        match = re.search(r'nginx/([\d.]+)', result.stderr)
+        return match.group(1) if match else None
+
     def send_nginx_http_request(self,
                                 path,
                                 port=80,
                                 headers={},
                                 method="GET",
-                                req_body=None):
+                                req_body=None,
+                                http_version=1,
+                                tls=False):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
-        url = f"http://nginx:{port}{path}"
+        protocol = "https" if tls else "http"
+        url = f"{protocol}://nginx:{port}{path}"
         print("fetching", url, file=self.verbose, flush=True)
         fields, headers, body = curl(url,
                                      headers,
                                      body=req_body,
                                      stderr=self.verbose,
-                                     method=method)
+                                     method=method,
+                                     http_version=http_version)
         return fields["response_code"], headers, body
 
     def setup_remote_config_payload(self, payload):

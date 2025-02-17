@@ -8,6 +8,7 @@ from pathlib import Path
 class TestSecBlocking(case.TestCase):
     config_setup_done = False
     requires_waf = True
+    min_nginx_version = '1.26.0'
 
     def setUp(self):
         super().setUp()
@@ -20,6 +21,14 @@ class TestSecBlocking(case.TestCase):
             conf_path = Path(__file__).parent / './conf/http.conf'
             conf_text = conf_path.read_text()
 
+            crt_path = Path(__file__).parent / './cert/example.com.crt'
+            crt_text = crt_path.read_text()
+            self.orch.nginx_replace_file('/tmp/example.com.crt', crt_text)
+
+            key_path = Path(__file__).parent / './cert/example.com.key'
+            key_text = key_path.read_text()
+            self.orch.nginx_replace_file('/tmp/example.com.key', key_text)
+
             status, log_lines = self.orch.nginx_replace_config(
                 conf_text, conf_path.name)
             self.assertEqual(0, status, log_lines)
@@ -29,6 +38,10 @@ class TestSecBlocking(case.TestCase):
         # Consume any previous logging from the agent.
         self.orch.sync_service('agent')
 
+    @staticmethod
+    def convert_headers(headers):
+        return {k.lower(): v for k, v in dict(headers).items()}
+
     def run_with_ua(self, user_agent, accept):
         headers = {'User-Agent': user_agent, 'Accept': accept}
         status, headers, body = self.orch.send_nginx_http_request(
@@ -36,9 +49,8 @@ class TestSecBlocking(case.TestCase):
 
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service('agent')
-        headers = dict(headers)
-        headers = {k.lower(): v for k, v in headers.items()}
-        return status, headers, body, log_lines
+        return status, TestSecBlocking.convert_headers(
+            headers), body, log_lines
 
     def run_with_body(self, content_type, req_body):
         status, headers, body = self.orch.send_nginx_http_request(
@@ -53,7 +65,7 @@ class TestSecBlocking(case.TestCase):
         headers = {k.lower(): v for k, v in headers.items()}
         return status, headers, body, log_lines
 
-    def assert_has_report(self, log_lines):
+    def assert_has_report(self, log_lines, exp_match='block'):
         traces = [
             json.loads(line) for line in log_lines if line.startswith('[[{')
         ]
@@ -72,7 +84,7 @@ class TestSecBlocking(case.TestCase):
         appsec_rep = json.loads(trace[0][0]['meta']['_dd.appsec.json'])
 
         self.assertEqual(appsec_rep['triggers'][0]['rule']['on_match'][0],
-                         'block')
+                         exp_match)
 
     def test_default_action(self):
         status, headers, body, log_lines = self.run_with_ua(
@@ -149,3 +161,39 @@ class TestSecBlocking(case.TestCase):
             '{"a": "block_default", "b": "' + ('a' * 1024 * 1024))
         self.assertEqual(status, 403)
         self.assert_has_report(log_lines)
+
+    def block_on_status(self, http_version):
+        if http_version != 3:
+            status, headers, body = self.orch.send_nginx_http_request(
+                '/http/status/410', http_version=http_version)
+        else:
+            status, headers, body = self.orch.send_nginx_http_request(
+                '/http/status/410', tls=True, port=443, http_version=3)
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assertEqual(501, status)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+        self.assert_has_report(log_lines, 'block_501')
+
+    def test_block_on_status_http11(self):
+        self.block_on_status(1)
+
+    def test_block_on_status_http2(self):
+        self.block_on_status(2)
+
+    def test_block_on_status_http3(self):
+        self.block_on_status(3)
+
+    def test_block_on_response_header(self):
+        nginx_version = self.orch.nginx_version()
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/resp_header_blocked')
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assertEqual(501, status)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+        self.assert_has_report(log_lines, 'block_501')

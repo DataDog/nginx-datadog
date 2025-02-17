@@ -375,6 +375,24 @@ static ngx_command_t datadog_commands[] = {
       offsetof(datadog_main_conf_t, appsec_obfuscation_value_regex),
       nullptr,
     },
+
+    {
+      ngx_string("datadog_appsec_max_saved_output_data"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_size_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_obfuscation_value_regex),
+      nullptr,
+    },
+
+    {
+      ngx_string("datadog_appsec_output_transform_temp"),
+      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_flag_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(datadog_loc_conf_t, waf_output_transform_temp),
+      nullptr,
+    },
 #endif
     DATADOG_RUM_DIRECTIVES
     ngx_null_command
@@ -848,6 +866,10 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
 #ifdef WITH_WAF
   if (conf->waf_pool == nullptr) {
     conf->waf_pool = prev->waf_pool;
+  }
+
+  if (conf->waf_output_transform_temp == NGX_CONF_UNSET) {
+    conf->waf_output_transform_temp = prev->waf_output_transform_temp;
   }
 #endif
 

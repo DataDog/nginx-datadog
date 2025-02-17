@@ -66,6 +66,8 @@ target_include_directories(nginx_module
   ${nginx_SOURCE_DIR}/src/os/unix
   ${nginx_SOURCE_DIR}/objs
   ${nginx_SOURCE_DIR}/src/core
+  ${nginx_SOURCE_DIR}/src/stream
+  ${nginx_SOURCE_DIR}/src/http/v2
   ${nginx_SOURCE_DIR}/src/event/modules)
 
 # vim: set et sw=2 ts=2:

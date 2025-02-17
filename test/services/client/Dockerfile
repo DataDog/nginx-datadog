@@ -1,9 +1,10 @@
-from alpine:3.19
+FROM alpine/curl-http3
 
-copy install-tools.sh /tmp/install-tools.sh
-run chmod +x /tmp/install-tools.sh && /tmp/install-tools.sh
+COPY install-tools.sh /tmp/install-tools.sh
+USER 0
+RUN chmod +x /tmp/install-tools.sh && /tmp/install-tools.sh
 
-copy curljson.sh /usr/local/bin/curljson.sh
+COPY curljson.sh /usr/local/bin/curljson.sh
 
-copy sigwait.sh /usr/local/bin/sigwait.sh
-entrypoint ["/usr/local/bin/sigwait.sh", "INT", "TERM"]
+COPY sigwait.sh /usr/local/bin/sigwait.sh
+ENTRYPOINT ["/usr/local/bin/sigwait.sh", "INT", "TERM"]

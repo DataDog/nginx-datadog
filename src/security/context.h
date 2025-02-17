@@ -8,12 +8,10 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 
 #include "../dd.h"
 #include "blocking.h"
-#include "collection.h"
-#include "ddwaf_obj.h"
+#include "buffer_pool.h"
 #include "library.h"
 #include "util.h"
 
@@ -26,6 +24,8 @@ extern "C" {
 }
 
 namespace datadog::nginx::security {
+
+static constexpr uintptr_t kBufferTag = 0xD47AD06;
 
 struct DdwafResultFreeFunctor {
   void operator()(ddwaf_result &res) { ddwaf_result_free(&res); }
@@ -56,12 +56,16 @@ class Context {
 
  public:
   // returns a new context or an empty unique_ptr if the waf is not active
-  static std::unique_ptr<Context> maybe_create();
+  static std::unique_ptr<Context> maybe_create(
+      datadog_loc_conf_t &loc_conf,
+      std::optional<std::size_t> max_saved_output_data);
 
   ngx_int_t request_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
                                 dd::Span &span) noexcept;
 
   bool on_request_start(ngx_http_request_t &request, dd::Span &span) noexcept;
+
+  ngx_int_t header_filter(ngx_http_request_t &request, dd::Span &span) noexcept;
 
   ngx_int_t output_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
                                dd::Span &span) noexcept;
@@ -78,6 +82,8 @@ class Context {
 
   void waf_req_post_done(ngx_http_request_t &request, bool blocked);
 
+  void waf_final_done(ngx_http_request_t &request, bool blocked);
+
   std::optional<BlockSpecification> run_waf_end(ngx_http_request_t &request,
                                                 dd::Span &span);
 
@@ -85,13 +91,13 @@ class Context {
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
   ngx_int_t do_request_body_filter(ngx_http_request_t &request,
                                    ngx_chain_t *chain, dd::Span &span);
+  ngx_int_t do_header_filter(ngx_http_request_t &request, dd::Span &span);
   ngx_int_t do_output_body_filter(ngx_http_request_t &request,
                                   ngx_chain_t *chain, dd::Span &span);
   void do_on_main_log_request(ngx_http_request_t &request, dd::Span &span);
 
   bool has_matches() const noexcept;
   void report_matches(ngx_http_request_t &request, dd::Span &span);
-  ngx_int_t buffer_chain(ngx_pool_t &pool, ngx_chain_t *in, bool consume);
 
   enum class stage {
     /* Set on on_request_start (NGX_HTTP_ACCESS_PHASE) if there's no thread
@@ -155,10 +161,13 @@ class Context {
      * submit the WAF final run.
      * Incoming transitions: AFTER_BEGIN_WAF → BEFORE_RUN_WAF_END
      *                       AFTER_ON_REQ_WAF → BEFORE_RUN_WAF_END */
-    BEFORE_RUN_WAF_END,
+    PENDING_WAF_END,
 
-    /* Set on the thread of the final WAF run, after the WAF has run.
-     * Incoming transitions: BEFORE_RUN_WAF_END → AFTER_RUN_WAF_END */
+    WAF_END_BLOCK_COMMIT,
+
+    /* Set on the thread of the final WAF run, after the WAF has run, or
+     * directly on the main thread, if we could not submit the WAF final task.
+     * Incoming transitions: PENDING_WAF_END → AFTER_RUN_WAF_END */
     AFTER_RUN_WAF_END,
 
     // possible final states:
@@ -183,17 +192,37 @@ class Context {
   OwnedDdwafContext ctx_{nullptr};
   DdwafMemres memres_;
 
-  static inline constexpr auto kMaxFilterData = 40 * 1024;
+  static inline constexpr std::size_t kMaxFilterData = 40 * 1024;
+  static inline constexpr std::size_t kDefaultMaxSavedOutputData = 256 * 1024;
+  std::size_t max_saved_output_data_{kDefaultMaxSavedOutputData};
+  bool output_transform_temp_{false};
 
   struct FilterCtx {
-    ngx_chain_t *out;  // the buffered request body
-    ngx_chain_t **out_last{&out};
+    ngx_chain_t *out;  // the buffered request or response body
+    ngx_chain_t **out_latest{&out};
     std::size_t out_total;
+    std::size_t copied_total;
     bool found_last;
 
     void clear(ngx_pool_t &pool) noexcept;
+    void replace_out(ngx_chain_t *new_out) noexcept;
   };
-  FilterCtx filter_ctx_{};
+  FilterCtx filter_ctx_{};         // for request body
+  FilterCtx header_filter_ctx_{};  // for the header data
+  FilterCtx out_filter_ctx_{};     // for response body
+  // these 5 buffers are in addition to those used to buffer data while the WAF
+  // in running
+  BufferPool<5, 16384, kBufferTag> buffer_pool_;
+
+  std::pair<ngx_chain_t *, ngx_chain_t *> modify_chain_at_temp(
+      ngx_pool_t &pool, ngx_chain_t *in) noexcept;
+
+  static ngx_int_t buffer_chain(FilterCtx &filter_ctx, ngx_pool_t &pool,
+                                ngx_chain_t const *in, bool consume) noexcept;
+
+ public:
+  ngx_int_t buffer_header_output(ngx_pool_t &pool, ngx_chain_t *chain) noexcept;
+  ngx_int_t send_buffered_header(ngx_http_request_t &request) noexcept;
 };
 
 }  // namespace datadog::nginx::security

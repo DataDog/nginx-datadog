@@ -1,11 +1,10 @@
 """Boilerplate for test cases"""
 
-from . import orchestration
-
 import os
-import sys
 import time
 import unittest
+
+from . import orchestration
 
 
 class TestCase(unittest.TestCase):
@@ -47,6 +46,23 @@ class TestCase(unittest.TestCase):
                                   or openresty_value == "NO"
                                   or openresty_value == "")
 
+    @staticmethod
+    def compare_versions(v1, v2):
+        try:
+            parts1 = [int(x) for x in v1.split('.')]
+            parts2 = [int(x) for x in v2.split('.')]
+        except ValueError as e:
+            raise ValueError("Invalid version(s)") from e
+
+        max_len = max(len(parts1), len(parts2))
+        parts1.extend([0] * (max_len - len(parts1)))
+        parts2.extend([0] * (max_len - len(parts2)))
+
+        for p1, p2 in zip(parts1, parts2):
+            if p1 != p2:
+                return p1 - p2
+        return 0
+
     def setUp(self):
         if (type(self).waf_disabled and hasattr(type(self), "requires_waf")
                 and type(self).requires_waf):
@@ -60,6 +76,15 @@ class TestCase(unittest.TestCase):
                 and hasattr(type(self), "requires_openresty")
                 and type(self).requires_openresty):
             self.skipTest("OpenResty is disabled")
+
+        if hasattr(type(self), "min_nginx_version"):
+            min_version = type(self).min_nginx_version
+            with orchestration.singleton() as orch:
+                actual_version = orch.nginx_version()
+                if TestCase.compare_versions(actual_version, min_version) < 0:
+                    self.skipTest(
+                        f"requires nginx >= {min_version}, got {actual_version}"
+                    )
 
         context = self.orch_context = orchestration.singleton()
         self.orch = context.__enter__()

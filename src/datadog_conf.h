@@ -138,6 +138,8 @@ struct datadog_main_conf_t {
   // DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
   ngx_str_t appsec_obfuscation_value_regex = ngx_null_string;
 
+  std::size_t appsec_max_saved_output_data{NGX_CONF_UNSET_SIZE};
+
   // TODO: missing settings and their functionality
   // DD_TRACE_CLIENT_IP_RESOLVER_ENABLED (whether to collect headers and run the
   // client ip resolution. Also requires AppSec to be enabled or
@@ -225,7 +227,13 @@ struct datadog_loc_conf_t {
       allow_sampling_delegation_in_subrequests_directive;
 
 #ifdef WITH_WAF
+  // the thread pool used to run the WAF on
   ngx_thread_pool_t *waf_pool{nullptr};
+
+  // whether temp file buffers received by the module output filter should be
+  // split into memory files. This can work around bugs in downstream filters
+  // than can't handle these buffers. Defaults to false.
+  ngx_flag_t waf_output_transform_temp{NGX_CONF_UNSET};
 #endif
 
 #ifdef WITH_RUM

@@ -21,7 +21,8 @@ DatadogContext::DatadogContext(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
                                datadog_loc_conf_t *loc_conf)
 #ifdef WITH_WAF
-    : sec_ctx_{security::Context::maybe_create()}
+    : sec_ctx_{security::Context::maybe_create(
+          *loc_conf, security::Library::max_saved_output_data())}
 #endif
 {
   if (loc_conf->enable_tracing) {
@@ -82,9 +83,12 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
     return ngx_http_next_header_filter(request);
   }
 
+#if defined(WITH_RUM) || defined(WITH_WAF)
+  RequestTracing *trace{};
+#endif
 #ifdef WITH_RUM
   if (loc_conf->rum_enable) {
-    auto *trace = find_trace(request);
+    trace = find_trace(request);
     if (trace != nullptr) {
       auto rum_span = trace->active_span().create_child();
       rum_span.set_name("rum_sdk_injection.on_header");
@@ -96,6 +100,17 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
     } else {
       rum_ctx_.on_header_filter(request, loc_conf, ngx_http_next_header_filter);
     }
+  }
+#elif WITH_WAF
+  if (sec_ctx_) {
+    trace = find_trace(request);
+  }
+#endif
+
+#ifdef WITH_WAF
+  if (sec_ctx_ && trace) {
+    dd::Span &span = trace->active_span();
+    return sec_ctx_->header_filter(*request, span);
   }
 #endif
 

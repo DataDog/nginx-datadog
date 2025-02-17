@@ -8,6 +8,7 @@
 #include "util.h"
 
 extern "C" {
+#include <ngx_event_posted.h>
 #include <ngx_http.h>
 }
 
@@ -314,9 +315,20 @@ void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
     req.header_only = 1;
   }
 
-  ngx_http_discard_request_body(&req);
+  if (ngx_http_discard_request_body(&req) != NGX_OK) {
+    req.keepalive = 0;
+  }
+  ngx_http_clean_header(&req);
 
-  // TODO: clear all current headers?
+  // ngx_http_filter_finalize_request neutralizes other filters with:
+  //   void *ctx = req.ctx[ngx_http_datadog_module.ctx_index];
+  //   ngx_memzero(req.ctx, sizeof(void *) * ngx_http_max_module);
+  //   req.ctx[ngx_http_datadog_module.ctx_index] = ctx;
+  //   req.filter_finalize = 1;
+  // This would prevent our blocking response from being changed by filters.
+  // However, at least the chunked body filter segfaults if its context is 0'ed.
+  // filter_finalize = 1 has its own problems, causing the connection->error to
+  // be set to 1.
 
   req.headers_out.status = resp.status;
   req.headers_out.content_type = BlockResponse::content_type_header(resp.ct);
@@ -325,14 +337,18 @@ void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
   if (!resp.location.empty()) {
     push_header(req, "Location"sv, resp.location);
   }
-  if (templ) {
-    req.headers_out.content_length_n = static_cast<off_t>(templ->len);
-  } else {
-    req.headers_out.content_length_n = 0;
-  }
+  // Filters may change the response, invalidating this length
+  //   if (templ) {
+  //     req.headers_out.content_length_n = static_cast<off_t>(templ->len);
+  //   } else {
+  //     req.headers_out.content_length_n = 0;
+  //   }
+  req.keepalive = 0;
+  req.lingering_close = 0;
 
-  // TODO: bypass header filters?
-  auto res = ngx_http_send_header(&req);
+  ngx_int_t res = ngx_http_send_header(&req);
+  ngx_log_debug1(NGX_LOG_DEBUG, req.connection->log, 0,
+                 "Status %d returned by ngx_http_send_header", res);
   if (res == NGX_ERROR || res > NGX_OK || req.header_only) {
     ngx_http_finalize_request(&req, res);
     return;
@@ -352,9 +368,16 @@ void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
   ngx_chain_t out{};
   out.buf = b;
 
-  // TODO: bypass and call ngx_http_write_filter?
   ngx_http_output_filter(&req, &out);
+
+  auto count = req.count;
   ngx_http_finalize_request(&req, NGX_DONE);
+
+  // o/wise http/3 doesn't close the connection (via ngx_http_writer >
+  // ngx_http_finalize_request)
+  if (count - 1 > 0) {
+    ngx_post_event(req.connection->write, &ngx_posted_events);
+  }
 }
 
 BlockingService::BlockingService(

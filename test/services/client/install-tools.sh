@@ -11,7 +11,7 @@ case "$(uname -m)" in
 esac
 
 apk update
-apk add wget tar curl jq
+apk add wget tar jq
 
 # grpcurl is a self-contained binary (Go program)
 GRPCURL_TAR="grpcurl_1.8.6_linux_${ARCH}.tar.gz"
