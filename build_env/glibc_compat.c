@@ -7,65 +7,58 @@
 
 #if defined(__linux__) && !defined(__GLIBC__)
 
-#    ifdef __x86_64__
-float ceilf(float x)
-{
-    float result;
-    // NOLINTNEXTLINE(hicpp-no-assembler)
-    __asm__("roundss $0x0A, %[x], %[result]"
-            : [result] "=x"(result)
-            : [x] "x"(x));
-    return result;
+#ifdef __x86_64__
+float ceilf(float x) {
+  float result;
+  // NOLINTNEXTLINE(hicpp-no-assembler)
+  __asm__("roundss $0x0A, %[x], %[result]"
+          : [result] "=x"(result)
+          : [x] "x"(x));
+  return result;
 }
-double ceil(double x)
-{
-    double result;
-    // NOLINTNEXTLINE(hicpp-no-assembler)
-    __asm__("roundsd $0x0A, %[x], %[result]"
-            : [result] "=x"(result)
-            : [x] "x"(x));
-    return result;
+double ceil(double x) {
+  double result;
+  // NOLINTNEXTLINE(hicpp-no-assembler)
+  __asm__("roundsd $0x0A, %[x], %[result]"
+          : [result] "=x"(result)
+          : [x] "x"(x));
+  return result;
 }
-#    endif
+#endif
 
-#    ifdef __aarch64__
-float ceilf(float x)
-{
-    float result;
-    __asm__("frintp %s0, %s1\n" : "=w"(result) : "w"(x));
-    return result;
+#ifdef __aarch64__
+float ceilf(float x) {
+  float result;
+  __asm__("frintp %s0, %s1\n" : "=w"(result) : "w"(x));
+  return result;
 }
-double ceil(double x)
-{
-    double result;
-    __asm__("frintp %d0, %d1\n" : "=w"(result) : "w"(x));
-    return result;
+double ceil(double x) {
+  double result;
+  __asm__("frintp %d0, %d1\n" : "=w"(result) : "w"(x));
+  return result;
 }
-#    endif
+#endif
 
-#    ifdef __aarch64__
-#        define _STAT_VER 0
-#    else
-#        define _STAT_VER 1
-#    endif
+#ifdef __aarch64__
+#define _STAT_VER 0
+#else
+#define _STAT_VER 1
+#endif
 
 // glibc before 2.33 (2021) doesn't have these
-int stat(const char *restrict path, void *restrict buf)
-{
-    int __xstat(int, const char *restrict, void *restrict);
-    return __xstat(_STAT_VER, path, buf);
+int stat(const char *restrict path, void *restrict buf) {
+  int __xstat(int, const char *restrict, void *restrict);
+  return __xstat(_STAT_VER, path, buf);
 }
 
-int fstat(int fd, void *buf)
-{
-    int __fxstat(int, int, void *);
-    return __fxstat(_STAT_VER, fd, buf);
+int fstat(int fd, void *buf) {
+  int __fxstat(int, int, void *);
+  return __fxstat(_STAT_VER, fd, buf);
 }
 
-int lstat(const char *restrict path, void *restrict buf)
-{
-    int __lxstat(int, const char *restrict, void *restrict);
-    return __lxstat(_STAT_VER, path, buf);
+int lstat(const char *restrict path, void *restrict buf) {
+  int __lxstat(int, const char *restrict, void *restrict);
+  return __lxstat(_STAT_VER, path, buf);
 }
 
 // glibc doesn't define pthread_atfork on aarch64. We need to delegate to
@@ -87,137 +80,153 @@ int lstat(const char *restrict path, void *restrict buf)
 
 extern void *__dso_handle __attribute__((weak));
 int __register_atfork(void (*prepare)(void), void (*parent)(void),
-    void (*child)(void), void *__dso_handle) __attribute__((weak));
+                      void (*child)(void), void *__dso_handle)
+    __attribute__((weak));
 
-int pthread_atfork(
-    void (*prepare)(void), void (*parent)(void), void (*child)(void))
-{
-    // glibc
-    if (__dso_handle && __register_atfork) {
-        return __register_atfork(prepare, parent, child, __dso_handle);
+int pthread_atfork(void (*prepare)(void), void (*parent)(void),
+                   void (*child)(void)) {
+  // glibc
+  if (__dso_handle && __register_atfork) {
+    return __register_atfork(prepare, parent, child, __dso_handle);
+  }
+
+  static int (*real_atfork)(void (*)(void), void (*)(void), void (*)(void));
+
+  if (!real_atfork) {
+    // dlopen musl
+#ifdef __aarch64__
+    void *handle = dlopen("ld-musl-aarch64.so.1", RTLD_LAZY);
+    if (!handle) {
+      (void)fprintf(
+          // NOLINTNEXTLINE(concurrency-mt-unsafe)
+          stderr, "dlopen of ld-musl-aarch64.so.1 failed: %s\n", dlerror());
+      abort();
     }
-
-    static int (*real_atfork)(void (*)(void), void (*)(void), void (*)(void));
-
+#else
+    void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
+    if (!handle) {
+      (void)fprintf(
+          // NOLINTNEXTLINE(concurrency-mt-unsafe)
+          stderr, "dlopen of libc.musl-x86_64.so.1 failed: %s\n", dlerror());
+      abort();
+    }
+#endif
+    real_atfork = dlsym(handle, "pthread_atfork");
     if (!real_atfork) {
-        // dlopen musl
-#    ifdef __aarch64__
-        void *handle = dlopen("ld-musl-aarch64.so.1", RTLD_LAZY);
-        if (!handle) {
-            (void)fprintf(
-                // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                stderr, "dlopen of ld-musl-aarch64.so.1 failed: %s\n",
-                dlerror());
-            abort();
-        }
-#    else
-        void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
-        if (!handle) {
-            (void)fprintf(
-                // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                stderr, "dlopen of libc.musl-x86_64.so.1 failed: %s\n",
-                dlerror());
-            abort();
-        }
-#    endif
-        real_atfork = dlsym(handle, "pthread_atfork");
-        if (!real_atfork) {
-            (void)fprintf(
-                // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                stderr, "dlsym of pthread_atfork failed: %s\n", dlerror());
-            abort();
-        }
+      (void)fprintf(
+          // NOLINTNEXTLINE(concurrency-mt-unsafe)
+          stderr, "dlsym of pthread_atfork failed: %s\n", dlerror());
+      abort();
     }
+  }
 
-    return real_atfork(prepare, parent, child);
+  return real_atfork(prepare, parent, child);
 }
 
-#    ifdef __x86_64__
+#ifdef __x86_64__
 struct pthread_cond;
 struct pthread_condattr;
 typedef struct pthread_cond pthread_cond_t;
 typedef struct pthread_condattr pthread_condattr_t;
 
-int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
-{
-    static int (*real_pthread_cond_init)(pthread_cond_t *cond, const pthread_condattr_t *cond_attr);
+int pthread_cond_init(pthread_cond_t *cond,
+                      const pthread_condattr_t *cond_attr) {
+  static int (*real_pthread_cond_init)(pthread_cond_t *cond,
+                                       const pthread_condattr_t *cond_attr);
 
-    if (!real_pthread_cond_init) {
-        void *handle = dlopen("libc.so.6", RTLD_LAZY);
-        if (!handle) {
-            void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
-            if (!handle) {
-                (void)fprintf(
-                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                    stderr, "dlopen of libc.so.6 and libc.musl-x86_64.so.1 failed: %s\n",
-                    dlerror());
-                abort();
-            }
-        }
-
-        real_pthread_cond_init = dlsym(handle, "pthread_cond_init");
-        if (!real_pthread_cond_init) {
-            (void)fprintf(
-                // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                stderr, "dlsym of pthread_cond_init failed: %s\n", dlerror());
-            abort();
-        }
+  if (!real_pthread_cond_init) {
+    void *handle = dlopen("libc.so.6", RTLD_LAZY);
+    if (!handle) {
+      void *handle = dlopen("libc.musl-x86_64.so.1", RTLD_LAZY);
+      if (!handle) {
+        (void)fprintf(
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            stderr,
+            "dlopen of libc.so.6 and libc.musl-x86_64.so.1 failed: %s\n",
+            dlerror());
+        abort();
+      }
     }
 
-    return real_pthread_cond_init(cond, cond_attr);
+    real_pthread_cond_init = dlsym(handle, "pthread_cond_init");
+    if (!real_pthread_cond_init) {
+      (void)fprintf(
+          // NOLINTNEXTLINE(concurrency-mt-unsafe)
+          stderr, "dlsym of pthread_cond_init failed: %s\n", dlerror());
+      abort();
+    }
+  }
+
+  return real_pthread_cond_init(cond, cond_attr);
 }
-#    endif
+#endif
 
 // the symbol strerror_r in glibc is not the POSIX version; it returns char *
 // __xpg_sterror_r is exported by both glibc and musl
-int strerror_r(int errnum, char *buf, size_t buflen)
-{
-    int __xpg_strerror_r(int, char *, size_t);
-    return __xpg_strerror_r(errnum, buf, buflen);
+int strerror_r(int errnum, char *buf, size_t buflen) {
+  int __xpg_strerror_r(int, char *, size_t);
+  return __xpg_strerror_r(errnum, buf, buflen);
 }
 
 // when compiling with --coverage, some references to atexit show up.
 // glibc doesn't provide atexit for similar reasons as pthread_atfork presumably
 int __cxa_atexit(void (*func)(void *), void *arg, void *dso_handle);
-int atexit(void (*function)(void))
-{
-    if (!__dso_handle) {
-        (void)fprintf(stderr, "Aborting because __dso_handle is NULL\n");
-        abort();
-    }
+int atexit(void (*function)(void)) {
+  if (!__dso_handle) {
+    (void)fprintf(stderr, "Aborting because __dso_handle is NULL\n");
+    abort();
+  }
 
-    // the cast is harmless on amd64 and aarch64. Passing an extra argument to a
-    // function that expects none causes no problems
-    return __cxa_atexit((void (*)(void *))function, 0, __dso_handle);
+  // the cast is harmless on amd64 and aarch64. Passing an extra argument to a
+  // function that expects none causes no problems
+  return __cxa_atexit((void (*)(void *))function, 0, __dso_handle);
 }
 
 // introduced in glibc 2.25
 ssize_t getrandom(void *buf, size_t buflen, unsigned int flags) {
-    // SYS_getrandom is 318 (amd64) or 278 (aarch64)
-    // This was only added in Linux 3.17 (2014), so don't use it
-    // return syscall(SYS_getrandom, buf, buflen, flags);
-    int fd;
-    size_t bytes_read = 0;
+  // SYS_getrandom is 318 (amd64) or 278 (aarch64)
+  // This was only added in Linux 3.17 (2014), so don't use it
+  // return syscall(SYS_getrandom, buf, buflen, flags);
+  int fd;
+  size_t bytes_read = 0;
 
-    fd = open("/dev/urandom", O_RDONLY);
-    if (fd < 0) {
-        return -1;
+  fd = open("/dev/urandom", O_RDONLY);
+  if (fd < 0) {
+    return -1;
+  }
+
+  while (bytes_read < buflen) {
+    ssize_t result = read(fd, (char *)buf + bytes_read, buflen - bytes_read);
+    if (result < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      close(fd);
+      return -1;
     }
+    bytes_read += result;
+  }
 
-    while (bytes_read < buflen) {
-        ssize_t result = read(fd, (char*)buf + bytes_read, buflen - bytes_read);
-        if (result < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            close(fd);
-            return -1;
-        }
-        bytes_read += result;
-    }
+  close(fd);
+  return (ssize_t)bytes_read;
+}
 
-    close(fd);
-    return (ssize_t)bytes_read;
+// introduced in glibc 2.29
+struct posix_spawn_file_actions;
+typedef struct posix_spawn_file_actions_t posix_spawn_file_actions_t;
+
+int posix_spawn_file_actions_addchdir_np(
+    posix_spawn_file_actions_t *restrict file_actions,
+    const char *restrict path) {
+  static int (*posix_spawn_file_actions_addchdir)(
+      posix_spawn_file_actions_t *restrict, const char *restrict);
+
+  if (!posix_spawn_file_actions_addchdir) {
+    (void)fprintf(stderr,
+                  "missing definition of `posix_spawn_file_actions_addchdir`");
+    abort();
+  }
+  return posix_spawn_file_actions_addchdir(file_actions, path);
 }
 
 #endif
