@@ -11,7 +11,6 @@
 
 #include "../dd.h"
 #include "blocking.h"
-#include "buffer_pool.h"
 #include "library.h"
 #include "util.h"
 
@@ -195,7 +194,6 @@ class Context {
   static inline constexpr std::size_t kMaxFilterData = 40 * 1024;
   static inline constexpr std::size_t kDefaultMaxSavedOutputData = 256 * 1024;
   std::size_t max_saved_output_data_{kDefaultMaxSavedOutputData};
-  bool output_transform_temp_{false};
 
   struct FilterCtx {
     ngx_chain_t *out;  // the buffered request or response body
@@ -210,12 +208,6 @@ class Context {
   FilterCtx filter_ctx_{};         // for request body
   FilterCtx header_filter_ctx_{};  // for the header data
   FilterCtx out_filter_ctx_{};     // for response body
-  // these 5 buffers are in addition to those used to buffer data while the WAF
-  // in running
-  BufferPool<5, 16384, kBufferTag> buffer_pool_;
-
-  std::pair<ngx_chain_t *, ngx_chain_t *> modify_chain_at_temp(
-      ngx_pool_t &pool, ngx_chain_t *in) noexcept;
 
   static ngx_int_t buffer_chain(FilterCtx &filter_ctx, ngx_pool_t &pool,
                                 ngx_chain_t const *in, bool consume) noexcept;

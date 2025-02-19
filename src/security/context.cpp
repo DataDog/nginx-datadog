@@ -78,14 +78,6 @@ std::size_t has_last(ngx_chain_t const *ch) {
   }
   return false;
 }
-bool has_file(ngx_chain_t const *ch) {
-  for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
-    if (!ngx_buf_in_memory(cl->buf) && cl->buf->in_file) {
-      return true;
-    }
-  }
-  return false;
-}
 
 class JsonWriter : public rapidjson::Writer<rapidjson::StringBuffer> {
   using rapidjson::Writer<rapidjson::StringBuffer>::Writer;
@@ -225,9 +217,6 @@ std::unique_ptr<Context> Context::maybe_create(
   auto res = std::unique_ptr<Context>{new Context{std::move(handle)}};
   if (max_saved_output_data) {
     res->max_saved_output_data_ = *max_saved_output_data;
-  }
-  if (loc_conf.waf_output_transform_temp != NGX_CONF_UNSET) {
-    res->output_transform_temp_ = loc_conf.waf_output_transform_temp;
   }
   return res;
 }
@@ -1426,7 +1415,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
     return ngx_http_next_output_body_filter(&request, in);
   }
 
-  // otherwise we sent down the buffered data + whatever we got
+  // otherwise we send down the buffered data + whatever we got
 
   if (header_filter_ctx_.out) {
     // if we have header data, send it first. Bypass the body filter chain by
@@ -1452,7 +1441,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
     // else continue
   }
 
-  if (out_filter_ctx_.out && !output_transform_temp_) {
+  if (out_filter_ctx_.out) {
     // if we have data accumulated, add in to it (without consuming) and send it
     // downstream. We add it all together to avoid having to do two calls
     // downstream (plus handle the case where the first call doesn't return
@@ -1472,91 +1461,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
                   "waf output body filter: downstream filter returned %d", rc);
     out_filter_ctx_.clear(*request.pool);
     return rc;
-  } else if (output_transform_temp_) {
-    // if we're to transfrom temp buffers into memory buffers:
-    // * if we don't have data accumulated and we don't have a file, we can pass
-    //   the in chain directly downstream
-    // * if we have data accumulated, we add in to the accumulated data, and
-    //   split the chain at the first file buffer. We read as much of the file
-    //   as we can given the amount of memory buffers we're willing to allocate,
-    //   append it to the first part (before the file buffer), and send it
-    //   downstream. The second part contains the unread part of the file buffer
-    //   (if any), plus the subsequent buffers (if any). If the downstream
-    //   filters, do not return NGX_OK, or if we have busy buffers (the
-    //   downstream filters did not fully consume the data we passed them), we
-    //   return, saving the second part for the next filter call. Otherwise,
-    //   we loop, reading more of the file buffer and sending it downstream,
-    //   until we either get an empty second part, have busy buffers, or
-    //   downstream doesn't return NGX_OK.
-
-    if (!out_filter_ctx_.out && !has_file(in)) {
-      goto passthru;  // fast path
-    }
-
-    if (buffer_chain(out_filter_ctx_, *request.pool, in, false) != NGX_OK) {
-      return NGX_HTTP_INTERNAL_SERVER_ERROR;
-    }
-
-  again:
-    auto [first_part, second_part] =
-        modify_chain_at_temp(*request.pool, out_filter_ctx_.out);
-    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                  "waf output body filter: chain split "
-                  "first_part_chain_(len,size)=(%uz,%uz), "
-                  "second_part_chain_(len,size)=(%uz, %uz)",
-                  chain_length(first_part), chain_size(first_part),
-                  chain_length(second_part), chain_size(second_part));
-
-    if (!first_part && !second_part) {
-      return NGX_HTTP_INTERNAL_SERVER_ERROR;
-    }
-
-    if (second_part) {
-      request.buffered |= 0x08;
-    } else {
-      request.buffered &= ~0x08;
-    }
-    out_filter_ctx_.replace_out(second_part);
-
-    auto rc = ngx_http_next_output_body_filter(&request, first_part);
-    // see nginx development guide on ngx_chain_update_chains
-    buffer_pool_.update_chains(*request.pool, first_part);
-    if (rc != NGX_OK) {
-      ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                    "waf output body filter: output body filter returned %d; "
-                    "busy_(len,size)=(%uz,%uz), returning",
-                    rc, chain_length(buffer_pool_.busy()),
-                    chain_size(buffer_pool_.busy()));
-      return rc;
-    }
-    if (buffer_pool_.busy()) {
-      ngx_log_debug(
-          NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-          "waf output body filter: buffer pool has busy buffers; "
-          "out_(len,size)=(%uz,%uz), busy_(len,size)=(%uz,%uz), "
-          "returning NGX_AGAIN",
-          chain_length(out_filter_ctx_.out), chain_size(out_filter_ctx_.out),
-          chain_length(buffer_pool_.busy()), chain_size(buffer_pool_.busy()));
-
-      // we need to be flushed, so we can flush downstream too
-      return NGX_AGAIN;
-    }
-
-    if (out_filter_ctx_.out) {
-      ngx_log_debug(
-          NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-          "waf output body filter: downstream returned NGX_OK and we "
-          "still have data to send down and no busy buffers; looping");
-      goto again;
-    }
-
-    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                  "waf output body filter: downstream returned NGX_OK and we "
-                  "have neither busy buffers nor further data to send down; "
-                  "returning NGX_OK");
-    return NGX_OK;
   } else {
-  passthru:
     // just pass in chain through
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
                   "waf output body filter: sending down in chain directly");
@@ -1565,79 +1470,6 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
                   "waf_output_body_filter: downstream filter returned %d", rc);
     return rc;
   }
-}
-
-std::pair<ngx_chain_t *, ngx_chain_t *> Context::modify_chain_at_temp(
-    ngx_pool_t &pool, ngx_chain_t *in) noexcept {
-  ngx_chain_t *last_temp = nullptr;
-  ngx_chain_t *c_file_buf = nullptr;  // first file buf
-  for (ngx_chain_t *c = in; c; c = c->next) {
-    const ngx_buf_t *b = c->buf;
-    if (!ngx_buf_in_memory(b) && b->in_file) {
-      c_file_buf = c;
-      break;
-    }
-    last_temp = c;
-  }
-
-  if (!c_file_buf) {
-    return {in, nullptr};
-  }
-
-  ngx_chain_t *first_part;
-  ngx_chain_t *second_part{};
-  ngx_chain_t **first_part_tail{};
-
-  if (last_temp) {
-    first_part = in;
-    first_part_tail = &last_temp->next;
-  } else {
-    first_part_tail = &first_part;
-  }
-  *first_part_tail = nullptr;
-
-  ngx_buf_t &file_buf = *c_file_buf->buf;
-  off_t &file_pos = file_buf.file_pos;
-  const auto file_completely_read = [&file_pos,
-                                     file_last = file_buf.file_last]() -> bool {
-    return file_pos >= file_last;
-  };
-  while (true) {  // loop while we have buffers and !file_completely_read
-    std::optional<ngx_chain_t *> maybe_buffer = buffer_pool_.get_buffer(pool);
-    if (!maybe_buffer) {
-      break;
-    }
-    ngx_buf_t &b = *(*maybe_buffer)->buf;
-    ssize_t amount_read = ngx_read_file(
-        file_buf.file, b.pos,
-        std::min(
-            static_cast<std::intptr_t>(file_buf.file_last - file_buf.file_pos),
-            b.end - b.pos),
-        file_buf.file_pos);
-    if (amount_read <= 0) {
-      return {nullptr, nullptr};
-    }
-    file_pos += amount_read;
-    b.last = b.pos + amount_read;
-    *first_part_tail = *maybe_buffer;
-    first_part_tail = &(*first_part_tail)->next;
-
-    if (file_completely_read()) {  // file completely read
-      b.flush = file_buf.flush;
-      b.last_buf = file_buf.last_buf;
-      b.last_in_chain = file_buf.last_in_chain;
-      break;
-    }
-  }
-
-  if (file_completely_read()) {
-    second_part = c_file_buf->next;
-    ngx_free_chain(&pool, c_file_buf);
-  } else {
-    second_part = c_file_buf;
-  }
-
-  return {first_part, second_part};
 }
 
 std::optional<BlockSpecification> Context::run_waf_req_post(

@@ -229,11 +229,6 @@ struct datadog_loc_conf_t {
 #ifdef WITH_WAF
   // the thread pool used to run the WAF on
   ngx_thread_pool_t *waf_pool{nullptr};
-
-  // whether temp file buffers received by the module output filter should be
-  // split into memory files. This can work around bugs in downstream filters
-  // than can't handle these buffers. Defaults to false.
-  ngx_flag_t waf_output_transform_temp{NGX_CONF_UNSET};
 #endif
 
 #ifdef WITH_RUM
