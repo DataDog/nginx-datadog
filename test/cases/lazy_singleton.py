@@ -31,8 +31,10 @@ class LazySingleton:
     @contextlib.contextmanager
     def context(self):
         self.increment_reference_count()
-        yield self.instance
-        self.decrement_reference_count()
+        try:
+            yield self.instance
+        finally:
+            self.decrement_reference_count()
 
     def increment_reference_count(self):
         self.reference_count += 1
