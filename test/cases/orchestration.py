@@ -544,7 +544,7 @@ class Orchestration:
                                 capture_output=True,
                                 text=True,
                                 check=True)
-        match = re.search(r'nginx/([\d.]+)', result.stderr)
+        match = re.search(r'/([\d.]+)', result.stderr)
         return match.group(1) if match else None
 
     def send_nginx_http_request(self,
