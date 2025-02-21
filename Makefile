@@ -160,13 +160,13 @@ build-openresty-aux:
 test:
 	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} \
 		--module-path .musl-build/ngx_http_datadog_module.so -- \
-		--verbose --failfast $(TEST_ARGS)
+		--verbose $(TEST_ARGS)
 
 .PHONY: test-openresty
 test-openresty:
 	RESTY_TEST=ON python3 test/bin/run.py --platform $(DOCKER_PLATFORM) \
 	   --image ${BASE_IMAGE} --module-path .openresty-build/ngx_http_datadog_module.so -- \
-	   --verbose --failfast $(TEST_ARGS)
+	   --verbose $(TEST_ARGS)
 
 .PHONY: build-and-test
 build-and-test: build-musl test
