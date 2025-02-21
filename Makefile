@@ -122,7 +122,7 @@ build-musl-aux build-musl-cov-aux:
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
- 		-DNGINX_VERSION="$(NGINX_VERSION)" \
+		-DNGINX_VERSION="$(NGINX_VERSION)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \

@@ -141,13 +141,15 @@ class TestSecBlocking(case.TestCase):
 
     def test_html_action_http2(self):
         status, headers, body, _ = self.run_with_ua('block_html',
-                                                    'application/json', http_version=2)
+                                                    'application/json',
+                                                    http_version=2)
         self.assertEqual(status, 403)
         self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
 
     def test_html_action_http3(self):
         status, headers, body, _ = self.run_with_ua('block_html',
-                                                    'application/json', http_version=3)
+                                                    'application/json',
+                                                    http_version=3)
         self.assertEqual(status, 403)
         self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
 
@@ -167,12 +169,16 @@ class TestSecBlocking(case.TestCase):
         self.assertEqual(headers['location'], 'https://www.cloudflare.com')
 
     def test_redirect_action_http2(self):
-        status, headers, _, _ = self.run_with_ua('redirect', '*/*', http_version=2)
+        status, headers, _, _ = self.run_with_ua('redirect',
+                                                 '*/*',
+                                                 http_version=2)
         self.assertEqual(status, 301)
         self.assertEqual(headers['location'], 'https://www.cloudflare.com')
 
     def test_redirect_action_http3(self):
-        status, headers, _, _ = self.run_with_ua('redirect', '*/*', http_version=3)
+        status, headers, _, _ = self.run_with_ua('redirect',
+                                                 '*/*',
+                                                 http_version=3)
         self.assertEqual(status, 301)
         self.assertEqual(headers['location'], 'https://www.cloudflare.com')
 
@@ -197,14 +203,16 @@ class TestSecBlocking(case.TestCase):
     def test_block_body_json_long_http2(self):
         status, _, _, log_lines = self.run_with_body(
             'application/json',
-            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024), http_version=2)
+            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024),
+            http_version=2)
         self.assertEqual(status, 403)
         self.assert_has_report(log_lines)
 
     def test_block_body_json_long_http3(self):
         status, _, _, log_lines = self.run_with_body(
             'application/json',
-            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024), http_version=3)
+            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024),
+            http_version=3)
         self.assertEqual(status, 403)
         self.assert_has_report(log_lines)
 
@@ -231,7 +239,6 @@ class TestSecBlocking(case.TestCase):
 
     def test_block_on_status_http3(self):
         self.block_on_status(3)
-
 
     def block_on_status_redirect(self, http_version):
         if http_version != 3:

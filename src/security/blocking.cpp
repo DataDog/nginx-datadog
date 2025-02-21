@@ -304,7 +304,8 @@ void BlockingService::initialize(std::optional<std::string_view> templ_html,
       new BlockingService(templ_html, templ_json));
 }
 
-ngx_int_t BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
+ngx_int_t BlockingService::block(BlockSpecification spec,
+                                 ngx_http_request_t &req) {
   BlockResponse const resp = BlockResponse::resolve_content_type(spec, req);
   ngx_str_t *templ{};
   if (resp.ct == BlockResponse::ContentType::HTML) {
@@ -346,8 +347,8 @@ ngx_int_t BlockingService::block(BlockSpecification spec, ngx_http_request_t &re
   //     req.headers_out.content_length_n = 0;
   //   }
   if (req.header_only) {
-     req.headers_out.content_length_n = 0;
-     req.chunked = 0;
+    req.headers_out.content_length_n = 0;
+    req.chunked = 0;
   }
   req.keepalive = 0;
   req.lingering_close = 0;

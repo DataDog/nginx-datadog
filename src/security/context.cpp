@@ -1087,7 +1087,7 @@ ngx_int_t Context::buffer_chain(FilterCtx &filter_ctx, ngx_pool_t &pool,
           size = buf->last - buf->pos;
           new_buf->temporary = 1;
           if (size > 0) {
-            new_buf->pos = static_cast<u_char*>(ngx_palloc(&pool, size));
+            new_buf->pos = static_cast<u_char *>(ngx_palloc(&pool, size));
             if (!new_buf->pos) {
               return NGX_ERROR;
             }
