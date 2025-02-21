@@ -1082,6 +1082,21 @@ ngx_int_t Context::buffer_chain(FilterCtx &filter_ctx, ngx_pool_t &pool,
 
         buf->file_pos = buf->file_last;  // consume
 
+        // mixed
+        if (buf->temporary) {
+          size = buf->last - buf->pos;
+          new_buf->temporary = 1;
+          if (size > 0) {
+            new_buf->pos = static_cast<u_char*>(ngx_palloc(&pool, size));
+            if (!new_buf->pos) {
+              return NGX_ERROR;
+            }
+            new_buf->last = ngx_copy(new_buf->pos, buf->pos, size);
+            buf->pos = buf->last;  // consume
+            filter_ctx.copied_total += size;
+          }
+        }
+
         size = new_buf->file_last - new_buf->file_pos;
       }
 
