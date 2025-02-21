@@ -260,6 +260,33 @@
       "on_match": [
         "block_501"
       ]
+    },
+    {
+      "id": "411",
+      "name": "Match 411 responses",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.status"
+              }
+            ],
+            "regex": "411"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [
+        "values_only"
+      ],
+      "on_match": [
+        "redirect"
+      ]
     }
   ]
 }

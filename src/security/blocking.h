@@ -37,7 +37,7 @@ class BlockingService {
 
   static BlockingService *get_instance() { return instance.get(); }
 
-  void block(BlockSpecification spec, ngx_http_request_t &req);
+  [[nodiscard]] ngx_int_t block(BlockSpecification spec, ngx_http_request_t &req);
 
  private:
   BlockingService(std::optional<std::string_view> templ_html_path,

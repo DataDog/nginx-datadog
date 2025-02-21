@@ -1,6 +1,5 @@
 #include "context.h"
 
-#include <algorithm>
 #include <atomic>
 #include <charconv>
 #include <optional>
@@ -29,6 +28,7 @@ extern "C" {
 #include <ngx_hash.h>
 #include <ngx_http.h>
 #include <ngx_http_core_module.h>
+#include <ngx_http_request.h>
 #include <ngx_http_v2.h>
 #include <ngx_log.h>
 #include <ngx_regex.h>
@@ -296,6 +296,8 @@ class PolTaskCtx {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0, "before task %p main",
                     this);
       block_spec_ = as_self().do_handle(*tp_log);
+      // test long libddwaf call
+      // ::usleep(2000000);
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0, "after task %p main",
                     this);
       ran_on_thread_.store(true, std::memory_order_release);
@@ -336,6 +338,7 @@ class PolTaskCtx {
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req_log(), 0,
                        "calling complete on task %p", this);
         as_self().complete();
+        // req_ may be invalid at this point
       }
     } else {
       ngx_log_debug1(
@@ -414,20 +417,32 @@ class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
 
       auto *service = BlockingService::get_instance();
       assert(service != nullptr);
+      ngx_int_t rc;
       try {
-        service->block(*block_spec_, req_);
+        rc = service->block(*block_spec_, req_);
+
+        ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                      "completion handler of waf start task: sent blocking "
+                      "response (rc: %d, c: %d)",
+                      rc, req_.main->count);
       } catch (const std::exception &e) {
         ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
                       "failed to block request: %s", e.what());
-        ngx_http_finalize_request(&req_, NGX_DONE);
+        rc = NGX_ERROR;
       }
+
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                    "completion handler of waf start task: finish: calling "
+                    "ngx_http_finalize_request with %d",
+                    rc);
+      ngx_http_finalize_request(&req_, rc);
+      // the request may have been destroyed at this point
     } else {
       req_.phase_handler++;  // move past us
       ngx_post_event(req_.connection->write, &ngx_posted_events);
+      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                     "completion handler of waf start task: normal finish");
     }
-
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                   "completion handler of waf start task: finish");
   }
 
   friend PolTaskCtx;
@@ -735,13 +750,25 @@ class PolReqBodyWafCtx : public PolTaskCtx<PolReqBodyWafCtx> {
 
       auto *service = BlockingService::get_instance();
       assert(service != nullptr);
+      ngx_int_t rc;
       try {
-        service->block(*block_spec_, req_);
+        rc = service->block(*block_spec_, req_);
+        ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                      "completion handler of waf req post task: sent "
+                      "blocking response (rc: %d, c: %d)",
+                      rc, req_.main->count);
       } catch (const std::exception &e) {
         ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
                       "failed to block request: %s", e.what());
-        ngx_http_finalize_request(&req_, NGX_DONE);
+        rc = NGX_ERROR;
       }
+
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                    "completion handler of waf start task: finish: calling "
+                    "ngx_http_finalize_request with %d",
+                    rc);
+      ngx_http_finalize_request(&req_, rc);
+      // the request may have been destroyed at this point
     } else {
       ctx_.waf_req_post_done(req_, false);
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
@@ -771,36 +798,48 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
                    "blocked: %s): start",
                    ran ? "true" : "false", block_spec_ ? "true" : "false");
 
-    req_.header_sent = 0;
-
     if (ran && block_spec_) {
       span_.set_tag("appsec.blocked"sv, "true"sv);
       ctx_.waf_final_done(req_, true);
       auto *service = BlockingService::get_instance();
       assert(service != nullptr);
+
+      ngx_int_t rc;
       try {
-        // service->block calls finalize_request NGX_DONE
-        req_.main->count++;
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                      "incremented request refcount to %d before sending "
-                      "blocking response",
-                      req_.main->count);
-        service->block(*block_spec_, req_);
+                      "completion handler of waf req final task: sending "
+                      "blocking response");
+        rc = service->block(*block_spec_, req_);
+        ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                      "completion handler of waf req final task: sent blocking "
+                      "response (rc: %d, c: %d)",
+                      rc, req_.main->count);
       } catch (const std::exception &e) {
         ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
                       "failed to block request: %s", e.what());
-        ngx_http_finalize_request(&req_, NGX_DONE);
+        rc = NGX_ERROR;
       }
+
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                    "completion handler of waf req final task: calling "
+                    "ngx_http_finalize_request with %d",
+                    rc);
+
+      const auto count_before = req_.count;
+      ngx_http_finalize_request(&req_, rc);
+      // if count_before == 1, the request has likely been destroyed at this
+      // point, although we cannot be sure (e.g. there may be a post action)
+      if (count_before > 1) {
+        ngx_post_event(req_.connection->write, &ngx_posted_events);
+      }
+      // req_ may be invalid at this point
     } else {
       ctx_.waf_final_done(req_, false);
+      ngx_post_event(req_.connection->write, &ngx_posted_events);
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "not blocking after final waf run; triggering write event "
                     "on connection");
-      ngx_post_event(req_.connection->write, &ngx_posted_events);
     }
-
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                   "completion handler of waf req final task: finish");
   }
 
   ngx_event_handler_pt orig_conn_write_handler_{};
@@ -1096,6 +1135,9 @@ ngx_int_t Context::send_buffered_header(ngx_http_request_t &request) noexcept {
   if (!request.stream) {
     ngx_int_t rc = ngx_http_write_filter(&request, header_filter_ctx_.out);
     header_filter_ctx_.clear(*request.pool);
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                  "send_buffered_header: ngx_http_write_filter returned %d",
+                  rc);
     return rc;
   }
 

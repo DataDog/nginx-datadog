@@ -304,7 +304,7 @@ void BlockingService::initialize(std::optional<std::string_view> templ_html,
       new BlockingService(templ_html, templ_json));
 }
 
-void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
+ngx_int_t BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
   BlockResponse const resp = BlockResponse::resolve_content_type(spec, req);
   ngx_str_t *templ{};
   if (resp.ct == BlockResponse::ContentType::HTML) {
@@ -318,6 +318,8 @@ void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
   if (ngx_http_discard_request_body(&req) != NGX_OK) {
     req.keepalive = 0;
   }
+
+  req.header_sent = 0;
   ngx_http_clean_header(&req);
 
   // ngx_http_filter_finalize_request neutralizes other filters with:
@@ -343,21 +345,23 @@ void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
   //   } else {
   //     req.headers_out.content_length_n = 0;
   //   }
+  if (req.header_only) {
+     req.headers_out.content_length_n = 0;
+     req.chunked = 0;
+  }
   req.keepalive = 0;
   req.lingering_close = 0;
 
   ngx_int_t res = ngx_http_send_header(&req);
   ngx_log_debug1(NGX_LOG_DEBUG, req.connection->log, 0,
-                 "Status %d returned by ngx_http_send_header", res);
-  if (res == NGX_ERROR || res > NGX_OK || req.header_only) {
-    ngx_http_finalize_request(&req, res);
-    return;
+                 "block(): status %d returned by ngx_http_send_header", res);
+  if (res != NGX_OK || req.header_only) {
+    return res;
   }
 
   ngx_buf_t *b = static_cast<decltype(b)>(ngx_calloc_buf(req.pool));
   if (b == nullptr) {
-    ngx_http_finalize_request(&req, NGX_ERROR);
-    return;
+    return NGX_ERROR;
   }
 
   b->pos = templ->data;
@@ -368,16 +372,10 @@ void BlockingService::block(BlockSpecification spec, ngx_http_request_t &req) {
   ngx_chain_t out{};
   out.buf = b;
 
-  ngx_http_output_filter(&req, &out);
-
-  auto count = req.count;
-  ngx_http_finalize_request(&req, NGX_DONE);
-
-  // o/wise http/3 doesn't close the connection (via ngx_http_writer >
-  // ngx_http_finalize_request)
-  if (count - 1 > 0) {
-    ngx_post_event(req.connection->write, &ngx_posted_events);
-  }
+  res = ngx_http_output_filter(&req, &out);
+  ngx_log_debug(NGX_LOG_DEBUG, req.connection->log, 0,
+                "block(): status %d returned by ngx_http_output_filter", res);
+  return res;
 }
 
 BlockingService::BlockingService(
