@@ -42,14 +42,16 @@ class TestSecBlocking(case.TestCase):
     def convert_headers(headers):
         return {k.lower(): v for k, v in dict(headers).items()}
 
-    def run_with_ua(self, user_agent, accept, http_version=1):
+    def run_with_ua(self, user_agent, accept, http_version=1, tls=False):
         headers = {'User-Agent': user_agent, 'Accept': accept}
-        if http_version == 3:
-            status, headers, body = self.orch.send_nginx_http_request(
-                '/http', tls=True, port=443, headers=headers, http_version=3)
+        if http_version == 3 or tls:
+            port = 443
+            tls = True
         else:
-            status, headers, body = self.orch.send_nginx_http_request(
-                '/http', 80, headers, http_version=http_version)
+            port = 80
+
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http', port, headers, http_version=http_version, tls=tls)
 
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service('agent')
@@ -96,6 +98,28 @@ class TestSecBlocking(case.TestCase):
         self.assertEqual(appsec_rep['triggers'][0]['rule']['on_match'][0],
                          exp_match)
 
+    def no_block_long_response(self, http_version, port, tls):
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http/repeat?card=10000&num_bouts=3&delay=200',
+            tls=tls,
+            port=port,
+            http_version=http_version)
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assertEqual(200, status)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'text/plain')
+        self.assertEqual(body, "Hello world!\n" * 30000)
+
+    def test_no_block_long_response_http11(self):
+        self.no_block_long_response(1, 80, False)
+
+    def test_no_block_long_response_http2(self):
+        self.no_block_long_response(2, 80, False)
+
+    def test_no_block_long_response_http3(self):
+        self.no_block_long_response(3, 443, True)
+
     def test_default_action(self):
         status, headers, body, log_lines = self.run_with_ua(
             'block_default', '*/*')
@@ -136,6 +160,13 @@ class TestSecBlocking(case.TestCase):
     def test_html_action(self):
         status, headers, body, _ = self.run_with_ua('block_html',
                                                     'application/json')
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+
+    def test_html_action_tls(self):
+        status, headers, body, _ = self.run_with_ua('block_html',
+                                                    'application/json',
+                                                    tls=True)
         self.assertEqual(status, 403)
         self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
 
