@@ -1475,8 +1475,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
   // otherwise we send down the buffered data + whatever we got
 
   if (header_filter_ctx_.out) {
-    // if we have header data, send it first. Bypass the body filter chain by
-    // invoking ngx_http_write_filter() directly
+    // if we have header data, send it first
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
                   "waf output body filter: sending down buffered header data");
     ngx_int_t rc = send_buffered_header(request);
@@ -1649,27 +1648,3 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
 }
 
 }  // namespace datadog::nginx::security
-
-extern "C" bool contains_str(ngx_chain_t *in, const char *str) {
-  for (ngx_chain_t *cl = in; cl; cl = cl->next) {
-    if (cl->buf->in_file) {
-      return true;
-    }
-    std::string_view sv{reinterpret_cast<const char *>(cl->buf->pos),
-                        static_cast<std::size_t>(cl->buf->last - cl->buf->pos)};
-    if (sv.find(str) != std::string_view::npos) {
-      return true;
-    }
-  }
-  return false;
-}
-
-extern "C" bool is_long(ngx_chain_t *in) {
-  uint64_t i = 0;
-  for (ngx_chain_t *cl = in; cl; cl = cl->next) {
-    if (i++ > 20) {
-      return true;
-    }
-  }
-  return false;
-}
