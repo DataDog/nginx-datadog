@@ -334,6 +334,8 @@ ngx_int_t BlockingService::block(BlockSpecification spec,
   // be set to 1.
 
   req.headers_out.status = resp.status;
+  req.headers_out.status_line.len = 0;
+  req.err_status = 0;
   req.headers_out.content_type = BlockResponse::content_type_header(resp.ct);
   req.headers_out.content_type_len = req.headers_out.content_type.len;
 
