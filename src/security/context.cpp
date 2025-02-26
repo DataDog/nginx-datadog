@@ -66,13 +66,13 @@ std::size_t chain_size(ngx_chain_t const *ch) {
 }
 std::size_t has_special(ngx_chain_t const *ch) {
   for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
-    return ngx_buf_special(ch->buf);
+    return ngx_buf_special(cl->buf);
   }
   return false;
 }
 std::size_t has_last(ngx_chain_t const *ch) {
   for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
-    if (ch->buf->last) {
+    if (cl->buf->last) {
       return true;
     }
   }
@@ -1211,6 +1211,7 @@ class Http1TemporarySendChain {
   static Http1TemporarySendChain instance;
   void activate(Context &ctx, ngx_http_request_t &request) noexcept {
     current_ctx_ = &ctx;
+    current_pool_ = request.pool;
     prev_send_chain_ = request.connection->send_chain;
     request.connection->send_chain = send_chain_save;
   }
@@ -1241,16 +1242,13 @@ class Http1TemporarySendChain {
   }
 
  private:
-  static ngx_chain_t *send_chain_save(ngx_connection_t *c, ngx_chain_t *in,
-                                      off_t limit) {
-    (void)limit;
-
-    ngx_http_request_t *req = static_cast<decltype(req)>(c->data);
-    assert(req != nullptr);
-
+  static ngx_chain_t *send_chain_save([[maybe_unused]] ngx_connection_t *c,
+                                      ngx_chain_t *in,
+                                      [[maybe_unused]] off_t limit) {
     auto *ctx = instance.current_ctx_;
     assert(ctx != nullptr);
-    if (ctx->buffer_header_output(*req->pool, in) != NGX_OK) {
+    auto *pool = instance.current_pool_;
+    if (ctx->buffer_header_output(*pool, in) != NGX_OK) {
       return NGX_CHAIN_ERROR;
     }
 
@@ -1258,6 +1256,7 @@ class Http1TemporarySendChain {
   }
 
   Context *current_ctx_;
+  ngx_pool_t *current_pool_;
   ngx_send_chain_pt prev_send_chain_;
 };
 Http1TemporarySendChain Http1TemporarySendChain::instance;
@@ -1328,9 +1327,8 @@ class Http2TemporarySendChain {
 
  private:
   static ngx_chain_t *stream_send_chain_save(ngx_connection_t *c,
-                                             ngx_chain_t *in, off_t limit) {
-    (void)limit;
-
+                                             ngx_chain_t *in,
+                                             [[maybe_unused]] off_t limit) {
     ngx_http_request_t *req = static_cast<decltype(req)>(c->data);
     assert(req != nullptr);
 
