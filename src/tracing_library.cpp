@@ -46,7 +46,7 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   }
 
   if (nginx_conf.agent_url) {
-    config.agent.url = nginx_conf.agent_url->value;
+    config.agent.url = nginx_conf.agent_url;
   }
 
   // Set sampling rules based on any `datadog_sample_rate` directives.

@@ -1,5 +1,7 @@
 #include "datadog_conf.h"
 
+#include <format>
+
 #include "string_util.h"
 
 namespace datadog {

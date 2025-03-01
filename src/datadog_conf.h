@@ -41,11 +41,6 @@ struct environment_variable_t {
   std::string value;
 };
 
-struct configured_value_t {
-  conf_directive_source_location_t location;
-  std::string value;
-};
-
 struct sampling_rule_t {
   // If the corresponding `datadog_sample_rate` directive was in the `http`
   // block, then `*depth == 0`. If `server` block, then `*depth == 1`. If
@@ -106,7 +101,7 @@ struct datadog_main_conf_t {
   // config.
   std::vector<sampling_rule_t> sampling_rules;
   // `agent_url` is set by the `datadog_agent_url` directive.
-  std::optional<configured_value_t> agent_url;
+  std::optional<std::string> agent_url;
 
 #ifdef WITH_WAF
   // DD_APPSEC_ENABLED
@@ -187,11 +182,11 @@ struct datadog_loc_conf_t {
   NgxScript loc_resource_name_script;
   ngx_flag_t trust_incoming_span = NGX_CONF_UNSET;
   // `service_name` is set by the `datadog_service_name` directive.
-  std::optional<configured_value_t> service_name;
+  std::optional<std::string> service_name;
   // `service_env` is set by the `datadog_environment` directive.
-  std::optional<configured_value_t> service_env;
+  std::optional<std::string> service_env;
   // `service_version` is set by the `datadog_version` directive.
-  std::optional<configured_value_t> service_version;
+  std::optional<std::string> service_version;
   ngx_array_t *tags;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
   // `nullptr` if this context has no parent.

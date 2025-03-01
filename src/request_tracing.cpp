@@ -192,15 +192,15 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
 
   std::optional<std::string> service;
   if (loc_conf_->service_name) {
-    service = loc_conf_->service_name->value;
+    service = loc_conf_->service_name;
   }
   std::optional<std::string> env;
   if (loc_conf_->service_env) {
-    env = loc_conf_->service_env->value;
+    env = loc_conf_->service_env;
   }
   std::optional<std::string> version;
   if (loc_conf_->service_version) {
-    version = loc_conf_->service_version->value;
+    version = loc_conf_->service_version;
   }
 
   dd::SpanConfig config;
@@ -293,15 +293,15 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
         &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
     if (loc_conf_->service_name) {
-      config.service = loc_conf_->service_name->value;
+      config.service = loc_conf_->service_name;
     }
     std::optional<std::string> env;
     if (loc_conf_->service_env) {
-      config.environment = loc_conf_->service_env->value;
+      config.environment = loc_conf_->service_env;
     }
     std::optional<std::string> version;
     if (loc_conf_->service_version) {
-      config.version = loc_conf_->service_version->value;
+      config.version = loc_conf_->service_version;
     }
 
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
