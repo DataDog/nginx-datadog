@@ -38,42 +38,45 @@ bool should_delegate(ngx_http_request_t *request,
   return loc_conf->sampling_delegation_enabled &&
          loc_conf->allow_sampling_delegation_in_subrequests;
 }
+
+std::optional<std::string> set_if_exists(ngx_http_complex_value_t *conf,
+                                         ngx_http_request_t *request_) {
+  if (conf == nullptr) return std::nullopt;
+
+  ngx_str_t res;
+  if (ngx_http_complex_value(request_, conf, &res) != NGX_OK) {
+    return std::nullopt;
+  }
+
+  return to_string(res);
+}
+
 }  // namespace
 
 static std::string get_loc_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
     const datadog_loc_conf_t *loc_conf) {
-  if (loc_conf->loc_operation_name_script.is_valid())
-    return to_string(loc_conf->loc_operation_name_script.run(request));
-  else
-    return to_string(core_loc_conf->name);
+  auto v = set_if_exists(loc_conf->loc_operation_name_script, request);
+  return v.value_or(to_string(core_loc_conf->name));
 }
 
 static std::string get_request_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
     const datadog_loc_conf_t *loc_conf) {
-  if (loc_conf->operation_name_script.is_valid())
-    return to_string(loc_conf->operation_name_script.run(request));
-  else
-    return to_string(core_loc_conf->name);
+  auto v = set_if_exists(loc_conf->operation_name_script, request);
+  return v.value_or(to_string(core_loc_conf->name));
 }
 
 static std::string get_loc_resource_name(ngx_http_request_t *request,
                                          const datadog_loc_conf_t *loc_conf) {
-  if (loc_conf->loc_resource_name_script.is_valid()) {
-    return to_string(loc_conf->loc_resource_name_script.run(request));
-  } else {
-    return "[invalid_resource_name_pattern]";
-  }
+  auto v = set_if_exists(loc_conf->loc_resource_name_script, request);
+  return v.value_or("[invalid_resource_name_pattern]");
 }
 
 static std::string get_request_resource_name(
     ngx_http_request_t *request, const datadog_loc_conf_t *loc_conf) {
-  if (loc_conf->resource_name_script.is_valid()) {
-    return to_string(loc_conf->resource_name_script.run(request));
-  } else {
-    return "[invalid_resource_name_pattern]";
-  }
+  auto v = set_if_exists(loc_conf->resource_name_script, request);
+  return v.value_or("[invalid_resource_name_pattern]");
 }
 
 static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request,
@@ -190,18 +193,12 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
                  "starting Datadog request span for %p", request_);
 
-  std::optional<std::string> service;
-  if (loc_conf_->service_name) {
-    service = loc_conf_->service_name;
-  }
-  std::optional<std::string> env;
-  if (loc_conf_->service_env) {
-    env = loc_conf_->service_env;
-  }
-  std::optional<std::string> version;
-  if (loc_conf_->service_version) {
-    version = loc_conf_->service_version;
-  }
+  std::optional<std::string> service =
+      set_if_exists(loc_conf_->service_name, request_);
+  std::optional<std::string> env =
+      set_if_exists(loc_conf_->service_env, request_);
+  std::optional<std::string> version =
+      set_if_exists(loc_conf_->service_version, request_);
 
   dd::SpanConfig config;
 
@@ -292,18 +289,9 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
         "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
-    if (loc_conf_->service_name) {
-      config.service = loc_conf_->service_name;
-    }
-    std::optional<std::string> env;
-    if (loc_conf_->service_env) {
-      config.environment = loc_conf_->service_env;
-    }
-    std::optional<std::string> version;
-    if (loc_conf_->service_version) {
-      config.version = loc_conf_->service_version;
-    }
-
+    config.service = set_if_exists(loc_conf_->service_name, request_);
+    config.environment = set_if_exists(loc_conf_->service_env, request_);
+    config.version = set_if_exists(loc_conf_->service_version, request_);
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
 
     assert(request_span_);  // postcondition of our constructor

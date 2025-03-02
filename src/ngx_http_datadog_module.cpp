@@ -162,32 +162,32 @@ static ngx_command_t datadog_commands[] = {
       "datadog_operation_name",
       "opentracing_operation_name",
       anywhere | NGX_CONF_TAKE1,
-      set_datadog_operation_name,
+      ngx_http_set_complex_value_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
+      offsetof(datadog_loc_conf_t, operation_name_script),
       nullptr),
 
     DEFINE_COMMAND_WITH_OLD_ALIAS(
       "datadog_location_operation_name",
       "opentracing_location_operation_name",
       anywhere | NGX_CONF_TAKE1,
-      set_datadog_location_operation_name,
+      ngx_http_set_complex_value_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
+      offsetof(datadog_loc_conf_t, loc_operation_name_script),
       nullptr),
 
     { ngx_string("datadog_resource_name"),
       anywhere | NGX_CONF_TAKE1,
-      set_datadog_resource_name,
+      ngx_http_set_complex_value_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
+      offsetof(datadog_loc_conf_t, resource_name_script),
       nullptr},
 
     { ngx_string("datadog_location_resource_name"),
       anywhere | NGX_CONF_TAKE1,
-      set_datadog_location_resource_name,
+      ngx_http_set_complex_value_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
+      offsetof(datadog_loc_conf_t, loc_resource_name_script),
       nullptr},
 
     DEFINE_COMMAND_WITH_OLD_ALIAS(
@@ -246,23 +246,23 @@ static ngx_command_t datadog_commands[] = {
 
     { ngx_string("datadog_service_name"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      set_datadog_service_name,
+      ngx_http_set_complex_value_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
+      offsetof(datadog_loc_conf_t, service_name),
       nullptr},
 
     { ngx_string("datadog_environment"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      set_datadog_environment,
+      ngx_http_set_complex_value_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
+      offsetof(datadog_loc_conf_t, service_env),
       nullptr},
 
     { ngx_string("datadog_version"),
       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      set_datadog_version,
+      ngx_http_set_complex_value_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
-      0,
+      offsetof(datadog_loc_conf_t, service_version),
       nullptr},
 
     { ngx_string("datadog_agent_url"),
@@ -709,39 +709,30 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
     return nullptr;  // error
   }
 
-#ifdef WITH_RUM
-  loc_conf->rum_enable = NGX_CONF_UNSET;
-  loc_conf->rum_snippet = nullptr;
-#endif
-
   return loc_conf;
 }
 
-namespace {
+static ngx_http_complex_value_t *make_default_complex_value(
+    ngx_conf_t *cf, std::string_view default_value) {
+  ngx_str_t value = to_ngx_str(default_value);
+  auto *cv = (ngx_http_complex_value_t *)ngx_pcalloc(
+      cf->pool, sizeof(ngx_http_complex_value_t));
 
-// Merge the specified `previous` script into the specified `current` script in
-// the context of the specified `conf`.  If `current` does not have a value and
-// `previous` does, then `previous` will be used.  If neither has a value, then
-// the specified `default_pattern` will be used.  Return `NGX_CONF_OK` on
-// success, or another value otherwise.
-char *merge_script(ngx_conf_t *conf, NgxScript &previous, NgxScript &current,
-                   std::string_view default_pattern) {
-  if (current.is_valid()) {
-    return NGX_CONF_OK;
+  ngx_http_compile_complex_value_t ccv;
+  ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+
+  ccv.cf = cf;
+  ccv.value = &value;
+  ccv.complex_value = cv;
+  ccv.zero = 0;
+  ccv.conf_prefix = 0;
+
+  if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
+    return nullptr;
   }
 
-  if (!previous.is_valid()) {
-    const ngx_int_t rc = previous.compile(conf, to_ngx_str(default_pattern));
-    if (rc != NGX_OK) {
-      return (char *)NGX_CONF_ERROR;
-    }
-  }
-
-  current = previous;
-  return NGX_CONF_OK;
+  return cv;
 }
-
-}  // namespace
 
 //------------------------------------------------------------------------------
 // merge_datadog_loc_conf
@@ -758,38 +749,26 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
                        TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
-
-  if (!conf->service_name) {
-    conf->service_name = prev->service_name;
-  }
-  if (!conf->service_env) {
-    conf->service_env = prev->service_env;
-  }
-  if (!conf->service_version) {
-    conf->service_version = prev->service_version;
-  }
-
-  if (const auto rc = merge_script(
-          cf, prev->operation_name_script, conf->operation_name_script,
-          TracingLibrary::default_request_operation_name_pattern())) {
-    return rc;
-  }
-  if (const auto rc = merge_script(
-          cf, prev->loc_operation_name_script, conf->loc_operation_name_script,
-          TracingLibrary::default_location_operation_name_pattern())) {
-    return rc;
-  }
-  if (const auto rc = merge_script(
-          cf, prev->resource_name_script, conf->resource_name_script,
-          TracingLibrary::default_resource_name_pattern())) {
-    return rc;
-  }
-  if (const auto rc = merge_script(
-          cf, prev->loc_resource_name_script, conf->loc_resource_name_script,
-          TracingLibrary::default_resource_name_pattern())) {
-    return rc;
-  }
-
+  ngx_conf_merge_ptr_value(conf->service_name, prev->service_name, nullptr);
+  ngx_conf_merge_ptr_value(conf->service_env, prev->service_env, nullptr);
+  ngx_conf_merge_ptr_value(conf->service_version, prev->service_version,
+                           nullptr);
+  ngx_conf_merge_ptr_value(
+      conf->operation_name_script, prev->operation_name_script,
+      make_default_complex_value(
+          cf, TracingLibrary::default_request_operation_name_pattern()));
+  ngx_conf_merge_ptr_value(
+      conf->loc_operation_name_script, prev->loc_operation_name_script,
+      make_default_complex_value(
+          cf, TracingLibrary::default_location_operation_name_pattern()));
+  ngx_conf_merge_ptr_value(
+      conf->resource_name_script, prev->resource_name_script,
+      make_default_complex_value(
+          cf, TracingLibrary::default_resource_name_pattern()));
+  ngx_conf_merge_ptr_value(
+      conf->loc_resource_name_script, prev->loc_resource_name_script,
+      make_default_complex_value(
+          cf, TracingLibrary::default_resource_name_pattern()));
   ngx_conf_merge_value(conf->trust_incoming_span, prev->trust_incoming_span, 1);
 
   // Create a new array that joins `prev->tags` and `conf->tags`. Since tags

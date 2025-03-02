@@ -155,23 +155,22 @@ static ngx_int_t expand_configuration_variable(
   // override
   const auto& loc_conf = *static_cast<datadog::nginx::datadog_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
-  if (loc_conf.service_name) {
-    doc.AddMember("service",
-                  rapidjson::Value(loc_conf.service_name->c_str(), alloc),
-                  alloc);
-  }
 
-  if (loc_conf.service_env) {
-    doc.AddMember("environment",
-                  rapidjson::Value(loc_conf.service_env->c_str(), alloc),
-                  alloc);
-  }
+  auto append_to_doc = [&](std::string_view key,
+                           ngx_http_complex_value_t* value) {
+    if (value == nullptr) return;
 
-  if (loc_conf.service_version) {
-    doc.AddMember("version",
-                  rapidjson::Value(loc_conf.service_version->c_str(), alloc),
-                  alloc);
-  }
+    ngx_str_t res;
+    if (ngx_http_complex_value(request, value, &res) == NGX_OK &&
+        res.len != 0) {
+      doc.AddMember(rapidjson::Value(key.data(), alloc),
+                    rapidjson::Value((char*)res.data, alloc), alloc);
+    }
+  };
+
+  append_to_doc("service", loc_conf.service_name);
+  append_to_doc("environment", loc_conf.service_env);
+  append_to_doc("version", loc_conf.service_version);
 
   rapidjson::StringBuffer buffer;
   rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
