@@ -23,19 +23,6 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
 char *json_config_deprecated(ngx_conf_t *cf, ngx_command_t *command,
                              void *conf) noexcept;
 
-char *set_datadog_operation_name(ngx_conf_t *cf, ngx_command_t *command,
-                                 void *conf) noexcept;
-
-char *set_datadog_location_operation_name(ngx_conf_t *cf,
-                                          ngx_command_t *command,
-                                          void *conf) noexcept;
-
-char *set_datadog_resource_name(ngx_conf_t *cf, ngx_command_t *command,
-                                void *conf) noexcept;
-
-char *set_datadog_location_resource_name(ngx_conf_t *cf, ngx_command_t *command,
-                                         void *conf) noexcept;
-
 char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command,
                          void *conf) noexcept;
 
@@ -47,14 +34,6 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
 
 char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
                                      void *conf) noexcept;
-
-char *set_datadog_service_name(ngx_conf_t *, ngx_command_t *,
-                               void *conf) noexcept;
-
-char *set_datadog_environment(ngx_conf_t *, ngx_command_t *,
-                              void *conf) noexcept;
-
-char *set_datadog_version(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 
 char *set_datadog_agent_url(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 

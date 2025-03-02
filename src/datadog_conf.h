@@ -19,6 +19,9 @@ extern "C" {
 #include <string>
 #include <vector>
 
+#define DD_NGX_CONF_COMPLEX_UNSET \
+  (ngx_http_complex_value_t *)NGX_CONF_UNSET_PTR;
+
 namespace datadog {
 namespace nginx {
 
@@ -176,17 +179,19 @@ struct datadog_sample_rate_condition_t {
 struct datadog_loc_conf_t {
   ngx_flag_t enable_tracing = NGX_CONF_UNSET;
   ngx_flag_t enable_locations = NGX_CONF_UNSET;
-  NgxScript operation_name_script;
-  NgxScript loc_operation_name_script;
-  NgxScript resource_name_script;
-  NgxScript loc_resource_name_script;
+  ngx_http_complex_value_t *operation_name_script = DD_NGX_CONF_COMPLEX_UNSET;
+  ngx_http_complex_value_t *loc_operation_name_script =
+      DD_NGX_CONF_COMPLEX_UNSET;
+  ngx_http_complex_value_t *resource_name_script = DD_NGX_CONF_COMPLEX_UNSET;
+  ngx_http_complex_value_t *loc_resource_name_script =
+      DD_NGX_CONF_COMPLEX_UNSET;
   ngx_flag_t trust_incoming_span = NGX_CONF_UNSET;
   // `service_name` is set by the `datadog_service_name` directive.
-  std::optional<std::string> service_name;
+  ngx_http_complex_value_t *service_name = DD_NGX_CONF_COMPLEX_UNSET;
   // `service_env` is set by the `datadog_environment` directive.
-  std::optional<std::string> service_env;
+  ngx_http_complex_value_t *service_env = DD_NGX_CONF_COMPLEX_UNSET;
   // `service_version` is set by the `datadog_version` directive.
-  std::optional<std::string> service_version;
+  ngx_http_complex_value_t *service_version = DD_NGX_CONF_COMPLEX_UNSET;
   ngx_array_t *tags;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
   // `nullptr` if this context has no parent.
@@ -224,10 +229,12 @@ struct datadog_loc_conf_t {
 #endif
 
 #ifdef WITH_RUM
-  ngx_flag_t rum_enable;
-  Snippet *rum_snippet;
+  ngx_flag_t rum_enable = NGX_CONF_UNSET;
+  Snippet *rum_snippet = nullptr;
 #endif
 };
 
 }  // namespace nginx
 }  // namespace datadog
+
+#undef DD_NGX_CONF_COMPLEX_UNSET
