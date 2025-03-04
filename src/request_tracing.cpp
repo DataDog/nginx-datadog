@@ -39,8 +39,8 @@ bool should_delegate(ngx_http_request_t *request,
          loc_conf->allow_sampling_delegation_in_subrequests;
 }
 
-std::optional<std::string> set_if_exists(ngx_http_complex_value_t *conf,
-                                         ngx_http_request_t *request_) {
+std::optional<std::string> eval_complex_value(ngx_http_complex_value_t *conf,
+                                              ngx_http_request_t *request_) {
   if (conf == nullptr) return std::nullopt;
 
   ngx_str_t res;
@@ -56,26 +56,26 @@ std::optional<std::string> set_if_exists(ngx_http_complex_value_t *conf,
 static std::string get_loc_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
     const datadog_loc_conf_t *loc_conf) {
-  auto v = set_if_exists(loc_conf->loc_operation_name_script, request);
+  auto v = eval_complex_value(loc_conf->loc_operation_name_script, request);
   return v.value_or(to_string(core_loc_conf->name));
 }
 
 static std::string get_request_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
     const datadog_loc_conf_t *loc_conf) {
-  auto v = set_if_exists(loc_conf->operation_name_script, request);
+  auto v = eval_complex_value(loc_conf->operation_name_script, request);
   return v.value_or(to_string(core_loc_conf->name));
 }
 
 static std::string get_loc_resource_name(ngx_http_request_t *request,
                                          const datadog_loc_conf_t *loc_conf) {
-  auto v = set_if_exists(loc_conf->loc_resource_name_script, request);
+  auto v = eval_complex_value(loc_conf->loc_resource_name_script, request);
   return v.value_or("[invalid_resource_name_pattern]");
 }
 
 static std::string get_request_resource_name(
     ngx_http_request_t *request, const datadog_loc_conf_t *loc_conf) {
-  auto v = set_if_exists(loc_conf->resource_name_script, request);
+  auto v = eval_complex_value(loc_conf->resource_name_script, request);
   return v.value_or("[invalid_resource_name_pattern]");
 }
 
@@ -194,11 +194,11 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
                  "starting Datadog request span for %p", request_);
 
   std::optional<std::string> service =
-      set_if_exists(loc_conf_->service_name, request_);
+      eval_complex_value(loc_conf_->service_name, request_);
   std::optional<std::string> env =
-      set_if_exists(loc_conf_->service_env, request_);
+      eval_complex_value(loc_conf_->service_env, request_);
   std::optional<std::string> version =
-      set_if_exists(loc_conf_->service_version, request_);
+      eval_complex_value(loc_conf_->service_version, request_);
 
   dd::SpanConfig config;
 
@@ -289,9 +289,9 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
         "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
-    config.service = set_if_exists(loc_conf_->service_name, request_);
-    config.environment = set_if_exists(loc_conf_->service_env, request_);
-    config.version = set_if_exists(loc_conf_->service_version, request_);
+    config.service = eval_complex_value(loc_conf_->service_name, request_);
+    config.environment = eval_complex_value(loc_conf_->service_env, request_);
+    config.version = eval_complex_value(loc_conf_->service_version, request_);
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
 
     assert(request_span_);  // postcondition of our constructor
