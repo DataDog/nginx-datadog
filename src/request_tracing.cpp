@@ -48,6 +48,8 @@ std::optional<std::string> eval_complex_value(ngx_http_complex_value_t *conf,
     return std::nullopt;
   }
 
+  if (res.len == 0) return std::nullopt;
+
   return to_string(res);
 }
 
@@ -274,6 +276,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
 
   NgxHeaderWriter writer(request_);
   auto &span = active_span();
+  span.set_tag("span.kind", "client");
   span.inject(writer, injection_opts);
 }
 
@@ -309,6 +312,7 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
 
   NgxHeaderWriter writer(request_);
   auto &span = active_span();
+  span.set_tag("span.kind", "client");
   span.inject(writer, injection_opts);
 }
 

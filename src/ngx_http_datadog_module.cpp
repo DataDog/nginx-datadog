@@ -17,6 +17,7 @@
 #include "dd.h"
 #include "defer.h"
 #include "global_tracer.h"
+#include "nginx_flavors.h"
 #include "ngx_logger.h"
 #if defined(WITH_WAF)
 #include "security/library.h"
@@ -749,7 +750,15 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
                        TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
-  ngx_conf_merge_ptr_value(conf->service_name, prev->service_name, nullptr);
+  if constexpr (kNginx_flavor == datadog::nginx::flavor::ingress_nginx) {
+    // TODO: Add a directive to disable service name inferrence.
+    // NOTE(@dmehala): Ingress-NGINX default template add $service_name variable
+    // with the name of the service defined for a given ingress rules.
+    ngx_conf_merge_ptr_value(conf->service_name, prev->service_name,
+                             make_default_complex_value(cf, "$service_name"));
+  } else {
+    ngx_conf_merge_ptr_value(conf->service_name, prev->service_name, nullptr);
+  }
   ngx_conf_merge_ptr_value(conf->service_env, prev->service_env, nullptr);
   ngx_conf_merge_ptr_value(conf->service_version, prev->service_version,
                            nullptr);
