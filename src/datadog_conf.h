@@ -138,6 +138,9 @@ struct datadog_main_conf_t {
   // DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
   ngx_str_t appsec_obfuscation_value_regex = ngx_null_string;
 
+  // (only nginx configuration: datadog_appsec_max_saved_output_data)
+  // How much data we're willing to copy while waiting for the final WAF run
+  // before we stall the output filter chain with busy buffers
   std::size_t appsec_max_saved_output_data{NGX_CONF_UNSET_SIZE};
 
   // TODO: missing settings and their functionality

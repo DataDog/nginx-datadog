@@ -24,6 +24,7 @@ extern "C" {
 
 namespace datadog::nginx::security {
 
+// the tag used for the buffers we allocate
 static constexpr uintptr_t kBufferTag = 0xD47AD06;
 
 struct DdwafResultFreeFunctor {
