@@ -163,8 +163,8 @@ static ngx_int_t expand_configuration_variable(
     ngx_str_t res;
     if (ngx_http_complex_value(request, value, &res) == NGX_OK &&
         res.len != 0) {
-      doc.AddMember(rapidjson::Value(key.data(), alloc),
-                    rapidjson::Value((char*)res.data, alloc), alloc);
+      doc.AddMember(rapidjson::Value(key.data(), key.size(), alloc),
+                    rapidjson::Value((char*)res.data, res.len, alloc), alloc);
     }
   };
 

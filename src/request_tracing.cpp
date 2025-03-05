@@ -44,7 +44,7 @@ std::optional<std::string> eval_complex_value(ngx_http_complex_value_t *conf,
   if (conf == nullptr) return std::nullopt;
 
   ngx_str_t res;
-  if (ngx_http_complex_value(request_, conf, &res) != NGX_OK) {
+  if (ngx_http_complex_value(request_, conf, &res) != NGX_OK || res.len == 0) {
     return std::nullopt;
   }
 
