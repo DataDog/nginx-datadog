@@ -43,6 +43,8 @@ class Library {
 
   static std::vector<std::string_view> environment_variable_names();
 
+  static std::optional<std::size_t> max_saved_output_data();
+
  protected:
   static void set_handle(OwnedDdwafHandle &&handle);
 

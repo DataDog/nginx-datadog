@@ -12,6 +12,37 @@ const ignoreRequestBody = request => {
   request.on('end', () => {});
 }
 
+const sendRepeatResponse = (request, response) => {
+  try {
+    const urlObj = new URL(request.url, `http://${request.headers.host}`);
+    const card = parseInt(urlObj.searchParams.get("card"));
+    const numBouts = parseInt(urlObj.searchParams.get("num_bouts"));
+    const delay = parseInt(urlObj.searchParams.get("delay"));
+    if (isNaN(card) || isNaN(numBouts) || isNaN(delay)) {
+      response.writeHead(400, { "Content-Type": "text/plain" });
+      response.end("Invalid query parameters");
+      return;
+    }
+    // Pre-calculate the output string once.
+    const output = "Hello world!\n".repeat(card);
+    response.writeHead(200, { "Content-Type": "text/plain" });
+    let boutCount = 0;
+    const sendBout = () => {
+      response.write(output);
+      boutCount++;
+      if (boutCount >= numBouts) {
+        response.end();
+      } else {
+        setTimeout(sendBout, delay);
+      }
+    }
+    setTimeout(sendBout, delay);
+  } catch (err) {
+    response.writeHead(500, { "Content-Type": "text/plain" });
+    response.end("Server error");
+  }
+}
+
 const requestListener = function (request, response) {
   ignoreRequestBody(request);
   if (request.url === '/auth') {
@@ -23,6 +54,11 @@ const requestListener = function (request, response) {
       response.writeHead(401, { "content-type": "text/plain" });
       response.end('Unauthorized');
     }
+    return;
+  }
+
+  if (request.url.match(/.*\/repeat\/?(?:\?.*)?$/)) {
+    sendRepeatResponse(request, response);
     return;
   }
 

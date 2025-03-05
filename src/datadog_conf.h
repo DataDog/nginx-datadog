@@ -136,6 +136,11 @@ struct datadog_main_conf_t {
   // DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP
   ngx_str_t appsec_obfuscation_value_regex = ngx_null_string;
 
+  // (only nginx configuration: datadog_appsec_max_saved_output_data)
+  // How much data we're willing to copy while waiting for the final WAF run
+  // before we stall the output filter chain with busy buffers
+  std::size_t appsec_max_saved_output_data{NGX_CONF_UNSET_SIZE};
+
   // TODO: missing settings and their functionality
   // DD_TRACE_CLIENT_IP_RESOLVER_ENABLED (whether to collect headers and run the
   // client ip resolution. Also requires AppSec to be enabled or
@@ -225,6 +230,7 @@ struct datadog_loc_conf_t {
       allow_sampling_delegation_in_subrequests_directive;
 
 #ifdef WITH_WAF
+  // the thread pool used to run the WAF on
   ngx_thread_pool_t *waf_pool{nullptr};
 #endif
 

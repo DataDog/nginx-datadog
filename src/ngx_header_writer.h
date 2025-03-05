@@ -73,7 +73,8 @@ class NgxHeaderWriter : public datadog::tracing::DictWriter {
       }
 
       if (key.size() != h[i].key.len ||
-          ngx_strcasecmp((u_char *)key.data(), h[i].key.data) != 0) {
+          ngx_strncasecmp((u_char *)key.data(), h[i].key.data, key.size()) !=
+              0) {
         continue;
       }
 

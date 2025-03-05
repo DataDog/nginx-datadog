@@ -285,6 +285,10 @@ class FinalizedConfigSettings {
     return obfuscation_value_regex_;
   };
 
+  std::optional<std::size_t> get_max_saved_output_data() const {
+    return appsec_max_saved_output_data_;
+  }
+
  private:
   // NOLINTNEXTLINE(readability-identifier-naming)
   using ev_t = std::vector<environment_variable_t>;
@@ -324,6 +328,7 @@ class FinalizedConfigSettings {
   ngx_uint_t waf_timeout_usec_;
   std::string obfuscation_key_regex_;
   std::string obfuscation_value_regex_;
+  std::optional<std::size_t> appsec_max_saved_output_data_;
 };
 
 FinalizedConfigSettings::FinalizedConfigSettings(
@@ -400,6 +405,11 @@ FinalizedConfigSettings::FinalizedConfigSettings(
         get_env_str_maybe_empty(
             evs, "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP"sv)
             .value_or(std::string{kDefaultObfuscationValueRegex});
+  }
+
+  if (ngx_conf.appsec_max_saved_output_data != NGX_CONF_UNSET_SIZE) {
+    appsec_max_saved_output_data_.emplace(
+        ngx_conf.appsec_max_saved_output_data);
   }
 }
 
@@ -607,4 +617,7 @@ std::vector<std::string_view> Library::environment_variable_names() {
           "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP"sv};
 }
 
+std::optional<std::size_t> Library::max_saved_output_data() {
+  return config_settings_->get_max_saved_output_data();
+};
 }  // namespace datadog::nginx::security

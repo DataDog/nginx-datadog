@@ -122,7 +122,7 @@ build-musl-aux build-musl-cov-aux:
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
- 		-DNGINX_VERSION="$(NGINX_VERSION)" \
+		-DNGINX_VERSION="$(NGINX_VERSION)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
@@ -142,7 +142,7 @@ endif
 		--env RESTY_VERSION=$(RESTY_VERSION) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
 		--env WAF=$(WAF) \
- 		--mount type=bind,source="$(PWD)",target=/mnt/repo \
+		--mount type=bind,source="$(PWD)",target=/mnt/repo \
 		$(DOCKER_REPOS):latest \
 		bash -c "cd /mnt/repo && ./bin/openresty/build_openresty.sh && make build-openresty-aux"
 
@@ -158,11 +158,15 @@ build-openresty-aux:
 
 .PHONY: test
 test:
-	python3 test/bin/run.py --platform ${ARCH} --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast $(TEST_ARGS)
+	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} \
+		--module-path .musl-build/ngx_http_datadog_module.so -- \
+		--verbose $(TEST_ARGS)
 
 .PHONY: test-openresty
 test-openresty:
-	RESTY_TEST=ON python3 test/bin/run.py --platform ${ARCH} --image ${BASE_IMAGE} --module-path .openresty-build/ngx_http_datadog_module.so -- --verbose --failfast $(TEST_ARGS)
+	RESTY_TEST=ON python3 test/bin/run.py --platform $(DOCKER_PLATFORM) \
+	   --image ${BASE_IMAGE} --module-path .openresty-build/ngx_http_datadog_module.so -- \
+	   --verbose $(TEST_ARGS)
 
 .PHONY: build-and-test
 build-and-test: build-musl test

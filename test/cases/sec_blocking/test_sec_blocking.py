@@ -8,6 +8,7 @@ from pathlib import Path
 class TestSecBlocking(case.TestCase):
     config_setup_done = False
     requires_waf = True
+    min_nginx_version = '1.26.0'
 
     def setUp(self):
         super().setUp()
@@ -20,6 +21,14 @@ class TestSecBlocking(case.TestCase):
             conf_path = Path(__file__).parent / './conf/http.conf'
             conf_text = conf_path.read_text()
 
+            crt_path = Path(__file__).parent / './cert/example.com.crt'
+            crt_text = crt_path.read_text()
+            self.orch.nginx_replace_file('/tmp/example.com.crt', crt_text)
+
+            key_path = Path(__file__).parent / './cert/example.com.key'
+            key_text = key_path.read_text()
+            self.orch.nginx_replace_file('/tmp/example.com.key', key_text)
+
             status, log_lines = self.orch.nginx_replace_config(
                 conf_text, conf_path.name)
             self.assertEqual(0, status, log_lines)
@@ -29,23 +38,38 @@ class TestSecBlocking(case.TestCase):
         # Consume any previous logging from the agent.
         self.orch.sync_service('agent')
 
-    def run_with_ua(self, user_agent, accept):
+    @staticmethod
+    def convert_headers(headers):
+        return {k.lower(): v for k, v in dict(headers).items()}
+
+    def run_with_ua(self, user_agent, accept, http_version=1, tls=False):
         headers = {'User-Agent': user_agent, 'Accept': accept}
+        if http_version == 3 or tls:
+            port = 443
+            tls = True
+        else:
+            port = 80
+
         status, headers, body = self.orch.send_nginx_http_request(
-            '/http', 80, headers)
+            '/http', port, headers, http_version=http_version, tls=tls)
 
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service('agent')
-        headers = dict(headers)
-        headers = {k.lower(): v for k, v in headers.items()}
-        return status, headers, body, log_lines
+        return status, TestSecBlocking.convert_headers(
+            headers), body, log_lines
 
-    def run_with_body(self, content_type, req_body):
+    def run_with_body(self, content_type, req_body, http_version=1):
+        if http_version == 3:
+            port, tls = 443, True
+        else:
+            port, tls = 80, False
         status, headers, body = self.orch.send_nginx_http_request(
             '/http',
-            80,
+            port=port,
+            tls=tls,
             headers={'content-type': content_type},
-            req_body=req_body)
+            req_body=req_body,
+            http_version=http_version)
 
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service('agent')
@@ -53,7 +77,7 @@ class TestSecBlocking(case.TestCase):
         headers = {k.lower(): v for k, v in headers.items()}
         return status, headers, body, log_lines
 
-    def assert_has_report(self, log_lines):
+    def assert_has_report(self, log_lines, exp_match='block'):
         traces = [
             json.loads(line) for line in log_lines if line.startswith('[[{')
         ]
@@ -72,7 +96,29 @@ class TestSecBlocking(case.TestCase):
         appsec_rep = json.loads(trace[0][0]['meta']['_dd.appsec.json'])
 
         self.assertEqual(appsec_rep['triggers'][0]['rule']['on_match'][0],
-                         'block')
+                         exp_match)
+
+    def no_block_long_response(self, http_version, port, tls):
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http/repeat?card=10000&num_bouts=3&delay=200',
+            tls=tls,
+            port=port,
+            http_version=http_version)
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assertEqual(200, status)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'text/plain')
+        self.assertEqual(body, "Hello world!\n" * 30000)
+
+    def test_no_block_long_response_http11(self):
+        self.no_block_long_response(1, 80, False)
+
+    def test_no_block_long_response_http2(self):
+        self.no_block_long_response(2, 80, False)
+
+    def test_no_block_long_response_http3(self):
+        self.no_block_long_response(3, 443, True)
 
     def test_default_action(self):
         status, headers, body, log_lines = self.run_with_ua(
@@ -117,6 +163,27 @@ class TestSecBlocking(case.TestCase):
         self.assertEqual(status, 403)
         self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
 
+    def test_html_action_tls(self):
+        status, headers, body, _ = self.run_with_ua('block_html',
+                                                    'application/json',
+                                                    tls=True)
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+
+    def test_html_action_http2(self):
+        status, headers, body, _ = self.run_with_ua('block_html',
+                                                    'application/json',
+                                                    http_version=2)
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+
+    def test_html_action_http3(self):
+        status, headers, body, _ = self.run_with_ua('block_html',
+                                                    'application/json',
+                                                    http_version=3)
+        self.assertEqual(status, 403)
+        self.assertEqual(headers['content-type'], 'text/html;charset=utf-8')
+
     def test_json_action(self):
         status, headers, body, _ = self.run_with_ua('block_json', 'text/html')
         self.assertEqual(status, 403)
@@ -129,6 +196,20 @@ class TestSecBlocking(case.TestCase):
 
     def test_redirect_action(self):
         status, headers, _, _ = self.run_with_ua('redirect', '*/*')
+        self.assertEqual(status, 301)
+        self.assertEqual(headers['location'], 'https://www.cloudflare.com')
+
+    def test_redirect_action_http2(self):
+        status, headers, _, _ = self.run_with_ua('redirect',
+                                                 '*/*',
+                                                 http_version=2)
+        self.assertEqual(status, 301)
+        self.assertEqual(headers['location'], 'https://www.cloudflare.com')
+
+    def test_redirect_action_http3(self):
+        status, headers, _, _ = self.run_with_ua('redirect',
+                                                 '*/*',
+                                                 http_version=3)
         self.assertEqual(status, 301)
         self.assertEqual(headers['location'], 'https://www.cloudflare.com')
 
@@ -149,3 +230,78 @@ class TestSecBlocking(case.TestCase):
             '{"a": "block_default", "b": "' + ('a' * 1024 * 1024))
         self.assertEqual(status, 403)
         self.assert_has_report(log_lines)
+
+    def test_block_body_json_long_http2(self):
+        status, _, _, log_lines = self.run_with_body(
+            'application/json',
+            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024),
+            http_version=2)
+        self.assertEqual(status, 403)
+        self.assert_has_report(log_lines)
+
+    def test_block_body_json_long_http3(self):
+        status, _, _, log_lines = self.run_with_body(
+            'application/json',
+            '{"a": "block_default", "b": "' + ('a' * 1024 * 1024),
+            http_version=3)
+        self.assertEqual(status, 403)
+        self.assert_has_report(log_lines)
+
+    def block_on_status(self, http_version):
+        if http_version != 3:
+            status, headers, body = self.orch.send_nginx_http_request(
+                '/http/status/410', http_version=http_version)
+        else:
+            status, headers, body = self.orch.send_nginx_http_request(
+                '/http/status/410', tls=True, port=443, http_version=3)
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assertEqual(501, status)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+        self.assert_has_report(log_lines, 'block_501')
+
+    def test_block_on_status_http11(self):
+        self.block_on_status(1)
+
+    def test_block_on_status_http2(self):
+        self.block_on_status(2)
+
+    def test_block_on_status_http3(self):
+        self.block_on_status(3)
+
+    def block_on_status_redirect(self, http_version):
+        if http_version != 3:
+            status, headers, body = self.orch.send_nginx_http_request(
+                '/http/status/411', http_version=http_version)
+        else:
+            status, headers, body = self.orch.send_nginx_http_request(
+                '/http/status/411', tls=True, port=443, http_version=3)
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assertEqual(301, status)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['location'], 'https://www.cloudflare.com')
+        self.assert_has_report(log_lines, 'redirect')
+
+    def test_block_on_status_redirect_http11(self):
+        self.block_on_status(1)
+
+    def test_block_on_status_redirect_http2(self):
+        self.block_on_status(2)
+
+    def test_block_on_status_redirect_http3(self):
+        self.block_on_status(3)
+
+    def test_block_on_response_header(self):
+        nginx_version = self.orch.nginx_version()
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/resp_header_blocked')
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assertEqual(501, status)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+        self.assert_has_report(log_lines, 'block_501')

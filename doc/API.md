@@ -454,6 +454,21 @@ Values associated with a key matching this regular expression will be redacted.
 
 Values matching this regular expression will be redacted.
 
+### `datadog_appsec_max_saved_output_data` (AppSec builds)
+
+- **syntax** `datadog_appsec_max_saved_output_data <byte amount>`
+- **default**: (256k)
+- **context**: `main`
+
+When appsec is enabled, it will prevent the response from being committed and
+will check properties of this tentative response before deciding if it should
+go ahead with it or instead send a alternative response ("blocking response").
+
+This check takes some time, and more of the response may become available and
+be sent down the output filter chain before a decision can be made. This setting
+controls the approximate maximum amount of memory that will be allocated in the
+interim. Beyond this, the ouput filter chain will stall. Note that nginx may
+still spill the response into a temporary file if configured to do so.
 
 Variables
 ---------

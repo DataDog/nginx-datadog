@@ -375,6 +375,15 @@ static ngx_command_t datadog_commands[] = {
       offsetof(datadog_main_conf_t, appsec_obfuscation_value_regex),
       nullptr,
     },
+
+    {
+      ngx_string("datadog_appsec_max_saved_output_data"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_size_slot,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      offsetof(datadog_main_conf_t, appsec_max_saved_output_data),
+      nullptr,
+    },
 #endif
     DATADOG_RUM_DIRECTIVES
     ngx_null_command
