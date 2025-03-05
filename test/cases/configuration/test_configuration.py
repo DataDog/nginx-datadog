@@ -193,30 +193,6 @@ class TestConfiguration(case.TestCase):
         self.assertTrue(any(diagnostic_excerpt in line for line in log_lines),
                         log_lines)
 
-    def test_duplicate_service_name(self):
-        self.run_error_test(
-            conf_relative_path="./conf/duplicate/service_name.conf",
-            diagnostic_excerpt='Duplicate call to "datadog_service_name"',
-        )
-
-    def test_duplicate_environment(self):
-        self.run_error_test(
-            conf_relative_path="./conf/duplicate/environment.conf",
-            diagnostic_excerpt='Duplicate call to "datadog_environment"',
-        )
-
-    def test_duplicate_version(self):
-        self.run_error_test(
-            conf_relative_path="./conf/duplicate/version.conf",
-            diagnostic_excerpt='Duplicate call to "datadog_version"',
-        )
-
-    def test_duplicate_agent_url(self):
-        self.run_error_test(
-            conf_relative_path="./conf/duplicate/agent_url.conf",
-            diagnostic_excerpt='Duplicate call to "datadog_agent_url"',
-        )
-
     def test_duplicate_propagation_styles(self):
         self.run_error_test(
             conf_relative_path="./conf/duplicate/propagation_styles.conf",

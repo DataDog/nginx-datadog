@@ -384,65 +384,10 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
   return lock_propagation_styles(command, cf);
 }
 
-template <typename SetInDDConfig, typename GetFromFinalDDConfig>
-static char *set_configured_value(
-    ngx_conf_t *cf, ngx_command_t *command, void *conf,
-    std::optional<configured_value_t> datadog_main_conf_t::*conf_member,
-    SetInDDConfig &&set_in_dd_config,
-    GetFromFinalDDConfig &&get_from_final_dd_config) {
-  auto location = command_source_location(command, cf);
-
-  auto *main_conf = static_cast<datadog_main_conf_t *>(conf);
-  auto &field = main_conf->*conf_member;
-  if (field) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "Duplicate call to \"%V\". First call was at %V:%d. "
-                  "Duplicate call is at %V:%d.",
-                  &field->location.directive_name, &field->location.file_name,
-                  field->location.line, &location.file_name, location.line);
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
-  // values[0] is the command name, while values[1] is the single argument.
-  const auto arg = str(values[1]);
-
-  // Create a tracer config that contains the environment value. Then finalize
-  // the config to obtain the final environment value, which might differ from
-  // the original due to environment variables.
-  dd::TracerConfig minimal_config;
-  // A non-empty service name is required.
-  minimal_config.service = "dummy";
-  // Set the configuration property of interest.
-  set_in_dd_config(minimal_config, arg);
-  auto finalized_config = dd::finalize_config(minimal_config);
-  if (auto *error = finalized_config.if_error()) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "Unable to check %V %V; [error code %d]: %s", &values[0],
-                  &values[1], int(error->code), error->message.c_str());
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  // Get the resulting configuration property of interest.
-  const std::string &final_value = get_from_final_dd_config(*finalized_config);
-  if (final_value != arg) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "\"%V %V;\" directive at  %V:%d is overriden to \"%s\" by an "
-                  "environment variable",
-                  &values[0], &values[1], &location.file_name, location.line,
-                  final_value.c_str());
-  }
-
-  field.emplace();
-  field->value.assign(arg.data(), arg.size());
-  field->location = std::move(location);
-
-  return NGX_CONF_OK;
-}
-
 char *set_datadog_service_name(ngx_conf_t *cf, ngx_command_t *command,
                                void *conf) noexcept {
   assert(conf != nullptr);
+  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
 
   const auto values = static_cast<ngx_str_t *>(cf->args->elts);
 
@@ -452,28 +397,14 @@ char *set_datadog_service_name(ngx_conf_t *cf, ngx_command_t *command,
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  auto location = command_source_location(command, cf);
-
-  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
-  if (loc_conf.service_name) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "Duplicate call to \"%V\". First call was at %V:%d. "
-                  "Duplicate call is at %V:%d.",
-                  &loc_conf.service_name->location.directive_name,
-                  &loc_conf.service_name->location.file_name,
-                  loc_conf.service_name->location.line, &location.file_name,
-                  location.line);
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  loc_conf.service_name = {.location = location,
-                           .value = std::string(service_name)};
+  loc_conf.service_name = std::string(service_name);
   return NGX_OK;
 }
 
 char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command,
                               void *conf) noexcept {
   assert(conf != nullptr);
+  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
 
   const auto values = static_cast<ngx_str_t *>(cf->args->elts);
 
@@ -483,28 +414,14 @@ char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command,
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  auto location = command_source_location(command, cf);
-
-  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
-  if (loc_conf.service_env) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "Duplicate call to \"%V\". First call was at %V:%d. "
-                  "Duplicate call is at %V:%d.",
-                  &loc_conf.service_env->location.directive_name,
-                  &loc_conf.service_env->location.file_name,
-                  loc_conf.service_env->location.line, &location.file_name,
-                  location.line);
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  loc_conf.service_env = {.location = location,
-                          .value = std::string(service_env)};
+  loc_conf.service_env = std::string(service_env);
   return NGX_OK;
 }
 
 char *set_datadog_version(ngx_conf_t *cf, ngx_command_t *command,
                           void *conf) noexcept {
   assert(conf != nullptr);
+  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
 
   const auto values = static_cast<ngx_str_t *>(cf->args->elts);
 
@@ -514,37 +431,25 @@ char *set_datadog_version(ngx_conf_t *cf, ngx_command_t *command,
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  auto location = command_source_location(command, cf);
-
-  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
-  if (loc_conf.service_version) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "Duplicate call to \"%V\". First call was at %V:%d. "
-                  "Duplicate call is at %V:%d.",
-                  &loc_conf.service_version->location.directive_name,
-                  &loc_conf.service_version->location.file_name,
-                  loc_conf.service_version->location.line, &location.file_name,
-                  location.line);
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  loc_conf.service_version = {.location = location,
-                              .value = std::string(service_version)};
+  loc_conf.service_version = std::string(service_version);
   return NGX_OK;
 }
 
 char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command,
                             void *conf) noexcept {
-  return set_configured_value(
-      cf, command, conf, &datadog_main_conf_t::agent_url,
-      [](dd::TracerConfig &config, std::string_view agent_url) {
-        config.agent.url = agent_url;
-      },
-      [](const dd::FinalizedTracerConfig &config) {
-        const auto &url =
-            std::get<dd::FinalizedDatadogAgentConfig>(config.collector).url;
-        return url.scheme + "://" + url.authority + url.path;
-      });
+  assert(conf != nullptr);
+  auto &main_conf = *static_cast<datadog_main_conf_t *>(conf);
+
+  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
+
+  // values[0] is the command name, while values[1] is the single argument.
+  const auto agent_url = to_string_view(values[1]);
+  if (agent_url.empty()) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  main_conf.agent_url = std::string(agent_url);
+  return NGX_OK;
 }
 
 char *hijack_auth_request(ngx_conf_t *cf, ngx_command_t *command,

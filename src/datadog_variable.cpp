@@ -157,21 +157,20 @@ static ngx_int_t expand_configuration_variable(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
   if (loc_conf.service_name) {
     doc.AddMember("service",
-                  rapidjson::Value(loc_conf.service_name->value.c_str(), alloc),
+                  rapidjson::Value(loc_conf.service_name->c_str(), alloc),
                   alloc);
   }
 
   if (loc_conf.service_env) {
     doc.AddMember("environment",
-                  rapidjson::Value(loc_conf.service_env->value.c_str(), alloc),
+                  rapidjson::Value(loc_conf.service_env->c_str(), alloc),
                   alloc);
   }
 
   if (loc_conf.service_version) {
-    doc.AddMember(
-        "version",
-        rapidjson::Value(loc_conf.service_version->value.c_str(), alloc),
-        alloc);
+    doc.AddMember("version",
+                  rapidjson::Value(loc_conf.service_version->c_str(), alloc),
+                  alloc);
   }
 
   rapidjson::StringBuffer buffer;
