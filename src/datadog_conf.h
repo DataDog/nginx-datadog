@@ -208,26 +208,6 @@ struct datadog_loc_conf_t {
   // The oldest ancestor (the `http` block) has `depth` zero. Each subsequent
   // generation has the `depth` of its parent plus one.
   int depth;
-  // If "on", then sampling decisions will be delegated to the upstream at this
-  // location. If "off", then not.
-  ngx_flag_t sampling_delegation_enabled = NGX_CONF_UNSET;
-  // `sampling_delegation_directive` is the source location of the
-  // `datadog_delegate_sampling` directive that applies this location, if any.
-  conf_directive_source_location_t sampling_delegation_directive;
-  // `allow_sampling_delegation_in_subrequests_script` evaluates to one of "on"
-  // or "off". If "on", then locations used as subrequests, such as those
-  // created by the `ngx_http_auth_request_module`, can delegate the trace
-  // sampling decision to their upstream if so configured (e.g. by a
-  // `datadog_delegate_sampling` directive at that location or in an enclosing
-  // configuration context). If "off", then sampling delegation will not be
-  // performed for subrequests in affected locations, even if those locations
-  // are configured to delegate sampling.
-  ngx_flag_t allow_sampling_delegation_in_subrequests = NGX_CONF_UNSET;
-  // `allow_sampling_delegation_in_subrequests_directive` is the source location
-  // of the `datadog_allow_sampling_delegation_in_subrequests` directive that
-  // applies this location, if any.
-  conf_directive_source_location_t
-      allow_sampling_delegation_in_subrequests_directive;
 
 #ifdef WITH_WAF
   // the thread pool used to run the WAF on

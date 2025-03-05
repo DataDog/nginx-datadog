@@ -272,20 +272,6 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
-    { ngx_string("datadog_delegate_sampling"),
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1 | NGX_CONF_NOARGS,
-      ngx_conf_set_flag_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, sampling_delegation_enabled),
-      nullptr},
-
-    { ngx_string("datadog_allow_sampling_delegation_in_subrequests"),
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1 | NGX_CONF_NOARGS,
-      ngx_conf_set_flag_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-    offsetof(datadog_loc_conf_t, allow_sampling_delegation_in_subrequests),
-      nullptr},
-
     // based on ngx_http_auth_request_module.c
     { ngx_string("auth_request"),
       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
@@ -824,14 +810,6 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
       index++;
     }
   }
-
-  ngx_conf_merge_value(conf->sampling_delegation_enabled,
-                       prev->sampling_delegation_enabled, 0);
-  ngx_conf_merge_value(conf->allow_sampling_delegation_in_subrequests,
-                       prev->allow_sampling_delegation_in_subrequests, 0);
-  conf->sampling_delegation_directive = prev->sampling_delegation_directive;
-  conf->allow_sampling_delegation_in_subrequests_directive =
-      prev->allow_sampling_delegation_in_subrequests_directive;
 
 #ifdef WITH_WAF
   if (conf->waf_pool == nullptr) {
