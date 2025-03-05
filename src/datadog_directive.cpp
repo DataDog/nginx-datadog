@@ -62,19 +62,6 @@ char *lock_propagation_styles(const ngx_command_t *command, ngx_conf_t *conf) {
 
 }  // namespace
 
-static char *set_script(ngx_conf_t *cf, ngx_command_t *command,
-                        NgxScript &script) noexcept {
-  if (script.is_valid()) return const_cast<char *>("is duplicate");
-
-  auto value = static_cast<ngx_str_t *>(cf->args->elts);
-  auto pattern = &value[1];
-
-  if (script.compile(cf, *pattern) != NGX_OK)
-    return static_cast<char *>(NGX_CONF_ERROR);
-
-  return static_cast<char *>(NGX_CONF_OK);
-}
-
 char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
                                                  ngx_command_t *command,
                                                  void *conf) noexcept {
@@ -146,31 +133,6 @@ char *json_config_deprecated(ngx_conf_t *cf, ngx_command_t *command,
                 "Error occurred at \"%V\" in %V:%d",
                 &location.directive_name, &location.file_name, location.line);
   return static_cast<char *>(NGX_CONF_ERROR);
-}
-
-char *set_datadog_operation_name(ngx_conf_t *cf, ngx_command_t *command,
-                                 void *conf) noexcept {
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  return set_script(cf, command, loc_conf->operation_name_script);
-}
-
-char *set_datadog_location_operation_name(ngx_conf_t *cf,
-                                          ngx_command_t *command,
-                                          void *conf) noexcept {
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  return set_script(cf, command, loc_conf->loc_operation_name_script);
-}
-
-char *set_datadog_resource_name(ngx_conf_t *cf, ngx_command_t *command,
-                                void *conf) noexcept {
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  return set_script(cf, command, loc_conf->resource_name_script);
-}
-
-char *set_datadog_location_resource_name(ngx_conf_t *cf, ngx_command_t *command,
-                                         void *conf) noexcept {
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  return set_script(cf, command, loc_conf->loc_resource_name_script);
 }
 
 char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command,
@@ -382,57 +344,6 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
   }
 
   return lock_propagation_styles(command, cf);
-}
-
-char *set_datadog_service_name(ngx_conf_t *cf, ngx_command_t *command,
-                               void *conf) noexcept {
-  assert(conf != nullptr);
-  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
-
-  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
-
-  // values[0] is the command name, while values[1] is the single argument.
-  const auto service_name = to_string_view(values[1]);
-  if (service_name.empty()) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  loc_conf.service_name = std::string(service_name);
-  return NGX_OK;
-}
-
-char *set_datadog_environment(ngx_conf_t *cf, ngx_command_t *command,
-                              void *conf) noexcept {
-  assert(conf != nullptr);
-  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
-
-  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
-
-  // values[0] is the command name, while values[1] is the single argument.
-  const auto service_env = to_string_view(values[1]);
-  if (service_env.empty()) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  loc_conf.service_env = std::string(service_env);
-  return NGX_OK;
-}
-
-char *set_datadog_version(ngx_conf_t *cf, ngx_command_t *command,
-                          void *conf) noexcept {
-  assert(conf != nullptr);
-  auto &loc_conf = *static_cast<datadog_loc_conf_t *>(conf);
-
-  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
-
-  // values[0] is the command name, while values[1] is the single argument.
-  const auto service_version = to_string_view(values[1]);
-  if (service_version.empty()) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  loc_conf.service_version = std::string(service_version);
-  return NGX_OK;
 }
 
 char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command,
