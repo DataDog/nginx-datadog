@@ -2,7 +2,6 @@
 
 #include <cassert>
 
-#include "datadog_conf_handler.h"
 #include "ngx_http_datadog_module.h"
 
 namespace datadog::nginx {
@@ -43,42 +42,6 @@ char *lock_propagation_styles(const ngx_command_t *command, ngx_conf_t *conf) {
 }
 
 }  // namespace
-
-char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
-                                                 ngx_command_t *command,
-                                                 void *conf) noexcept {
-  const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
-  assert(cf->args->nelts >= 1);
-
-  const std::string_view deprecated_prefix{"opentracing_"};
-  assert(starts_with(str(elements[0]), deprecated_prefix));
-
-  // This `std::string` is the storage for a `ngx_str_t` used below.  This is
-  // valid if we are certain that copies of / references to the `ngx_str_t` will
-  // not outlive this `std::string` (they won't).
-  std::string new_name{"datadog_"};
-  const std::string_view suffix =
-      slice(str(elements[0]), deprecated_prefix.size());
-  new_name.append(suffix.data(), suffix.size());
-
-  const ngx_str_t new_name_ngx = to_ngx_str(new_name);
-  ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                "Backward compatibility with the \"%V\" configuration "
-                "directive is deprecated.  "
-                "Please use \"%V\" instead.  Occurred at %V:%d",
-                &elements[0], &new_name_ngx, &cf->conf_file->file.name,
-                cf->conf_file->line);
-
-  // Rename the command (opentracing_*  →  datadog_*) and let
-  // `datadog_conf_handler` dispatch to the appropriate handler.
-  elements[0] = new_name_ngx;
-  auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = false});
-  if (rcode != NGX_OK) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  return static_cast<char *>(NGX_CONF_OK);
-}
 
 char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
                       ngx_str_t value) noexcept {
@@ -345,16 +308,15 @@ char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command,
   return NGX_OK;
 }
 
-char *warn_deprecated_command_1_2_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
-                                    void * /*conf*/) noexcept {
-  const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
-  assert(cf->args->nelts >= 1);
+char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t * /*command*/,
+                              void *user_data) noexcept {
+  if (user_data == nullptr) {
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
 
-  ngx_log_error(
-      NGX_LOG_WARN, cf->log, 0,
-      "Directive \"%V\" is deprecated and can be removed since v1.2.0.",
-      &elements[0]);
-
+  auto warning_message = static_cast<const char *>(user_data);
+  ngx_log_error(NGX_LOG_WARN, cf->log, 0, "%V",
+                to_ngx_str(cf->pool, warning_message));
   return NGX_OK;
 }
 
