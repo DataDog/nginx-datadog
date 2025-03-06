@@ -274,6 +274,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
 
   NgxHeaderWriter writer(request_);
   auto &span = active_span();
+  span.set_tag("span.kind", "client");
   span.inject(writer, injection_opts);
 }
 
@@ -309,6 +310,7 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
 
   NgxHeaderWriter writer(request_);
   auto &span = active_span();
+  span.set_tag("span.kind", "client");
   span.inject(writer, injection_opts);
 }
 
