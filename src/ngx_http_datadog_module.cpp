@@ -272,14 +272,6 @@ static ngx_command_t datadog_commands[] = {
       0,
       nullptr},
 
-    // based on ngx_http_auth_request_module.c
-    { ngx_string("auth_request"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      hijack_auth_request,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      NULL },
-
 #ifdef WITH_WAF
     {
       ngx_string("datadog_waf_thread_pool_name"),
