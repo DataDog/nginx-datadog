@@ -1,6 +1,7 @@
 #pragma once
 
 #include "datadog_conf.h"
+#include "datadog_directive.h"
 
 extern "C" {
 #include <nginx.h>
@@ -22,17 +23,24 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
                                    datadog::nginx::datadog_loc_conf_t *parent,
                                    datadog::nginx::datadog_loc_conf_t *child);
 
-// clang-format off
-#define DATADOG_RUM_DIRECTIVES \
-    { \
-      ngx_string("datadog_rum"), \
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_FLAG, \
-      ngx_conf_set_flag_slot, NGX_HTTP_LOC_CONF_OFFSET, offsetof(datadog_loc_conf_t, rum_enable), NULL \
-    }, \
-    { \
-      ngx_string("datadog_rum_config"), \
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_BLOCK | NGX_CONF_TAKE1, \
-      on_datadog_rum_config, NGX_HTTP_LOC_CONF_OFFSET, 0, NULL \
+const datadog::nginx::directive rum_directives[] = {
+    {
+        "datadog_rum",
+        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
+            NGX_CONF_FLAG,
+        ngx_conf_set_flag_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(datadog_loc_conf_t, rum_enable),
+        NULL,
     },
-// clang-format on
+    {
+        "datadog_rum_config",
+        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
+            NGX_CONF_BLOCK | NGX_CONF_TAKE1,
+        on_datadog_rum_config,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        0,
+        NULL,
+    },
+}
 }
