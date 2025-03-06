@@ -2,7 +2,6 @@
 
 #include <cassert>
 
-#include "datadog_conf_handler.h"
 #include "ngx_http_datadog_module.h"
 
 namespace datadog::nginx {
@@ -44,42 +43,6 @@ char *lock_propagation_styles(const ngx_command_t *command, ngx_conf_t *conf) {
 
 }  // namespace
 
-char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
-                                                 ngx_command_t *command,
-                                                 void *conf) noexcept {
-  const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
-  assert(cf->args->nelts >= 1);
-
-  const std::string_view deprecated_prefix{"opentracing_"};
-  assert(starts_with(str(elements[0]), deprecated_prefix));
-
-  // This `std::string` is the storage for a `ngx_str_t` used below.  This is
-  // valid if we are certain that copies of / references to the `ngx_str_t` will
-  // not outlive this `std::string` (they won't).
-  std::string new_name{"datadog_"};
-  const std::string_view suffix =
-      slice(str(elements[0]), deprecated_prefix.size());
-  new_name.append(suffix.data(), suffix.size());
-
-  const ngx_str_t new_name_ngx = to_ngx_str(new_name);
-  ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                "Backward compatibility with the \"%V\" configuration "
-                "directive is deprecated.  "
-                "Please use \"%V\" instead.  Occurred at %V:%d",
-                &elements[0], &new_name_ngx, &cf->conf_file->file.name,
-                cf->conf_file->line);
-
-  // Rename the command (opentracing_*  →  datadog_*) and let
-  // `datadog_conf_handler` dispatch to the appropriate handler.
-  elements[0] = new_name_ngx;
-  auto rcode = datadog_conf_handler({.conf = cf, .skip_this_module = false});
-  if (rcode != NGX_OK) {
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  return static_cast<char *>(NGX_CONF_OK);
-}
-
 char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
                       ngx_str_t value) noexcept {
   if (!tags) return static_cast<char *>(NGX_CONF_ERROR);
@@ -103,58 +66,6 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
     loc_conf->tags = ngx_array_create(cf->pool, 1, sizeof(datadog_tag_t));
   auto values = static_cast<ngx_str_t *>(cf->args->elts);
   return add_datadog_tag(cf, loc_conf->tags, values[1], values[2]);
-}
-
-char *json_config_deprecated(ngx_conf_t *cf, ngx_command_t *command,
-                             void * /*conf*/) noexcept {
-  const auto location = command_source_location(command, cf);
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                "The datadog { ... } block directive is no longer supported. "
-                "Use the specific datadog_* "
-                "directives instead, or use DD_TRACE_* environment variables.  "
-                "Error occurred at \"%V\" in %V:%d",
-                &location.directive_name, &location.file_name, location.line);
-  return static_cast<char *>(NGX_CONF_ERROR);
-}
-
-char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command,
-                         void *conf) noexcept {
-  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  const auto values = static_cast<const ngx_str_t *>(cf->args->elts);
-  assert(cf->args->nelts == 2);
-
-  if (str(values[1]) == "on") {
-    loc_conf->enable_tracing = true;
-  } else if (str(values[1]) == "off") {
-    loc_conf->enable_tracing = false;
-  } else {
-    ngx_log_error(
-        NGX_LOG_ERR, cf->log, 0,
-        "Invalid argument \"%V\" to %V directive.  Use \"on\" or \"off\". ",
-        &values[1], &command->name);
-    return static_cast<char *>(NGX_CONF_ERROR);
-  }
-
-  // Warn the user to prefer the corresponding "datadog_tracing"
-  // directive.
-  const ngx_str_t preferred_str = to_ngx_str({"datadog_tracing"});
-  ngx_log_error(
-      NGX_LOG_WARN, cf->log, 0,
-      "Backward compatibility with the \"%V %V;\" configuration directive is "
-      "deprecated.  Please use \"%V;\" instead.",
-      &values[0], &values[1], &preferred_str);
-
-  return static_cast<char *>(NGX_CONF_OK);
-}
-
-char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command,
-                                void *conf) noexcept {
-  ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                "The \"%V\" directive is no longer necessary.  Use the "
-                "separate datadog_* "
-                "directives to configure tracing.",
-                &command->name);
-  return static_cast<char *>(NGX_CONF_ERROR);
 }
 
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
@@ -186,13 +97,13 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
     // `end_index` might not be the end of the input, e.g. if the argument were
     // "12monkeys".  That's an error.
     if (end_index != rate_str.size()) {
-      ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                    "Invalid argument \"%V\" to %V directive at %V:%d.  "
-                    "Expected a real number between 0.0 "
-                    "and 1.0, but the provided argument has unparsed trailing "
-                    "characters.",
-                    &values[1], &directive.directive_name, &directive.file_name,
-                    directive.line);
+      ngx_conf_log_error(
+          NGX_LOG_ERR, cf, 0,
+          "Invalid argument \"%V\" to %V directive.  "
+          "Expected a real number between 0.0 "
+          "and 1.0, but the provided argument has unparsed trailing "
+          "characters.",
+          &values[1], &directive.directive_name);
       return static_cast<char *>(NGX_CONF_ERROR);
     }
     if (!(rate_float >= 0.0 && rate_float <= 1.0)) {
@@ -208,13 +119,12 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
         directive.line);
     return static_cast<char *>(NGX_CONF_ERROR);
   } catch (const std::out_of_range &) {
-    ngx_log_error(
-        NGX_LOG_ERR, cf->log, 0,
-        "Invalid argument \"%V\" to %V directive at %V:%d.  Expected a real "
+    ngx_conf_log_error(
+        NGX_LOG_ERR, cf, 0,
+        "Invalid argument \"%V\" to %V directive.  Expected a real "
         "number "
         "between 0.0 and 1.0, but the provided argument is out of range.",
-        &values[1], &directive.directive_name, &directive.file_name,
-        directive.line);
+        &values[1], &directive.directive_name);
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
@@ -222,12 +132,11 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
   // whether the specified sample rate should apply to the current request.
   NgxScript condition_script;
   if (condition_script.compile(cf, condition_pattern) != NGX_OK) {
-    ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                  "Invalid argument \"%V\" to %V directive at %V:%d.  Expected "
-                  "an expression that "
-                  "will evaluate to \"on\" or \"off\".",
-                  &condition_pattern, &directive.directive_name,
-                  &directive.file_name, directive.line);
+    ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                       "Invalid argument \"%V\" to %V directive.  Expected "
+                       "an expression that "
+                       "will evaluate to \"on\" or \"off\".",
+                       &condition_pattern, &directive.directive_name);
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
@@ -283,7 +192,7 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
     }
     ngx_log_error(NGX_LOG_ERR, cf->log, 0,
                   "Datadog propagation styles are already configured.  They "
-                  "were %sconfigured by "
+                  "were %s configured by "
                   "the call to \"%V\" at "
                   "%V:%d.  Place the datadog_propagation_styles directive in "
                   "the http block, before any "
@@ -304,22 +213,17 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
   for (const ngx_str_t *arg = args; arg != args + nargs; ++arg) {
     auto maybe_style = dd::parse_propagation_style(str(*arg));
     if (!maybe_style) {
-      const auto location = command_source_location(command, cf);
-      ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                    "Invalid propagation style \"%V\". Acceptable values are "
-                    "\"Datadog\", \"B3\", "
-                    "and \"tracecontext\". Error occurred at \"%V\" in %V:%d",
-                    arg, &location.directive_name, &location.file_name,
-                    location.line);
+      ngx_conf_log_error(
+          NGX_LOG_ERR, cf, 0,
+          "Invalid propagation style \"%V\". Acceptable values are "
+          "\"Datadog\", \"B3\", "
+          "and \"tracecontext\".",
+          arg);
       return static_cast<char *>(NGX_CONF_ERROR);
     }
     if (std::find(styles.begin(), styles.end(), *maybe_style) != styles.end()) {
-      const auto location = command_source_location(command, cf);
-      ngx_log_error(NGX_LOG_ERR, cf->log, 0,
-                    "Duplicate propagation style \"%V\". Error occurred at "
-                    "\"%V\" in %V:%d",
-                    arg, &location.directive_name, &location.file_name,
-                    location.line);
+      ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                         "Duplicate propagation style \"%V\".", arg);
       return static_cast<char *>(NGX_CONF_ERROR);
     }
     styles.push_back(*maybe_style);
@@ -342,19 +246,6 @@ char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command,
   }
 
   main_conf.agent_url = std::string(agent_url);
-  return NGX_OK;
-}
-
-char *warn_deprecated_command_1_2_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
-                                    void * /*conf*/) noexcept {
-  const auto elements = static_cast<ngx_str_t *>(cf->args->elts);
-  assert(cf->args->nelts >= 1);
-
-  ngx_log_error(
-      NGX_LOG_WARN, cf->log, 0,
-      "Directive \"%V\" is deprecated and can be removed since v1.2.0.",
-      &elements[0]);
-
   return NGX_OK;
 }
 
