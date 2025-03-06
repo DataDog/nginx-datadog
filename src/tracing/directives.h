@@ -46,6 +46,17 @@ constexpr ngx_uint_t anywhere =
         NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                   \
   }
 
+#define ALIAS_DATADOG_COMMAND(NAME, TYPE)                   \
+  {                                                         \
+    NAME, TYPE, delegate_to_datadog_directive_with_warning, \
+        NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                \
+  }
+
+#define DEFINE_COMMAND_ALIAS(NAME, ALIAS, TYPE, SET, CONF, OFF, POST) \
+  {NAME, TYPE, SET, CONF, OFFSET, POST}, {                            \
+    OLD_NAME, TYPE, SET, CONF, OFFSET, POST                           \
+  }
+
 #define DEFINE_DEPRECATED_COMMAND_1_2_0(NAME, TYPE)                         \
   {                                                                         \
     NAME, TYPE, warn_deprecated_command_1_2_0, NGX_HTTP_LOC_CONF_OFFSET, 0, \
@@ -98,13 +109,149 @@ constexpr datadog::nginx::directive tracing_directives[] = {
         offsetof(datadog_loc_conf_t, enable_tracing),
         nullptr,
     },
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-        "datadog_trace_locations", "opentracing_trace_locations",
-        anywhere | NGX_CONF_TAKE1, ngx_conf_set_flag_slot,
+    {
+        "datadog_trace_locations",
+        anywhere | NGX_CONF_TAKE1,
+        ngx_conf_set_flag_slot,
         NGX_HTTP_LOC_CONF_OFFSET,
-        offsetof(datadog_loc_conf_t, enable_locations), nullptr),
+        offsetof(datadog_loc_conf_t, enable_locations),
+        nullptr,
+    },
 
+    {
+        "datadog_operation_name",
+        anywhere | NGX_CONF_TAKE1,
+        ngx_http_set_complex_value_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(datadog_loc_conf_t, operation_name_script),
+        nullptr,
+    },
+
+    {
+        "datadog_location_operation_name",
+        anywhere | NGX_CONF_TAKE1,
+        ngx_http_set_complex_value_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(datadog_loc_conf_t, loc_operation_name_script),
+        nullptr,
+    },
+
+    {
+        "datadog_resource_name",
+        anywhere | NGX_CONF_TAKE1,
+        ngx_http_set_complex_value_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(datadog_loc_conf_t, resource_name_script),
+        nullptr,
+    },
+
+    {
+        "datadog_location_resource_name",
+        anywhere | NGX_CONF_TAKE1,
+        ngx_http_set_complex_value_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(datadog_loc_conf_t, loc_resource_name_script),
+        nullptr,
+    },
+
+    {
+        "datadog_trust_incoming_span",
+        anywhere | NGX_CONF_TAKE1,
+        ngx_conf_set_flag_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(datadog_loc_conf_t, trust_incoming_span),
+        nullptr,
+    },
+
+    {
+        "datadog_tag",
+        anywhere | NGX_CONF_TAKE2,
+        set_datadog_tag,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        0,
+        nullptr,
+    },
+
+    {
+        "datadog_load_tracer",
+        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
+        plugin_loading_deprecated,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        0,
+        nullptr,
+    },
+
+    {
+        "opentracing_load_tracer",
+        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
+        plugin_loading_deprecated,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        0,
+        nullptr,
+    },
+
+    {
+        "datadog",
+        NGX_MAIN_CONF | NGX_HTTP_MAIN_CONF | NGX_CONF_NOARGS | NGX_CONF_BLOCK,
+        json_config_deprecated,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        0,
+        nullptr,
+    },
+
+    {
+        "datadog_sample_rate",
+        // NGX_CONF_TAKE12 means "take 1 or 2 args," not "take 12 args."
+        NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
+            NGX_CONF_TAKE12,
+        set_datadog_sample_rate,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        0,
+        nullptr,
+    },
+
+    {
+        "datadog_propagation_styles",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_1MORE,
+        set_datadog_propagation_styles,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        0,
+        nullptr,
+    },
+
+    // aliases opentracing (legacy)
+    ALIAS_DATADOG_COMMAND("opentracing_operation_name", anywhere),
+    ALIAS_DATADOG_COMMAND("opentracing_location_operation_name", anywhere),
+    ALIAS_DATADOG_COMMAND("opentracing_trust_incoming_span", anywhere),
+    ALIAS_DATADOG_COMMAND("opentracing_tag", anywhere),
+    ALIAS_DATADOG_COMMAND("opentracing_trace_locations", anywhere),
+
+    // aliases opentelemetry. From:
+    // <https://github.com/open-telemetry/opentelemetry-cpp-contrib/blob/3d2bf3afb465e3cc6c5ff12e4f4cf8f86fd42943/instrumentation/nginx/src/otel_ngx_module.cpp#L1140>
+    IGNORE_COMMAND("opentelemetry_propagate",
+                   anywhere | NGX_CONF_NOARGS | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_capture_headers", anywhere | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_span_processor", anywhere | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_bsp_max_queue_size",
+                   anywhere | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_bsp_schedule_delay_millis",
+                   anywhere | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_bsp_max_export_batch_size",
+                   anywhere | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_traces_sampler", anywhere | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_sensitive_header_names",
+                   anywhere | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_sensitive_header_values",
+                   anywhere | NGX_CONF_TAKE1),
+    IGNORE_COMMAND("opentelemetry_ignore_paths", anywhere | NGX_CONF_TAKE1),
+    ALIAS_DATADOG_COMMAND("opentelemetry_operation_name", anywhere),
+    ALIAS_DATADOG_COMMAND("opentelemetry_trust_incoming_spans", anywhere),
+    ALIAS_COMMAND("datadog_sample_rate", "opentelemetry_traces_sampler_ratio",
+                  anywhere),
+    ALIAS_COMMAND("datadog_tracing", "opentelemetry", anywhere),
+    ALIAS_COMMAND("datadog_tags", "opentelemetry_attribute", anywhere),
+
+    // deprecated
     DEFINE_DEPRECATED_COMMAND_1_2_0("datadog_propagate_context",
                                     anywhere | NGX_CONF_NOARGS),
 
@@ -122,57 +269,6 @@ constexpr datadog::nginx::directive tracing_directives[] = {
 
     DEFINE_DEPRECATED_COMMAND_1_2_0("datadog_grpc_propagate_context",
                                     anywhere | NGX_CONF_NOARGS),
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-        "datadog_operation_name", "opentracing_operation_name",
-        anywhere | NGX_CONF_TAKE1, ngx_http_set_complex_value_slot,
-        NGX_HTTP_LOC_CONF_OFFSET,
-        offsetof(datadog_loc_conf_t, operation_name_script), nullptr),
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-        "datadog_location_operation_name",
-        "opentracing_location_operation_name", anywhere | NGX_CONF_TAKE1,
-        ngx_http_set_complex_value_slot, NGX_HTTP_LOC_CONF_OFFSET,
-        offsetof(datadog_loc_conf_t, loc_operation_name_script), nullptr),
-
-    {"datadog_resource_name", anywhere | NGX_CONF_TAKE1,
-     ngx_http_set_complex_value_slot, NGX_HTTP_LOC_CONF_OFFSET,
-     offsetof(datadog_loc_conf_t, resource_name_script), nullptr},
-
-    {"datadog_location_resource_name", anywhere | NGX_CONF_TAKE1,
-     ngx_http_set_complex_value_slot, NGX_HTTP_LOC_CONF_OFFSET,
-     offsetof(datadog_loc_conf_t, loc_resource_name_script), nullptr},
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-        "datadog_trust_incoming_span", "opentracing_trust_incoming_span",
-        anywhere | NGX_CONF_TAKE1, ngx_conf_set_flag_slot,
-        NGX_HTTP_LOC_CONF_OFFSET,
-        offsetof(datadog_loc_conf_t, trust_incoming_span), nullptr),
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS("datadog_tag", "opentracing_tag",
-                                  anywhere | NGX_CONF_TAKE2, set_datadog_tag,
-                                  NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr),
-
-    {"datadog_load_tracer",
-     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
-     plugin_loading_deprecated, NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr},
-
-    {"opentracing_load_tracer",
-     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
-     plugin_loading_deprecated, NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr},
-
-    {"datadog",
-     NGX_MAIN_CONF | NGX_HTTP_MAIN_CONF | NGX_CONF_NOARGS | NGX_CONF_BLOCK,
-     json_config_deprecated, NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr},
-
-    {"datadog_sample_rate",
-     // NGX_CONF_TAKE12 means "take 1 or 2 args," not "take 12 args."
-     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
-         NGX_CONF_TAKE12,
-     set_datadog_sample_rate, NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr},
-
-    {"datadog_propagation_styles", NGX_HTTP_MAIN_CONF | NGX_CONF_1MORE,
-     set_datadog_propagation_styles, NGX_HTTP_MAIN_CONF_OFFSET, 0, nullptr},
 };
 
 }  // namespace datadog::nginx
