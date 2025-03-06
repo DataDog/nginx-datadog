@@ -27,18 +27,6 @@ namespace datadog {
 namespace nginx {
 namespace {
 
-bool should_delegate(ngx_http_request_t *request,
-                     datadog_loc_conf_t *loc_conf) {
-  if (request->parent != nullptr) {
-    return loc_conf->sampling_delegation_enabled;
-  }
-
-  // `request` is a subrequest, sampling delegated must be allowed for
-  // subrequest.
-  return loc_conf->sampling_delegation_enabled &&
-         loc_conf->allow_sampling_delegation_in_subrequests;
-}
-
 std::optional<std::string> eval_complex_value(ngx_http_complex_value_t *conf,
                                               ngx_http_request_t *request_) {
   if (conf == nullptr) return std::nullopt;
@@ -268,14 +256,10 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
 
   // Inject the active span
-  dd::InjectionOptions injection_opts;
-  injection_opts.delegate_sampling_decision =
-      should_delegate(request_, loc_conf_);
-
   NgxHeaderWriter writer(request_);
   auto &span = active_span();
   span.set_tag("span.kind", "client");
-  span.inject(writer, injection_opts);
+  span.inject(writer);
 }
 
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
@@ -304,14 +288,10 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
 
   // Inject the active span
-  dd::InjectionOptions injection_opts;
-  injection_opts.delegate_sampling_decision =
-      should_delegate(request_, loc_conf);
-
   NgxHeaderWriter writer(request_);
   auto &span = active_span();
   span.set_tag("span.kind", "client");
-  span.inject(writer, injection_opts);
+  span.inject(writer);
 }
 
 dd::Span &RequestTracing::active_span() {
@@ -365,12 +345,6 @@ void RequestTracing::on_log_request() {
   add_upstream_name(request_, *request_span_);
 
   request_span_->set_end_time(finish_timestamp);
-
-  if (should_delegate(request_, loc_conf_)) {
-    NgxHeaderReader reader(&request_->headers_out.headers);
-    auto delegated = request_span_->read_sampling_delegation_response(reader);
-    if (!delegated.if_error()) return;
-  }
 
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
