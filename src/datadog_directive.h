@@ -7,47 +7,76 @@ extern "C" {
 #include <ngx_http.h>
 }
 
+#include <string_view>
+
+#include "string_util.h"
+
 namespace datadog {
 namespace nginx {
 
-char *delegate_to_datadog_directive_with_warning(ngx_conf_t *cf,
-                                                 ngx_command_t *command,
-                                                 void *conf) noexcept;
+/// Represent an NGINX configuration directive.
+/// This struct is there to leverage compile time generation of the module
+/// directives. because `ngx_command_t` is not constexpr-friendly.
+struct directive {
+  /// Function pointer on the function that will be called when the directive
+  /// will be processed.
+  using setter_func = auto(*)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+                          -> char *;
 
-char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
-                      ngx_str_t value) noexcept;
+  /// Name of the directive.
+  std::string_view name;
+  /// Type of directive.
+  /// This value is a bitmask indicating the directive's applicable
+  /// configuration contexts * (e.g., `NGX_HTTP_MAIN_CONF`, `NGX_HTTP_SRV_CONF`,
+  /// etc.).
+  ngx_uint_t type;
+  /// Function pointer to the directive handler. This function is called when
+  /// the directive is encountered during configuration parsing.
+  setter_func callback;
+  /// Configuration flag for the directive.
+  ngx_uint_t conf;
+  /// Offset for storing the directive's value in a configuration structure.
+  ngx_uint_t offset;
+  /// Additional post-processing data.
+  void *post;
 
-char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
-                      void *conf) noexcept;
+  ngx_command_t to_ngx_command() const {
+    return ngx_command_t{to_ngx_str(name), type, callback, conf, offset, post};
+  }
+};
 
-char *json_config_deprecated(ngx_conf_t *cf, ngx_command_t *command,
-                             void *conf) noexcept;
+template <std::size_t N1, std::size_t... Ns>
+constexpr auto merge_directives(const directive (&arr1)[N1],
+                                const directive (&...arrs)[Ns]) {
+  constexpr std::size_t total = N1 + (Ns + ...);
 
-char *toggle_opentracing(ngx_conf_t *cf, ngx_command_t *command,
-                         void *conf) noexcept;
+  std::array<ngx_command_t, total> result{};
 
-char *plugin_loading_deprecated(ngx_conf_t *cf, ngx_command_t *command,
-                                void *conf) noexcept;
+  std::size_t offset = 0;  // Index to track insertion position
+  for (std::size_t i = 0; i < N1; ++i) {
+    result[offset++] = arr1[i].to_ngx_command();
+  }
 
-char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
-                              void *conf) noexcept;
+  (([&] {
+     for (std::size_t i = 0; i < Ns; ++i) {
+       result[offset++] = arrs[i].to_ngx_command();
+     }
+   }()),
+   ...);
 
-char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
-                                     void *conf) noexcept;
+  return result;
+}
+
+template <typename... T>
+constexpr auto generate_directives(const T &...directives) {
+  return merge_directives(directives...);
+}
 
 char *set_datadog_agent_url(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
-
-char *warn_deprecated_command_1_2_0(ngx_conf_t *cf, ngx_command_t * /*command*/,
-                                    void * /*conf*/) noexcept;
 
 char *warn_deprecated_command_datadog_tracing(ngx_conf_t *cf,
                                               ngx_command_t * /*command*/,
                                               void * /*conf*/) noexcept;
-
-#ifdef WITH_WAF
-char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
-                           void *conf) noexcept;
-#endif
 
 }  // namespace nginx
 }  // namespace datadog
