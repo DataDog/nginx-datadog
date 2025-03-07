@@ -20,8 +20,8 @@ namespace nginx {
 struct directive {
   /// Function pointer on the function that will be called when the directive
   /// will be processed.
-  using setter_func = auto (*)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
-      -> char *;
+  using setter_func = auto(*)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+                          -> char *;
 
   /// Name of the directive.
   std::string_view name;

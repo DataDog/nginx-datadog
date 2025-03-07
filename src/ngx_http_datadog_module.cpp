@@ -81,8 +81,10 @@ constexpr datadog::nginx::directive module_directives[] = {
      set_datadog_agent_url, NGX_HTTP_MAIN_CONF_OFFSET, 0, nullptr},
 
     // aliases
-    /*ALIAS("datadog_service_name", "opentelemetry_service_name"),*/
-    /*ALIAS("datadog_agent_url", "opentelemetry_otlp_traces_endpoint"),*/
+    ALIAS_COMMAND("datadog_service_name", "opentelemetry_service_name",
+                  NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1),
+    ALIAS_COMMAND("datadog_agent_url", "opentelemetry_otlp_traces_endpoint",
+                  NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1),
 };
 
 static auto datadog_commands =
