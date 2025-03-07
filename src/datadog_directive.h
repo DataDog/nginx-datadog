@@ -81,6 +81,18 @@ constexpr auto generate_directives(const T &...directives) {
         (void *)SRC_DIR                                             \
   }
 
+#define WARN_DEPRECATED_COMMAND(NAME, TYPE, MSG)                      \
+  {                                                                   \
+    NAME, TYPE, warn_deprecated_command, NGX_HTTP_LOC_CONF_OFFSET, 0, \
+        (void *)MSG                                                   \
+  }
+
+#define ERROR_DEPRECATED_COMMAND(NAME, TYPE, MSG)                    \
+  {                                                                  \
+    NAME, TYPE, err_deprecated_command, NGX_HTTP_LOC_CONF_OFFSET, 0, \
+        (void *)MSG                                                  \
+  }
+
 char *silently_ignore_command(ngx_conf_t *, ngx_command_t *, void *);
 
 char *alias_directive(ngx_conf_t *cf, ngx_command_t *command,
@@ -88,9 +100,11 @@ char *alias_directive(ngx_conf_t *cf, ngx_command_t *command,
 
 char *set_datadog_agent_url(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 
-char *warn_deprecated_command_datadog_tracing(ngx_conf_t *cf,
-                                              ngx_command_t * /*command*/,
-                                              void * /*conf*/) noexcept;
+char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t *command,
+                              void *conf) noexcept;
+
+char *err_deprecated_command(ngx_conf_t *cf, ngx_command_t *command,
+                             void *) noexcept;
 
 }  // namespace nginx
 }  // namespace datadog
