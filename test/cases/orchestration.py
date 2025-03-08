@@ -362,7 +362,7 @@ def curl(url, headers, stderr=None, method="GET", body=None, http_version=1):
         "curljson.sh",
         f"-X{method}",
         *header_args(),
-        '-k',
+        "-k",
         version_arg,
         *body_args,
         url,
@@ -539,34 +539,39 @@ class Orchestration:
 
     @staticmethod
     def nginx_version():
-        result = subprocess.run(docker_compose_command("exec", "--", "nginx",
-                                                       "nginx", "-v"),
-                                capture_output=True,
-                                text=True,
-                                check=True)
-        match = re.search(r'/([\d.]+)', result.stderr)
+        result = subprocess.run(
+            docker_compose_command("exec", "--", "nginx", "nginx", "-v"),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        match = re.search(r"/([\d.]+)", result.stderr)
         return match.group(1) if match else None
 
-    def send_nginx_http_request(self,
-                                path,
-                                port=80,
-                                headers={},
-                                method="GET",
-                                req_body=None,
-                                http_version=1,
-                                tls=False):
+    def send_nginx_http_request(
+        self,
+        path,
+        port=80,
+        headers={},
+        method="GET",
+        req_body=None,
+        http_version=1,
+        tls=False,
+    ):
         """Send a "GET <path>" request to nginx, and return the resulting HTTP
         status code and response body as a tuple `(status, body)`.
         """
         protocol = "https" if tls else "http"
         url = f"{protocol}://nginx:{port}{path}"
         print("fetching", url, file=self.verbose, flush=True)
-        fields, headers, body = curl(url,
-                                     headers,
-                                     body=req_body,
-                                     stderr=self.verbose,
-                                     method=method,
-                                     http_version=http_version)
+        fields, headers, body = curl(
+            url,
+            headers,
+            body=req_body,
+            stderr=self.verbose,
+            method=method,
+            http_version=http_version,
+        )
         return fields["response_code"], headers, body
 
     def setup_remote_config_payload(self, payload):
@@ -704,7 +709,7 @@ class Orchestration:
         # -q            : suppress non-error messages during configuration testing
         # -c filename   : set configuration file (default: /etc/nginx/nginx.conf)
         script = f"""
-dir=$(mktemp -d)
+dir=/tmp
 file="$dir/{file_name}"
 cat >"$file" <<'END_CONFIG'
 error_log stderr notice;
@@ -712,7 +717,6 @@ error_log stderr notice;
 END_CONFIG
 nginx -t -c "$file"
 rcode=$?
-rm -r "$dir"
 exit "$rcode"
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
