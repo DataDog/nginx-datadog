@@ -147,17 +147,17 @@ class SpanContextJSONWriter : public dd::DictWriter {
 std::string span_property(std::string_view key, const dd::Span &span) {
   const auto not_found = "-";
 
-  if (key == "trace_id_hex") {
+  if (key == "trace_id_hex" || key == "trace_id") {
     return span.trace_id().hex_padded();
-  } else if (key == "span_id_hex") {
+  } else if (key == "span_id_hex" || key == "span_id") {
     char buffer[17];
     int written =
         std::snprintf(buffer, sizeof(buffer), "%016" PRIx64, span.id());
     assert(written == 16);
     return {buffer, static_cast<size_t>(written)};
-  } else if (key == "trace_id") {
+  } else if (key == "trace_id_64bits_base10") {
     return std::to_string(span.trace_id().low);
-  } else if (key == "span_id") {
+  } else if (key == "span_id_64bits_base10") {
     return std::to_string(span.id());
   } else if (key == "json") {
     SpanContextJSONWriter writer;
