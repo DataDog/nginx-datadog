@@ -155,9 +155,9 @@ std::string span_property(std::string_view key, const dd::Span &span) {
         std::snprintf(buffer, sizeof(buffer), "%016" PRIx64, span.id());
     assert(written == 16);
     return {buffer, static_cast<size_t>(written)};
-  } else if (key == "trace_id_dec") {
+  } else if (key == "trace_id_64bits_base10") {
     return std::to_string(span.trace_id().low);
-  } else if (key == "span_id_dec") {
+  } else if (key == "span_id_64bits_base10") {
     return std::to_string(span.id());
   } else if (key == "json") {
     SpanContextJSONWriter writer;

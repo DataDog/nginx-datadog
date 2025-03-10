@@ -456,11 +456,11 @@ Note that if `datadog_trace_locations` is `on`, then `$datadog_span_id` will
 refer to the span associated with the location (outbound request), not its
 parent (inbound request).
 
-### `datadog_trace_id_dec`  
+### `datadog_trace_id_64bits_base10`  
 This reflects the legacy behavior prior to `v1.6.0`, where `$datadog_trace_id` evaluated to the decimal representation of the 64-bit trace ID.  
 If there is no currently active span, then the variable expands to a hyphen character (`-`) instead.
 
-### `datadog_span_id_dec`  
+### `datadog_span_id_64bits_base10`  
 This reflects the legacy behavior prior to `v1.6.0`, where `$datadog_span_id` evaluated to the decimal representation of the 64-bit span ID.
 If there is no currently active span, then the variable expands to a hyphen character (`-`) instead.
 
