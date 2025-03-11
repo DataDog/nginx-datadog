@@ -139,7 +139,7 @@ class TestTags(case.TestCase):
         # Consume any previous logging from the agent.
         self.orch.sync_service("agent")
 
-        status, _, _ = self.orch.send_nginx_http_request("/http")
+        status, _, _ = self.orch.send_nginx_http_request("/http?key=value")
         self.assertEqual(status, 200)
 
         self.orch.reload_nginx()
