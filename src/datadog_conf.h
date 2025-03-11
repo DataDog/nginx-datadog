@@ -26,11 +26,6 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-struct datadog_tag_t {
-  ngx_http_complex_value_t *key;
-  ngx_http_complex_value_t *value;
-};
-
 struct conf_directive_source_location_t {
   ngx_str_t file_name;       // e.g. "nginx.conf"
   ngx_uint_t line;           // line number within the file `file_name`
@@ -62,7 +57,6 @@ struct sampling_rule_t {
 };
 
 struct datadog_main_conf_t {
-  // ngx_array_t *tags;
   std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
   // `are_propagation_styles_locked` is whether the tracer's propagation styles
   // have been set, either by an explicit `datadog_propagation_styles`
@@ -199,7 +193,6 @@ struct datadog_loc_conf_t {
   ngx_http_complex_value_t *service_env = DD_NGX_CONF_COMPLEX_UNSET;
   // `service_version` is set by the `datadog_version` directive.
   ngx_http_complex_value_t *service_version = DD_NGX_CONF_COMPLEX_UNSET;
-  // ngx_array_t *tags;
   std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
   // `nullptr` if this context has no parent.

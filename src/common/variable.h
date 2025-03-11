@@ -15,7 +15,7 @@ extern "C" {
 
 namespace datadog::common {
 
-/// Extracterd from NGINX Development Guide
+/// Extracted from NGINX Development Guide
 /// (<https://nginx.org/en/docs/dev/development_guide.html#http_complex_values>)
 ///
 /// A complex value, despite its name, provides an easy way to evaluate
@@ -26,7 +26,8 @@ ngx_http_complex_value_t *make_complex_value(ngx_conf_t *cf,
 ngx_http_complex_value_t *make_complex_value(ngx_conf_t *cf,
                                              std::string_view default_value);
 
-/// TODO
+/// Evaluate complex expressions. Returns the value if the evaluation is
+/// successful, otherwise returns nothing.
 std::optional<std::string> eval_complex_value(
     ngx_http_complex_value_t *complex_value, ngx_http_request_t *request);
 
