@@ -18,7 +18,9 @@
 #include "defer.h"
 #include "global_tracer.h"
 #include "ngx_logger.h"
+#include "tracing/directives.h"
 #if defined(WITH_WAF)
+#include "security/directives.h"
 #include "security/library.h"
 #include "security/waf_remote_cfg.h"
 #endif
@@ -50,330 +52,60 @@ static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent, void *child) noe
 
 using namespace datadog::nginx;
 
-#ifndef DATADOG_RUM_DIRECTIVES
-#define DATADOG_RUM_DIRECTIVES
-#endif
-
-// Each "datadog_*" directive has a corresponding "opentracing_*" alias that
-// logs a warning and then delegates to the "datadog_*" version, e.g.
-// "opentracing_trace_locations" logs a warning and then calls
-// "datadog_trace_locations".  The `ngx_command_t::type` bitmask of the two
-// versions must match.  To ensure this, `DEFINE_COMMAND_WITH_OLD_ALIAS` is a
-// macro that defines both commands at the same time.
-#define DEFINE_COMMAND_WITH_OLD_ALIAS(NAME, OLD_NAME, TYPE, SET, CONF, OFFSET, \
-                                      POST)                                    \
-  {ngx_string(NAME), TYPE, SET, CONF, OFFSET, POST}, {                         \
-    ngx_string(OLD_NAME), TYPE, delegate_to_datadog_directive_with_warning,    \
-        NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr                                   \
+#define DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING(NAME, TYPE) \
+  {                                                           \
+    NAME, TYPE, warn_deprecated_command_datadog_tracing,      \
+        NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                     \
   }
 
-#define DEFINE_DEPRECATED_COMMAND_1_2_0(NAME, TYPE)        \
-  {                                                        \
-    ngx_string(NAME), TYPE, warn_deprecated_command_1_2_0, \
-        NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                  \
-  }
+constexpr datadog::nginx::directive module_directives[] = {
+    DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING("datadog_enable",
+                                              anywhere | NGX_CONF_NOARGS),
 
-#define DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING(NAME, TYPE)        \
-  {                                                                  \
-    ngx_string(NAME), TYPE, warn_deprecated_command_datadog_tracing, \
-        NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                            \
-  }
+    DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING("datadog_disable",
+                                              anywhere | NGX_CONF_NOARGS),
+    {"datadog_service_name",
+     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
+         NGX_CONF_TAKE1,
+     ngx_http_set_complex_value_slot, NGX_HTTP_LOC_CONF_OFFSET,
+     offsetof(datadog_loc_conf_t, service_name), nullptr},
 
-// Part of configuring a command is saying where the command is allowed to
-// appear, e.g. in the `server` block, in a `location` block, etc.
-// There are two sets of places Datadog commands can appear: either "anywhere,"
-// or "anywhere but in the main section."  `anywhere` and `anywhere_but_main`
-// are respective shorthands.
-// Also, this definition of "anywhere" excludes "if" blocks. "if" blocks
-// do not behave as many users expect, and it might be a technical liability to
-// support them. See
-// <https://www.nginx.com/resources/wiki/start/topics/depth/ifisevil/>
-// and <http://nginx.org/en/docs/http/ngx_http_rewrite_module.html#if>
-// and <http://agentzh.blogspot.com/2011/03/how-nginx-location-if-works.html>.
-//
-// clang-format off
-static ngx_uint_t anywhere_but_main =
-    NGX_HTTP_SRV_CONF   // an `http` block
-  | NGX_HTTP_LOC_CONF;  // a `location` block (within an `http` block)
+    {"datadog_environment",
+     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
+         NGX_CONF_TAKE1,
+     ngx_http_set_complex_value_slot, NGX_HTTP_LOC_CONF_OFFSET,
+     offsetof(datadog_loc_conf_t, service_env), nullptr},
 
-static ngx_uint_t anywhere =
-    anywhere_but_main
-  | NGX_HTTP_MAIN_CONF;  // the toplevel configuration, e.g. where modules are loaded
+    {"datadog_version",
+     NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
+         NGX_CONF_TAKE1,
+     ngx_http_set_complex_value_slot, NGX_HTTP_LOC_CONF_OFFSET,
+     offsetof(datadog_loc_conf_t, service_version), nullptr},
 
-static ngx_command_t datadog_commands[] = {
-    { ngx_string("opentracing"),
-      anywhere | NGX_CONF_TAKE1,
-      toggle_opentracing,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING(
-      "datadog_enable",
-      anywhere | NGX_CONF_NOARGS),
-
-    DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING(
-      "datadog_disable",
-      anywhere | NGX_CONF_NOARGS
-    ),
-
-    { ngx_string("datadog_tracing"),
-      anywhere | NGX_CONF_TAKE1,
-      ngx_conf_set_flag_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, enable_tracing),
-      nullptr
-    },
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "datadog_trace_locations",
-      "opentracing_trace_locations",
-      anywhere | NGX_CONF_TAKE1,
-      ngx_conf_set_flag_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, enable_locations),
-      nullptr),
-
-    DEFINE_DEPRECATED_COMMAND_1_2_0(
-      "datadog_propagate_context",
-      anywhere | NGX_CONF_NOARGS),
-
-    DEFINE_DEPRECATED_COMMAND_1_2_0(
-      "opentracing_propagate_context",
-      anywhere | NGX_CONF_NOARGS),
-
-    DEFINE_DEPRECATED_COMMAND_1_2_0(
-      "opentracing_fastcgi_propagate_context",
-      anywhere | NGX_CONF_NOARGS),
-
-    DEFINE_DEPRECATED_COMMAND_1_2_0(
-      "datadog_fastcgi_propagate_context",
-      anywhere | NGX_CONF_NOARGS),
-
-    DEFINE_DEPRECATED_COMMAND_1_2_0(
-      "opentracing_grpc_propagate_context",
-      anywhere | NGX_CONF_NOARGS),
-
-    DEFINE_DEPRECATED_COMMAND_1_2_0(
-      "datadog_grpc_propagate_context",
-      anywhere | NGX_CONF_NOARGS),
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "datadog_operation_name",
-      "opentracing_operation_name",
-      anywhere | NGX_CONF_TAKE1,
-      ngx_http_set_complex_value_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, operation_name_script),
-      nullptr),
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "datadog_location_operation_name",
-      "opentracing_location_operation_name",
-      anywhere | NGX_CONF_TAKE1,
-      ngx_http_set_complex_value_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, loc_operation_name_script),
-      nullptr),
-
-    { ngx_string("datadog_resource_name"),
-      anywhere | NGX_CONF_TAKE1,
-      ngx_http_set_complex_value_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, resource_name_script),
-      nullptr},
-
-    { ngx_string("datadog_location_resource_name"),
-      anywhere | NGX_CONF_TAKE1,
-      ngx_http_set_complex_value_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, loc_resource_name_script),
-      nullptr},
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "datadog_trust_incoming_span",
-      "opentracing_trust_incoming_span",
-      anywhere | NGX_CONF_TAKE1,
-      ngx_conf_set_flag_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, trust_incoming_span),
-      nullptr),
-
-    DEFINE_COMMAND_WITH_OLD_ALIAS(
-      "datadog_tag",
-      "opentracing_tag",
-      anywhere | NGX_CONF_TAKE2,
-      set_datadog_tag,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr),
-
-    { ngx_string("datadog_load_tracer"),
-       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
-       plugin_loading_deprecated,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("opentracing_load_tracer"),
-       NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE2,
-       plugin_loading_deprecated,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("datadog"),
-      NGX_MAIN_CONF | NGX_HTTP_MAIN_CONF | NGX_CONF_NOARGS | NGX_CONF_BLOCK,
-      json_config_deprecated,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("datadog_sample_rate"),
-      // NGX_CONF_TAKE12 means "take 1 or 2 args," not "take 12 args."
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE12,
-      set_datadog_sample_rate,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("datadog_propagation_styles"),
-      NGX_HTTP_MAIN_CONF | NGX_CONF_1MORE,
-      set_datadog_propagation_styles,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      0,
-      nullptr},
-
-    { ngx_string("datadog_service_name"),
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      ngx_http_set_complex_value_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, service_name),
-      nullptr},
-
-    { ngx_string("datadog_environment"),
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      ngx_http_set_complex_value_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, service_env),
-      nullptr},
-
-    { ngx_string("datadog_version"),
-      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF | NGX_CONF_TAKE1,
-      ngx_http_set_complex_value_slot,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, service_version),
-      nullptr},
-
-    { ngx_string("datadog_agent_url"),
-      NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
-      set_datadog_agent_url,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      0,
-      nullptr},
-
-#ifdef WITH_WAF
-    {
-      ngx_string("datadog_waf_thread_pool_name"),
-      NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-      waf_thread_pool_name,
-      NGX_HTTP_LOC_CONF_OFFSET,
-      offsetof(datadog_loc_conf_t, waf_pool),
-      NULL
-    },
-
-    {
-      ngx_string("datadog_appsec_enabled"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_flag_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, appsec_enabled),
-      nullptr,
-    },
-
-    {
-      ngx_string("datadog_appsec_ruleset_file"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, appsec_ruleset_file),
-      nullptr,
-    },
-
-    {
-      ngx_string("datadog_appsec_http_blocked_template_json"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, appsec_http_blocked_template_json),
-      nullptr,
-    },
-
-    {
-      ngx_string("datadog_appsec_http_blocked_template_html"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, appsec_http_blocked_template_html),
-      nullptr,
-    },
-
-    {
-      ngx_string("datadog_client_ip_header"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1, // TODO allow it more fine-grained
-      ngx_conf_set_str_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, custom_client_ip_header),
-      nullptr,
-    },
-
-    {
-      ngx_string("datadog_appsec_waf_timeout"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_msec_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, appsec_waf_timeout_ms),
-      nullptr,
-    },
-
-    {
-      ngx_string("datadog_appsec_obfuscation_key_regex"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, appsec_obfuscation_key_regex),
-      nullptr,
-    },
-
-    {
-      ngx_string("datadog_appsec_obfuscation_value_regex"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_str_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, appsec_obfuscation_value_regex),
-      nullptr,
-    },
-
-    {
-      ngx_string("datadog_appsec_max_saved_output_data"),
-      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
-      ngx_conf_set_size_slot,
-      NGX_HTTP_MAIN_CONF_OFFSET,
-      offsetof(datadog_main_conf_t, appsec_max_saved_output_data),
-      nullptr,
-    },
-#endif
-    DATADOG_RUM_DIRECTIVES
-    ngx_null_command
+    {"datadog_agent_url", NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+     set_datadog_agent_url, NGX_HTTP_MAIN_CONF_OFFSET, 0, nullptr},
 };
 
+static auto datadog_commands =
+    generate_directives(tracing_directives, module_directives
+#ifdef WITH_WAF
+                        ,
+                        datadog::nginx::security::appsec_directives
+#endif
+
+#ifdef WITH_RUM
+                        ,
+                        rum_directives
+#endif
+    );
+
 static ngx_http_module_t datadog_module_ctx = {
-    add_variables,                /* preconfiguration */
+    add_variables,            /* preconfiguration */
     datadog_module_init,      /* postconfiguration */
     create_datadog_main_conf, /* create main configuration */
-    nullptr,                      /* init main configuration */
-    nullptr,                      /* create server configuration */
-    nullptr,                      /* merge server configuration */
+    nullptr,                  /* init main configuration */
+    nullptr,                  /* create server configuration */
+    nullptr,                  /* merge server configuration */
     create_datadog_loc_conf,  /* create location configuration */
     merge_datadog_loc_conf    /* merge location configuration */
 };
@@ -383,18 +115,17 @@ static ngx_http_module_t datadog_module_ctx = {
 //------------------------------------------------------------------------------
 ngx_module_t ngx_http_datadog_module = {
     NGX_MODULE_V1,
-    &datadog_module_ctx, /* module context */
-    datadog_commands,    /* module directives */
-    NGX_HTTP_MODULE,         /* module type */
-    nullptr,                 /* init master */
+    &datadog_module_ctx,                /* module context */
+    datadog_commands.data(),            /* module directives */
+    NGX_HTTP_MODULE,                    /* module type */
+    nullptr,                            /* init master */
     datadog_master_process_post_config, /* init module */
-    datadog_init_worker, /* init process */
-    nullptr,                 /* init thread */
-    nullptr,                 /* exit thread */
-    datadog_exit_worker, /* exit process */
-    nullptr,                 /* exit master */
-    NGX_MODULE_V1_PADDING
-};
+    datadog_init_worker,                /* init process */
+    nullptr,                            /* init thread */
+    nullptr,                            /* exit thread */
+    datadog_exit_worker,                /* exit process */
+    nullptr,                            /* exit master */
+    NGX_MODULE_V1_PADDING};
 // clang-format on
 
 static const char *phases_to_cstr(ngx_http_phases phase) {

@@ -143,6 +143,7 @@ target_sources(ngx_http_datadog_objs
     src/datadog_directive.cpp
     src/datadog_handler.cpp
     src/datadog_variable.cpp
+    src/tracing/directives.cpp
     src/dd.cpp
     src/defer.cpp
     src/global_tracer.cpp
@@ -166,6 +167,7 @@ if(NGINX_DATADOG_ASM_ENABLED)
     src/security/body_parse/header.cpp
     src/security/client_ip.cpp
     src/security/collection.cpp
+    src/security/directives.cpp
     src/security/context.cpp
     src/security/ddwaf_obj.cpp
     src/security/decode.cpp
