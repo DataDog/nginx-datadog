@@ -10,7 +10,7 @@ namespace nginx {
 char *silently_ignore_command(ngx_conf_t *cf, ngx_command_t *command, void *) {
   ngx_conf_log_error(NGX_LOG_DEBUG, cf, 0, "Directive \"%V\" ignored",
                      &command->name);
-  return NGX_OK;
+  return NGX_CONF_OK;
 }
 
 char *alias_directive(ngx_conf_t *cf, ngx_command_t *command, void *) noexcept {
@@ -36,7 +36,7 @@ char *alias_directive(ngx_conf_t *cf, ngx_command_t *command, void *) noexcept {
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  return static_cast<char *>(NGX_CONF_OK);
+  return NGX_CONF_OK;
 }
 
 char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t *command,
@@ -52,7 +52,7 @@ char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t *command,
   }
 
   ngx_conf_log_error(NGX_LOG_WARN, cf, 0, "%s", buf);
-  return NGX_OK;
+  return NGX_CONF_OK;
 }
 
 char *err_deprecated_command(ngx_conf_t *cf, ngx_command_t *command,

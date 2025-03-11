@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "array_util.h"
+#include "common/variable.h"
 #include "dd.h"
 #include "global_tracer.h"
 #include "ngx_header_reader.h"
@@ -25,57 +26,42 @@
 
 namespace datadog {
 namespace nginx {
-namespace {
-
-std::optional<std::string> eval_complex_value(ngx_http_complex_value_t *conf,
-                                              ngx_http_request_t *request_) {
-  if (conf == nullptr) return std::nullopt;
-
-  ngx_str_t res;
-  if (ngx_http_complex_value(request_, conf, &res) != NGX_OK || res.len == 0) {
-    return std::nullopt;
-  }
-
-  return to_string(res);
-}
-
-}  // namespace
 
 static std::string get_loc_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
     const datadog_loc_conf_t *loc_conf) {
-  auto v = eval_complex_value(loc_conf->loc_operation_name_script, request);
+  auto v =
+      common::eval_complex_value(loc_conf->loc_operation_name_script, request);
   return v.value_or(to_string(core_loc_conf->name));
 }
 
 static std::string get_request_operation_name(
     ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
     const datadog_loc_conf_t *loc_conf) {
-  auto v = eval_complex_value(loc_conf->operation_name_script, request);
+  auto v = common::eval_complex_value(loc_conf->operation_name_script, request);
   return v.value_or(to_string(core_loc_conf->name));
 }
 
 static std::string get_loc_resource_name(ngx_http_request_t *request,
                                          const datadog_loc_conf_t *loc_conf) {
-  auto v = eval_complex_value(loc_conf->loc_resource_name_script, request);
+  auto v =
+      common::eval_complex_value(loc_conf->loc_resource_name_script, request);
   return v.value_or("[invalid_resource_name_pattern]");
 }
 
 static std::string get_request_resource_name(
     ngx_http_request_t *request, const datadog_loc_conf_t *loc_conf) {
-  auto v = eval_complex_value(loc_conf->resource_name_script, request);
+  auto v = common::eval_complex_value(loc_conf->resource_name_script, request);
   return v.value_or("[invalid_resource_name_pattern]");
 }
 
-static void add_script_tags(ngx_array_t *tags, ngx_http_request_t *request,
-                            dd::Span &span) {
-  if (!tags) return;
-  auto add_tag = [&](const datadog_tag_t &tag) {
-    auto key = tag.key_script.run(request);
-    auto value = tag.value_script.run(request);
-    if (key.data && value.data) span.set_tag(to_string(key), to_string(value));
-  };
-  for_each<datadog_tag_t>(*tags, add_tag);
+static void add_script_tags(
+    const std::unordered_map<std::string, ngx_http_complex_value_t *> &tags,
+    ngx_http_request_t *request, dd::Span &span) {
+  for (const auto &[key, complex_value] : tags) {
+    auto value = common::eval_complex_value(complex_value, request);
+    if (value) span.set_tag(key, std::move(*value));
+  }
 }
 
 static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
@@ -182,11 +168,11 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
                  "starting Datadog request span for %p", request_);
 
   std::optional<std::string> service =
-      eval_complex_value(loc_conf_->service_name, request_);
+      common::eval_complex_value(loc_conf_->service_name, request_);
   std::optional<std::string> env =
-      eval_complex_value(loc_conf_->service_env, request_);
+      common::eval_complex_value(loc_conf_->service_env, request_);
   std::optional<std::string> version =
-      eval_complex_value(loc_conf_->service_version, request_);
+      common::eval_complex_value(loc_conf_->service_version, request_);
 
   dd::SpanConfig config;
 
@@ -274,9 +260,12 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
         "starting Datadog location span for \"%V\"(%p) in request %p",
         &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
-    config.service = eval_complex_value(loc_conf_->service_name, request_);
-    config.environment = eval_complex_value(loc_conf_->service_env, request_);
-    config.version = eval_complex_value(loc_conf_->service_version, request_);
+    config.service =
+        common::eval_complex_value(loc_conf_->service_name, request_);
+    config.environment =
+        common::eval_complex_value(loc_conf_->service_env, request_);
+    config.version =
+        common::eval_complex_value(loc_conf_->service_version, request_);
     config.name = get_loc_operation_name(request_, core_loc_conf, loc_conf);
 
     assert(request_span_);  // postcondition of our constructor
@@ -324,8 +313,9 @@ void RequestTracing::on_exit_block(
     span_->set_name(
         get_loc_operation_name(request_, core_loc_conf_, loc_conf_));
     span_->set_resource_name(get_loc_resource_name(request_, loc_conf_));
-    span_->set_end_time(finish_timestamp);
+    span_->set_end_time(std::move(finish_timestamp));
   } else {
+    add_script_tags(main_conf_->tags, request_, *request_span_);
     add_script_tags(loc_conf_->tags, request_, *request_span_);
   }
 
@@ -341,14 +331,9 @@ void RequestTracing::on_log_request() {
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
                  "finishing Datadog request span for %p", request_);
   add_status_tags(request_, *request_span_);
-  add_script_tags(main_conf_->tags, request_, *request_span_);
   add_upstream_name(request_, *request_span_);
 
   request_span_->set_end_time(finish_timestamp);
-
-  // We care about sampling rules for the request span only, because it's the
-  // only span that could be the root span.
-  set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
 ngx_str_t RequestTracing::lookup_span_variable_value(std::string_view key) {

@@ -41,31 +41,45 @@ char *lock_propagation_styles(const ngx_command_t *command, ngx_conf_t *conf) {
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-}  // namespace
+static ngx_http_complex_value_t *make_complex_value(ngx_conf_t *cf,
+                                                    ngx_str_t &value) {
+  auto *cv = (ngx_http_complex_value_t *)ngx_pcalloc(
+      cf->pool, sizeof(ngx_http_complex_value_t));
 
-char *add_datadog_tag(ngx_conf_t *cf, ngx_array_t *tags, ngx_str_t key,
-                      ngx_str_t value) noexcept {
-  if (!tags) return static_cast<char *>(NGX_CONF_ERROR);
+  ngx_http_compile_complex_value_t ccv;
+  ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
 
-  auto tag = static_cast<datadog_tag_t *>(ngx_array_push(tags));
-  if (!tag) return static_cast<char *>(NGX_CONF_ERROR);
+  ccv.cf = cf;
+  ccv.value = &value;
+  ccv.complex_value = cv;
+  ccv.zero = 0;
+  ccv.conf_prefix = 0;
 
-  ngx_memzero(tag, sizeof(datadog_tag_t));
-  if (tag->key_script.compile(cf, key) != NGX_OK)
-    return static_cast<char *>(NGX_CONF_ERROR);
-  if (tag->value_script.compile(cf, value) != NGX_OK)
-    return static_cast<char *>(NGX_CONF_ERROR);
+  if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
+    return nullptr;
+  }
 
-  return static_cast<char *>(NGX_CONF_OK);
+  return cv;
 }
+
+}  // namespace
 
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
                       void *conf) noexcept {
   auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  if (!loc_conf->tags)
-    loc_conf->tags = ngx_array_create(cf->pool, 1, sizeof(datadog_tag_t));
   auto values = static_cast<ngx_str_t *>(cf->args->elts);
-  return add_datadog_tag(cf, loc_conf->tags, values[1], values[2]);
+  assert(cf->args->nelts >= 2);
+
+  auto *complex_value = make_complex_value(cf, values[2]);
+  if (complex_value == nullptr) {
+    ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                       "Could not create complex value from \"%V\" arguments",
+                       &values[2]);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  loc_conf->tags.insert_or_assign(to_string(values[1]), complex_value);
+  return NGX_CONF_OK;
 }
 
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
@@ -246,7 +260,7 @@ char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command,
   }
 
   main_conf.agent_url = std::string(agent_url);
-  return NGX_OK;
+  return NGX_CONF_OK;
 }
 
 }  // namespace datadog::nginx

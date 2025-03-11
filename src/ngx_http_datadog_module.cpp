@@ -27,6 +27,7 @@
 #if defined(WITH_RUM)
 #include "rum/config.h"
 #endif
+#include "common/variable.h"
 #include "string_util.h"
 #include "tracing_library.h"
 #include "version.h"
@@ -314,14 +315,15 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
 
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();
-  if (tags.empty()) return NGX_OK;
-  main_conf->tags =
-      ngx_array_create(cf->pool, tags.size(), sizeof(datadog_tag_t));
-  if (!main_conf->tags) return NGX_ERROR;
-  for (const auto &tag : tags) {
-    if (add_datadog_tag(cf, main_conf->tags, to_ngx_str(tag.first),
-                        to_ngx_str(tag.second)) != NGX_CONF_OK) {
-      return NGX_ERROR;
+  if (!tags.empty()) {
+    for (const auto [key, value] : tags) {
+      auto ngx_value = to_ngx_str(cf->pool, value);
+      auto *complex_value = datadog::common::make_complex_value(cf, ngx_value);
+      if (complex_value == nullptr) {
+        return NGX_ERROR;
+      }
+
+      main_conf->tags.insert_or_assign(std::string(key), complex_value);
     }
   }
 
@@ -431,33 +433,13 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
   return loc_conf;
 }
 
-static ngx_http_complex_value_t *make_default_complex_value(
-    ngx_conf_t *cf, std::string_view default_value) {
-  ngx_str_t value = to_ngx_str(default_value);
-  auto *cv = (ngx_http_complex_value_t *)ngx_pcalloc(
-      cf->pool, sizeof(ngx_http_complex_value_t));
-
-  ngx_http_compile_complex_value_t ccv;
-  ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
-
-  ccv.cf = cf;
-  ccv.value = &value;
-  ccv.complex_value = cv;
-  ccv.zero = 0;
-  ccv.conf_prefix = 0;
-
-  if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
-    return nullptr;
-  }
-
-  return cv;
-}
-
 //------------------------------------------------------------------------------
 // merge_datadog_loc_conf
 //------------------------------------------------------------------------------
 static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
                                     void *child) noexcept {
+  using namespace datadog::common;
+
   auto prev = static_cast<datadog_loc_conf_t *>(parent);
   auto conf = static_cast<datadog_loc_conf_t *>(child);
 
@@ -474,20 +456,18 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
                            nullptr);
   ngx_conf_merge_ptr_value(
       conf->operation_name_script, prev->operation_name_script,
-      make_default_complex_value(
+      make_complex_value(
           cf, TracingLibrary::default_request_operation_name_pattern()));
   ngx_conf_merge_ptr_value(
       conf->loc_operation_name_script, prev->loc_operation_name_script,
-      make_default_complex_value(
+      make_complex_value(
           cf, TracingLibrary::default_location_operation_name_pattern()));
   ngx_conf_merge_ptr_value(
       conf->resource_name_script, prev->resource_name_script,
-      make_default_complex_value(
-          cf, TracingLibrary::default_resource_name_pattern()));
+      make_complex_value(cf, TracingLibrary::default_resource_name_pattern()));
   ngx_conf_merge_ptr_value(
       conf->loc_resource_name_script, prev->loc_resource_name_script,
-      make_default_complex_value(
-          cf, TracingLibrary::default_resource_name_pattern()));
+      make_complex_value(cf, TracingLibrary::default_resource_name_pattern()));
   ngx_conf_merge_value(conf->trust_incoming_span, prev->trust_incoming_span, 1);
 
   // Create a new array that joins `prev->tags` and `conf->tags`. Since tags
@@ -495,44 +475,10 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
   // one overwrites it, we need to ensure that the tags in `conf->tags` come
   // after `prev->tags` so as to keep the value from the most specific
   // configuration.
-  if (prev->tags && !conf->tags) {
-    conf->tags = prev->tags;
-  } else if (prev->tags && conf->tags) {
-    std::unordered_map<std::string, datadog_tag_t> merged_tags;
-
-    for (ngx_uint_t i = 0; i < prev->tags->nelts; i++) {
-      datadog_tag_t *tag = &((datadog_tag_t *)prev->tags->elts)[i];
-      std::string key;
-      key.assign(reinterpret_cast<const char *>(tag->key_script.pattern_.data),
-                 tag->key_script.pattern_.len);
-      merged_tags[key] = *tag;
-    }
-
-    for (ngx_uint_t i = 0; i < conf->tags->nelts; i++) {
-      datadog_tag_t *tag = &((datadog_tag_t *)conf->tags->elts)[i];
-      std::string key;
-      key.assign(reinterpret_cast<const char *>(tag->key_script.pattern_.data),
-                 tag->key_script.pattern_.len);
-      merged_tags[key] = *tag;
-    }
-
-    ngx_uint_t index = 0;
-    for (const auto &kv : merged_tags) {
-      if (index == conf->tags->nelts) {
-        datadog_tag_t *tag = (datadog_tag_t *)ngx_array_push(conf->tags);
-
-        if (!tag) {
-          return (char *)NGX_CONF_ERROR;
-        }
-
-        *tag = kv.second;
-      } else {
-        datadog_tag_t *tags = (datadog_tag_t *)conf->tags->elts;
-        tags[index] = kv.second;
-      }
-
-      index++;
-    }
+  if (!prev->tags.empty()) {
+    auto parent_tags =
+        prev->tags;  ///< Make a copy because merge steal the nodes.
+    conf->tags.merge(parent_tags);
   }
 
 #ifdef WITH_WAF
