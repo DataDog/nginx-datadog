@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include "common/variable.h"
 #include "ngx_http_datadog_module.h"
 
 namespace datadog::nginx {
@@ -41,27 +42,6 @@ char *lock_propagation_styles(const ngx_command_t *command, ngx_conf_t *conf) {
   return static_cast<char *>(NGX_CONF_OK);
 }
 
-static ngx_http_complex_value_t *make_complex_value(ngx_conf_t *cf,
-                                                    ngx_str_t &value) {
-  auto *cv = (ngx_http_complex_value_t *)ngx_pcalloc(
-      cf->pool, sizeof(ngx_http_complex_value_t));
-
-  ngx_http_compile_complex_value_t ccv;
-  ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
-
-  ccv.cf = cf;
-  ccv.value = &value;
-  ccv.complex_value = cv;
-  ccv.zero = 0;
-  ccv.conf_prefix = 0;
-
-  if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
-    return nullptr;
-  }
-
-  return cv;
-}
-
 }  // namespace
 
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
@@ -70,7 +50,7 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
   auto values = static_cast<ngx_str_t *>(cf->args->elts);
   assert(cf->args->nelts >= 2);
 
-  auto *complex_value = make_complex_value(cf, values[2]);
+  auto *complex_value = common::make_complex_value(cf, values[2]);
   if (complex_value == nullptr) {
     ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
                        "Could not create complex value from \"%V\" arguments",
