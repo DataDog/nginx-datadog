@@ -75,10 +75,10 @@ constexpr auto generate_directives(const T &...directives) {
 #define IGNORE_COMMAND(NAME, TYPE) \
   { NAME, TYPE, silently_ignore_command, NGX_HTTP_LOC_CONF_OFFSET, 0, nullptr }
 
-#define ALIAS_COMMAND(SRC_DIR, TARGET_DIR, TYPE)                    \
-  {                                                                 \
-    TARGET_DIR, TYPE, alias_directive, NGX_HTTP_LOC_CONF_OFFSET, 0, \
-        (void *)SRC_DIR                                             \
+#define ALIAS_COMMAND(SRC_DIRECTIVE, TARGET_DIRECTIVE, TYPE)              \
+  {                                                                       \
+    TARGET_DIRECTIVE, TYPE, alias_directive, NGX_HTTP_LOC_CONF_OFFSET, 0, \
+        (void *)SRC_DIRECTIVE                                             \
   }
 
 #define WARN_DEPRECATED_COMMAND(NAME, TYPE, MSG)                      \
