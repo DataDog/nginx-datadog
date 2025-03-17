@@ -13,6 +13,7 @@
 #include "../ngx_http_datadog_module.h"
 #include "blocking.h"
 #include "body_parse/body_parsing.h"
+#include "client_ip.h"
 #include "collection.h"
 #include "ddwaf_obj.h"
 #include "header_tags.h"
@@ -679,7 +680,12 @@ std::optional<BlockSpecification> Context::run_waf_start(
   static const std::string_view libddwaf_version{ddwaf_get_version()};
   span.set_tag("_dd.appsec.waf.version", libddwaf_version);
 
-  ddwaf_object *data = collect_request_data(req, memres_);
+  dnsec::ClientIp ip_resolver{dnsec::Library::custom_ip_header(), req};
+  auto client_ip = ip_resolver.resolve();
+
+  ddwaf_object *data = collect_request_data(req, client_ip, memres_);
+
+  client_ip_ = std::move(client_ip);
 
   ddwaf_result result;
   auto code =
@@ -1632,6 +1638,7 @@ void Context::do_on_main_log_request(ngx_http_request_t &request,
 
   set_header_tags(has_matches(), request, span);
   report_matches(request, span);
+  report_client_ip(span);
 }
 
 bool Context::has_matches() const noexcept { return !results_.empty(); }
@@ -1643,6 +1650,14 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
 
   report_match(request, span.trace_segment(), span, results_);
   results_.clear();
+}
+
+void Context::report_client_ip(dd::Span &span) const {
+  if (!client_ip_) {
+    return;
+  }
+
+  span.set_tag("http.client_ip"sv, *client_ip_);
 }
 
 }  // namespace datadog::nginx::security
