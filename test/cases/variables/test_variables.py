@@ -106,6 +106,32 @@ class TestVariables(case.TestCase):
         self.assertEqual(dict, type(propagation))
         self.assertEqual("/https?[0-9]*", location)
 
+    def test_otel_drop_in_support(self):
+        conf_path = Path(__file__).parent / "./conf/otel_drop_in_support.conf"
+        conf_text = conf_path.read_text()
+
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
+        self.assertEqual(0, status, log_lines)
+
+        status, _, body = self.orch.send_nginx_http_request("/http")
+        self.assertEqual(200, status)
+        response = json.loads(body)
+        headers = response["headers"]
+        traceparent = headers["traceparent"]
+        assert traceparent
+        _, trace_id, span_id, _ = traceparent.split("-")
+
+        # The service being reverse proxied by nginx returns a JSON response
+        # containing the request headers.  By instructing nginx to add headers
+        # whose values depend on the variables, we can extract the values of
+        # the variables from the response.
+        self.assertIn("x-datadog-test-thingy", headers)
+        header_trace_id, header_span_id = json.loads(
+            headers["x-datadog-test-thingy"])
+        self.assertEqual(trace_id, header_trace_id)
+        self.assertEqual(span_id, header_span_id)
+
     def test_which_span_id_in_headers(self):
         """Verify that when `datadog_trace_locations` is `on`, the span
         referred to by the `$datadog_span_id` variable in an added request

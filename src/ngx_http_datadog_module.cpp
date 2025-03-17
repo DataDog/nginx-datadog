@@ -52,18 +52,13 @@ static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent, void *child) noe
 
 using namespace datadog::nginx;
 
-#define DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING(NAME, TYPE) \
-  {                                                           \
-    NAME, TYPE, warn_deprecated_command_datadog_tracing,      \
-        NGX_HTTP_LOC_CONF_OFFSET, 0, NULL                     \
-  }
-
 constexpr datadog::nginx::directive module_directives[] = {
-    DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING("datadog_enable",
-                                              anywhere | NGX_CONF_NOARGS),
+    WARN_DEPRECATED_COMMAND("datadog_enable", anywhere | NGX_CONF_NOARGS,
+                            "Use datadog_tracing instead"),
 
-    DEFINE_DEPRECATED_COMMAND_DATADOG_TRACING("datadog_disable",
-                                              anywhere | NGX_CONF_NOARGS),
+    WARN_DEPRECATED_COMMAND("datadog_disable", anywhere | NGX_CONF_NOARGS,
+                            "Use datadog_tracing instead"),
+
     {"datadog_service_name",
      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
          NGX_CONF_TAKE1,
@@ -84,6 +79,12 @@ constexpr datadog::nginx::directive module_directives[] = {
 
     {"datadog_agent_url", NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
      set_datadog_agent_url, NGX_HTTP_MAIN_CONF_OFFSET, 0, nullptr},
+
+    // aliases
+    ALIAS_COMMAND("datadog_service_name", "opentelemetry_service_name",
+                  NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1),
+    ALIAS_COMMAND("datadog_agent_url", "opentelemetry_otlp_traces_endpoint",
+                  NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1),
 };
 
 static auto datadog_commands =
