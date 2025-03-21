@@ -4,17 +4,13 @@
 
 #include <cassert>
 #include <cctype>
-#include <charconv>
 #include <cstring>
-#include <functional>
 #include <string_view>
 #include <unordered_map>
 
 #include "../string_util.h"
-#include "client_ip.h"
 #include "ddwaf_obj.h"
 #include "decode.h"
-#include "library.h"
 #include "util.h"
 
 extern "C" {
@@ -54,7 +50,8 @@ class ReqSerializer {
  public:
   explicit ReqSerializer(dnsec::DdwafMemres &memres) : memres_{memres} {}
 
-  ddwaf_object *serialize(const ngx_http_request_t &request) {
+  ddwaf_object *serialize(const ngx_http_request_t &request,
+                          const std::optional<std::string> &client_ip) {
     dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
     dnsec::ddwaf_map_obj &root_map = root->make_map(6, memres_);
 
@@ -63,7 +60,7 @@ class ReqSerializer {
     set_request_method(request, root_map.at_unchecked(2));
     set_request_headers_nocookies(request, root_map.at_unchecked(3));
     set_request_cookie(request, root_map.at_unchecked(4));
-    set_client_ip(request, root_map.at_unchecked(5));
+    set_client_ip(client_ip, root_map.at_unchecked(5));
 
     return root;
   }
@@ -312,11 +309,8 @@ class ReqSerializer {
     set_value_from_iter(iter, slot);
   }
 
-  void set_client_ip(const ngx_http_request_t &request,
+  void set_client_ip(const std::optional<std::string> &cl_ip,
                      dnsec::ddwaf_obj &slot) {
-    dnsec::ClientIp client_ip{dnsec::Library::custom_ip_header(), request};
-    std::optional<std::string> cl_ip = client_ip.resolve();
-
     slot.set_key(kClientIp);
     if (!cl_ip) {
       slot.make_null();
@@ -381,9 +375,10 @@ class ReqSerializer {
 namespace datadog::nginx::security {
 
 ddwaf_object *collect_request_data(const ngx_http_request_t &request,
+                                   const std::optional<std::string> &client_ip,
                                    DdwafMemres &memres) {
   ReqSerializer rs{memres};
-  return rs.serialize(request);
+  return rs.serialize(request, client_ip);
 }
 
 ddwaf_object *collect_response_data(const ngx_http_request_t &request,

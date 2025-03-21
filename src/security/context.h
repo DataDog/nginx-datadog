@@ -98,6 +98,7 @@ class Context {
 
   bool has_matches() const noexcept;
   void report_matches(ngx_http_request_t &request, dd::Span &span);
+  void report_client_ip(dd::Span &span) const;
 
   enum class stage {
     /* Set on on_request_start (NGX_HTTP_ACCESS_PHASE) if there's no thread
@@ -191,6 +192,7 @@ class Context {
   std::vector<OwnedDdwafResult> results_;
   OwnedDdwafContext ctx_{nullptr};
   DdwafMemres memres_;
+  std::optional<std::string> client_ip_;
 
   static inline constexpr std::size_t kMaxFilterData = 40 * 1024;
   static inline constexpr std::size_t kDefaultMaxSavedOutputData = 256 * 1024;
