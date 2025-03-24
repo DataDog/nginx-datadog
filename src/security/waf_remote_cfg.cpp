@@ -112,18 +112,13 @@ class CurrentAppSecConfig {
   bool failed_{};
 
  public:
-  void set_dd_config(const dnsec::ddwaf_map_obj &config) {
-    static const ParsedConfigKey key_bundled_rule_data{
-        std::string{datadog::nginx::security::Library::kBundledRuleset}};
-
-    set_config(key_bundled_rule_data, config);
-  }
-
   void set_config(const ParsedConfigKey &key,
                   const dnsec::ddwaf_map_obj &new_config) {
     dnsec::Library::Diagnostics diag{{}};
     bool res =
         dnsec::Library::update_waf_config(key.full_key(), new_config, diag);
+
+    dirty_ = true;  // even if it failed, update can have side effects
 
     if (!res) {
       failed_ = true;
@@ -131,7 +126,6 @@ class CurrentAppSecConfig {
           std::string{"Library::update_waf_config() failed for "} +
           std::string{key.full_key()}};
     }
-    dirty_ = true;
   }
 
   void remove_config(const ParsedConfigKey &key) {
@@ -180,7 +174,11 @@ class ProductListener : public rc::Listener {
   ProductListener(dn::NgxLogger &logger) : logger_{logger} {}
 
   rc::Products get_products() /* const */ override final {
-    return Self::kProduct;
+    rc::Products prods{};
+    for (auto p : Self::kProducts) {
+      prods |= p;
+    }
+    return prods;
   }
 
   rc::Capabilities get_capabilities() /* const */ override final {
@@ -244,7 +242,7 @@ class AsmFeaturesListener : public ProductListener<AsmFeaturesListener> {
   };
 
  public:
-  static constexpr inline auto kProduct = Product::ASM_FEATURES;
+  static constexpr inline auto kProducts = {Product::ASM_FEATURES};
   static constexpr inline auto kCapabilities = {Capability::ASM_ACTIVATION};
 
   AsmFeaturesListener(dn::NgxLogger &logger) : ProductListener{logger} {}
@@ -269,95 +267,17 @@ class AsmFeaturesListener : public ProductListener<AsmFeaturesListener> {
   };
 };
 
-class AsmDDListener : public ProductListener<AsmDDListener> {
+class AsmConfigListener : public ProductListener<AsmConfigListener> {
  public:
-  static constexpr inline auto kProduct = Product::ASM_DD;
+  static constexpr inline auto kProducts = {Product::ASM, Product::ASM_DATA,
+                                            Product::ASM_DD};
   static constexpr inline auto kCapabilities = {
-      Capability::ASM_DD_RULES,
-      Capability::ASM_IP_BLOCKING,
-      Capability::ASM_REQUEST_BLOCKING,
-  };
+      Capability::ASM_CUSTOM_RULES,     Capability::ASM_DD_RULES,
+      Capability::ASM_EXCLUSION_DATA,   Capability::ASM_IP_BLOCKING,
+      Capability::ASM_REQUEST_BLOCKING, Capability::ASM_RESPONSE_BLOCKING,
+      Capability::ASM_EXCLUSIONS};
 
-  AsmDDListener(CurrentAppSecConfig &cur_appsec_cfg,
-                std::shared_ptr<dnsec::ddwaf_owned_map> default_config,
-                dn::NgxLogger &logger)
-      : ProductListener{logger},
-        cur_appsec_cfg_{cur_appsec_cfg},
-        default_config_{default_config} {}
-
-  void on_update_impl(const ParsedConfigKey &key, const std::string &content) {
-    // convert content to rapidjson::Document:
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(content.c_str(), content.size());
-    if (!result) {
-      throw std::invalid_argument(
-          "failed to parse remote config for asm_dd: " +
-          std::string{rapidjson::GetParseError_En(result.Code())});
-    }
-
-    auto new_config = dnsec::json_to_object(doc, dnsec::kConfigMaxDepth);
-    if (!new_config.get().is_map()) {
-      throw std::invalid_argument("config for asm_dd is not a map");
-    }
-
-    try {
-      cur_appsec_cfg_.set_dd_config(dnsec::ddwaf_map_obj{new_config.get()});
-    } catch (const std::exception &e) {
-      cur_appsec_cfg_.set_dd_config(default_config_.get()->get());
-      throw e;
-    }
-  }
-
-  void on_revert_impl(const ParsedConfigKey &key) {
-    cur_appsec_cfg_.set_dd_config(default_config_.get()->get());
-  }
-
- private:
-  CurrentAppSecConfig &cur_appsec_cfg_;
-  std::shared_ptr<dnsec::ddwaf_owned_map> default_config_;
-};
-
-class AsmDataListener : public ProductListener<AsmDataListener> {
- public:
-  static constexpr inline auto kProduct = Product::ASM_DATA;
-  static constexpr inline std::initializer_list<Capability> kCapabilities = {};
-
-  AsmDataListener(CurrentAppSecConfig &cur_appsec_cfg, dn::NgxLogger &logger)
-      : ProductListener{logger}, cur_appsec_cfg_{cur_appsec_cfg} {}
-
-  void on_update_impl(const ParsedConfigKey &key, const std::string &content) {
-    rapidjson::Document doc;
-    rapidjson::ParseResult result = doc.Parse(content.c_str(), content.size());
-    if (!result) {
-      throw std::invalid_argument(
-          "failed to parse remote config for asm_data: " +
-          std::string{rapidjson::GetParseError_En(result.Code())});
-    }
-
-    if (!doc.IsObject()) {
-      throw std::invalid_argument("asm_data remote config not an object");
-    }
-
-    dnsec::ddwaf_owned_map new_data{
-        dnsec::json_to_object(doc, dnsec::kConfigMaxDepth)};
-    cur_appsec_cfg_.set_config(key, new_data.get());
-  }
-
-  void on_revert_impl(const ParsedConfigKey &key) {
-    cur_appsec_cfg_.remove_config(key);
-  }
-
- private:
-  CurrentAppSecConfig &cur_appsec_cfg_;
-};
-
-class AsmUserConfigListener : public ProductListener<AsmUserConfigListener> {
- public:
-  static constexpr inline auto kProduct = Product::ASM;
-  static constexpr inline auto kCapabilities = {Capability::ASM_CUSTOM_RULES};
-
-  AsmUserConfigListener(CurrentAppSecConfig &cur_appsec_cfg,
-                        dn::NgxLogger &logger)
+  AsmConfigListener(CurrentAppSecConfig &cur_appsec_cfg, dn::NgxLogger &logger)
       : ProductListener{logger}, cur_appsec_cfg_{cur_appsec_cfg} {}
 
   void on_update_impl(const ParsedConfigKey &key, const std::string &content) {
@@ -488,17 +408,9 @@ class AppSecConfigService {
   }
 
   void subscribe_rules_and_data(datadog::tracing::DatadogAgentConfig &ddac) {
-    // ASM_DD
+    // ASM, ASM_DD, ASM_DATA
     ddac.remote_configuration_listeners.emplace_back(
-        new AsmDDListener(current_config_, default_config_, *logger_));
-
-    // ASM_DATA
-    ddac.remote_configuration_listeners.emplace_back(
-        new AsmDataListener(current_config_, *logger_));
-
-    // ASM
-    ddac.remote_configuration_listeners.emplace_back(
-        new AsmUserConfigListener(current_config_, *logger_));
+        new AsmConfigListener(current_config_, *logger_));
   }
 };
 

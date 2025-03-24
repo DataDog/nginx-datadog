@@ -234,15 +234,50 @@ struct DdwafBuilderFreeFunctor {
   }
 };
 class OwnedDdwafBuilder
-    : public dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor> {
-  using FreeableResource::FreeableResource;
+    : private dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor> {
+ public:
+  OwnedDdwafBuilder()
+      : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
+            nullptr} {}
+  explicit OwnedDdwafBuilder(ddwaf_config &config)
+      : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
+            ddwaf_builder_init(&config)} {}
+  OwnedDdwafBuilder(OwnedDdwafBuilder &&oth)
+      : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
+            std::move(oth)} {}
+  OwnedDdwafBuilder &operator=(OwnedDdwafBuilder &&oth) {
+    dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>::operator=(
+        std::move(oth));
+    return *this;
+  }
+
+  bool add_or_update_config(std::string_view path,
+                            const dnsec::ddwaf_map_obj &ruleset,
+                            dnsec::Library::Diagnostics &diags) {
+    return ddwaf_builder_add_or_update_config(get(), path.data(), path.size(),
+                                              &ruleset, &diags.get());
+  }
+
+  bool remove_config(std::string_view path) {
+    return ddwaf_builder_remove_config(get(), path.data(), path.size());
+  }
+
+  std::uint32_t count_config_paths(std::string_view pattern) const {
+    return ddwaf_builder_get_config_paths(
+        const_cast<OwnedDdwafBuilder &>(*this).get(), nullptr, pattern.data(),
+        pattern.size());
+  }
+
+  ddwaf_handle build_instance() { return ddwaf_builder_build_instance(get()); }
+
+  operator bool() const { return resource != nullptr; }
 };
 
 class UpdateableWafInstance {
  public:
   using Diagnostics = dnsec::Library::Diagnostics;
 
-  bool init(const dnsec::ddwaf_map_obj &ruleset, ddwaf_config &config,
+  bool init(dnsec::ddwaf_owned_map default_ruleset, ddwaf_config &config,
             Diagnostics &diagnostics);
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle() {
@@ -255,57 +290,72 @@ class UpdateableWafInstance {
 
   [[nodiscard]] bool remove_config(std::string_view path);
 
-  [[nodiscard]] bool update();
+  [[nodiscard]] bool update(Diagnostics &diagnostics);
 
-  [[nodiscard]] bool live() { return builder_.get() != nullptr; }
+  [[nodiscard]] bool live() { return builder_; }
 
  private:
+  bool has_bundled_data() const {
+    return builder_.count_config_paths(dnsec::Library::kBundledRuleset) > 0;
+  }
+
   std::mutex builder_mut_;
-  OwnedDdwafBuilder builder_{nullptr};
+  OwnedDdwafBuilder builder_;
+  dnsec::ddwaf_owned_map default_ruleset_;
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle_;
 };
 
 [[nodiscard]] bool UpdateableWafInstance::init(
-    const dnsec::ddwaf_map_obj &ruleset, ddwaf_config &config,
+    dnsec::ddwaf_owned_map default_ruleset, ddwaf_config &config,
     Diagnostics &diagnostics) {
   assert(!live());
-  OwnedDdwafBuilder builder{ddwaf_builder_init(&config)};
-  if (builder.get() == nullptr) {
-    return false;
-  }
-
-  bool res = ddwaf_builder_add_or_update_config(
-      *builder, dnsec::Library::kBundledRuleset.data(),
-      dnsec::Library::kBundledRuleset.length(),
-      const_cast<dnsec::ddwaf_map_obj *>(&ruleset), &*diagnostics);
-  if (!res) {
+  OwnedDdwafBuilder builder{config};
+  if (!builder) {
     return false;
   }
 
   builder_ = std::move(builder);
+  default_ruleset_ = std::move(default_ruleset);
 
-  return update();
+  bool res = update(diagnostics);
+  if (!res) {
+    return false;
+  }
+
+  return res;
 }
 
 [[nodiscard]] bool UpdateableWafInstance::add_or_update_config(
     std::string_view path, const dnsec::ddwaf_map_obj &ruleset,
     Diagnostics &diagnostics) {
   std::lock_guard guard{builder_mut_};
-  return ddwaf_builder_add_or_update_config(
-      builder_.get(), path.data(), path.length(),
-      const_cast<dnsec::ddwaf_map_obj *>(&ruleset), &*diagnostics);
+
+  if (has_bundled_data() && path.find("/ASM_DD/"sv) != std::string_view::npos) {
+    // need to remove bundled_data first
+    builder_.remove_config(dnsec::Library::kBundledRuleset);
+  }
+
+  return builder_.add_or_update_config(path, ruleset, diagnostics);
 }
 
 [[nodiscard]] bool UpdateableWafInstance::remove_config(std::string_view path) {
   std::lock_guard guard{builder_mut_};
-  return ddwaf_builder_remove_config(builder_.get(), path.data(),
-                                     path.length());
+  return builder_.remove_config(path);
 }
 
-[[nodiscard]] bool UpdateableWafInstance::update() {
+[[nodiscard]] bool UpdateableWafInstance::update(Diagnostics &diags) {
   std::lock_guard guard{builder_mut_};
-  ddwaf_handle new_instance = ddwaf_builder_build_instance(builder_.get());
+
+  if (builder_.count_config_paths("/ASM_DD/"sv) == 0) {
+    // need to add bundled_data first
+    if (!builder_.add_or_update_config(dnsec::Library::kBundledRuleset,
+                                       default_ruleset_.get(), diags)) {
+      return false;
+    }
+  }
+
+  ddwaf_handle new_instance = builder_.build_instance();
   if (!new_instance) {
     return false;
   }
@@ -601,7 +651,7 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
   ddwaf_owned_map ruleset = read_ruleset(conf.ruleset_file());
 
   Diagnostics diag{{}};
-  bool res = upd_waf_instance->init(ruleset.get(), waf_config, diag);
+  bool res = upd_waf_instance->init(std::move(ruleset), waf_config, diag);
   if (!res) {
     throw std::runtime_error{"creation of original WAF handle failed: " +
                              ddwaf_diagnostics_to_str(diag.get())};
@@ -698,12 +748,15 @@ bool Library::active() noexcept {
     return false;
   }
 
-  bool res = upd_waf_instance->update();
+  Diagnostics diags{{}};
+  bool res = upd_waf_instance->update(diags);
   if (res) {
     ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0, "WAF configuration updated");
   } else {
+    std::string diag_str = ddwaf_diagnostics_to_str(*diags);
+    ngx_str_t str = ngx_stringv(diag_str);
     ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
-                  "WAF configuration update failed");
+                  "WAF configuration update failed: %V", str);
   }
   return res;
 }
