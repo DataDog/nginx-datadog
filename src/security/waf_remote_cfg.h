@@ -4,7 +4,6 @@
 #include <datadog/tracer_config.h>
 
 #include <memory>
-#include <optional>
 
 #include "../ngx_logger.h"
 #include "ddwaf_obj.h"

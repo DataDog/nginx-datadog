@@ -1,5 +1,6 @@
 #include "library.h"
 
+#include <atomic>
 #include <string>
 
 extern "C" {
@@ -13,14 +14,12 @@ extern "C" {
 #include <rapidjson/schema.h>
 
 #include <fstream>
-#include <numeric>
 #include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
 
 #include "blocking.h"
-#include "context.h"
 #include "ddwaf_obj.h"
 #include "util.h"
 
@@ -145,6 +144,9 @@ DDWAF_LOG_LEVEL ngx_log_level_to_ddwaf(int level) noexcept {
     case NGX_LOG_EMERG:
       return DDWAF_LOG_ERROR;
     default:
+      if (level >= NGX_LOG_DEBUG_FIRST) {
+        return DDWAF_LOG_DEBUG;
+      }
       return DDWAF_LOG_ERROR;
   }
 }
@@ -222,6 +224,147 @@ std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &top,
   }
   ret += ")}";
   return ret;
+}
+
+struct DdwafBuilderFreeFunctor {
+  void operator()(ddwaf_builder b) {
+    if (b != nullptr) {
+      ddwaf_builder_destroy(b);
+    }
+  }
+};
+class OwnedDdwafBuilder
+    : private dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor> {
+ public:
+  OwnedDdwafBuilder()
+      : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
+            nullptr} {}
+  explicit OwnedDdwafBuilder(ddwaf_config &config)
+      : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
+            ddwaf_builder_init(&config)} {}
+  OwnedDdwafBuilder(OwnedDdwafBuilder &&oth)
+      : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
+            std::move(oth)} {}
+  OwnedDdwafBuilder &operator=(OwnedDdwafBuilder &&oth) {
+    dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>::operator=(
+        std::move(oth));
+    return *this;
+  }
+
+  bool add_or_update_config(std::string_view path,
+                            const dnsec::ddwaf_map_obj &ruleset,
+                            dnsec::Library::Diagnostics &diags) {
+    return ddwaf_builder_add_or_update_config(get(), path.data(), path.size(),
+                                              &ruleset, &diags.get());
+  }
+
+  bool remove_config(std::string_view path) {
+    return ddwaf_builder_remove_config(get(), path.data(), path.size());
+  }
+
+  std::uint32_t count_config_paths(std::string_view pattern) const {
+    return ddwaf_builder_get_config_paths(
+        const_cast<OwnedDdwafBuilder &>(*this).get(), nullptr, pattern.data(),
+        pattern.size());
+  }
+
+  ddwaf_handle build_instance() { return ddwaf_builder_build_instance(get()); }
+
+  operator bool() const { return resource != nullptr; }
+};
+
+class UpdateableWafInstance {
+ public:
+  using Diagnostics = dnsec::Library::Diagnostics;
+
+  bool init(dnsec::ddwaf_owned_map default_ruleset, ddwaf_config &config,
+            Diagnostics &diagnostics);
+
+  std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle() {
+    return std::atomic_load_explicit(&cur_handle_, std::memory_order_acquire);
+  }
+
+  [[nodiscard]] bool add_or_update_config(std::string_view path,
+                                          const dnsec::ddwaf_map_obj &ruleset,
+                                          Diagnostics &diagnostics);
+
+  [[nodiscard]] bool remove_config(std::string_view path);
+
+  [[nodiscard]] bool update(Diagnostics &diagnostics);
+
+  [[nodiscard]] bool live() { return builder_; }
+
+ private:
+  bool has_bundled_data() const {
+    return builder_.count_config_paths(dnsec::Library::kBundledRuleset) > 0;
+  }
+
+  std::mutex builder_mut_;
+  OwnedDdwafBuilder builder_;
+  dnsec::ddwaf_owned_map default_ruleset_;
+
+  std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle_;
+};
+
+[[nodiscard]] bool UpdateableWafInstance::init(
+    dnsec::ddwaf_owned_map default_ruleset, ddwaf_config &config,
+    Diagnostics &diagnostics) {
+  assert(!live());
+  OwnedDdwafBuilder builder{config};
+  if (!builder) {
+    return false;
+  }
+
+  builder_ = std::move(builder);
+  default_ruleset_ = std::move(default_ruleset);
+
+  bool res = update(diagnostics);
+  if (!res) {
+    return false;
+  }
+
+  return res;
+}
+
+[[nodiscard]] bool UpdateableWafInstance::add_or_update_config(
+    std::string_view path, const dnsec::ddwaf_map_obj &ruleset,
+    Diagnostics &diagnostics) {
+  std::lock_guard guard{builder_mut_};
+
+  if (has_bundled_data() && path.find("/ASM_DD/"sv) != std::string_view::npos) {
+    // need to remove bundled_data first
+    builder_.remove_config(dnsec::Library::kBundledRuleset);
+  }
+
+  return builder_.add_or_update_config(path, ruleset, diagnostics);
+}
+
+[[nodiscard]] bool UpdateableWafInstance::remove_config(std::string_view path) {
+  std::lock_guard guard{builder_mut_};
+  return builder_.remove_config(path);
+}
+
+[[nodiscard]] bool UpdateableWafInstance::update(Diagnostics &diags) {
+  std::lock_guard guard{builder_mut_};
+
+  if (builder_.count_config_paths("/ASM_DD/"sv) == 0) {
+    // need to add bundled_data first
+    if (!builder_.add_or_update_config(dnsec::Library::kBundledRuleset,
+                                       default_ruleset_.get(), diags)) {
+      return false;
+    }
+  }
+
+  ddwaf_handle new_instance = builder_.build_instance();
+  if (!new_instance) {
+    return false;
+  }
+
+  std::shared_ptr<dnsec::OwnedDdwafHandle> new_sp =
+      std::make_shared<dnsec::OwnedDdwafHandle>(new_instance);
+  std::atomic_store_explicit(&cur_handle_, new_sp, std::memory_order::release);
+
+  return true;
 }
 }  // namespace
 
@@ -479,7 +622,8 @@ std::string FinalizedConfigSettings::normalize_configured_header(
   return result;
 }
 
-std::shared_ptr<OwnedDdwafHandle> Library::handle_{nullptr};
+std::unique_ptr<UpdateableWafInstance> upd_waf_instance{
+    new UpdateableWafInstance{}};
 std::atomic<bool> Library::active_{true};
 std::unique_ptr<FinalizedConfigSettings> Library::config_settings_;
 
@@ -505,11 +649,11 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
       conf.appsec_obfuscation_value_regex().c_str();
 
   ddwaf_owned_map ruleset = read_ruleset(conf.ruleset_file());
-  libddwaf_ddwaf_owned_obj<ddwaf_map_obj> diag{{}};
-  OwnedDdwafHandle h =
-      OwnedDdwafHandle{ddwaf_init(&ruleset.get(), &waf_config, &diag.get())};
-  if (!h.get()) {
-    throw std::runtime_error{"call to ddwaf_init failed:" +
+
+  Diagnostics diag{{}};
+  bool res = upd_waf_instance->init(std::move(ruleset), waf_config, diag);
+  if (!res) {
+    throw std::runtime_error{"creation of original WAF handle failed: " +
                              ddwaf_diagnostics_to_str(diag.get())};
   }
 
@@ -532,8 +676,6 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
                   &source);
   }
 
-  Library::handle_ = std::make_shared<OwnedDdwafHandle>(std::move(h));
-
   BlockingService::initialize(conf.blocked_template_html(),
                               conf.blocked_template_json());
 
@@ -554,48 +696,76 @@ bool Library::active() noexcept {
   return active_.load(std::memory_order_relaxed);
 }
 
-void Library::set_handle(OwnedDdwafHandle &&handle) {
-  std::shared_ptr<OwnedDdwafHandle> handle_sp{
-      std::make_shared<OwnedDdwafHandle>(std::move(handle))};
-  std::atomic_store_explicit(&handle_, handle_sp, std::memory_order_release);
-  ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0, "WAF configuration updated");
-}
-
-bool Library::update_ruleset(const ddwaf_map_obj &spec) {
-  std::shared_ptr<OwnedDdwafHandle> cur_h{get_handle_uncond()};
-
-  if (!cur_h) {
-    throw std::runtime_error{"no handle to update"};
+[[nodiscard]] bool Library::update_waf_config(std::string_view path,
+                                              const ddwaf_map_obj &spec,
+                                              Diagnostics &diagnostics) {
+  if (!upd_waf_instance->live()) {
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,
+                  "Attempt to update non-live WAF config");
+    return false;
   }
+  bool res = upd_waf_instance->add_or_update_config(path, spec, diagnostics);
 
-  libddwaf_ddwaf_owned_obj<ddwaf_map_obj> diag{{}};
-  auto new_h = OwnedDdwafHandle{ddwaf_update(cur_h->get(), &spec, &diag.get())};
-  if (!new_h.get()) {
-    throw std::runtime_error{"call to ddwaf_update failed:" +
-                             ddwaf_diagnostics_to_str(diag.get())};
-  }
-
-  if (ngx_cycle->log->log_level & NGX_LOG_DEBUG_HTTP) {
-    std::string diag_str = ddwaf_diagnostics_to_str(diag.get());
+  if (res && ngx_cycle->log->log_level & NGX_LOG_DEBUG_HTTP) {
+    std::string diag_str = ddwaf_diagnostics_to_str(*diagnostics);
     ngx_str_t str = ngx_stringv(diag_str);
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
                   "ddwaf_update succeeded: %V", &str);
+  } else if (!res) {
+    std::string diag_str = ddwaf_diagnostics_to_str(*diagnostics);
+    ngx_str_t str = ngx_stringv(diag_str);
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0, "ddwaf_update failed: %V",
+                  &str);
   }
 
-  set_handle(std::move(new_h));
-  return true;
+  return res;
+}
+
+[[nodiscard]] bool Library::remove_waf_config(std::string_view path) {
+  if (!upd_waf_instance->live()) {
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,
+                  "Attempt to update non-live WAF config");
+    return false;
+  }
+  bool res = upd_waf_instance->remove_config(path);
+
+  if (res) {
+    auto npath{ngx_stringv(path)};
+    ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                  "WAF configuration removed for %V", &npath);
+  } else {
+    auto npath{ngx_stringv(path)};
+    ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
+                  "WAF configuration removal failed for %V", &npath);
+  }
+  return res;
+}
+
+[[nodiscard]] bool Library::regenerate_handle() {
+  if (!upd_waf_instance->live()) {
+    ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,
+                  "Attempt to regenerate handle with non-live WAF config");
+    return false;
+  }
+
+  Diagnostics diags{{}};
+  bool res = upd_waf_instance->update(diags);
+  if (res) {
+    ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0, "WAF configuration updated");
+  } else {
+    std::string diag_str = ddwaf_diagnostics_to_str(*diags);
+    ngx_str_t str = ngx_stringv(diag_str);
+    ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
+                  "WAF configuration update failed: %V", str);
+  }
+  return res;
 }
 
 std::shared_ptr<OwnedDdwafHandle> Library::get_handle() {
   if (active_.load(std::memory_order_relaxed)) {
-    return get_handle_uncond();
+    return upd_waf_instance->cur_handle();
   }
   return {};
-}
-
-std::shared_ptr<OwnedDdwafHandle> Library::get_handle_uncond() {
-  return std::atomic_load_explicit(&Library::handle_,
-                                   std::memory_order_acquire);
 }
 
 std::optional<HashedStringView> Library::custom_ip_header() {

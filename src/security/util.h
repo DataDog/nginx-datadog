@@ -38,6 +38,7 @@ struct FreeableResource {
   FreeableResource &operator=(const FreeableResource &other) = delete;
   T &operator*() { return resource; }
   T &get() { return **this; }
+  const T &get() const { return **this; }
 
   ~FreeableResource() { FreeFunc()(resource); }
 };
