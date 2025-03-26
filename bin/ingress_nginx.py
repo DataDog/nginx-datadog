@@ -33,7 +33,9 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 def get_underlying_nginx_version(controller_version: str) -> str:
     # Map an ingress-nginx version to an NGINX version
     mapping = {
+        "v1.12.1": "1.25.5",
         "v1.12.0": "1.25.5",
+        "v1.11.5": "1.25.5",
         "v1.11.4": "1.25.5",
         "v1.11.3": "1.25.5",
         "v1.11.2": "1.25.5",
@@ -73,7 +75,9 @@ def clone_nginx(version: str, out_dir: str) -> str:
 
 def get_patch_directory(version: str, ingress_rootdir: str) -> str:
     mapping = {
+        "v1.12.1": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.12.0": f"{ingress_rootdir}/images/nginx/rootfs/patches",
+        "v1.11.5": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.11.4": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.11.3": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.11.2": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",

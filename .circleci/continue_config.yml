@@ -294,7 +294,7 @@ jobs:
                 name: Move the module to the system-tests directory
                 working_directory: ./system-tests
             - run:
-                command: ./build.sh cpp
+                command: ./build.sh cpp_nginx
                 name: Build test targets
                 working_directory: ./system-tests
             - run:
@@ -460,7 +460,7 @@ workflows:
                             - amd64
                             - arm64
                         version:
-                            - 1.12.0
+                            - 1.12.1
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - coverage:
                 name: Coverage on 1.27.0 with WAF ON
@@ -538,7 +538,7 @@ workflows:
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
-                            - 1.12.0
+                            - 1.12.1
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
@@ -562,7 +562,9 @@ workflows:
                             - amd64
                             - arm64
                         version:
+                            - 1.12.1
                             - 1.12.0
+                            - 1.11.5
                             - 1.11.4
                             - 1.11.3
                             - 1.11.2
@@ -587,7 +589,9 @@ workflows:
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
+                            - 1.12.1
                             - 1.12.0
+                            - 1.11.5
                             - 1.11.4
                             - 1.11.3
                             - 1.11.2
