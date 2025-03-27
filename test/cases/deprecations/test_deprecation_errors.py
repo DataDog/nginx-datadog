@@ -13,21 +13,22 @@ class TestDeprecationErrors(case.TestCase):
 
     def test_opentracing_load_tracer(self):
         return self.run_test_for_config(
-            config_relative_path='conf/opentracing_load_tracer.conf',
+            config_relative_path="conf/opentracing_load_tracer.conf",
             diagnostic_excerpt=
-            'The "opentracing_load_tracer" directive is no longer necessary.')
+            'Directive "opentracing_load_tracer" is deprecated',
+        )
 
     def test_datadog_load_tracer(self):
         return self.run_test_for_config(
-            config_relative_path='conf/datadog_load_tracer.conf',
-            diagnostic_excerpt=
-            'The "datadog_load_tracer" directive is no longer necessary.')
+            config_relative_path="conf/datadog_load_tracer.conf",
+            diagnostic_excerpt='Directive "datadog_load_tracer" is deprecated',
+        )
 
     def test_datadog(self):
         return self.run_test_for_config(
-            config_relative_path='conf/datadog.conf',
-            diagnostic_excerpt=
-            'The datadog { ... } block directive is no longer supported.')
+            config_relative_path="conf/datadog.conf",
+            diagnostic_excerpt='Directive "datadog" is deprecated',
+        )
 
     def run_test_for_config(self, config_relative_path, diagnostic_excerpt):
         config_path = Path(__file__).parent / config_relative_path
@@ -37,8 +38,10 @@ class TestDeprecationErrors(case.TestCase):
 
         self.assertNotEqual(status, 0)
 
-        self.assertTrue(any(diagnostic_excerpt in line for line in log_lines),
-                        {
-                            'diagnostic_excerpt': diagnostic_excerpt,
-                            'log_lines': log_lines
-                        })
+        self.assertTrue(
+            any(diagnostic_excerpt in line for line in log_lines),
+            {
+                "diagnostic_excerpt": diagnostic_excerpt,
+                "log_lines": log_lines
+            },
+        )
