@@ -11,8 +11,6 @@ extern "C" {
 #include <ngx_core.h>
 }
 
-using namespace std::literals;
-
 namespace datadog::nginx {
 
 // Part of configuring a command is saying where the command is allowed to

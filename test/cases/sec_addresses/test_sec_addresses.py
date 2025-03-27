@@ -347,6 +347,24 @@ class TestSecAddresses(case.TestCase):
             result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
             'fe80::1')
 
+    def test_client_ip_meta(self):
+        status, _, _ = self.orch.send_nginx_http_request(
+            '/http', 80, {'cf-connecting-ip': '10.10.10.10'})
+        self.assertEqual(status, 200)
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service("agent")
+        traces = [
+            json.loads(line) for line in log_lines if line.startswith("[[{")
+        ]
+        found = any(
+            span[0].get("meta", {}).get("http.client_ip") == "10.10.10.10"
+            for trace in traces for span in trace)
+
+        if not found:
+            self.fail("No trace found with http.client_ip=10.10.10.10 in " +
+                      str(traces))
+
     def test_client_ip_prio_1(self):
         result = self.do_request_headers({
             'x-real-ip': '8.8.8.8',

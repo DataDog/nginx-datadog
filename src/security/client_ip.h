@@ -8,7 +8,6 @@ extern "C" {
 
 #include <optional>
 #include <string>
-#include <string_view>
 
 #include "library.h"
 

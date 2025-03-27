@@ -250,7 +250,7 @@ jobs:
       - run:
           name: Build test targets
           working_directory: ./system-tests
-          command: ./build.sh cpp
+          command: ./build.sh cpp_nginx
       - run:
           name: Run DEFAULT scenarios
           working_directory: ./system-tests
