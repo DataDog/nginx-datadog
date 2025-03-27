@@ -136,6 +136,7 @@ set_target_properties(ngx_http_datadog_objs PROPERTIES POSITION_INDEPENDENT_CODE
 target_compile_definitions(ngx_http_datadog_objs PUBLIC DD_NGINX_FLAVOR="${NGINX_DATADOG_FLAVOR}")
 target_sources(ngx_http_datadog_objs
   PRIVATE
+    src/common/variable.cpp
     src/array_util.cpp
     src/datadog_conf.cpp
     src/datadog_conf_handler.cpp

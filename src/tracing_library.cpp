@@ -196,7 +196,7 @@ std::string_view TracingLibrary::default_location_operation_name_pattern() {
 
 std::unordered_map<std::string_view, std::string_view>
 TracingLibrary::default_tags() {
-  return {
+  static const std::unordered_map<std::string_view, std::string_view> tags{
       // originally defined by nginx-opentracing
       {"component", "nginx"},
       {"nginx.worker_pid", "$pid"},
@@ -207,9 +207,10 @@ TracingLibrary::default_tags() {
       {"http.host", "$http_host"},
       // added by nginx-datadog
       // See
-      // https://docs.datadoghq.com/logs/log_configuration/attributes_naming_convention/#common-attributes
+      // <https://docs.datadoghq.com/logs/log_configuration/attributes_naming_convention/#common-attributes>
       {"http.useragent", "$http_user_agent"},
       {"nginx.location", "$datadog_location"}};
+  return tags;
 }
 
 std::string_view TracingLibrary::default_resource_name_pattern() {
