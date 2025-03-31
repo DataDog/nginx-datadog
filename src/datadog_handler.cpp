@@ -1,14 +1,12 @@
 #include "datadog_handler.h"
 
+#include <datadog/telemetry/telemetry.h>
+
+#include "datadog_context.h"
 #include "ngx_http_datadog_module.h"
 
 extern "C" {
 #include <ngx_config.h>
-}
-
-#include "datadog_context.h"
-
-extern "C" {
 extern ngx_module_t ngx_http_datadog_module;
 }
 
@@ -31,6 +29,8 @@ static bool is_datadog_tracing_enabled(
     return loc_conf->enable_tracing && core_loc_conf->log_subrequest;
   }
 }
+#define CURRENT_FRAME \
+  std::format("{}:{} in {}", __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
   auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
@@ -53,7 +53,8 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
   } else {
     try {
       context->on_change_block(request, core_loc_conf, loc_conf);
-    } catch (...) {
+    } catch (const std::exception &e) {
+      telemetry::report_error_log(e.what());
       // The DatadogContext may be broken, destroy it so that we don't
       // attempt to continue tracing.
       destroy_datadog_context(request);
@@ -62,6 +63,7 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
   }
   return NGX_DECLINED;
 } catch (const std::exception &e) {
+  telemetry::report_error_log(e.what());
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "Datadog instrumentation failed for request %p: %s", request,
                 e.what());
@@ -83,7 +85,8 @@ ngx_int_t on_access(ngx_http_request_t *request) noexcept try {
     return NGX_AGAIN;
   }
   return NGX_DECLINED;
-} catch (std::exception &e) {
+} catch (const std::exception &e) {
+  telemetry::report_error_log(e.what());
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "Datadog instrumentation failed for request %p: %s", request,
                 e.what());
@@ -97,6 +100,7 @@ ngx_int_t on_log_request(ngx_http_request_t *request) noexcept {
   try {
     context->on_log_request(request);
   } catch (const std::exception &e) {
+    telemetry::report_error_log(e.what());
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                   "Datadog instrumentation failed for request %p: %s", request,
                   e.what());
@@ -113,6 +117,7 @@ ngx_int_t on_header_filter(ngx_http_request_t *request) noexcept {
   try {
     return context->on_header_filter(request);
   } catch (const std::exception &e) {
+    telemetry::report_error_log(e.what());
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                   "Datadog instrumentation failed for request %p: %s", request,
                   e.what());
@@ -137,6 +142,7 @@ ngx_int_t request_body_filter(ngx_http_request_t *request,
   try {
     return context->request_body_filter(request, chain);
   } catch (const std::exception &e) {
+    telemetry::report_error_log(e.what());
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                   "Datadog instrumentation failed in request body filter for "
                   "request %p: %s",
@@ -160,6 +166,7 @@ ngx_int_t on_output_body_filter(ngx_http_request_t *request,
   try {
     return context->on_output_body_filter(request, chain);
   } catch (const std::exception &e) {
+    telemetry::report_error_log(e.what());
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                   "Datadog instrumentation failed for request %p: %s", request,
                   e.what());

@@ -1,5 +1,6 @@
 #include "datadog_variable.h"
 
+#include <datadog/telemetry/telemetry.h>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -71,6 +72,7 @@ static ngx_int_t expand_span_variable(ngx_http_request_t *request,
 
   return NGX_OK;
 } catch (const std::exception &e) {
+  telemetry::report_error_log(e.what());
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "failed to expand %V"
                 " for request %p: %s",
