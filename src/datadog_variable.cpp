@@ -12,6 +12,7 @@
 #include "global_tracer.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
+#include "telemetry_util.h"
 #include "tracing_library.h"
 
 namespace datadog {
@@ -72,7 +73,7 @@ static ngx_int_t expand_span_variable(ngx_http_request_t *request,
 
   return NGX_OK;
 } catch (const std::exception &e) {
-  telemetry::report_error_log(e.what());
+  telemetry::report_error_log(e.what(), CURRENT_FRAME(request));
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "failed to expand %V"
                 " for request %p: %s",
