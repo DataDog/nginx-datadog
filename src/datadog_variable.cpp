@@ -75,6 +75,7 @@ static ngx_int_t expand_span_variable(ngx_http_request_t *request,
                 "failed to expand %V"
                 " for request %p: %s",
                 data, request, e.what());
+  (void)e;
   return NGX_ERROR;
 }
 
