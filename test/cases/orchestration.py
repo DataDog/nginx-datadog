@@ -3,6 +3,8 @@
 from . import formats
 from .lazy_singleton import LazySingleton
 
+import tarfile
+import tempfile
 import contextlib
 import faulthandler
 import json
@@ -480,7 +482,6 @@ class Orchestration:
         Run `docker compose down` to bring down the orchestrated services.
         Join the log-parsing thread.
         """
-
         if self.has_coverage_data():
             self.create_coverage_tarball()
 
@@ -506,36 +507,44 @@ class Orchestration:
 
     @staticmethod
     def has_coverage_data():
-        command = docker_compose_command(
-            "exec",
-            "-T",
-            "--",
-            "nginx",
-            "bash",
-            "-c",
-            "find /tmp -name '*.profraw' -print -quit | grep -q .",
-        )
-        result = subprocess.run(command)
-        return result.returncode == 0
+        command = docker_compose_command("exec", "-T", "--", "nginx", "find",
+                                         "/tmp", "-name", "*.profraw")
+        result = subprocess.run(command, capture_output=True)
+        if result.returncode != 0:
+            return False
+
+        return len(result.stdout)
 
     @staticmethod
     def create_coverage_tarball():
-        tar_command = docker_compose_command(
+        cmd = docker_compose_command(
             "exec",
             "-T",
             "--",
             "nginx",
-            "bash",
-            "-c",
-            "tar --transform='s@tmp/@@' -czf - -T <(find /tmp -maxdepth 1 -name '*.profraw')",
+            "find",
+            "/tmp",
+            "-name",
+            "*.profraw",
         )
 
-        with open("./coverage_data.tar.gz", "wb") as file:
-            result = subprocess.run(tar_command, stdout=file)
-
-        # Check if the tarball was created successfully
+        result = subprocess.run(cmd, capture_output=True)
         if result.returncode != 0:
             raise Exception("Failed to create tarball")
+
+        with tempfile.TemporaryDirectory() as work_dir:
+            files = []
+            for src_profraw in result.stdout.decode().split():
+                out_profraw = os.path.join(work_dir,
+                                           os.path.basename(src_profraw))
+                cp_cmd = docker_compose_command("cp", f"nginx:{src_profraw}",
+                                                out_profraw)
+                subprocess.run(cp_cmd, stdout=subprocess.DEVNULL)
+                files.append(out_profraw)
+
+            with tarfile.open("./coverage_data.tar.gz", "w:gz") as tar:
+                for f in files:
+                    tar.add(f, arcname=os.path.basename(f))
 
     @staticmethod
     def nginx_version():
