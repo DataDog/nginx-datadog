@@ -433,7 +433,7 @@ workflows:
                             - amd64
                             - arm64
                         nginx-version:
-                            - 1.22.1
+                            - 1.26.3
                             - 1.24.0
                             - 1.25.4
                             - 1.27.4
@@ -506,7 +506,7 @@ workflows:
                         base-image:
                             - amazonlinux:2.0.20230418.0
                         nginx-version:
-                            - 1.22.1
+                            - 1.26.3
                         waf:
                             - "ON"
                             - "OFF"
