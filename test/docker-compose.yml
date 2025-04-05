@@ -11,10 +11,13 @@ services:
         - BASE_IMAGE
     environment:
       DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS: 1
+    ulimits:
+      core: -1
     cap_add:
       - SYS_PTRACE
     volumes:
       - ../:/mnt/repo/
+      # - ./cores/:/tmp/
     depends_on:
       - http
       - fastcgi

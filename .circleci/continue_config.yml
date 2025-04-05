@@ -337,9 +337,12 @@ jobs:
                 name: Install Python dependencies
             - attach_workspace:
                 at: /tmp/workspace
+            - run:
+                command: cat /proc/sys/kernel/core_pattern
+                name: Get core location
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
+            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
@@ -417,135 +420,30 @@ version: 2.1
 workflows:
     build-and-test:
         jobs:
-            - check-ci-definition
-            - format:
-                name: Verify formatting
-                requires:
-                    - check-ci-definition
-            - shellcheck:
-                name: run shellcheck on shell scripts
-                requires:
-                    - check-ci-definition
             - build:
                 matrix:
                     parameters:
                         arch:
-                            - amd64
                             - arm64
                         nginx-version:
-                            - 1.26.3
-                            - 1.24.0
-                            - 1.25.4
                             - 1.27.4
                         waf:
-                            - "ON"
                             - "OFF"
                 name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - build_openresty:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        resty-version:
-                            - 1.27.1.1
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - build_ingress_nginx_module:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        version:
-                            - 1.12.1
-                name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
-            - coverage:
-                name: Coverage on 1.27.0 with WAF ON
             - test:
                 matrix:
                     parameters:
                         arch:
-                            - amd64
                             - arm64
                         base-image:
-                            - nginx:1.27.4-alpine
                             - nginx:1.27.4
                         nginx-version:
                             - 1.27.4
                         waf:
-                            - "ON"
                             - "OFF"
                 name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
                     - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test-openresty:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - openresty/openresty:1.27.1.1-alpine
-                        resty-version:
-                            - 1.27.1.1
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - amazonlinux:2.0.20230418.0
-                        nginx-version:
-                            - 1.26.3
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - amazonlinux:2023.3.20240219.0
-                        nginx-version:
-                            - 1.24.0
-                        waf:
-                            - "ON"
-                            - "OFF"
-                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
-                requires:
-                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
-            - test_ingress:
-                matrix:
-                    parameters:
-                        arch:
-                            - amd64
-                            - arm64
-                        base-image:
-                            - registry.k8s.io/ingress-nginx/controller
-                        nginx-version:
-                            - 1.12.1
-                name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
-                requires:
-                    - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
-            - system_tests:
-                name: Run system tests
-                requires:
-                    - build 1.25.4 on amd64 WAF ON
         when:
             and:
                 - not: << pipeline.git.tag >>

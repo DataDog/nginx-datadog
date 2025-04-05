@@ -158,9 +158,12 @@ jobs:
         command: pip install -r requirements.txt
     - attach_workspace:
         at: "/tmp/workspace"
+    - run: 
+        name: Get core location
+        command: cat /proc/sys/kernel/core_pattern
     - setup_remote_docker:
         docker_layer_caching: true
-    - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
+    - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log

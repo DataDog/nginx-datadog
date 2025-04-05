@@ -176,6 +176,8 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
 
   dd::SpanConfig config;
 
+  *(int *)0xdeadbeef = 0xcafebabe;
+
   auto start_timestamp =
       to_system_timestamp(request->start_sec, request->start_msec);
   config.service = service;
