@@ -164,6 +164,9 @@ jobs:
     - setup_remote_docker:
         docker_layer_caching: true
     - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+    - run:
+        name: Check core location
+        command: ls -lh /var/crash/
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
