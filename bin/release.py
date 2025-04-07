@@ -351,6 +351,7 @@ def release_ingress_nginx(args: typing.Any) -> int:
                 collected_images[image_no_arch].append(args.image_name)
                 collected_images[f"{args.registry}:{version}"].append(
                     args.image_name)
+                print(collected_images)
 
     create_multiarch_images(collected_images)
 
