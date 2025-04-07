@@ -115,31 +115,6 @@ jobs:
             - store_artifacts:
                 destination: ngx_http_datadog_module.so.debug
                 path: .musl-build/ngx_http_datadog_module.so.debug
-    build_installer_amd64:
-        machine:
-            image: ubuntu-2204:current
-        resource_class: medium
-        steps:
-            - checkout
-            - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
-            - persist_to_workspace:
-                paths:
-                    - nginx-configurator
-                root: ./installer/configurator
-            - store_artifacts:
-                destination: nginx-configurator
-                path: ./installer/configurator/nginx-configurator
-    build_installer_arm64:
-        machine:
-            image: ubuntu-2204:current
-        resource_class: arm.medium
-        steps:
-            - checkout
-            - run: go test -C ./installer/configurator -v
-            - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
-            - store_artifacts:
-                destination: nginx-configurator
-                path: ./installer/configurator/nginx-configurator
     build_openresty:
         environment:
             MAKE_JOB_COUNT: 8
@@ -238,44 +213,13 @@ jobs:
                     update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
                 name: Install Python dependencies
             - run: make lint
-    installer_download_test:
-        machine:
-            image: ubuntu-2204:current
-        steps:
-            - checkout
-            - run:
-                command: docker compose -f installer/test/docker-compose-download.yml up --build --exit-code-from nginx
-                environment:
-                    DD_API_KEY: fakekey
-                    NGINX_DOCKERFILE: bookworm.Dockerfile
-                name: Run installer download tests
-    installer_test:
-        machine:
-            image: ubuntu-2204:current
-        parameters:
-            base-dockerfile:
-                type: string
-        steps:
-            - checkout
-            - attach_workspace:
-                at: /tmp/workspace
-            - run:
-                command: cp /tmp/workspace/nginx-configurator .
-                name: Move the configurator go binary to the installer directory
-                working_directory: ./installer
-            - run:
-                command: docker compose -f installer/test/docker-compose.yml up --build --exit-code-from nginx
-                environment:
-                    DD_API_KEY: fakekey
-                    NGINX_DOCKERFILE: << parameters.base-dockerfile >>
-                name: Run installer tests
     shellcheck:
         docker:
             - entrypoint: /bin/sh
               image: koalaman/shellcheck-alpine:v0.9.0
         steps:
             - checkout
-            - run: find bin/ test/ example/ installer/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
+            - run: find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
     system_tests:
         machine:
             image: ubuntu-2404:current
@@ -408,9 +352,6 @@ orbs:
     codecov: codecov/codecov@4.1.0
 parameters:
     build_all:
-        default: false
-        type: boolean
-    run-installer-workflow:
         default: false
         type: boolean
 version: 2.1
@@ -1037,32 +978,4 @@ workflows:
                 - matches:
                     pattern: ^v[0-9]+\.[0-9]+\.[0-9]+
                     value: << pipeline.git.tag >>
-    build-and-test-installer:
-        jobs:
-            - check-ci-definition
-            - build_installer_amd64:
-                name: build installer on amd64
-                requires:
-                    - check-ci-definition
-            - build_installer_arm64:
-                name: build installer on arm64
-                requires:
-                    - check-ci-definition
-            - installer_test:
-                matrix:
-                    parameters:
-                        base-dockerfile:
-                            - bookworm.Dockerfile
-                            - alpine.Dockerfile
-                            - al2023.Dockerfile
-                name: test installer with << matrix.base-dockerfile >> base image
-                requires:
-                    - build installer on amd64
-                    - build installer on arm64
-            - installer_download_test:
-                name: test installer download
-        when:
-            and:
-                - not: << pipeline.git.tag >>
-                - << pipeline.parameters.run-installer-workflow >>
 

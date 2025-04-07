@@ -7,9 +7,6 @@ parameters:
   build_all:
     type: boolean
     default: false
-  run-installer-workflow:
-    type: boolean
-    default: false
 
 executors:
   docker-amd64:

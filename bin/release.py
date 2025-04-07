@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-This script automates the release process for the nginx-dataadog module, 
-ingress-nginx init container and the installer.
+This script automates the release process for the nginx-dataadog module and
+ingress-nginx init container..
 
 Usage:
 ======
@@ -10,9 +10,6 @@ To release nginx-datadog modules:
 
 To release ingress-nginx docker init containers:
 ./release.py --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID> ingres-nginx
-
-To release the installer:
-./release.py --ci-token <CI_TOKEN> --version-tag v0.3.3 --workflow-id <CI_RELEASE_WORKFLOW_ID> installer
 """
 
 import re
@@ -172,29 +169,6 @@ def sign_package(package_path: str) -> None:
     run(command, check=True)
 
 
-def prepare_installer_release_artifact(work_dir, build_job_number, arch):
-    artifacts = send_ci_request_paged(
-        f"/project/gh/DataDog/nginx-datadog/{build_job_number}/artifacts")
-    module_url = None
-    for artifact in artifacts:
-        name = artifact["path"]
-        if name == "nginx-configurator":
-            module_url = artifact["url"]
-
-    if module_url is None:
-        raise Exception(
-            f"Job number {build_job_number} doesn't have an 'nginx-configurator' build artifact."
-        )
-
-    module_path = work_dir / "nginx-configurator"
-    download_file(module_url, module_path)
-
-    # Package and sign
-    tarball_path = work_dir / f"nginx-configurator-{arch}.tgz"
-    package(module_path, out=tarball_path)
-    sign_package(tarball_path)
-
-
 def prepare_release_artifact(work_dir, build_job_number, flavor, version, arch,
                              waf):
     flavor_prefix = f"{flavor}-"
@@ -240,61 +214,6 @@ def prepare_release_artifact(work_dir, build_job_number, flavor, version, arch,
     )
     package(module_debug_path, out=debug_tarball_path)
     sign_package(debug_tarball_path)
-
-
-def release_installer(args) -> int:
-    """
-    This subcommand function downloads installer artifacts from the release workflow
-    and publishes them to a GitHub release.
-
-    Requirements:
-        - You must be logged into the GitHub CLI (gh) to authenticate and publish the release.
-    """
-    jobs = get_workflow_jobs(args.workflow_id)
-    if not jobs:
-        return 1
-
-    with tempfile.TemporaryDirectory() as work_dir:
-        for job in jobs:
-            if job["name"].startswith("build installer "):
-                # name should be something like "build installer on arm64"
-                match = re.match(r"build installer on (amd64|arm64)",
-                                 job["name"])
-                if match is None:
-                    raise Exception(
-                        f'Job name does not match regex "{re}": {job}')
-                arch = match.groups()[0]
-                prepare_installer_release_artifact(work_dir, job["job_number"],
-                                                   arch)
-
-        pubkey_file = os.path.join(work_dir, "pubkey.gpg")
-        run([gpg_exe, "--output", pubkey_file, "--armor", "--export"],
-            check=True)
-
-        # We've tgz'd and signed all of our release modules.
-        # Now let's send them to GitHub in a release via `gh release create`.
-        release_files = itertools.chain(
-            Path(work_dir).glob("*.tgz"),
-            Path(work_dir).glob("*.tgz.asc"),
-            (pubkey_file, ),
-        )
-
-        command = [
-            gh_exe,
-            "release",
-            "create",
-            options.version_tag,
-            "--prerelease",
-            "--draft",
-            "--generate-notes",
-            "--verify-tag",
-            "--repo",
-            "DataDog/nginx-datadog",
-            *release_files,
-        ]
-        run(command, check=True)
-
-    return 0
 
 
 def release_ingress_nginx(args: typing.Any) -> int:
@@ -444,16 +363,6 @@ if __name__ == "__main__":
     nginx_module_parser = subparsers.add_parser(
         "nginx-module", help="Release the NGINX module")
     nginx_module_parser.set_defaults(func=release_module)
-
-    # installer subcommand
-    installer_parser = subparsers.add_parser(
-        "installer", help="Release the NGINX installer")
-    installer_parser.set_defaults(func=release_installer)
-    installer_parser.add_argument(
-        "--installer",
-        help="Release the NGINX installer",
-        action=argparse.BooleanOptionalAction,
-    )
 
     # ingress-nginx subcommand
     ingress_nginx_parser = subparsers.add_parser(

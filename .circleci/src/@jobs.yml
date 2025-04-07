@@ -283,7 +283,7 @@ jobs:
       entrypoint: "/bin/sh"
     steps:
     - checkout
-    - run: find bin/ test/ example/ installer/ -type f -executable | xargs shellcheck --exclude
+    - run: find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude
         SC1071,SC1091,SC2317
   check-ci-definition:
     docker:
@@ -295,62 +295,6 @@ jobs:
         command: |
           CIRCLE_CFG=generated-config.yml make circleci-config 
           diff .circleci/continue_config.yml generated-config.yml
-  build_installer_arm64:
-    steps:
-    - checkout
-    - run: go test -C ./installer/configurator -v
-    - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
-    - store_artifacts:
-        path: "./installer/configurator/nginx-configurator"
-        destination: nginx-configurator
-    machine:
-      image: ubuntu-2204:current
-    resource_class: arm.medium
-  build_installer_amd64:
-    steps:
-    - checkout
-    - run: CGO_ENABLED=0 go -C ./installer/configurator build -o nginx-configurator
-    - persist_to_workspace:
-        root: "./installer/configurator"
-        paths:
-          - "nginx-configurator"
-    - store_artifacts:
-        path: "./installer/configurator/nginx-configurator"
-        destination: nginx-configurator
-    machine:
-      image: ubuntu-2204:current
-    resource_class: medium
-  installer_test:
-    parameters:
-      base-dockerfile:
-        type: string
-    machine:
-      image: ubuntu-2204:current
-    steps:
-    - checkout
-    - attach_workspace:
-        at: "/tmp/workspace"
-    - run:
-          name: Move the configurator go binary to the installer directory
-          working_directory: ./installer
-          command: cp /tmp/workspace/nginx-configurator .
-    - run:
-        name: Run installer tests
-        command: docker compose -f installer/test/docker-compose.yml up --build --exit-code-from nginx
-        environment:
-          DD_API_KEY: fakekey
-          NGINX_DOCKERFILE: << parameters.base-dockerfile >>
-  installer_download_test:
-    machine:
-      image: ubuntu-2204:current
-    steps:
-    - checkout
-    - run:
-        name: Run installer download tests
-        command: docker compose -f installer/test/docker-compose-download.yml up --build --exit-code-from nginx
-        environment:
-          DD_API_KEY: fakekey
-          NGINX_DOCKERFILE: bookworm.Dockerfile
   build_ingress_nginx_module:
     executor:
       name: ubuntu-<< parameters.arch >>
