@@ -195,7 +195,9 @@ def prepare_installer_release_artifact(work_dir, build_job_number, arch):
     sign_package(tarball_path)
 
 
-def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
+def prepare_release_artifact(work_dir, build_job_number, flavor, version, arch,
+                             waf):
+    flavor_prefix = f"{flavor}-"
     waf_suffix = "-appsec" if waf else ""
     artifacts = send_ci_request_paged(
         f"/project/gh/DataDog/nginx-datadog/{build_job_number}/artifacts")
@@ -226,14 +228,16 @@ def prepare_release_artifact(work_dir, build_job_number, version, arch, waf):
     # Package and sign .so
     tarball_path = (
         work_dir /
-        f"ngx_http_datadog_module{waf_suffix}-{arch}-{version}.so.tgz")
+        f"{flavor_prefix}ngx_http_datadog_module{waf_suffix}-{arch}-{version}.so.tgz"
+    )
     package(module_path, out=tarball_path)
     sign_package(tarball_path)
 
     # Package and sign .so.debug
     debug_tarball_path = (
         work_dir /
-        f"ngx_http_datadog_module{waf_suffix}-{arch}-{version}.so.debug.tgz")
+        f"{flavor_prefix}ngx_http_datadog_module{waf_suffix}-{arch}-{version}.so.debug.tgz"
+    )
     package(module_debug_path, out=debug_tarball_path)
     sign_package(debug_tarball_path)
 
@@ -279,13 +283,13 @@ def release_installer(args) -> int:
             gh_exe,
             "release",
             "create",
+            options.version_tag,
             "--prerelease",
             "--draft",
-            "--title",
-            options.version_tag,
-            "--notes",
-            "TODO",
-            options.version_tag,
+            "--generate-notes",
+            "--verify-tag",
+            "--repo",
+            "DataDog/nginx-datadog",
             *release_files,
         ]
         run(command, check=True)
@@ -309,11 +313,12 @@ def release_ingress_nginx(args: typing.Any) -> int:
 
     for job in jobs:
         if job["name"].startswith("build ingress-nginx"):
-            match = re.match(r"build ingress-nginx-(v[\d.]+) on (amd64|arm64)",
+            match = re.match(r"build ingress-nginx-([\d.]+) on (amd64|arm64)",
                              job["name"])
             if match is None:
                 raise Exception(f'Job name does not match regex "{re}": {job}')
             version, arch = match.groups()
+            version = f"v{version}"
 
             image_version = f"{version}-dd.{args.version_tag}"
 
@@ -369,21 +374,23 @@ def release_module(args) -> int:
         print("Working directory is", work_dir)
 
         for job in jobs:
-            # See the response schema for a list of statuses:
-            # https://circleci.com/docs/api/v2/index.html#operation/listWorkflowJobs
-            if (job["name"].startswith("build ")
-                    and not job["name"].startswith("build installer ")
-                    and not job["name"].startswith("build ingress-nginx")):
-                # name should be something like "build 1.25.4 on arm64 WAF ON"
-                match = re.match(
-                    r"build ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
-                    job["name"])
-                if match is None:
-                    raise Exception(
-                        f'Job name does not match regex "{re}": {job}')
-                version, arch, waf = match.groups()
-                prepare_release_artifact(work_dir, job["job_number"], version,
-                                         arch, waf == "ON")
+            match = re.match(
+                r"build( openresty)? ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
+                job["name"],
+            )
+            if match is None:
+                continue
+
+            if len(match.groups()) == 4:
+                # It is an `openresty` build
+                flavor, nginx_version, arch, waf = match.groups()
+                flavor = flavor.strip()
+            else:
+                nginx_version, arch, waf = match.groups()
+                flavor = "nginx"
+
+            prepare_release_artifact(work_dir, job["job_number"], flavor,
+                                     nginx_version, arch, waf == "ON")
 
         pubkey_file = os.path.join(work_dir, "pubkey.gpg")
         run([gpg_exe, "--output", pubkey_file, "--armor", "--export"],
@@ -401,13 +408,13 @@ def release_module(args) -> int:
             gh_exe,
             "release",
             "create",
+            options.version_tag,
             "--prerelease",
             "--draft",
-            "--title",
-            options.version_tag,
-            "--notes",
-            "TODO",
-            options.version_tag,
+            "--generate-notes",
+            "--verify-tag",
+            "--repo",
+            "DataDog/nginx-datadog",
             *release_files,
         ]
         run(command, check=True)
