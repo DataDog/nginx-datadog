@@ -23,7 +23,7 @@ inline std::string make_current_frame(ngx_http_request_t *request,
                                       std::string_view file, size_t line,
                                       std::string_view function) {
   // clang-format off
-  return std::format("Exception catched:\n"
+  return std::format("Exception caught:\n"
                      "   at {} ({}:{})\n"
                      "   at {}", function, file, line,
                                 to_string_view(request->uri));
