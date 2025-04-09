@@ -803,7 +803,10 @@ exit "$rcode"
                     )
                 time.sleep(poll_period_seconds)
 
-    def nginx_replace_config(self, nginx_conf_text, file_name):
+    def nginx_replace_config(self,
+                             nginx_conf_text,
+                             file_name,
+                             wait_for_workers_to_terminate=True):
         """Replace nginx's config and reload nginx.
 
         Call `self.nginx_test_config(nginx_conf_text, file_name)`.  If the
@@ -811,14 +814,15 @@ exit "$rcode"
         `nginx_conf_text` and reload nginx.  Return the `(status, log_lines)`
         returned by the call to `nginx_test_config`.
         """
-        status, log_lines = self.nginx_test_config(nginx_conf_text, file_name)
+        new_conf = add_healthcheck_endpoint(nginx_conf_text)
+        status, log_lines = self.nginx_test_config(new_conf, file_name)
         if status:
             return status, log_lines
 
         script = f"""
 >{nginx_conf_path} cat <<'END_CONF'
 error_log stderr notice;
-{nginx_conf_text}
+{new_conf}
 END_CONF
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
@@ -835,7 +839,29 @@ END_CONF
             encoding="utf8",
         )
 
-        self.reload_nginx()
+        self.reload_nginx(wait_for_workers_to_terminate)
+
+        if not wait_for_workers_to_terminate:
+            return status, log_lines
+
+        timeout = 10
+        before = time.monotonic()
+        while True:
+            now = time.monotonic()
+            # TOOD: healthcheck
+            try:
+                healthcheck_status, _, _ = self.send_nginx_http_request(
+                    "/healthcheck", port=8715)
+                if healthcheck_status == 200:
+                    break
+            except Exception:
+                pass
+
+            if now - before >= timeout:
+                raise Exception(
+                    f"{timeout} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed."
+                )
+            time.sleep(0.5)
         return status, log_lines
 
     def nginx_replace_file(self, file, content):
@@ -1013,3 +1039,26 @@ def singleton():
             status, log_lines = orch.nginx_test_config(...)
     """
     return _singleton.context()
+
+
+def add_healthcheck_endpoint(conf: str) -> str:
+    """Add /healthcheck endpoint to an NGINX configuration."""
+    new_conf = ""
+    injected = False
+    for line in conf.split("\n"):
+        if not injected and "http {" in line:
+            # if re.match(r"server.*{", line):
+            injected = True
+            new_conf += line
+            new_conf += "server {\n"
+            new_conf += "  listen 8715;\n"
+            new_conf += "  location /healthcheck {\n"
+            new_conf += "    datadog_tracing off;\n"
+            new_conf += "    access_log off;\n"
+            new_conf += "    add_header 'Content-Type' 'application/json';\n"
+            new_conf += '    return 200 \'{"status":"UP"}\';\n'
+            new_conf += "  }\n"
+            new_conf += "}\n"
+        else:
+            new_conf += f"{line}\n"
+    return new_conf

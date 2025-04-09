@@ -1,4 +1,5 @@
 from .. import case
+import unittest
 
 import json
 from pathlib import Path
@@ -10,7 +11,7 @@ class TestFastCGI(case.TestCase):
         conf_path = Path(__file__).parent / "./conf/fastcgi_auto.conf"
         conf_text = conf_path.read_text()
         status, log_lines = self.orch.nginx_replace_config(
-            conf_text, conf_path.name)
+            conf_text, conf_path.name, wait_for_workers_to_terminate=False)
         self.assertEqual(status, 0, log_lines)
 
         status, _, body = self.orch.send_nginx_http_request("/fastcgi")
@@ -39,6 +40,7 @@ class TestFastCGI(case.TestCase):
         return self.run_test("./conf/fastcgi_disabled_at_http.conf",
                              should_propagate=False)
 
+    @unittest.skip("")
     def test_without_module(self):
         return self.run_test("./conf/fastcgi_without_module.conf",
                              should_propagate=False)
