@@ -791,8 +791,11 @@ exit "$rcode"
             poll_period_seconds = 0.5
             timeout_seconds = 10
             before = time.monotonic()
-            while old_worker_pids & nginx_worker_pids(nginx_container,
-                                                      self.verbose):
+            while True:
+                pids = nginx_worker_pids(nginx_container, self.verbose)
+                if old_worker_pids not in pids:
+                    break
+
                 now = time.monotonic()
                 if now - before >= timeout_seconds:
                     raise Exception(
