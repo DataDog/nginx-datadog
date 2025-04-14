@@ -166,7 +166,7 @@ jobs:
         steps:
             - checkout
             - run:
-                command: "CIRCLE_CFG=generated-config.yml make circleci-config \ndiff .circleci/continue_config.yml generated-config.yml\n"
+                command: "CIRCLE_CFG=generated-config.yml make circleci-config \ndiff .circleci/config.yml generated-config.yml\n"
                 name: Verify
     coverage:
         environment:

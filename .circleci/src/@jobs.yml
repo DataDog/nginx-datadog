@@ -294,7 +294,7 @@ jobs:
         name: Verify 
         command: |
           CIRCLE_CFG=generated-config.yml make circleci-config 
-          diff .circleci/continue_config.yml generated-config.yml
+          diff .circleci/config.yml generated-config.yml
   build_ingress_nginx_module:
     executor:
       name: ubuntu-<< parameters.arch >>
