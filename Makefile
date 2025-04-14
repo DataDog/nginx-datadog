@@ -12,7 +12,7 @@ ARCH ?= $(shell arch)
 COVERAGE ?= OFF
 BUILD_TESTING ?= ON
 DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain
-CIRCLE_CFG ?= .circleci/continue_config.yml
+CIRCLE_CFG ?= .circleci/config.yml
 ifneq ($(PCRE2_PATH),)
 	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
 endif
