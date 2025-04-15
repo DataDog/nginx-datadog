@@ -350,7 +350,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   } catch (const std::exception &e) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Initialising security library failed: %s", e.what());
-    return NGX_ERROR;
+    /*return NGX_ERROR;*/
   }
 #endif
 
@@ -359,10 +359,10 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Failed to construct tracer: [error code %d] %s",
                   int(error->code), error->message.c_str());
-    return NGX_ERROR;
+    /*return NGX_ERROR;*/
+  } else {
+    reset_global_tracer(std::move(*maybe_tracer));
   }
-
-  reset_global_tracer(std::move(*maybe_tracer));
   return NGX_OK;
 } catch (const std::exception &e) {
   ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s",

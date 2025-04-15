@@ -30,10 +30,10 @@ def quit_signal_handler(signum, frame):
 
 
 def wait_until(predicate_func, timeout_seconds):
-    """Wait until `predicate_func` is False."""
+    """Wait until `predicate_func` is True."""
     before = time.monotonic()
     while True:
-        if not predicate_func():
+        if predicate_func():
             break
 
         now = time.monotonic()
@@ -803,16 +803,22 @@ exit "$rcode"
             # The polling interval was chosen based on a system where:
             # - nginx_worker_pids ran in ~0.05 seconds
             # - the workers terminated after ~6 seconds
-            def worker_is_up(worker_pid):
+            def old_worker_stops(worker_pid):
                 _worker_pid = worker_pid
 
                 def check():
                     pids = nginx_worker_pids(nginx_container, self.verbose)
-                    return _worker_pid in pids
+                    return _worker_pid not in pids
 
                 return check
 
-            wait_until(worker_is_up(old_worker_pids), timeout_seconds=10)
+            wait_until(old_worker_stops(old_worker_pids), timeout_seconds=10)
+
+            def new_worker_starts():
+                pids = nginx_worker_pids(nginx_container, self.verbose)
+                return len(pids) == 1
+
+            wait_until(new_worker_starts, timeout_seconds=10)
 
     def nginx_replace_config(self, nginx_conf_text, file_name):
         """Replace nginx's config and reload nginx.
