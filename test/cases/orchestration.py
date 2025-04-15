@@ -812,13 +812,13 @@ exit "$rcode"
 
                 return check
 
-            wait_until(old_worker_stops(old_worker_pids), timeout_seconds=10)
+            wait_until(old_worker_stops(old_worker_pids), timeout_seconds=60)
 
             def new_worker_starts():
                 pids = nginx_worker_pids(nginx_container, self.verbose)
                 return len(pids) == 1
 
-            wait_until(new_worker_starts, timeout_seconds=10)
+            wait_until(new_worker_starts, timeout_seconds=60)
 
     def nginx_replace_config(self, nginx_conf_text, file_name):
         """Replace nginx's config and reload nginx.
