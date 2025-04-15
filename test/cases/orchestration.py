@@ -29,6 +29,21 @@ def quit_signal_handler(signum, frame):
     faulthandler.dump_traceback()
 
 
+def wait_until(predicate_func, timeout_seconds):
+    """Wait until `predicate_func` is False."""
+    before = time.monotonic()
+    while True:
+        if not predicate_func():
+            break
+
+        now = time.monotonic()
+        if now - before >= timeout_seconds:
+            raise Exception(
+                f"{timeout_seconds} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed."
+            )
+        time.sleep(0.5)
+
+
 signal.signal(signal.SIGQUIT, quit_signal_handler)
 
 # Since we override the environment variables of child processes,
@@ -788,17 +803,16 @@ exit "$rcode"
             # The polling interval was chosen based on a system where:
             # - nginx_worker_pids ran in ~0.05 seconds
             # - the workers terminated after ~6 seconds
-            poll_period_seconds = 0.5
-            timeout_seconds = 10
-            before = time.monotonic()
-            while old_worker_pids & nginx_worker_pids(nginx_container,
-                                                      self.verbose):
-                now = time.monotonic()
-                if now - before >= timeout_seconds:
-                    raise Exception(
-                        f"{timeout_seconds} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed."
-                    )
-                time.sleep(poll_period_seconds)
+            def worker_is_up(worker_pid):
+                _worker_pid = worker_pid
+
+                def check():
+                    pids = nginx_worker_pids(nginx_container, self.verbose)
+                    return _worker_pid in pids
+
+                return check
+
+            wait_until(worker_is_up(old_worker_pids), timeout_seconds=10)
 
     def nginx_replace_config(self, nginx_conf_text, file_name):
         """Replace nginx's config and reload nginx.
