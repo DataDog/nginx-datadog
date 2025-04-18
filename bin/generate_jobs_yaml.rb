@@ -2,6 +2,8 @@
 
 nginx_version_table = <<-TAB
 amazonlinux:2023.3.20240219.0 1.24.0
+nginx:1.27.5-alpine 1.27.5
+nginx:1.27.5 1.27.5
 nginx:1.27.4-alpine 1.27.4
 nginx:1.27.4 1.27.4
 nginx:1.27.3-alpine 1.27.3
@@ -59,8 +61,8 @@ all_resty_versions = all_resty_specs.map(&:version).uniq.sort
 puts <<-YAML.gsub(/^/, '    ')
 - build:
     filters:
-        tags:
-          only: /^v.*/
+      tags:
+        only: /^v.*/
     matrix:
       parameters:
         arch:
@@ -76,6 +78,9 @@ YAML
 
 puts <<-YAML.gsub(/^/, '    ')
 - build_openresty:
+    filters:
+      tags:
+        only: /^v.*/
     matrix:
       parameters:
         arch:
@@ -93,8 +98,8 @@ all_nginx_specs.group_by(&:version).each do |version, specs|
     puts <<~YAML.gsub(/^/, '    ')
     - test:
         filters:
-            tags:
-              only: /^v.*/
+          tags:
+            only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -116,6 +121,9 @@ end
 all_resty_specs.group_by(&:version).each do |version, specs|
   puts <<~YAML.gsub(/^/, '    ')
   - test-openresty:
+      filters:
+        tags:
+          only: /^v.*/
       matrix:
         parameters:
           arch:
