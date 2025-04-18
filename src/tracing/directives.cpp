@@ -1,6 +1,7 @@
 #include "tracing/directives.h"
 
 #include <cassert>
+#include <stdexcept>
 
 #include "common/variable.h"
 #include "ngx_http_datadog_module.h"
