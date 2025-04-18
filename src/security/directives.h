@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common/directives.h"
 #include "datadog_conf.h"
 #include "datadog_directive.h"
 
@@ -36,7 +37,7 @@ constexpr directive appsec_directives[] = {
         ngx_conf_set_str_slot,
         NGX_HTTP_MAIN_CONF_OFFSET,
         offsetof(datadog_main_conf_t, appsec_ruleset_file),
-        nullptr,
+        &datadog::common::ngx_conf_post_file_exists,
     },
 
     {
@@ -45,7 +46,7 @@ constexpr directive appsec_directives[] = {
         ngx_conf_set_str_slot,
         NGX_HTTP_MAIN_CONF_OFFSET,
         offsetof(datadog_main_conf_t, appsec_http_blocked_template_json),
-        nullptr,
+        &datadog::common::ngx_conf_post_file_exists,
     },
 
     {
@@ -54,7 +55,7 @@ constexpr directive appsec_directives[] = {
         ngx_conf_set_str_slot,
         NGX_HTTP_MAIN_CONF_OFFSET,
         offsetof(datadog_main_conf_t, appsec_http_blocked_template_html),
-        nullptr,
+        &datadog::common::ngx_conf_post_file_exists,
     },
 
     {
