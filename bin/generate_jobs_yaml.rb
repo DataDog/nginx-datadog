@@ -61,8 +61,8 @@ all_resty_versions = all_resty_specs.map(&:version).uniq.sort
 puts <<-YAML.gsub(/^/, '    ')
 - build:
     filters:
-        tags:
-          only: /^v.*/
+      tags:
+        only: /^v.*/
     matrix:
       parameters:
         arch:
@@ -78,6 +78,9 @@ YAML
 
 puts <<-YAML.gsub(/^/, '    ')
 - build_openresty:
+    filters:
+      tags:
+        only: /^v.*/
     matrix:
       parameters:
         arch:
@@ -95,8 +98,8 @@ all_nginx_specs.group_by(&:version).each do |version, specs|
     puts <<~YAML.gsub(/^/, '    ')
     - test:
         filters:
-            tags:
-              only: /^v.*/
+          tags:
+            only: /^v.*/
         matrix:
           parameters:
             arch:
@@ -118,6 +121,9 @@ end
 all_resty_specs.group_by(&:version).each do |version, specs|
   puts <<~YAML.gsub(/^/, '    ')
   - test-openresty:
+      filters:
+        tags:
+          only: /^v.*/
       matrix:
         parameters:
           arch:
