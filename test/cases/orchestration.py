@@ -839,6 +839,7 @@ END_CONF
         """Replaces the contents of an arbitrary file in the nginx container."""
 
         script = f"""
+mkdir -p $(dirname "{file}")
 >{file} cat <<'END_CONF'
 {content}
 END_CONF
