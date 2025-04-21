@@ -15,6 +15,7 @@
 #include "body_parse/body_parsing.h"
 #include "client_ip.h"
 #include "collection.h"
+#include "datadog_context.h"
 #include "ddwaf_obj.h"
 #include "header_tags.h"
 #include "library.h"
@@ -845,6 +846,11 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "not blocking after final waf run; triggering write event "
                     "on connection");
+      if (req_.upstream) {
+        // it may be that the body filter is never called again, so we have
+        // no chance to send the buffered data.
+        ctx_.prepare_drain_buffered_header(req_);
+      }
     }
   }
 
@@ -1155,6 +1161,9 @@ ngx_int_t Context::send_buffered_header(ngx_http_request_t &request) noexcept {
 
   if (!request.stream) {
     ngx_int_t rc = ngx_http_write_filter(&request, header_filter_ctx_.out);
+    if (rc == NGX_ERROR) {
+      request.connection->error = 1;
+    }
     header_filter_ctx_.clear(*request.pool);
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
                   "send_buffered_header: ngx_http_write_filter returned %d",
@@ -1184,6 +1193,133 @@ ngx_int_t Context::send_buffered_header(ngx_http_request_t &request) noexcept {
     return NGX_OK;
   }
   return NGX_AGAIN;
+}
+
+namespace {
+Context *get_sec_ctx(ngx_http_request_t *random_data) noexcept {
+  auto *dd_ctx = static_cast<DatadogContext *>(
+      ngx_http_get_module_ctx(random_data, ngx_http_datadog_module));
+  if (dd_ctx) {
+    return dd_ctx->get_security_context();
+  }
+  return static_cast<Context *>(nullptr);
+}
+}  // namespace
+
+void Context::drain_buffered_data_write_handler(
+    ngx_http_request_t *r) noexcept {
+  ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                 "drain_buffered_data_write_handler called");
+
+  Context *ctx = get_sec_ctx(r);
+  if (!ctx) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "drain_buffered_data_write_handler: no context");
+    ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    return;
+  }
+
+  ngx_connection_t *c = r->connection;  // fake connection on http2
+  ngx_event_t *wev = c->write;
+  ngx_http_core_loc_conf_t *clcf = static_cast<decltype(clcf)>(
+      ngx_http_get_module_loc_conf(r->main, ngx_http_core_module));
+
+  if (wev->timedout) {
+    ngx_log_error(NGX_LOG_INFO, c->log, NGX_ETIMEDOUT,
+                  "drain_buffered_data_write_handler: client timed out");
+    c->timedout = 1;
+    c->error = 1;
+
+    ngx_http_finalize_request(r, NGX_HTTP_REQUEST_TIME_OUT);
+    return;
+  }
+
+  if (wev->delayed || r->aio) {
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                   "drain_buffered_data_write_handler: http writer delayed");
+
+    if (!wev->delayed) {
+      ngx_add_timer(wev, clcf->send_timeout);
+    }
+
+    if (ngx_handle_write_event(wev, clcf->send_lowat) != NGX_OK) {
+      ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    }
+
+    return;
+  }
+
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, c->log, 0,
+                "drain_buffered_data_write_handler: about to call "
+                "ngx_http_output_filter");
+  ngx_int_t rc = ngx_http_output_filter(r, NULL);
+
+  ngx_log_debug3(NGX_LOG_DEBUG_HTTP, c->log, 0,
+                 "drain_buffered_data_write_handler: http writer output "
+                 "filter: %i, \"%V?%V\"",
+                 rc, &r->uri, &r->args);
+
+  if (rc == NGX_ERROR) {
+    ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                  "drain_buffered_header_write_handler: send_buffered_header "
+                  "failed");
+    ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    return;
+  }
+
+  if (rc == NGX_AGAIN || r->buffered || r->postponed ||
+      (r == r->main && c->buffered)) {
+    ngx_log_debug(
+        NGX_LOG_DEBUG_HTTP, c->log, 0,
+        "drain_buffered_data_write_handler: http writer still has data to "
+        "write");
+
+    if (!wev->delayed) {
+      ngx_add_timer(wev, clcf->send_timeout);
+    }
+
+    if (ngx_handle_write_event(wev, clcf->send_lowat) != NGX_OK) {
+      ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+    }
+
+    return;
+  }
+
+  ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                 "drain_buffered_header_write_handler: send_buffered_header "
+                 "succeeded; restoring handler and triggering write");
+  r->write_event_handler = ctx->prev_req_write_evt_handler_;
+  ngx_post_event(r->connection->write, &ngx_posted_events);
+}
+
+void Context::prepare_drain_buffered_header(
+    ngx_http_request_t &request) noexcept {
+  if (!header_filter_ctx_.out) {
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                  "prepare_drain_buffered_header: no buffered header to drain");
+    return;
+  }
+
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                "prepare_drain_buffered_header: buffered_(len,size)=(%uz,%uz)",
+                chain_length(header_filter_ctx_.out),
+                chain_size(header_filter_ctx_.out));
+
+  prev_req_write_evt_handler_ = request.write_event_handler;
+  request.write_event_handler = drain_buffered_data_write_handler;
+
+  if (!header_filter_ctx_.found_last) {
+    ngx_log_debug(
+        NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+        "prepare_drain_buffered_header: adding a flush to last chain link");
+
+    for (auto *cl = header_filter_ctx_.out; cl; cl = cl->next) {
+      if (cl->next == nullptr) {
+        cl->buf->flush = 1;
+        break;
+      }
+    }
+  }
 }
 
 void Context::FilterCtx::clear(ngx_pool_t &pool) noexcept {

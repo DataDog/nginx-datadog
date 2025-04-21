@@ -3,6 +3,7 @@
 
 const http = require('http');
 const process = require('process');
+const WebSocket = require('ws');
 
 // In order for the span(s) associated with an HTTP request to be considered
 // finished, the body of the response corresponding to the request must have
@@ -79,9 +80,28 @@ const requestListener = function (request, response) {
   response.end(responseBody);
 }
 
+function reverseBytes(str) {
+  return str.split('').reverse().join('');
+}
+
 console.log('http node.js web server is running');
 const server = http.createServer(requestListener);
 server.listen(8080);
+
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (ws) => {
+  ws.on('message', (message) => {
+    const messageStr = message.toString();
+
+    if (messageStr.length > 1024 || messageStr.length < 1) {
+      return;
+    }
+
+    const reversed = reverseBytes(messageStr);
+    ws.send(reversed);
+  });
+});
 
 process.on('SIGTERM', function () {
   console.log('Received SIGTERM');

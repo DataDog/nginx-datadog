@@ -305,3 +305,16 @@ class TestSecBlocking(case.TestCase):
         self.assertEqual(headers['content-type'], 'application/json')
         self.assertRegex(body, r'"title":"You\'ve been blocked')
         self.assert_has_report(log_lines, 'block_501')
+
+    def test_websocket_connection_blocked(self):
+        """Test that WebSocket connections are blocked by the WAF rule when accessing blocked path."""
+        exit_code, resp = self.orch.send_nginx_websocket_request(
+            "/ws/blocked-ws",
+            "Hello!\n",
+        )
+
+        self.assertRegex(resp, r"403 Forbidden")
+
+        report = self.orch.find_first_appsec_report()
+        self.assertEqual(report['triggers'][0]['rule']['id'],
+                         "block_websocket_upgrade_response")

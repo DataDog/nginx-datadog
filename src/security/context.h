@@ -215,9 +215,14 @@ class Context {
   static ngx_int_t buffer_chain(FilterCtx &filter_ctx, ngx_pool_t &pool,
                                 ngx_chain_t const *in, bool consume) noexcept;
 
+  ngx_http_event_handler_pt prev_req_write_evt_handler_;
+  static void drain_buffered_data_write_handler(ngx_http_request_t *r) noexcept;
+
  public:
   ngx_int_t buffer_header_output(ngx_pool_t &pool, ngx_chain_t *chain) noexcept;
   ngx_int_t send_buffered_header(ngx_http_request_t &request) noexcept;
+
+  void prepare_drain_buffered_header(ngx_http_request_t &request) noexcept;
 };
 
 }  // namespace datadog::nginx::security

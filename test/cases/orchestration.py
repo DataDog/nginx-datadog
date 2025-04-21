@@ -557,6 +557,34 @@ class Orchestration:
         match = re.search(r"/([\d.]+)", result.stderr)
         return match.group(1) if match else None
 
+    def send_nginx_websocket_request(
+        self,
+        path,
+        body,
+        port=80,
+        tls=False,
+        stderr=None,
+    ):
+        """Send a websocket request to nginx, and return the resulting HTTP
+        status code and response body as a tuple `(status, body)`.
+        """
+        protocol = "wss" if tls else "ws"
+        url = f"{protocol}://nginx:{port}{path}"
+        print("connecting to websocket", url, file=self.verbose, flush=True)
+
+        command = docker_compose_command("exec", "-T", "--", "client",
+                                         "websocat", "-k", url)
+        result = subprocess.run(
+            command,
+            input=body,
+            stdout=subprocess.PIPE,
+            stderr=stderr,
+            env=child_env(),
+            encoding="utf8",
+            check=True,
+        )
+        return result.returncode, result.stdout
+
     def send_nginx_http_request(
         self,
         path,
@@ -763,7 +791,7 @@ exit "$rcode"
                 "-T",
                 "--",
                 "nginx",
-                "nginx",
+                "nginx",  # nginx-debug to show debug messages (+ change error_log)
                 "-g",
                 "pid /run/nginx.pid;",
                 "-c",

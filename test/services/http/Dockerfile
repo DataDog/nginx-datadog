@@ -8,6 +8,7 @@ WORKDIR /opt/app
 
 RUN apk update && apk add nodejs npm
 RUN npm install dd-trace
+RUN npm install ws
 
 COPY ./http.js /opt/app/http.js
 

@@ -287,6 +287,47 @@
       "on_match": [
         "redirect"
       ]
+    },
+    {
+      "id": "block_websocket_upgrade_response",
+      "name": "Block WebSocket upgrade responses on specific path",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.headers.no_cookies",
+                "key_path": [
+                  "upgrade"
+                ]
+              }
+            ],
+            "regex": "^websocket$"
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.uri.raw"
+              }
+            ],
+            "regex": "/ws/blocked-ws"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block_html"
+      ],
+      "transformers": [
+        "lowercase"
+      ]
     }
   ]
 }
