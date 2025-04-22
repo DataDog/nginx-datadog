@@ -62,6 +62,11 @@ class TestHeaderCollection(case.TestCase):
             waf_text = waf_path.read_text()
             self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
 
+            headers_txt_path = Path(__file__).parent / './conf/headers.txt'
+            headers_txt_text = headers_txt_path.read_text()
+            self.orch.nginx_replace_file('/var/www/html/headers.txt',
+                                         headers_txt_text)
+
             conf_path = Path(__file__).parent / './conf/http.conf'
             conf_text = conf_path.read_text()
 
@@ -150,7 +155,7 @@ class TestHeaderCollection(case.TestCase):
         self.assertIn("http.request.headers.content-length", meta)
 
     def test_resp_no_attack(self):
-        status, _, _ = self.orch.send_nginx_http_request('/http', 80)
+        status, _, _ = self.orch.send_nginx_http_request('/headers', 80)
         self.assertEqual(status, 200)
 
         meta = self.get_meta()
@@ -158,8 +163,7 @@ class TestHeaderCollection(case.TestCase):
         # check each of the headers in resp_headers
         self.assertEqual("text/plain",
                          meta["http.response.headers.content-type"])
-        # content-length is not present in the response
-        # self.assertIn("http.response.headers.content-length", meta)
+        self.assertIn("http.response.headers.content-length", meta)
         self.assertEqual("identity",
                          meta["http.response.headers.content-encoding"])
         self.assertEqual("pt_PT",

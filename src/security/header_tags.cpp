@@ -1,5 +1,7 @@
 #include "header_tags.h"
 
+#include <cassert>
+#include <charconv>
 #include <string_view>
 
 #include "../dd.h"
@@ -64,41 +66,45 @@ void each_req_header(bool has_attack, const ngx_table_elt_t &h,
 }
 
 void each_resp_header(const ngx_table_elt_t &h, dd::Span &span) {
-  switch (h.key.len) {
-#define CASE_RESP_HEADER(header)                               \
-  case (""sv header).size(): {                                 \
-    if (dnsec::resp_key_equals_ci(h, ""sv header)) {           \
-      if (h.hash != 0) {                                       \
-        span.set_tag("http.response.headers."sv header,        \
-                     datadog::nginx::to_string_view(h.value)); \
-      } else {                                                 \
-        span.remove_tag("http.response.headers."sv header);    \
-      }                                                        \
-    }                                                          \
-    break;                                                     \
+#define CASE_RESP_HEADER(header)                                 \
+  do {                                                           \
+    if (h.key.len == (""sv header).size()) {                     \
+      if (dnsec::resp_key_equals_ci(h, ""sv header)) {           \
+        if (h.hash != 0) {                                       \
+          span.set_tag("http.response.headers."sv header,        \
+                       datadog::nginx::to_string_view(h.value)); \
+        } else {                                                 \
+          span.remove_tag("http.response.headers."sv header);    \
+        }                                                        \
+        return;                                                  \
+      }                                                          \
+    }                                                            \
+  } while (0)
+
+  CASE_RESP_HEADER("content-length");
+  CASE_RESP_HEADER("content-type");
+  CASE_RESP_HEADER("content-encoding");
+  CASE_RESP_HEADER("content-language");
+}
+
+void handle_special_resp_headers(const ngx_http_headers_out_t &headers_out,
+                                 dd::Span &span) {
+  if (headers_out.content_type.len > 0) {
+    span.set_tag("http.response.headers.content-type",
+                 datadog::nginx::to_string_view(headers_out.content_type));
   }
 
-    CASE_RESP_HEADER("content-length")
-    CASE_RESP_HEADER("content-type")
-
-    case "content-encoding"sv.size(): {
-      // thse two have the same size
-      if (dnsec::resp_key_equals_ci(h, "content-encoding"sv)) {
-        if (h.hash != 0) {
-          span.set_tag("http.response.headers.content-encoding"sv,
-                       to_string_view(h.value));
-        } else {
-          span.remove_tag("http.response.headers.content-encoding"sv);
-        }
-      } else if (dnsec::resp_key_equals_ci(h, "content-language"sv)) {
-        if (h.hash != 0) {
-          span.set_tag("http.response.headers.content-language"sv,
-                       to_string_view(h.value));
-        } else {
-          span.remove_tag("http.response.headers.content-language"sv);
-        }
-      }
-      break;
+  if (headers_out.content_length_n != -1) {
+    char buffer
+        [std::numeric_limits<decltype(headers_out.content_length_n)>::digits10 +
+         1];
+    auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer),
+                                   headers_out.content_length_n);
+    if (ec == std::errc{}) {
+      span.set_tag("http.response.headers.content-length",
+                   std::string_view{buffer, static_cast<size_t>(ptr - buffer)});
+    } else {
+      assert(0 && "Failed to convert content length to string");
     }
   }
 }
@@ -124,6 +130,7 @@ void set_header_tags(bool has_attack, ngx_http_request_t &request,
     for (auto &&h : it) {
       each_resp_header(h, span);
     }
+    handle_special_resp_headers(request.headers_out, span);
   }
 }
 }  // namespace datadog::nginx::security
