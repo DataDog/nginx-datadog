@@ -436,7 +436,7 @@ workflows:
                             - 1.22.1
                             - 1.24.0
                             - 1.25.4
-                            - 1.27.4
+                            - 1.27.5
                         rum:
                             - "ON"
                         waf:
@@ -471,10 +471,10 @@ workflows:
                             - amd64
                             - arm64
                         base-image:
-                            - nginx:1.27.4-alpine
-                            - nginx:1.27.4
+                            - nginx:1.27.5-alpine
+                            - nginx:1.27.5
                         nginx-version:
-                            - 1.27.4
+                            - 1.27.5
                         rum:
                             - "ON"
                         waf:
@@ -617,6 +617,7 @@ workflows:
                             - 1.27.2
                             - 1.27.3
                             - 1.27.4
+                            - 1.27.5
                         rum:
                             - "ON"
                         waf:
@@ -648,6 +649,24 @@ workflows:
                             - nginx:1.24.0
                         nginx-version:
                             - 1.24.0
+                        rum:
+                            - "ON"
+                        waf:
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:1.27.5-alpine
+                            - nginx:1.27.5
+                        nginx-version:
+                            - 1.27.5
                         rum:
                             - "ON"
                         waf:
