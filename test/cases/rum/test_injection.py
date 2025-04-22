@@ -26,7 +26,7 @@ EXPECTED_BIG_CHONK = """<!DOCTYPE html>
   n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
 })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js','DD_RUM')
 window.DD_RUM.onReady(function() {
-  window.DD_RUM.init({"applicationId":"<DATADOG_APPLICATION_ID>","clientToken":"<DATADOG_CLIENT_TOKEN>","env":"production","service":"my-web-application","sessionReplaySampleRate":100.0,"sessionSampleRate":100.0,"site":"<DATADOG_SITE>","trackLongTasks":true,"trackResources":true,"trackUserInteractions":true,"version":"1.0.0"});
+  window.DD_RUM.init({"applicationId":"<DATADOG_APPLICATION_ID>","clientToken":"<DATADOG_CLIENT_TOKEN>","env":"production","service":"my-web-application","sessionReplaySampleRate":100.0,"sessionSampleRate":100.0,"site":"datadoghq.com","trackLongTasks":true,"trackResources":true,"trackUserInteractions":true,"version":"1.0.0"});
 });
 </script>
 </head>

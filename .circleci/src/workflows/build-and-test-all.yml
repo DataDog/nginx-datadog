@@ -93,8 +93,6 @@
             - 1.25.3.1
             - 1.25.3.2
             - 1.27.1.1
-            rum:
-            - 'ON'
             waf:
             - 'OFF'
         name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
@@ -465,8 +463,6 @@
             arch:
             - amd64
             - arm64
-            rum:
-            - 'ON'
             waf:
             - 'OFF'
             base-image:
@@ -485,8 +481,6 @@
             arch:
             - amd64
             - arm64
-            rum:
-            - 'ON'
             waf:
             - 'OFF'
             base-image:
@@ -505,8 +499,6 @@
             arch:
             - amd64
             - arm64
-            rum:
-            - 'ON'
             waf:
             - 'OFF'
             base-image:

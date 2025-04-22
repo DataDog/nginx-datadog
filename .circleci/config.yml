@@ -391,8 +391,6 @@ workflows:
                             - arm64
                         resty-version:
                             - 1.27.1.1
-                        rum:
-                            - "ON"
                         waf:
                             - "OFF"
                 name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
@@ -435,8 +433,6 @@ workflows:
                             - openresty/openresty:1.27.1.1-alpine
                         resty-version:
                             - 1.27.1.1
-                        rum:
-                            - "ON"
                         waf:
                             - "OFF"
                 name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
@@ -489,10 +485,6 @@ workflows:
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
-            - system_tests:
-                name: Run system tests
-                requires:
-                    - build 1.25.4 on amd64 WAF ON
         when:
             and:
                 - not: << pipeline.git.tag >>
@@ -586,8 +578,6 @@ workflows:
                             - 1.25.3.1
                             - 1.25.3.2
                             - 1.27.1.1
-                        rum:
-                            - "ON"
                         waf:
                             - "OFF"
                 name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
@@ -622,7 +612,6 @@ workflows:
                         nginx-version:
                             - 1.27.5
                         waf:
-                            - "ON"
                             - "OFF"
                 name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
@@ -801,7 +790,6 @@ workflows:
                         nginx-version:
                             - 1.25.5
                         waf:
-                            - "ON"
                             - "OFF"
                 name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
                 requires:
@@ -906,8 +894,6 @@ workflows:
                             - openresty/openresty:1.27.1.1-alpine
                         resty-version:
                             - 1.27.1.1
-                        rum:
-                            - "ON"
                         waf:
                             - "OFF"
                 name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
@@ -923,8 +909,6 @@ workflows:
                             - openresty/openresty:1.25.3.2-alpine
                         resty-version:
                             - 1.25.3.2
-                        rum:
-                            - "ON"
                         waf:
                             - "OFF"
                 name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
@@ -940,8 +924,6 @@ workflows:
                             - openresty/openresty:1.25.3.1-alpine
                         resty-version:
                             - 1.25.3.1
-                        rum:
-                            - "ON"
                         waf:
                             - "OFF"
                 name: test openresty << matrix.resty-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
