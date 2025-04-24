@@ -569,3 +569,35 @@ class TestSecAddresses(case.TestCase):
 
         if not found_appsec:
             self.fail("No appsec span found in traces")
+
+    def test_websocket_connection(self):
+        """Test that WebSocket connection works correctly and returns reversed string."""
+        # Use the WebSocket client to connect to our server through nginx
+        # This connects to the regular /http path which should not be blocked
+        exit_code, resp = self.orch.send_nginx_websocket_request(
+            "/ws",
+            "Hello!\n",
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(resp, "!olleH\n")
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service("agent")
+        entries = [
+            json.loads(line) for line in log_lines if line.startswith("[[{")
+        ]
+
+        found_span = None
+        for entry in entries:
+            for trace in entry:
+                for span in trace:
+                    if span.get("metrics", {}).get("_dd.appsec.enabled"):
+                        found_span = span
+
+        if not found_span:
+            self.fail("No appsec span found in traces")
+        if found_span.get("meta", {}).get("_dd.appsec.json"):
+            self.fail("Unexpected appsec report found in trace")
+        self.assertEqual(
+            found_span.get("meta", {}).get("http.status_code"), "101")

@@ -56,6 +56,10 @@ class DatadogContext {
 
   RequestTracing& single_trace();
 
+#ifdef WITH_WAF
+  security::Context* get_security_context() { return sec_ctx_.get(); }
+#endif
+
  private:
   std::vector<RequestTracing> traces_;
 #ifdef WITH_WAF
