@@ -808,7 +808,9 @@ exit "$rcode"
 
                 def check():
                     pids = nginx_worker_pids(nginx_container, self.verbose)
-                    return _worker_pid not in pids
+                    res = _worker_pid.intersection(pids)
+                    # print(f"_worker_pid={_worker_pid}, pids={pids}, cond={res}")
+                    return len(res) == 0
 
                 return check
 
