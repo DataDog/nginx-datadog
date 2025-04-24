@@ -4,9 +4,16 @@ orbs:
   codecov: codecov/codecov@4.1.0
 
 parameters:
+  action:
+    type: enum
+    enum: [build-nginx, dev, release]
+    default: dev
   build_all:
     type: boolean
     default: false
+  nginx_version:
+    type: string
+    default: "1.27.5"
 
 executors:
   docker-amd64:

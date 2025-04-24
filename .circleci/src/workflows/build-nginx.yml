@@ -1,0 +1,34 @@
+when:
+  equal: [ build-nginx, << pipeline.parameters.action >> ]
+jobs:
+- build:
+    matrix:
+      parameters:
+        arch:
+        - amd64
+        - arm64
+        nginx-version:
+        - << pipeline.parameters.nginx_version >>
+        waf:
+        - 'ON'
+        - 'OFF'
+    name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+- test:
+    matrix:
+      parameters:
+        arch:
+        - amd64
+        - arm64
+        waf:
+        - 'ON'
+        - 'OFF'
+        base-image:
+        - nginx:<< pipeline.parameters.nginx_version >>-alpine
+        - nginx:<< pipeline.parameters.nginx_version >>
+        nginx-version:
+        - << pipeline.parameters.nginx_version >>
+    name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
+      >> WAF << matrix.waf >>
+    requires:
+    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
+      >>
