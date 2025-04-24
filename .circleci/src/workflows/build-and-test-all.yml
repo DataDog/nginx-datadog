@@ -1,6 +1,6 @@
     when:
       or:
-        -  << pipeline.parameters.build_all >>
+        - equal: [ release, << pipeline.parameters.action >> ]
         - matches: { pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+", value: << pipeline.git.tag >> }
     jobs:
     - build_ingress_nginx_module:

@@ -351,9 +351,19 @@ jobs:
 orbs:
     codecov: codecov/codecov@4.1.0
 parameters:
+    action:
+        default: dev
+        enum:
+            - build-nginx
+            - dev
+            - release
+        type: enum
     build_all:
         default: false
         type: boolean
+    nginx_version:
+        default: 1.27.5
+        type: string
 version: 2.1
 workflows:
     build-and-test:
@@ -490,7 +500,9 @@ workflows:
         when:
             and:
                 - not: << pipeline.git.tag >>
-                - not: << pipeline.parameters.build_all >>
+                - equal:
+                    - dev
+                    - << pipeline.parameters.action >>
     build-and-test-all:
         jobs:
             - build_ingress_nginx_module:
@@ -995,8 +1007,45 @@ workflows:
                     - build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
         when:
             or:
-                - << pipeline.parameters.build_all >>
+                - equal:
+                    - release
+                    - << pipeline.parameters.action >>
                 - matches:
                     pattern: ^v[0-9]+\.[0-9]+\.[0-9]+
                     value: << pipeline.git.tag >>
+    build-nginx:
+        jobs:
+            - build:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        nginx-version:
+                            - << pipeline.parameters.nginx_version >>
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:<< pipeline.parameters.nginx_version >>-alpine
+                            - nginx:<< pipeline.parameters.nginx_version >>
+                        nginx-version:
+                            - << pipeline.parameters.nginx_version >>
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+        when:
+            equal:
+                - build-nginx
+                - << pipeline.parameters.action >>
 

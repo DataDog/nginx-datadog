@@ -1,7 +1,7 @@
 when:
   and:
     - not: << pipeline.git.tag >>
-    - not: << pipeline.parameters.build_all >>
+    - equal: [ dev, << pipeline.parameters.action >> ]
 jobs:
 - check-ci-definition
 - format:
