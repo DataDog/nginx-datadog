@@ -1,5 +1,7 @@
 #include "injection.h"
 
+#include <datadog/telemetry/telemetry.h>
+
 extern "C" {
 #include <ngx_core.h>
 }
@@ -9,15 +11,15 @@ extern "C" {
 #include "datadog_conf.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
+#include "telemetry.h"
 
 namespace datadog {
 namespace nginx {
 namespace rum {
 namespace {
 
-ngx_table_elt_t *search_header(ngx_http_request_t *request,
-                               std::string_view key) {
-  ngx_list_part_t *part = &request->headers_in.headers.part;
+ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key) {
+  ngx_list_part_t *part = &headers.part;
   auto *h = static_cast<ngx_table_elt_t *>(part->elts);
 
   for (std::size_t i = 0;; i++) {
@@ -86,12 +88,19 @@ ngx_int_t InjectionHandler::on_header_filter(
     return next_header_filter(r);
   }
 
-  if (auto injected_header = search_header(r, "x-datadog-rum-injected");
+  if (auto injected_header =
+          search_header(r->headers_in.headers, "x-datadog-rum-injected");
       injected_header != nullptr) {
     if (nginx::to_string_view(injected_header->value) == "1") {
       ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                     "RUM SDK injection skipped: resource may already have RUM "
                     "SDK injected.");
+      datadog::telemetry::counter::increment(
+          telemetry::injection_skipped,
+          telemetry::build_tags("reason:already_injected",
+                                cfg->rum_application_id_tag,
+                                cfg->rum_remote_config_tag));
+
       return next_header_filter(r);
     }
   }
@@ -99,12 +108,25 @@ ngx_int_t InjectionHandler::on_header_filter(
   if (r->header_only || r->headers_out.content_length_n == 0) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: empty content");
+
+    datadog::telemetry::counter::increment(
+        telemetry::injection_skipped,
+        telemetry::build_tags("reason:no_content", cfg->rum_application_id_tag,
+                              cfg->rum_remote_config_tag));
+
     return next_header_filter(r);
   }
 
   if (!is_html_content(&r->headers_out.content_type)) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: not an HTML page");
+
+    datadog::telemetry::counter::increment(
+        telemetry::injection_skipped,
+        telemetry::build_tags("reason:invalid_content_type",
+                              cfg->rum_application_id_tag,
+                              cfg->rum_remote_config_tag));
+
     return next_header_filter(r);
   }
 
@@ -112,6 +134,13 @@ ngx_int_t InjectionHandler::on_header_filter(
       content_encoding != nullptr && content_encoding->value.len != 0) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: compressed html content");
+
+    datadog::telemetry::counter::increment(
+        telemetry::injection_skipped,
+        telemetry::build_tags("reason:compressed_html",
+                              cfg->rum_application_id_tag,
+                              cfg->rum_remote_config_tag));
+
     return next_header_filter(r);
   }
 
@@ -176,6 +205,12 @@ ngx_int_t InjectionHandler::on_body_filter(
       state_ = state::injected;
       ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                     "RUM SDK injected successfully injected");
+
+      datadog::telemetry::counter::increment(
+          telemetry::injection_succeed,
+          telemetry::build_tags(cfg->rum_application_id_tag,
+                                cfg->rum_remote_config_tag));
+
       return output(r, output_chain, next_body_filter);
     }
   }
@@ -192,9 +227,27 @@ ngx_int_t InjectionHandler::on_body_filter(
 
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection failed: no injection point found");
+
+    datadog::telemetry::counter::increment(
+        telemetry::injection_failed,
+        telemetry::build_tags("reason:missing_header_tag",
+                              cfg->rum_application_id_tag,
+                              cfg->rum_remote_config_tag));
   }
 
   return output(r, output_chain, next_body_filter);
+}
+
+ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t *r) {
+  if (auto csp =
+          search_header(r->headers_out.headers, "content-security-policy");
+      csp != nullptr) {
+    datadog::telemetry::counter::increment(
+        telemetry::injection_failed,
+        telemetry::build_tags("status:seen", "kind:header"));
+  }
+
+  return NGX_OK;
 }
 
 // NOTE(@dmehala): this function is not necessary for now, however,

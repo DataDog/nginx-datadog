@@ -67,6 +67,11 @@ class InjectionHandler final {
                            ngx_chain_t *in,
                            ngx_http_output_body_filter_pt &next_body_filter);
 
+  // Handles the logging phase of an HTTP request.
+  // @param r - HTTP request being processed.
+  // @return ngx_int_t - Status code indicating success or failure.
+  ngx_int_t on_log_request(ngx_http_request_t *r);
+
  private:
   // Sends the output to the next body filter.
   // @param r - HTTP request being processed.
