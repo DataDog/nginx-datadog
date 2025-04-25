@@ -8,7 +8,9 @@ extern "C" {
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
+}
 
+namespace datadog::nginx::rum {
 // Handler for `datadog_rum_json_config` directive.
 // Load a JSON RUM configuration file.
 char *on_datadog_rum_json_config(ngx_conf_t *cf, ngx_command_t *command,
@@ -23,7 +25,7 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
                                    datadog::nginx::datadog_loc_conf_t *parent,
                                    datadog::nginx::datadog_loc_conf_t *child);
 
-const datadog::nginx::directive rum_directives[] = {
+constexpr datadog::nginx::directive rum_directives[] = {
     {
         "datadog_rum",
         NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
@@ -42,5 +44,5 @@ const datadog::nginx::directive rum_directives[] = {
         0,
         NULL,
     },
-}
-}
+};
+}  // namespace datadog::nginx::rum

@@ -213,6 +213,8 @@ struct datadog_loc_conf_t {
 #ifdef WITH_RUM
   ngx_flag_t rum_enable = NGX_CONF_UNSET;
   Snippet *rum_snippet = nullptr;
+  std::string rum_application_id_tag;
+  std::string rum_remote_config_tag;
 #endif
 };
 
