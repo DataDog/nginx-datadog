@@ -45,4 +45,4 @@ constexpr datadog::nginx::directive rum_directives[] = {
         NULL,
     },
 };
-} // namespace datadog::nginx::rum
+}  // namespace datadog::nginx::rum
