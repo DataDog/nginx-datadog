@@ -1,3 +1,5 @@
+#include <datadog/telemetry/telemetry.h>
+
 #include "injection.h"
 
 extern "C" {
@@ -9,15 +11,15 @@ extern "C" {
 #include "datadog_conf.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
+#include "telemetry.h"
 
 namespace datadog {
 namespace nginx {
 namespace rum {
 namespace {
 
-ngx_table_elt_t *search_header(ngx_http_request_t *request,
-                               std::string_view key) {
-  ngx_list_part_t *part = &request->headers_in.headers.part;
+ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key) {
+  ngx_list_part_t *part = &headers.part;
   auto *h = static_cast<ngx_table_elt_t *>(part->elts);
 
   for (std::size_t i = 0;; i++) {
@@ -86,12 +88,17 @@ ngx_int_t InjectionHandler::on_header_filter(
     return next_header_filter(r);
   }
 
-  if (auto injected_header = search_header(r, "x-datadog-rum-injected");
+  if (auto injected_header =
+          search_header(r->headers_in.headers, "x-datadog-rum-injected");
       injected_header != nullptr) {
     if (nginx::to_string_view(injected_header->value) == "1") {
       ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                     "RUM SDK injection skipped: resource may already have RUM "
                     "SDK injected.");
+      telemetry::increment_counter(telemetry::injection_skipped,
+        {"reason:already_injected",
+          "application_id:" + cfg->rum_application_id,
+          "remote_config_used:" + cfg->remote_config});
       return next_header_filter(r);
     }
   }
@@ -99,12 +106,20 @@ ngx_int_t InjectionHandler::on_header_filter(
   if (r->header_only || r->headers_out.content_length_n == 0) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: empty content");
+    telemetry::increment_counter(telemetry::injection_skipped,
+      {"reason:no_content",
+        "application_id:" + cfg->rum_application_id,
+        "remote_config_used:" + cfg->remote_config});
     return next_header_filter(r);
   }
 
   if (!is_html_content(&r->headers_out.content_type)) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: not an HTML page");
+    telemetry::increment_counter(telemetry::injection_skipped,
+      {"reason:invalid_content_type",
+        "application_id:" + cfg->rum_application_id,
+        "remote_config_used:" + cfg->remote_config});
     return next_header_filter(r);
   }
 
@@ -112,6 +127,10 @@ ngx_int_t InjectionHandler::on_header_filter(
       content_encoding != nullptr && content_encoding->value.len != 0) {
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection skipped: compressed html content");
+    telemetry::increment_counter(telemetry::injection_skipped,
+      {"reason:compressed_html",
+        "application_id:" + cfg->rum_application_id,
+        "remote_config_used:" + cfg->remote_config});
     return next_header_filter(r);
   }
 
@@ -152,6 +171,15 @@ ngx_int_t InjectionHandler::on_header_filter(
 ngx_int_t InjectionHandler::on_body_filter(
     ngx_http_request_t *r, datadog_loc_conf_t *cfg, ngx_chain_t *in,
     ngx_http_output_body_filter_pt &next_body_filter) {
+  if (rum_first_csp_) {
+    if (auto csp =
+            search_header(r->headers_out.headers, "content-security-policy");
+        csp != nullptr) {
+      telemetry::increment_counter(telemetry::content_security_policy, {"status:seen", "kind:header"});
+    }
+    rum_first_csp_ = false;
+  }
+
   if (!cfg->rum_enable || in == nullptr || state_ != state::searching) {
     return next_body_filter(r, in);
   }
@@ -176,6 +204,11 @@ ngx_int_t InjectionHandler::on_body_filter(
       state_ = state::injected;
       ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                     "RUM SDK injected successfully injected");
+
+      telemetry::increment_counter(telemetry::injection_succeed, 
+                                   {"application_id:" + cfg->rum_application_id,
+                                    "remote_config_used:" + cfg->remote_config});
+
       return output(r, output_chain, next_body_filter);
     }
   }
@@ -192,6 +225,10 @@ ngx_int_t InjectionHandler::on_body_filter(
 
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection failed: no injection point found");
+    telemetry::increment_counter(telemetry::injection_failed,
+      {"reason:missing_header_tag",
+        "application_id:" + cfg->rum_application_id,
+        "remote_config_used:" + cfg->remote_config});
   }
 
   return output(r, output_chain, next_body_filter);

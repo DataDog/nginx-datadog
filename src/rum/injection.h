@@ -32,6 +32,7 @@ class InjectionHandler final {
 
   // A flag indicating whether padding should be added to the HTML responses.
   bool output_padding_;
+  bool rum_first_csp_ = true;
 
   // Pointer to an Injector instance, used to scan and locate where the RUM
   // Browser SDK needs to be injected.
