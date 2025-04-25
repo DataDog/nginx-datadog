@@ -109,7 +109,7 @@ std::optional<int> parse_rum_version(std::string_view config_version) {
 
 }  // namespace
 
-extern "C" {
+namespace datadog::nginx::rum {
 
 char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
                             void *conf) {
@@ -164,6 +164,17 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
   }
 
   loc_conf->rum_snippet = snippet;
+
+  loc_conf->rum_application_id = "";
+  if (rum_config.count("applicationId") > 0 && !rum_config["applicationId"].empty()) {
+    loc_conf->rum_application_id = rum_config["applicationId"][0];
+  }
+
+  loc_conf->remote_config =
+    (rum_config.count("remoteConfigurationId") > 0 &&
+    !rum_config["remoteConfigurationId"].empty())
+        ? "true" : "false";
+
   return NGX_CONF_OK;
 }
 
@@ -175,6 +186,14 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
     child->rum_snippet = parent->rum_snippet;
   }
 
+  if (child->rum_application_id.empty()) {
+    child->rum_application_id = parent->rum_application_id;
+  }
+
+  if (child->remote_config.empty()) {
+    child->remote_config = parent->remote_config;
+  }
+
   return NGX_OK;
 }
-}
+} // namespace datadog::nginx::rum

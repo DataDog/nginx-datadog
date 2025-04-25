@@ -5,21 +5,16 @@ namespace nginx {
 namespace rum {
 namespace telemetry {
 
-namespace injection_skip {
-extern std::shared_ptr<datadog::telemetry::CounterMetric> already_injected;
-extern std::shared_ptr<datadog::telemetry::CounterMetric> invalid_content_type;
-extern std::shared_ptr<datadog::telemetry::CounterMetric> no_content;
-extern std::shared_ptr<datadog::telemetry::CounterMetric> compressed_html;
+const std::vector<std::string>& get_common_tags();
 
-}  // namespace injection_skip
+void increment_counter(
+    const datadog::telemetry::Counter& counter,
+    std::initializer_list<std::string> specific_tags);
 
-extern std::shared_ptr<datadog::telemetry::CounterMetric> injection_succeed;
-extern std::shared_ptr<datadog::telemetry::CounterMetric> injection_failed;
-extern std::shared_ptr<datadog::telemetry::CounterMetric> configuration_succeed;
-extern std::shared_ptr<datadog::telemetry::CounterMetric>
-    configuration_failed_invalid_json;
-extern std::shared_ptr<datadog::telemetry::CounterMetric>
-    content_security_policy;
+extern datadog::telemetry::Counter injection_skipped;
+extern datadog::telemetry::Counter injection_succeed;
+extern datadog::telemetry::Counter injection_failed;
+extern datadog::telemetry::Counter content_security_policy;
 
 }  // namespace telemetry
 }  // namespace rum

@@ -1,3 +1,5 @@
+#include <datadog/telemetry/telemetry.h>
+
 #include "telemetry.h"
 
 #include <format>
@@ -13,90 +15,63 @@ namespace rum {
 namespace telemetry {
 
 namespace {
+const std::vector<std::string>& initialize_common_tags() {
+    static const std::vector<std::string> common_tags = {
+        "integration_name:nginx",
+        std::format("integration_version:{}", std::string(datadog_semver_nginx_mod)),
+        "injector_version:0.1.0"
+    };
+    return common_tags;
+}
+}
 
-const std::string integration_name = "integration_name:nginx";
-const std::string integration_version = std::format(
-    "integration_version:{}", std::string(datadog_semver_nginx_mod));
-const std::string injector_version = "injector_version:0.1.0";
+const std::vector<std::string>& get_common_tags() {
+    return initialize_common_tags();
+}
 
-}  // namespace
+void increment_counter(
+    const datadog::telemetry::Counter& counter,
+    const std::vector<std::string>& specific_tags)
+{
+    const auto& common = get_common_tags();
+    std::vector<std::string> all_tags;
+    all_tags.reserve(common.size() + specific_tags.size());
+    all_tags.insert(all_tags.end(), common.begin(), common.end());
+    all_tags.insert(all_tags.end(), specific_tags.begin(), specific_tags.end());
+    datadog::telemetry::counter::increment(counter, all_tags);
+}
 
-namespace injection_skip {
+void increment_counter(
+    const datadog::telemetry::Counter& counter,
+    std::initializer_list<std::string> specific_tags)
+{
+    std::vector<std::string> specific_tags_vec(specific_tags.begin(), specific_tags.end());
+    increment_counter(counter, specific_tags_vec);
+}
 
-std::shared_ptr<CounterMetric> already_injected(new CounterMetric{
+datadog::telemetry::Counter injection_skipped = {
     "injection.skipped",
     "rum",
-    {integration_name,
-     integration_version,
-     injector_version,
-     {"reason:already_injected"}},
-    true});
+    true
+};
 
-std::shared_ptr<CounterMetric> invalid_content_type(new CounterMetric{
-    "injection.skipped",
-    "rum",
-    {integration_name,
-     integration_version,
-     injector_version,
-     {"reason:content-type"}},
-    true});
-
-std::shared_ptr<CounterMetric> no_content(new CounterMetric{
-    "injection.skipped",
-    "rum",
-    {
-        integration_name,
-        integration_version,
-        injector_version,
-        {"reason:empty_response"},
-    },
-    true});
-
-std::shared_ptr<CounterMetric> compressed_html(new CounterMetric{
-    "injection.skipped",
-    "rum",
-    {
-        integration_name,
-        integration_version,
-        injector_version,
-        {"reason:compressed_html"},
-    },
-    true});
-
-}  // namespace injection_skip
-
-std::shared_ptr<CounterMetric> injection_succeed(new CounterMetric{
+datadog::telemetry::Counter injection_succeed = {
     "injection.succeed",
     "rum",
-    {integration_name, integration_version, injector_version},
-    true});
+    true
+};
 
-std::shared_ptr<CounterMetric> injection_failed(new CounterMetric{
+datadog::telemetry::Counter injection_failed = {
     "injection.failed",
     "rum",
-    {integration_name, integration_version, injector_version,
-     "reason:missing_header_tag"},
-    true});
+    true
+};
 
-std::shared_ptr<CounterMetric> configuration_succeed(new CounterMetric{
-    "injection.initialization.succeed",
-    "rum",
-    {integration_name, integration_version, injector_version},
-    true});
-
-std::shared_ptr<CounterMetric> configuration_failed_invalid_json(
-    new CounterMetric{"injection.initialization.failed",
-                      "rum",
-                      {integration_name, integration_version, injector_version,
-                       "reason:invalid_json"},
-                      true});
-
-std::shared_ptr<CounterMetric> content_security_policy(new CounterMetric{
+datadog::telemetry::Counter content_security_policy = {
     "injection.content_security_policy",
     "rum",
-    {integration_name, integration_version, injector_version, "status:seen",
-     "kind:header"},
-    true});
+    true
+};
 
 }  // namespace telemetry
 }  // namespace rum
