@@ -166,14 +166,15 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
   loc_conf->rum_snippet = snippet;
 
   loc_conf->rum_application_id = "";
-  if (rum_config.count("applicationId") > 0 && !rum_config["applicationId"].empty()) {
+  if (rum_config.count("applicationId") > 0 &&
+      !rum_config["applicationId"].empty()) {
     loc_conf->rum_application_id = rum_config["applicationId"][0];
   }
 
-  loc_conf->remote_config =
-    (rum_config.count("remoteConfigurationId") > 0 &&
-    !rum_config["remoteConfigurationId"].empty())
-        ? "true" : "false";
+  loc_conf->remote_config = (rum_config.count("remoteConfigurationId") > 0 &&
+                             !rum_config["remoteConfigurationId"].empty())
+                                ? "true"
+                                : "false";
 
   return NGX_CONF_OK;
 }
@@ -196,4 +197,4 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
 
   return NGX_OK;
 }
-} // namespace datadog::nginx::rum
+}  // namespace datadog::nginx::rum

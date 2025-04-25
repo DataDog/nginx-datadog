@@ -7,9 +7,8 @@ namespace telemetry {
 
 const std::vector<std::string>& get_common_tags();
 
-void increment_counter(
-    const datadog::telemetry::Counter& counter,
-    std::initializer_list<std::string> specific_tags);
+void increment_counter(const datadog::telemetry::Counter& counter,
+                       std::initializer_list<std::string> specific_tags);
 
 extern datadog::telemetry::Counter injection_skipped;
 extern datadog::telemetry::Counter injection_succeed;
