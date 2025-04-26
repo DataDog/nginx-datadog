@@ -29,6 +29,21 @@ def quit_signal_handler(signum, frame):
     faulthandler.dump_traceback()
 
 
+def wait_until(predicate_func, timeout_seconds):
+    """Wait until `predicate_func` is True."""
+    before = time.monotonic()
+    while True:
+        if predicate_func():
+            break
+
+        now = time.monotonic()
+        if now - before >= timeout_seconds:
+            raise Exception(
+                f"{timeout_seconds} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed."
+            )
+        time.sleep(0.5)
+
+
 signal.signal(signal.SIGQUIT, quit_signal_handler)
 
 # Since we override the environment variables of child processes,
@@ -816,17 +831,24 @@ exit "$rcode"
             # The polling interval was chosen based on a system where:
             # - nginx_worker_pids ran in ~0.05 seconds
             # - the workers terminated after ~6 seconds
-            poll_period_seconds = 0.5
-            timeout_seconds = 10
-            before = time.monotonic()
-            while old_worker_pids & nginx_worker_pids(nginx_container,
-                                                      self.verbose):
-                now = time.monotonic()
-                if now - before >= timeout_seconds:
-                    raise Exception(
-                        f"{timeout_seconds} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed."
-                    )
-                time.sleep(poll_period_seconds)
+            def old_worker_stops(worker_pid):
+                _worker_pid = worker_pid
+
+                def check():
+                    pids = nginx_worker_pids(nginx_container, self.verbose)
+                    res = _worker_pid.intersection(pids)
+                    # print(f"_worker_pid={_worker_pid}, pids={pids}, cond={res}")
+                    return len(res) == 0
+
+                return check
+
+            wait_until(old_worker_stops(old_worker_pids), timeout_seconds=10)
+
+            def new_worker_starts():
+                pids = nginx_worker_pids(nginx_container, self.verbose)
+                return len(pids) == 1
+
+            wait_until(new_worker_starts, timeout_seconds=10)
 
     def nginx_replace_config(self, nginx_conf_text, file_name):
         """Replace nginx's config and reload nginx.
