@@ -171,7 +171,7 @@ def sign_package(package_path: str) -> None:
 
 def prepare_release_artifact(work_dir, build_job_number, flavor, version, arch,
                              waf):
-    flavor_prefix = f"{flavor}-"
+    flavor_prefix = f"{flavor}-" if flavor else ""
     waf_suffix = "-appsec" if waf else ""
     artifacts = send_ci_request_paged(
         f"/project/gh/DataDog/nginx-datadog/{build_job_number}/artifacts")
@@ -298,16 +298,13 @@ def release_module(args) -> int:
                 r"build( openresty)? ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
                 job["name"],
             )
-            if match is None:
+
+            if not match:
                 continue
 
-            if len(match.groups()) == 4:
-                # It is an `openresty` build
-                flavor, nginx_version, arch, waf = match.groups()
+            flavor, nginx_version, arch, waf = match.groups()
+            if flavor:
                 flavor = flavor.strip()
-            else:
-                nginx_version, arch, waf = match.groups()
-                flavor = "nginx"
 
             prepare_release_artifact(work_dir, job["job_number"], flavor,
                                      nginx_version, arch, waf == "ON")
