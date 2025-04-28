@@ -165,16 +165,19 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
 
   loc_conf->rum_snippet = snippet;
 
-  loc_conf->rum_application_id = "";
-  if (rum_config.count("applicationId") > 0 &&
-      !rum_config["applicationId"].empty()) {
-    loc_conf->rum_application_id = rum_config["applicationId"][0];
-  }
+  auto it_app_id = rum_config.find("applicationId");
+  loc_conf->rum_application_id_tag =
+      "application_id:" +
+      ((it_app_id != rum_config.end() && !it_app_id->second.empty())
+           ? it_app_id->second[0]
+           : std::string("N/A"));
 
-  loc_conf->remote_config = (rum_config.count("remoteConfigurationId") > 0 &&
-                             !rum_config["remoteConfigurationId"].empty())
-                                ? "true"
-                                : "false";
+  auto it_remote_config = rum_config.find("remoteConfigurationId");
+  bool remote_config_present = (it_remote_config != rum_config.end() &&
+                                !it_remote_config->second.empty());
+  loc_conf->rum_remote_config_tag =
+      "remote_config_used:" +
+      std::string(remote_config_present ? "true" : "false");
 
   return NGX_CONF_OK;
 }
@@ -187,12 +190,12 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
     child->rum_snippet = parent->rum_snippet;
   }
 
-  if (child->rum_application_id.empty()) {
-    child->rum_application_id = parent->rum_application_id;
+  if (child->rum_application_id_tag.empty()) {
+    child->rum_application_id_tag = parent->rum_application_id_tag;
   }
 
-  if (child->remote_config.empty()) {
-    child->remote_config = parent->remote_config;
+  if (child->rum_remote_config_tag.empty()) {
+    child->rum_remote_config_tag = parent->rum_remote_config_tag;
   }
 
   return NGX_OK;
