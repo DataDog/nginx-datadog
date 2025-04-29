@@ -165,19 +165,17 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
 
   loc_conf->rum_snippet = snippet;
 
-  auto it_app_id = rum_config.find("applicationId");
-  loc_conf->rum_application_id_tag =
-      "application_id:" +
-      ((it_app_id != rum_config.end() && !it_app_id->second.empty())
-           ? it_app_id->second[0]
-           : std::string("N/A"));
+  loc_conf->rum_remote_config_tag = "remote_config_used:false";
 
-  auto it_remote_config = rum_config.find("remoteConfigurationId");
-  bool remote_config_present = (it_remote_config != rum_config.end() &&
-                                !it_remote_config->second.empty());
-  loc_conf->rum_remote_config_tag =
-      "remote_config_used:" +
-      std::string(remote_config_present ? "true" : "false");
+  if (auto it = rum_config.find("applicationId");
+      it != rum_config.end() && !it->second.empty()) {
+    loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
+  }
+
+  if (auto it = rum_config.find("remoteConfigurationId");
+      it != rum_config.end() && !it->second.empty()) {
+    loc_conf->rum_remote_config_tag = "remote_config_used:true";
+  }
 
   return NGX_CONF_OK;
 }

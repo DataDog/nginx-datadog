@@ -97,9 +97,9 @@ ngx_int_t InjectionHandler::on_header_filter(
                     "SDK injected.");
       datadog::telemetry::counter::increment(
           telemetry::injection_skipped,
-          telemetry::build_telemetry_tags("reason:already_injected",
-                                          cfg->rum_application_id_tag,
-                                          cfg->rum_remote_config_tag));
+          telemetry::build_tags("reason:already_injected",
+                                cfg->rum_application_id_tag,
+                                cfg->rum_remote_config_tag));
 
       return next_header_filter(r);
     }
@@ -111,9 +111,8 @@ ngx_int_t InjectionHandler::on_header_filter(
 
     datadog::telemetry::counter::increment(
         telemetry::injection_skipped,
-        telemetry::build_telemetry_tags("reason:no_content",
-                                        cfg->rum_application_id_tag,
-                                        cfg->rum_remote_config_tag));
+        telemetry::build_tags("reason:no_content", cfg->rum_application_id_tag,
+                              cfg->rum_remote_config_tag));
 
     return next_header_filter(r);
   }
@@ -124,9 +123,9 @@ ngx_int_t InjectionHandler::on_header_filter(
 
     datadog::telemetry::counter::increment(
         telemetry::injection_skipped,
-        telemetry::build_telemetry_tags("reason:invalid_content_type",
-                                        cfg->rum_application_id_tag,
-                                        cfg->rum_remote_config_tag));
+        telemetry::build_tags("reason:invalid_content_type",
+                              cfg->rum_application_id_tag,
+                              cfg->rum_remote_config_tag));
 
     return next_header_filter(r);
   }
@@ -138,9 +137,9 @@ ngx_int_t InjectionHandler::on_header_filter(
 
     datadog::telemetry::counter::increment(
         telemetry::injection_skipped,
-        telemetry::build_telemetry_tags("reason:compressed_html",
-                                        cfg->rum_application_id_tag,
-                                        cfg->rum_remote_config_tag));
+        telemetry::build_tags("reason:compressed_html",
+                              cfg->rum_application_id_tag,
+                              cfg->rum_remote_config_tag));
 
     return next_header_filter(r);
   }
@@ -209,8 +208,8 @@ ngx_int_t InjectionHandler::on_body_filter(
 
       datadog::telemetry::counter::increment(
           telemetry::injection_succeed,
-          telemetry::build_telemetry_tags(cfg->rum_application_id_tag,
-                                          cfg->rum_remote_config_tag));
+          telemetry::build_tags(cfg->rum_application_id_tag,
+                                cfg->rum_remote_config_tag));
 
       return output(r, output_chain, next_body_filter);
     }
@@ -231,24 +230,21 @@ ngx_int_t InjectionHandler::on_body_filter(
 
     datadog::telemetry::counter::increment(
         telemetry::injection_failed,
-        telemetry::build_telemetry_tags("reason:missing_header_tag",
-                                        cfg->rum_application_id_tag,
-                                        cfg->rum_remote_config_tag));
+        telemetry::build_tags("reason:missing_header_tag",
+                              cfg->rum_application_id_tag,
+                              cfg->rum_remote_config_tag));
   }
 
   return output(r, output_chain, next_body_filter);
 }
 
 ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t *r) {
-  if (rum_first_csp_) {
-    if (auto csp =
-            search_header(r->headers_out.headers, "content-security-policy");
-        csp != nullptr) {
-      datadog::telemetry::counter::increment(
-          telemetry::injection_failed,
-          telemetry::build_telemetry_tags("status:seen", "kind:header"));
-    }
-    rum_first_csp_ = false;
+  if (auto csp =
+          search_header(r->headers_out.headers, "content-security-policy");
+      csp != nullptr) {
+    datadog::telemetry::counter::increment(
+        telemetry::injection_failed,
+        telemetry::build_tags("status:seen", "kind:header"));
   }
 
   return NGX_OK;
