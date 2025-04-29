@@ -32,7 +32,6 @@ class InjectionHandler final {
 
   // A flag indicating whether padding should be added to the HTML responses.
   bool output_padding_;
-  bool rum_first_csp_ = true;
 
   // Pointer to an Injector instance, used to scan and locate where the RUM
   // Browser SDK needs to be injected.
@@ -70,6 +69,7 @@ class InjectionHandler final {
 
   // Handles the logging phase of an HTTP request.
   // @param r - HTTP request being processed.
+  // @return ngx_int_t - Status code indicating success or failure.
   ngx_int_t on_log_request(ngx_http_request_t *r);
 
  private:
