@@ -31,12 +31,27 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
+inline constexpr std::string_view integration_name_from_flavor(
+    flavor nginx_flavor) {
+  switch (nginx_flavor) {
+    case flavor::vanilla:
+      return "nginx";
+    case flavor::openresty:
+      return "nginx:openresty";
+    case flavor::ingress_nginx:
+      return "nginx:ingress-nginx";
+  }
+
+  static_assert(true, "unknown NGINX flavor");
+  std::abort();
+}
+
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
     const datadog_main_conf_t &nginx_conf, std::shared_ptr<dd::Logger> logger) {
   dd::TracerConfig config;
   config.logger = std::move(logger);
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
-  config.integration_name = "nginx";
+  config.integration_name = integration_name_from_flavor(kNginx_flavor);
   config.integration_version = NGINX_VERSION;
   config.service = "nginx";
 

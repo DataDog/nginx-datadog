@@ -153,6 +153,7 @@ build-openresty-aux:
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
+		-DNGINX_DATADOG_FLAVOR="openresty" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 

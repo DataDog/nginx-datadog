@@ -14,7 +14,7 @@ inline constexpr flavor from_str(std::string_view in) {
   if (in == "nginx") {
     return flavor::vanilla;
   } else if (in == "openresty") {
-    return flavor::vanilla;
+    return flavor::openresty;
   } else if (in == "ingress-nginx") {
     return flavor::ingress_nginx;
   }
