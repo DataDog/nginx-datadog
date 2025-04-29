@@ -235,8 +235,8 @@ if(NGINX_DATADOG_ASM_ENABLED)
 endif()
 
 if(NGINX_DATADOG_RUM_ENABLED)
-  target_link_libraries(ngx_http_datadog_objs PUBLIC inject_browser_sdk)
-  target_link_libraries(ngx_http_datadog_module PUBLIC inject_browser_sdk)
+  target_link_libraries(ngx_http_datadog_objs PUBLIC inject_browser_sdk_ffi)
+  target_link_libraries(ngx_http_datadog_module PUBLIC inject_browser_sdk_ffi)
 endif()
 
 # Remove the "lib" prefix to match NGINX convention
