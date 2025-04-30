@@ -109,7 +109,7 @@ std::optional<int> parse_rum_version(std::string_view config_version) {
 
 }  // namespace
 
-extern "C" {
+namespace datadog::nginx::rum {
 
 char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
                             void *conf) {
@@ -177,4 +177,4 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
 
   return NGX_OK;
 }
-}
+} // namespace datadog::nginx::rum
