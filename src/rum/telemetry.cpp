@@ -16,7 +16,7 @@ namespace {
 
 const std::string integration_name = "integration_name:nginx";
 const std::string integration_version = std::format(
-    "integration_version:{}", std::string(datadog_semver_nginx_mod));
+    "integration_version:{}-rum_{}", std::string(datadog_semver_nginx_mod), "956d3f7");
 const std::string injector_version = "injector_version:0.1.0";
 
 }  // namespace
