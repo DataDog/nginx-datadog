@@ -89,13 +89,13 @@ build-musl-toolchain:
 
 .PHONY: build-push-musl-toolchain
 build-push-musl-toolchain:
-	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(DOCKER_REPOS):latest-amd64 build_env
-	docker push $(DOCKER_REPOS):latest-amd64
-	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(DOCKER_REPOS):latest-arm64 build_env
-	docker push $(DOCKER_REPOS):latest-arm64
-	docker buildx imagetools create -t $(DOCKER_REPOS):latest \
-		$(DOCKER_REPOS):latest-amd64 \
-		$(DOCKER_REPOS):latest-arm64
+	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(DOCKER_REPOS):6c650e5-amd64 build_env
+	docker push $(DOCKER_REPOS):6c650e5-amd64
+	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(DOCKER_REPOS):6c650e5-arm64 build_env
+	docker push $(DOCKER_REPOS):6c650e5-arm64
+	docker buildx imagetools create -t $(DOCKER_REPOS):6c650e5 \
+		$(DOCKER_REPOS):6c650e5-amd64 \
+		$(DOCKER_REPOS):6c650e5-arm64
 
 .PHONY: build-musl build-musl-cov
 build-musl build-musl-cov:
@@ -112,7 +112,7 @@ endif
 		--env RUM=$(RUM) \
 		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):6c650e5 \
 		make -C /mnt/repo $@-aux
 
 # this is what's run inside the container nginx_musl_toolchain
@@ -143,7 +143,7 @@ endif
 		--env NGINX_VERSION=$(NGINX_VERSION) \
 		--env WAF=$(WAF) \
 		--mount type=bind,source="$(PWD)",target=/mnt/repo \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):6c650e5 \
 		bash -c "cd /mnt/repo && ./bin/openresty/build_openresty.sh && make build-openresty-aux"
 
 .PHONY: build-openresty-aux
@@ -185,17 +185,17 @@ coverage:
 	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):6c650e5 \
 		/bin/sh -c 'cd /mnt/repo/.musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests'
 	rm -f test/coverage_data.tar.gz
 	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):6c650e5 \
 		tar -C /mnt/repo/.musl-build -xzf /mnt/repo/test/coverage_data.tar.gz
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):6c650e5 \
 		bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=/mnt/repo/src/coverage_fixup\.c > coverage.lcov'
 
 
@@ -222,7 +222,7 @@ build-ingress-nginx:
 		--env WAF=$(WAF) \
 		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(DOCKER_REPOS):latest \
+		$(DOCKER_REPOS):6c650e5 \
 		make -C /mnt/repo build-musl-aux-ingress
 
 .PHONY: build-musl-aux-ingress
