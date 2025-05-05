@@ -220,4 +220,15 @@ ssize_t getrandom(void *buf, size_t buflen, unsigned int flags) {
     return (ssize_t)bytes_read;
 }
 
+#ifdef __x86_64__
+#define MEMFD_CREATE_SYSCALL 319
+#elif __aarch64__
+#define MEMFD_CREATE_SYSCALL 279
+#endif
+
+// introduced in glibc 2.27
+int memfd_create(const char *name, unsigned flags) {
+  return syscall(MEMFD_CREATE_SYSCALL, name, flags);
+}
+
 #endif
