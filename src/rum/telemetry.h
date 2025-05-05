@@ -18,8 +18,9 @@ auto build_tags(T&&... specific_tags) {
   std::vector<std::string> tags{std::forward<T>(specific_tags)...};
   tags.emplace_back("integration_name:nginx");
   tags.emplace_back("injector_version:0.1.0");
-  tags.emplace_back(std::format("integration_version:{}",
-                                std::string_view(datadog_semver_nginx_mod)));
+  tags.emplace_back(std::format("integration_version:{}-rum_{}",
+                                std::string(datadog_semver_nginx_mod),
+                                "e9bb286"));
 
   return tags;
 }
