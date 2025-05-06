@@ -191,6 +191,12 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
     throw std::runtime_error{"on_log_request failed: could not get loc conf"};
   }
 
+#ifdef WITH_RUM
+  if (loc_conf->rum_enable) {
+    rum_ctx_.on_log_request(request);
+  }
+#endif
+
   if (!loc_conf->enable_tracing) {
     return;
   }
