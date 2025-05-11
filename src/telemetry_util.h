@@ -14,9 +14,12 @@ namespace datadog::nginx {
 constexpr std::string_view relative_filepath(
     std::string_view absolute_filepath) {
   constexpr std::string_view prefix = "nginx-datadog";
-  size_t pos = absolute_filepath.find(prefix);
-  return pos != std::string_view::npos ? absolute_filepath.substr(pos)
-                                       : absolute_filepath;
+  const size_t pos = absolute_filepath.find(prefix);
+  if (pos != std::string_view::npos) return absolute_filepath.substr(pos);
+
+  const size_t sep_pos = absolute_filepath.find_first_of("/\\");
+  return sep_pos != std::string_view::npos ? absolute_filepath.substr(sep_pos)
+                                           : "nginx-datadog/<unknown>";
 }
 
 inline std::string make_current_frame(ngx_http_request_t *request,
