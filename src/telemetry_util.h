@@ -17,7 +17,7 @@ constexpr std::string_view relative_filepath(
   const size_t pos = absolute_filepath.find(prefix);
   if (pos != std::string_view::npos) return absolute_filepath.substr(pos);
 
-  const size_t sep_pos = absolute_filepath.find_first_of("/\\");
+  const size_t sep_pos = absolute_filepath.find_last_of("/\\");
   return sep_pos != std::string_view::npos ? absolute_filepath.substr(sep_pos)
                                            : "nginx-datadog/<unknown>";
 }
