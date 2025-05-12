@@ -97,7 +97,7 @@ static auto datadog_commands =
 
 #ifdef WITH_RUM
                         ,
-                        rum_directives
+                        datadog::nginx::rum::rum_directives
 #endif
     );
 
@@ -488,7 +488,7 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
 #endif
 
 #ifdef WITH_RUM
-  datadog_rum_merge_loc_config(cf, prev, conf);
+  datadog::nginx::rum::datadog_rum_merge_loc_config(cf, prev, conf);
 #endif
 
   return NGX_CONF_OK;
