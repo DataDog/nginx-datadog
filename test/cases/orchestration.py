@@ -600,6 +600,30 @@ class Orchestration:
         )
         return result.returncode, result.stdout
 
+    def send_nginx_raw_http_request(self, port=80, request_line=""):
+        """Send the request line to nginx, and return the resulting HTTP
+        status code and response body as a tuple `(status, body)`.
+        """
+        command = docker_compose_command(
+            "exec",
+            "-T",
+            "--",
+            "client",
+            "nc",
+            "nginx",
+            str(port),
+        )
+
+        result = subprocess.run(
+            command,
+            input=request_line,
+            stdout=subprocess.PIPE,
+            env=child_env(),
+            encoding="utf8",
+            check=True,
+        )
+        return result.returncode, result.stdout
+
     def send_nginx_http_request(
         self,
         path,
