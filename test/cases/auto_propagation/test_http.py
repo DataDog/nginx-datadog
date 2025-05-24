@@ -69,6 +69,19 @@ class TestHTTP(case.TestCase):
         return self.run_test("./conf/http_without_module.conf",
                              should_propagate=False)
 
+    def test_illformated_request(self):
+        # From: <https://github.com/DataDog/nginx-datadog/issues/212>
+        conf_path = Path(__file__).parent / "./conf/http_auto.conf"
+        conf_text = conf_path.read_text()
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_text, conf_path.name)
+        self.assertEqual(status, 0, log_lines)
+
+        status, response = self.orch.send_nginx_raw_http_request(
+            request_line="GET /\r\n")
+        self.assertEqual(0, status)
+        self.assertEqual("Hello, World!", response)
+
     def run_test(self, conf_relative_path, should_propagate):
         conf_path = Path(__file__).parent / conf_relative_path
         conf_text = conf_path.read_text()
