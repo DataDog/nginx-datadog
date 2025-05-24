@@ -138,6 +138,7 @@ target_sources(ngx_http_datadog_objs
   PRIVATE
     src/common/variable.cpp
     src/common/directives.cpp
+    src/common/headers.cpp
     src/array_util.cpp
     src/datadog_conf.cpp
     src/datadog_conf_handler.cpp
