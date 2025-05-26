@@ -167,7 +167,7 @@ static int set_handler(ngx_log_t *log,
   if (handler == nullptr) return NGX_ERROR;
   *handler = callback;
 
-  ngx_log_error(NGX_LOG_NOTICE, log, 0,
+  ngx_log_error(NGX_LOG_DEBUG, log, 0,
                 "nginx-datadog: installed handler on %s phase",
                 phases_to_cstr(phase));
   return NGX_OK;
