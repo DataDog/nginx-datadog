@@ -8,6 +8,7 @@ extern "C" {
 
 #include <cassert>
 
+#include "common/headers.h"
 #include "datadog_conf.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
@@ -17,32 +18,6 @@ namespace datadog {
 namespace nginx {
 namespace rum {
 namespace {
-
-ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key) {
-  ngx_list_part_t *part = &headers.part;
-  auto *h = static_cast<ngx_table_elt_t *>(part->elts);
-
-  for (std::size_t i = 0;; i++) {
-    if (i >= part->nelts) {
-      if (part->next == nullptr) {
-        break;
-      }
-
-      part = part->next;
-      h = static_cast<ngx_table_elt_t *>(part->elts);
-      i = 0;
-    }
-
-    if (key.size() != h[i].key.len ||
-        ngx_strcasecmp((u_char *)key.data(), h[i].key.data) != 0) {
-      continue;
-    }
-
-    return &h[i];
-  }
-
-  return nullptr;
-}
 
 bool is_html_content(ngx_str_t *content_type) {
   assert(content_type != nullptr);
@@ -62,19 +37,13 @@ InjectionHandler::~InjectionHandler() {
 }
 
 ngx_int_t InjectionHandler::on_rewrite_handler(ngx_http_request_t *r) {
-  ngx_table_elt_t *h =
-      static_cast<ngx_table_elt_t *>(ngx_list_push(&r->headers_in.headers));
-  if (h == nullptr) {
+  if (!common::add_header(r->pool, r->headers_in.headers,
+                          "x-datadog-rum-injection-pending", "1")) {
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                   "RUM SDK injection failed: unable to add "
                   "x-datadog-rum-injection-pending HTTP header");
     return NGX_ERROR;
   }
-
-  ngx_str_set(&h->key, "x-datadog-rum-injection-pending");
-  ngx_str_set(&h->value, "1");
-  h->lowcase_key = h->key.data;
-  h->hash = 1;
 
   return NGX_DECLINED;
 }
@@ -88,8 +57,8 @@ ngx_int_t InjectionHandler::on_header_filter(
     return next_header_filter(r);
   }
 
-  if (auto injected_header =
-          search_header(r->headers_in.headers, "x-datadog-rum-injected");
+  if (auto injected_header = common::search_header(r->headers_in.headers,
+                                                   "x-datadog-rum-injected");
       injected_header != nullptr) {
     if (nginx::to_string_view(injected_header->value) == "1") {
       ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
