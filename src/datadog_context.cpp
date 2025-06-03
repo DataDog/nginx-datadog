@@ -22,7 +22,8 @@ DatadogContext::DatadogContext(ngx_http_request_t *request,
                                datadog_loc_conf_t *loc_conf)
 #ifdef WITH_WAF
     : sec_ctx_{security::Context::maybe_create(
-          *loc_conf, security::Library::max_saved_output_data())}
+          security::Library::max_saved_output_data(),
+          security::Library::apm_tracing_enabled())}
 #endif
 {
   if (loc_conf->enable_tracing) {

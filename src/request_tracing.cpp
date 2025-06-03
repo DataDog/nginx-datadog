@@ -240,12 +240,6 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
-
-  // Inject the active span
-  NgxHeaderWriter writer(request_);
-  auto &span = active_span();
-  span.set_tag("span.kind", "client");
-  span.inject(writer);
 }
 
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
@@ -275,12 +269,6 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
-
-  // Inject the active span
-  NgxHeaderWriter writer(request_);
-  auto &span = active_span();
-  span.set_tag("span.kind", "client");
-  span.inject(writer);
 }
 
 dd::Span &RequestTracing::active_span() {

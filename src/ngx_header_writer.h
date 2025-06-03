@@ -24,12 +24,17 @@ class NgxHeaderWriter : public datadog::tracing::DictWriter {
       : request_(request), pool_(request_->pool) {}
 
   void set(std::string_view key, std::string_view value) override {
+    if (value.empty()) {
+      common::delete_req_header(request_->headers_in.headers, key);
+      return;
+    }
+
     ngx_table_elt_t *h =
-        common::search_header(request_->headers_in.headers, key);
+        common::search_req_header(request_->headers_in.headers, key);
     if (h != nullptr) {
       h->value = to_ngx_str(pool_, value);
     } else {
-      common::add_header(*pool_, request_->headers_in.headers, key, value);
+      common::add_req_header(*pool_, request_->headers_in.headers, key, value);
     }
   }
 };

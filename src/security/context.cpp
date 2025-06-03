@@ -197,8 +197,11 @@ auto catch_exceptions(std::string_view name, const ngx_http_request_t &req,
 
 namespace datadog::nginx::security {
 
-Context::Context(std::shared_ptr<OwnedDdwafHandle> handle)
-    : stage_{new std::atomic<stage>{}}, waf_handle_{std::move(handle)} {
+Context::Context(std::shared_ptr<OwnedDdwafHandle> handle,
+                 bool apm_tracing_enabled)
+    : stage_{new std::atomic<stage>{}},
+      waf_handle_{std::move(handle)},
+      apm_tracing_enabled_{apm_tracing_enabled} {
   if (!waf_handle_) {
     return;
   }
@@ -210,13 +213,14 @@ Context::Context(std::shared_ptr<OwnedDdwafHandle> handle)
 }
 
 std::unique_ptr<Context> Context::maybe_create(
-    datadog_loc_conf_t &loc_conf,
-    std::optional<std::size_t> max_saved_output_data) {
+    std::optional<std::size_t> max_saved_output_data,
+    bool apm_tracing_enabled) {
   std::shared_ptr<OwnedDdwafHandle> handle = Library::get_handle();
   if (!handle) {
     return {};
   }
-  auto res = std::unique_ptr<Context>{new Context{std::move(handle)}};
+  auto res = std::unique_ptr<Context>{
+      new Context{std::move(handle), apm_tracing_enabled}};
   if (max_saved_output_data) {
     res->max_saved_output_data_ = *max_saved_output_data;
   }
@@ -1786,6 +1790,10 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
 
   report_match(request, span.trace_segment(), span, results_);
   results_.clear();
+
+  if (!apm_tracing_enabled_) {
+    span.set_tag("_dd.p.ts"sv, "02"sv);
+  }
 }
 
 void Context::report_client_ip(dd::Span &span) const {
