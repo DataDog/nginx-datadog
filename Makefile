@@ -126,6 +126,8 @@ build-musl-aux build-musl-cov-aux:
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
+		-DRust_COMPILER=/root/.rustup/toolchains/1.72.0-$(ARCH)-unknown-linux-musl/bin/rustc \
+		-DRust_CARGO=/root/.rustup/toolchains/1.72.0-$(ARCH)-unknown-linux-musl/bin/cargo \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
