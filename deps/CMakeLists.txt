@@ -1,3 +1,5 @@
+set(Corrosion_CBINDGEN_VERSION "0.26.0")
+
 include(corrosion.cmake)
 
 corrosion_import_crate(MANIFEST_PATH inject-browser-sdk/lib/inject-browser-sdk-ffi/Cargo.toml)
