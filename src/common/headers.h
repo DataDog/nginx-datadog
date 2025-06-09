@@ -9,7 +9,8 @@ extern "C" {
 
 namespace datadog::common {
 
-/// Searches through an NGINX header list to find a header with a matching key.
+/// Searches through an NGINX request header list to find a header with a
+/// matching key.
 ///
 /// @param headers
 ///     A reference to an NGINX-style list (`ngx_list_t`) containing
@@ -23,9 +24,25 @@ namespace datadog::common {
 ///     A pointer to the matching `ngx_table_elt_t` header element if found,
 ///     or `nullptr` if no header with the given key exists in the list.
 ////
-ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key);
+ngx_table_elt_t *search_req_header(ngx_list_t &headers, std::string_view key);
 
-/// Adds a new HTTP header to an NGINX-style header list.
+/// Deletes a request header with the specified key from a NGINX-request header
+/// list.
+///
+/// @param headers
+///     A reference to an NGINX-style list (`ngx_list_t`) containing
+///     `ngx_table_elt_t` elements, typically representing HTTP headers.
+///
+/// @param key
+///     A string view representing the name of the header to delete.
+///     The comparison is case-insensitive.
+///
+/// @return
+///     `true` if a header with the given key was found and deleted;
+///     `false` if no header with the given key exists in the list.
+bool delete_req_header(ngx_list_t &headers, std::string_view key);
+
+/// Adds a new HTTP request header to an NGINX-style header list.
 ///
 /// @param pool
 ///     A reference to the NGINX memory pool (`ngx_pool_t`) used for allocating
@@ -47,7 +64,7 @@ ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key);
 /// @return
 ///     `true` if the header was successfully added to the list;
 ///     `false` if memory allocation failed or the list could not be updated.
-bool add_header(ngx_pool_t &pool, ngx_list_t &headers, std::string_view key,
-                std::string_view value);
+bool add_req_header(ngx_pool_t &pool, ngx_list_t &headers, std::string_view key,
+                    std::string_view value);
 
 }  // namespace datadog::common

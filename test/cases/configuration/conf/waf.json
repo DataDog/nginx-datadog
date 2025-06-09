@@ -1,0 +1,65 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "1.2.6"
+  },
+  "rules": [
+    {
+      "id": "block_default",
+      "name": "Block with default action",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              },
+              {
+                "address": "server.request.body"
+              }
+            ],
+            "regex": "^block_default$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "no_block",
+      "name": "No block",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              },
+              {
+                "address": "server.request.body"
+              }
+            ],
+            "regex": "^no_block$"
+          },
+          "operator": "match_regex"
+        }
+      ]
+    }
+  ]
+}
