@@ -6,6 +6,7 @@ extern "C" {
 
 namespace datadog::common {
 
+#ifdef WITH_WAF
 /// Checks if the file specified in the configuration exists.
 ///
 /// This function is typically used as a post-processing callback for NGINX
@@ -15,5 +16,6 @@ char *check_file_exists(ngx_conf_t *cf, void *post, void *data);
 
 /// Post handler for checking a filepath exists.
 static ngx_conf_post_t ngx_conf_post_file_exists = {check_file_exists};
+#endif
 
 }  // namespace datadog::common
