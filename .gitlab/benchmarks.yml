@@ -63,7 +63,7 @@ check-slo-breaches:
   tags: ["arch:amd64"]
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
-    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin cpp/nginx)
+    - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - bp-runner bp-runner.fail-on-breach.yml
 
 notify-slo-breaches:
