@@ -25,7 +25,7 @@ variables:
     DD_TRACE_DEBUG: "false"
     DD_RUNTIME_METRICS_ENABLED: "true"
 
-    DD_BENCHMARKS_NGINX_IMAGE_TAG: amd64-1.26.0
+    DD_BENCHMARKS_NGINX_IMAGE_TAG: amd64-1.27.0
 
     K6_OPTIONS_NORMAL_OPERATION_RATE: 1000
     K6_OPTIONS_NORMAL_OPERATION_DURATION: 5m
@@ -63,7 +63,7 @@ check-slo-breaches:
   tags: ["arch:amd64"]
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
-    - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin cpp/nginx)
     - bp-runner bp-runner.fail-on-breach.yml
 
 notify-slo-breaches:
