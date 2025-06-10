@@ -6,6 +6,9 @@ members = [
   "cmd/check_conf",
 ]
 
+[workspace.dependencies]
+cbindgen = "0.26.0"
+
 [workspace.package]
 edition = "2021"
 version = "0.1.0"
