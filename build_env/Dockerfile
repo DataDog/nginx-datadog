@@ -73,5 +73,5 @@ RUN apk add --no-cache pcre-dev pcre2-dev zlib-dev openssl-dev perl
 
 # Install Rust toolchain
 RUN apk add --no-cache curl
-RUN curl --proto '=https' –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq \
+RUN curl --proto '=https' –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq --default-toolchain 1.74.0 \
   && ln -s ~/.cargo/bin/cargo /usr/bin/cargo
