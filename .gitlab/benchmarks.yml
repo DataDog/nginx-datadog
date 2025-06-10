@@ -73,7 +73,7 @@ notify-slo-breaches:
   when: always
   image: registry.ddbuild.io/slack-notifier:v27936653-9a2a7db-sdm-gbi-jammy@sha256:c9d1145319d1904fa72ea97904a15200d3cb684324723f9e1700bc02cc85065c
   variables:
-    CHANNEL: "guild-dd-trace-py"
+    CHANNEL: "apm-proxy"
   script:
     - |
       BRANCH_URL="https://github.com/DataDog/$CI_PROJECT_NAME/tree/$CI_COMMIT_REF_NAME"
