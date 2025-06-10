@@ -62,6 +62,12 @@ check-slo-breaches:
   when: always
   tags: ["arch:amd64"]
   image: $MACROBENCHMARKS_CI_IMAGE
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
   script:
     - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin cpp/nginx)
     - bp-runner bp-runner.fail-on-breach.yml
