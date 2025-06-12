@@ -6,6 +6,11 @@ stages:
 variables:
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
 
+include:
+ project: 'DataDog/benchmarking-platform-tools'
+ ref: 'igoragoli/add-notification-job-template'
+ file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+
 .benchmarks:
   stage: run-benchmarks
   tags: ["runner:apm-k8s-same-cpu"]
@@ -47,15 +52,20 @@ variables:
   # By marking the benchmarks as allow_failure, the Github checks are not displayed.
   allow_failure: true
 
-baseline:
-  extends: .benchmarks
-  variables:
-    DD_BENCHMARKS_CONFIGURATION: baseline
+# baseline:
+#   extends: .benchmarks
+#   variables:
+#     DD_BENCHMARKS_CONFIGURATION: baseline
 
-only-tracing:
+# only-tracing:
+#   extends: .benchmarks
+#   variables:
+#     DD_BENCHMARKS_CONFIGURATION: only-tracing
+
+test-benchmark:
   extends: .benchmarks
-  variables:
-    DD_BENCHMARKS_CONFIGURATION: only-tracing
+  script:
+    - exit 0
 
 check-slo-breaches:
   stage: gate
@@ -69,27 +79,15 @@ check-slo-breaches:
       - platform/artifacts/
     expire_in: 3 months
   script:
-    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin cpp/nginx)
-    - bp-runner bp-runner.fail-on-breach.yml
+    - touch platform/artifacts/threshold_breach_detected
+    # - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin cpp/nginx)
+    # - bp-runner bp-runner.fail-on-breach.yml
+    - exit 1
 
 notify-slo-breaches:
+  extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  tags: [ "arch:amd64" ]
-  when: always
-  image: registry.ddbuild.io/slack-notifier:v27936653-9a2a7db-sdm-gbi-jammy@sha256:c9d1145319d1904fa72ea97904a15200d3cb684324723f9e1700bc02cc85065c
   variables:
-    CHANNEL: "apm-proxy"
-  script:
-    - |
-      BRANCH_URL="https://github.com/DataDog/$CI_PROJECT_NAME/tree/$CI_COMMIT_REF_NAME"
-      COMMIT_URL="https://github.com/DataDog/$CI_PROJECT_NAME/commit/$CI_COMMIT_SHA"
-      BUILD_URL="$CI_PROJECT_URL/pipelines/$CI_PIPELINE_ID"
-    - |
-      if [ -f platform/artifacts/threshold_breach_detected ]; then
-        MESSAGE_TEXT=":x: <$BRANCH_URL|$CI_COMMIT_REF_NAME> <$COMMIT_URL|$CI_COMMIT_SHORT_SHA> - Performance SLOs in $CI_PROJECT_NAME were breached in <$BUILD_URL|$CI_PIPELINE_ID>! Please look into it."
-      elif [ -f platform/artifacts/warning_breach_detected ]; then
-        MESSAGE_TEXT=":warning: <$BRANCH_URL|$CI_COMMIT_REF_NAME> <$COMMIT_URL|$CI_COMMIT_SHORT_SHA> - Performance SLOs in $CI_PROJECT_NAME are about to be breached! A warning threshold in <$BUILD_URL|$CI_PIPELINE_ID> was triggered. Please look into it."
-      fi
-    - if [ -n "${MESSAGE_TEXT:-}" ]; then postmessage "$CHANNEL" "$MESSAGE_TEXT"; fi
-
+    CHANNEL: "pre-release-gate-prototype"
+    MESSAGE: "<$BRANCH_URL|$CI_COMMIT_REF_NAME> <$COMMIT_URL|$CI_COMMIT_SHORT_SHA> - Performance SLOs in $CI_PROJECT_NAME were breached in <$BUILD_URL|$CI_PIPELINE_ID>! Please look into it. Also, this is a custom message from ngninx-datadog!"
