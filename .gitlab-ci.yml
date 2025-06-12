@@ -10,4 +10,3 @@ macrobenchmarks:
     - if: $NIGHTLY_BENCHMARKS || $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
       when: always
     - when: manual
-
