@@ -84,6 +84,7 @@ check-slo-breaches:
     - exit 1
 
 notify-slo-breaches:
+  extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
   when: always
