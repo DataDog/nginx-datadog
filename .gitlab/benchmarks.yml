@@ -8,7 +8,6 @@ variables:
 
 include:
  project: 'DataDog/benchmarking-platform-tools'
- ref: 'igoragoli/add-notification-job-template'
  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
 
 .benchmarks:
@@ -85,9 +84,8 @@ check-slo-breaches:
     - exit 1
 
 notify-slo-breaches:
-  extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
+  when: always
   variables:
     CHANNEL: "pre-release-gate-prototype"
-    MESSAGE: ":x: <https://github.com/DataDog/$CI_PROJECT_NAME/tree/$CI_COMMIT_REF_NAME|$CI_COMMIT_REF_NAME> <https://github.com/DataDog/$CI_PROJECT_NAME/commit/$CI_COMMIT_SHA|$CI_COMMIT_SHORT_SHA> - Performance SLOs in $CI_PROJECT_NAME were breached in <$CI_PROJECT_URL/pipelines/$CI_PIPELINE_ID|$CI_PIPELINE_ID>! Please look into it. Also, this is a custom message from nginx-datadog!"
