@@ -41,6 +41,7 @@ nginx:1.24.0 1.24.0
 TAB
 
 resty_version_table = <<-TAB
+openresty/openresty:1.27.1.2-alpine 1.27.1.2
 openresty/openresty:1.27.1.1-alpine 1.27.1.1
 openresty/openresty:1.25.3.2-alpine 1.25.3.2
 openresty/openresty:1.25.3.1-alpine 1.25.3.1
