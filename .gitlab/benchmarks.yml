@@ -1,15 +1,20 @@
+stages:
+  - run-benchmarks
+  - gate
+  - notify
+
+include:
+ project: 'DataDog/benchmarking-platform-tools'
+ file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+
 variables:
-  BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
+  MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
 
 .benchmarks:
-  stage: benchmarks
+  stage: run-benchmarks
   tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
-  rules:
-    - if: $NIGHTLY_BENCHMARKS || $CI_COMMIT_REF_NAME == "master"
-      when: always
-    - when: manual
-  image: $BASE_CI_IMAGE
+  image: $MACROBENCHMARKS_CI_IMAGE
   script:
     - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - bp-runner bp-runner.yml --debug
@@ -55,3 +60,27 @@ only-tracing:
   extends: .benchmarks
   variables:
     DD_BENCHMARKS_CONFIGURATION: only-tracing
+
+check-slo-breaches:
+  stage: gate
+  when: always
+  tags: ["arch:amd64"]
+  image: $MACROBENCHMARKS_CI_IMAGE
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
+  script:
+    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin cpp/nginx)
+    - bp-runner bp-runner.fail-on-breach.yml
+
+notify-slo-breaches:
+  extends: .notify-slo-breaches
+  stage: notify
+  needs: ["check-slo-breaches"]
+  when: always
+  variables:
+    CHANNEL: "apm-proxy"
+
