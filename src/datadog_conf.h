@@ -57,6 +57,10 @@ struct sampling_rule_t {
 };
 
 struct datadog_main_conf_t {
+  // DD_APM_TRACING_ENABLED
+  // Whether we discard almost all traces not setting  _dd.p.ts
+  ngx_flag_t apm_tracing_enabled{NGX_CONF_UNSET};
+
   std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
   // `are_propagation_styles_locked` is whether the tracer's propagation styles
   // have been set, either by an explicit `datadog_propagation_styles`

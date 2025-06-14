@@ -55,6 +55,10 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   config.integration_version = NGINX_VERSION;
   config.service = "nginx";
 
+  if (nginx_conf.apm_tracing_enabled != NGX_CONF_UNSET) {
+    config.apm_tracing_enabled = {nginx_conf.apm_tracing_enabled == 1};
+  }
+
   if (!nginx_conf.propagation_styles.empty()) {
     config.injection_styles = config.extraction_styles =
         nginx_conf.propagation_styles;
