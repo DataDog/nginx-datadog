@@ -316,7 +316,7 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();
   if (!tags.empty()) {
-    for (const auto [key, value] : tags) {
+    for (const auto &[key, value] : tags) {
       auto ngx_value = to_ngx_str(cf->pool, value);
       auto *complex_value = datadog::common::make_complex_value(cf, ngx_value);
       if (complex_value == nullptr) {

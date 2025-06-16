@@ -7,6 +7,7 @@ extern "C" {
 #include <ngx_http.h>
 }
 
+#include <array>
 #include <string_view>
 
 #include "string_util.h"

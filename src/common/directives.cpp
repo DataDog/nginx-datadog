@@ -7,6 +7,7 @@
 
 namespace datadog::common {
 
+#ifdef WITH_WAF
 char *check_file_exists(ngx_conf_t *cf, void *post, void *data) {
   assert(data != nullptr);
   ngx_str_t *s = (ngx_str_t *)data;
@@ -16,5 +17,6 @@ char *check_file_exists(ngx_conf_t *cf, void *post, void *data) {
   }
   return NGX_CONF_OK;
 }
+#endif
 
 }  // namespace datadog::common
