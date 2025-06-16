@@ -13,7 +13,9 @@ namespace datadog::common {
 /// directive actually exists on the filesystem.
 char *check_file_exists(ngx_conf_t *cf, void *post, void *data);
 
+#ifdef WITH_WAF
 /// Post handler for checking a filepath exists.
 static ngx_conf_post_t ngx_conf_post_file_exists = {check_file_exists};
+#endif
 
 }  // namespace datadog::common
