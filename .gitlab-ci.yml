@@ -1,4 +1,12 @@
 stages:
   - benchmarks
 
-include: ".gitlab/benchmarks.yml"
+macrobenchmarks:
+  stage: benchmarks
+  needs: []
+  trigger:
+    include: ".gitlab/benchmarks.yml"
+  rules:
+    - if: $NIGHTLY_BENCHMARKS || $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
+      when: always
+    - when: manual
