@@ -73,5 +73,8 @@ RUN apk add --no-cache pcre-dev pcre2-dev zlib-dev openssl-dev perl
 
 # Install Rust toolchain
 RUN apk add --no-cache curl
-RUN curl --proto '=https' –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq --default-toolchain 1.74.0 \
+RUN curl --proto '=https' –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq --default-toolchain 1.73.0 \
   && ln -s ~/.cargo/bin/cargo /usr/bin/cargo
+
+RUN cargo install --locked cbindgen --version 0.26.0 \
+  && ln -s ~/.cargo/bin/cbindgen /usr/local/bin/cbindgen
