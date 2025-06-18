@@ -168,6 +168,20 @@ jobs:
             - run:
                 command: "CIRCLE_CFG=generated-config.yml make circleci-config \ndiff .circleci/config.yml generated-config.yml\n"
                 name: Verify
+    check-version:
+        docker:
+            - image: datadog/docker-library:dd-trace-cpp-ci
+        resource_class: small
+        steps:
+            - checkout
+            - run:
+                command: |
+                    if [[ $CIRCLE_TAG =~ ^v ]]; then
+                      bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+                    else
+                      echo "Not a release"
+                    fi
+                name: Verify versions (release tag only)
     coverage:
         environment:
             DOCKER_BUILDKIT: 1
@@ -523,6 +537,7 @@ workflows:
                     - << pipeline.parameters.action >>
     build-and-test-all:
         jobs:
+            - check-version
             - build_ingress_nginx_module:
                 filters:
                     tags:
@@ -554,6 +569,8 @@ workflows:
                             - 1.10.0
                             - 1.9.6
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
+                requires:
+                    - check-version
             - test_ingress:
                 filters:
                     tags:
@@ -621,6 +638,8 @@ workflows:
                             - "ON"
                             - "OFF"
                 name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - check-version
             - build_openresty:
                 filters:
                     tags:
@@ -639,6 +658,8 @@ workflows:
                             - "ON"
                             - "OFF"
                 name: build openresty << matrix.resty-version >> on << matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - check-version
             - test:
                 filters:
                     tags:

@@ -3,8 +3,11 @@
         - equal: [ release, << pipeline.parameters.action >> ]
         - matches: { pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+", value: << pipeline.git.tag >> }
     jobs:
+    - check-version
     - build_ingress_nginx_module:
         name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
+        requires: 
+        - check-version
         filters:
             tags:
               only: /^v.*/
@@ -71,6 +74,8 @@
             - 1.9.6
     # output of bin/generate_jobs_yaml.rb
     - build:
+        requires: 
+        - check-version
         filters:
           tags:
             only: /^v.*/
@@ -103,6 +108,8 @@
             - 'OFF'
         name: build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
     - build_openresty:
+        requires: 
+        - check-version
         filters:
           tags:
             only: /^v.*/

@@ -63,6 +63,8 @@ all_resty_versions = all_resty_specs.map(&:version).uniq.sort
 
 puts <<-YAML.gsub(/^/, '    ')
 - build:
+    requires: 
+    - check-version
     filters:
       tags:
         only: /^v.*/
@@ -81,6 +83,8 @@ YAML
 
 puts <<-YAML.gsub(/^/, '    ')
 - build_openresty:
+    requires: 
+    - check-version
     filters:
       tags:
         only: /^v.*/
