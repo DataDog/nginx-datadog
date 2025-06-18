@@ -175,7 +175,12 @@ jobs:
         steps:
             - checkout
             - run:
-                command: bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+                command: |
+                    if [[ $CIRCLE_TAG =~ ^v ]]; then
+                      bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+                    else
+                      echo "Not a release"
+                    fi
                 name: Verify versions (release tag only)
     coverage:
         environment:

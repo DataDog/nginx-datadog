@@ -285,7 +285,12 @@ jobs:
     - checkout
     - run:
         name: Verify versions (release tag only)
-        command: bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+        command: |
+          if [[ $CIRCLE_TAG =~ ^v ]]; then
+            bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
+          else
+            echo "Not a release"
+          fi
   shellcheck:
     docker:
     - image: koalaman/shellcheck-alpine:v0.9.0
