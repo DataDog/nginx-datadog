@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 10,
   "$schema": "https://cmake.org/cmake/help/latest/_downloads/3e2d73bff478d88a7de0de736ba5e361/schema.json",
   "configurePresets": [
     {
@@ -113,31 +113,31 @@
   "buildPresets": [
     {
       "name": "musl-x86_64",
-      "configurePresets": "musl-x86_64"
+      "configurePreset": "musl-x86_64"
     },
     {
       "name": "musl-aarch64",
-      "configurePresets": "musl-aarch64"
+      "configurePreset": "musl-aarch64"
     },
     {
       "name": "ingress-nginx-x86_64",
-      "configurePresets": "ingress-nginx-x86_64"
+      "configurePreset": "ingress-nginx-x86_64"
     },
     {
       "name": "ingress-nginx-aarch64",
-      "configurePresets": "ingress-nginx-aarch64"
+      "configurePreset": "ingress-nginx-aarch64"
     },
     {
       "name": "openresty-x86_64",
-      "configurePresets": "openresty-x86_64"
+      "configurePreset": "openresty-x86_64"
     },
     {
       "name": "openresty-aarch64",
-      "configurePresets": "openresty-aarch64"
+      "configurePreset": "openresty-aarch64"
     },
     {
       "name": "dev",
-      "configurePresets": "dev"
+      "configurePreset": "dev"
     }
   ]
 }
