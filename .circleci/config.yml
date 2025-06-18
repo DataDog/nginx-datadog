@@ -176,6 +176,7 @@ jobs:
             - checkout
             - run:
                 command: |
+                    set -e
                     if [[ $CIRCLE_TAG =~ ^v ]]; then
                       bin/verify_version.sh "$(echo "$CIRCLE_TAG" | tr -d v)"
                     else

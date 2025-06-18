@@ -1,0 +1,144 @@
+{
+  "version": 8,
+  "$schema": "https://cmake.org/cmake/help/latest/_downloads/3e2d73bff478d88a7de0de736ba5e361/schema.json",
+  "configurePresets": [
+    {
+      "hidden": true,
+      "name": "musl-base-x86_64",
+      "displayName": "musl for x86_64 arch",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "/sysroot/x86_64-none-linux-musl/Toolchain.cmake",
+        "NGINX_PATCH_AWAY_LIBC": "ON"
+      }
+    },
+    {
+      "hidden": true,
+      "name": "musl-base-arm64",
+      "displayName": "musl for arm64 arch",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "/sysroot/aarch64-none-linux-musl/Toolchain.cmake",
+        "NGINX_PATCH_AWAY_LIBC": "ON"
+      }
+    },
+    {
+      "name": "musl-x86_64",
+      "displayName": "TBD",
+      "$comment": [
+        "Configure and build the module for the x86_64 architecture using musl within our Docker image.",
+        "musl is used to produce binaries that maintain compatibility with older glibc versions."
+      ],
+      "inherits": "musl-base-x86_64",
+      "binaryDir": ".musl-build"
+    },
+
+    {
+      "name": "musl-arm64",
+      "displayName": "TBD",
+      "$comment": [
+        "Configure and build the module for the ARM64 architecture using musl within our Docker image.",
+        "musl is used to produce binaries that maintain compatibility with older glibc versions."
+      ],
+      "inherits": "musl-base-arm64",
+      "binaryDir": ".musl-build"
+    },
+    {
+      "name": "ingress-nginx-x86_64",
+      "displayName": "Ingress-NGINX for x86_64 arch",
+      "$comment": [
+        "Configure and build the ingress-nginx <https://github.com/kubernetes/ingress-nginx/tree/main> module for the x86_64 architecture",
+        "This build relies on musl-base-x86_64 to produce a binary compatible with older versions of glibc.",
+        "The ingress-nginx project applies patches to the NGINX source code to ensure compatibility with the module.",
+        "Before building, the NGINX source code must be prepared using the `bin/ingress_nginx.py` script, and the `NGINX_SRC_DIR` environment variable should point to the prepared source directory."
+      ],
+      "inherits": "musl-base-x86_64",
+      "binaryDir": ".musl-build",
+      "cacheVariables": {
+        "NGINX_DATADOG_FLAVOR": "ingress-nginx"
+      }
+    },
+    {
+      "name": "ingress-nginx-arm64",
+      "displayName": "Ingress-NGINX for arm64 arch",
+      "$comment": [
+        "Configure and build the ingress-nginx <https://github.com/kubernetes/ingress-nginx/tree/main> module for the ARM64 architecture",
+        "This build relies on musl-base-arm64 to produce a binary compatible with older versions of glibc.",
+        "The ingress-nginx project applies patches to the NGINX source code to ensure compatibility with the module.",
+        "Before building, the NGINX source code must be prepared using the `bin/ingress_nginx.py` script, and the `NGINX_SRC_DIR` environment variable should point to the prepared source directory."
+      ],
+      "inherits": "musl-base-arm64",
+      "binaryDir": ".musl-build",
+      "cacheVariables": {
+        "NGINX_DATADOG_FLAVOR": "ingress-nginx"
+      }
+    },
+    {
+      "name": "openresty-x86_64",
+      "displayName": "openresty for x86_64 arch",
+      "$comment": [
+        "Configure and build the OpenResty-based module for the x86_64 architecture.",
+        "This build uses musl-base-x86_64 to produce binaries compatible with older versions of glibc.",
+        "Ensure any OpenResty-specific patches or configurations are applied as needed before the build process."
+      ],
+      "inherits": "musl-base-x86_64",
+      "binaryDir": ".openresty-build",
+      "cacheVariables": {
+        "NGINX_DATADOG_FLAVOR": "openresty"
+      }
+    },
+    {
+      "name": "openresty-arm64",
+      "displayName": "openresty for arm64 arch",
+      "$comment": [
+        "Configure and build the OpenResty-based module for the ARM64 architecture.",
+        "This build uses musl-base-x86_64 to produce binaries compatible with older versions of glibc.",
+        "Ensure any OpenResty-specific patches or configurations are applied as needed before the build process."
+      ],
+      "inherits": "musl-base-arm64",
+      "binaryDir": ".openresty-build",
+      "cacheVariables": {
+        "NGINX_DATADOG_FLAVOR": "openresty"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "Developer for APM Tracing",
+      "binaryDir": "build",
+      "cacheVariables": {
+        "NGINX_VERSION": "1.27.3",
+        "NGINX_DATADOG_ASM_ENABLED": "ON",
+        "NGINX_DATADOG_RUM_ENABLED": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "musl-x86_64",
+      "configurePresets": "musl-x86_64"
+    },
+    {
+      "name": "musl-arm64",
+      "configurePresets": "musl-arm64"
+    },
+    {
+      "name": "ingress-nginx-x86_64",
+      "configurePresets": "ingress-nginx-x86_64"
+    },
+    {
+      "name": "ingress-nginx-arm64",
+      "configurePresets": "ingress-nginx-arm64"
+    },
+    {
+      "name": "openresty-x86_64",
+      "configurePresets": "openresty-x86_64"
+    },
+    {
+      "name": "openresty-arm64",
+      "configurePresets": "openresty-arm64"
+    },
+    {
+      "name": "dev",
+      "configurePresets": "dev"
+    }
+  ]
+}
+

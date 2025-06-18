@@ -118,15 +118,14 @@ endif
 # this is what's run inside the container nginx_musl_toolchain
 .PHONY: build-musl-aux build-musl-cov-aux
 build-musl-aux build-musl-cov-aux:
-	cmake -B .musl-build \
-		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
-		-DNGINX_PATCH_AWAY_LIBC=ON \
+	cmake --preset=musl-$(ARCH) \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_VERSION="$(NGINX_VERSION)" \
-		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
-		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
+		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" \
+		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" \
 		-DNGINX_COVERAGE=$(COVERAGE) \
-		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
+		. \
+		&& cmake --preset=musl-$(ARCH) -j $(MAKE_JOB_COUNT) -v -target ngx_http_datadog_module \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
 .PHONY: build-openresty
@@ -148,14 +147,11 @@ endif
 
 .PHONY: build-openresty-aux
 build-openresty-aux:
-	cmake -B .openresty-build \
-		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
-		-DNGINX_PATCH_AWAY_LIBC=ON \
+	cmake --preset=openresty-$(ARCH) \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
-		-DNGINX_DATADOG_FLAVOR="openresty" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
-		&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
+		&& cmake --preset=openresty-$(ARCH) -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 
 .PHONY: test
 test:
@@ -227,12 +223,10 @@ build-ingress-nginx:
 
 .PHONY: build-musl-aux-ingress
 build-musl-aux-ingress:
+	cmake --preset=ingress-nginx-$(ARCH)\
 	cmake -B .musl-build \
-		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
-		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_SRC_DIR="$(NGINX_SRC_DIR)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" \
 		-DNGINX_COVERAGE=$(COVERAGE) . \
-		-DNGINX_DATADOG_FLAVOR="ingress-nginx" \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
