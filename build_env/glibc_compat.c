@@ -68,6 +68,12 @@ int lstat(const char *restrict path, void *restrict buf)
     return __lxstat(_STAT_VER, path, buf);
 }
 
+int fstatat(int dirfd, const char *restrict pathname, void *restrict statbuf, int flags)
+{
+    int __fxstatat(int, int, const char *restrict, void *restrict, int);
+    return __fxstatat(_STAT_VER, dirfd, pathname, statbuf, flags);
+}
+
 // glibc doesn't define pthread_atfork on aarch64. We need to delegate to
 // glibc's __register_atfork() instead. __register_atfork() takes an extra
 // argument, __dso_handle, which is a pointer to the DSO that is registering the
