@@ -1,4 +1,5 @@
 stages:
+  - build
   - run-benchmarks
   - gate
   - notify
@@ -9,9 +10,35 @@ include:
 
 variables:
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
+  BUILD_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/images/mirror/b1o7r7e0/nginx_musl_toolchain
+  NGINX_VERSION: 1.26.0
+
+build-nginx-module:
+  stage: build
+  tags: ["arch:amd64"]
+  timeout: 20min
+  image: $BUILD_IMAGE
+  variables:
+    WAF: OFF
+    COVERAGE: OFF
+    RUM: OFF
+    BUILD_TYPE: Release
+    ARCH: amd64
+  script:
+    - git submodule sync && git submodule update --init --recursive
+    - export NGINX_SRC_DIR="$PWD/nginx"
+    - make build-musl-aux
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - platform/artifacts/
+    expire_in: 3 months
+
 
 .benchmarks:
   stage: run-benchmarks
+  needs: ["build-nginx-module"]
   tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
@@ -29,7 +56,7 @@ variables:
     DD_TRACE_DEBUG: "false"
     DD_RUNTIME_METRICS_ENABLED: "true"
 
-    DD_BENCHMARKS_NGINX_IMAGE_TAG: amd64-1.26.0
+    DD_BENCHMARKS_NGINX_IMAGE_TAG: amd64-${NGINX_VERSION}
 
     K6_OPTIONS_NORMAL_OPERATION_RATE: 1000
     K6_OPTIONS_NORMAL_OPERATION_DURATION: 5m
