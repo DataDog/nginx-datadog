@@ -32,7 +32,7 @@ build-nginx-module:
     name: "artifacts"
     when: always
     paths:
-      - .musl-build/nginx_http_datadog_module.so
+      - .musl-build/ngx_http_datadog_module.so
     expire_in: 3 months
 
 
@@ -43,7 +43,7 @@ build-nginx-module:
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
-    - cp .musl-build/nginx_http_datadog_module /usr/lib/nginx/modules/nginx_http_datadog_module.so
+    - cp .musl-build/ngx_http_datadog_module.so /usr/lib/nginx/modules/ngx_http_datadog_module.so
     - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - bp-runner bp-runner.yml --debug
   artifacts:
