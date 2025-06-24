@@ -475,7 +475,7 @@ workflows:
                         base-image:
                             - amazonlinux:2.0.20230418.0
                         nginx-version:
-                            - 1.26.3
+                            - 1.28.0
                         waf:
                             - "ON"
                             - "OFF"
