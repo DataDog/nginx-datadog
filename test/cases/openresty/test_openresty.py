@@ -8,7 +8,7 @@ class TestOpenResty(case.TestCase):
     requires_openresty = True
 
     def test_openresty_base(self):
-        """Very that a basic openresty configuration works and can be traced
+        """Verify that a basic openresty configuration works and can be traced
         - load the relevant nginx.conf
         - sync agent
         - openresty request /http
