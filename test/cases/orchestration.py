@@ -867,18 +867,31 @@ exit "$rcode"
                 return check
 
             try:
-                wait_until(old_worker_stops(old_worker_pids), timeout_seconds=10)
+                wait_until(old_worker_stops(old_worker_pids),
+                           timeout_seconds=10)
             except Exception:
-                remaining_pids = nginx_worker_pids(nginx_container, self.verbose).intersection(old_worker_pids)
+                remaining_pids = nginx_worker_pids(
+                    nginx_container,
+                    self.verbose).intersection(old_worker_pids)
                 for pid in remaining_pids:
                     try:
-                        kill_command = docker_compose_command("exec", "-T", "--", "nginx", "kill", "-KILL", str(pid))
-                        subprocess.run(kill_command, env=child_env(), check=False, stdout=self.verbose, stderr=self.verbose)
+                        kill_command = docker_compose_command(
+                            "exec", "-T", "--", "nginx", "kill", "-KILL",
+                            str(pid))
+                        subprocess.run(kill_command,
+                                       env=child_env(),
+                                       check=False,
+                                       stdout=self.verbose,
+                                       stderr=self.verbose)
                     except Exception as kill_error:
-                        print(f"Failed to force-kill worker PID {pid}: {kill_error}", file=self.verbose, flush=True)
+                        print(
+                            f"Failed to force-kill worker PID {pid}: {kill_error}",
+                            file=self.verbose,
+                            flush=True)
 
                 # Ensure that all former workers are killed or that the test fails
-                wait_until(old_worker_stops(old_worker_pids), timeout_seconds=3)
+                wait_until(old_worker_stops(old_worker_pids),
+                           timeout_seconds=3)
 
             def new_worker_starts():
                 pids = nginx_worker_pids(nginx_container, self.verbose)
