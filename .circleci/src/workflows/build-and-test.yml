@@ -19,11 +19,10 @@ jobs:
         - amd64
         - arm64
         nginx-version:
-        - 1.26.3
         - 1.24.0
         - 1.25.4
-        - 1.27.5
         - 1.28.0
+        - 1.29.0
         waf:
         - 'ON'
         - 'OFF'
@@ -48,7 +47,8 @@ jobs:
         - 'amd64'
         - 'arm64'
         version:
-        - 1.12.3
+        - 1.12.4
+        - 1.13.0
 - coverage:
     name: Coverage on 1.27.0 with WAF ON
 - test:
@@ -65,25 +65,6 @@ jobs:
         - nginx:1.28.0
         nginx-version:
         - 1.28.0
-    name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
-      >> WAF << matrix.waf >>
-    requires:
-    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
-      >>
-- test:
-    matrix:
-      parameters:
-        arch:
-        - amd64
-        - arm64
-        waf:
-        - 'ON'
-        - 'OFF'
-        base-image:
-        - nginx:1.27.5-alpine
-        - nginx:1.27.5
-        nginx-version:
-        - 1.27.5
     name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
       >> WAF << matrix.waf >>
     requires:
@@ -115,24 +96,6 @@ jobs:
         - 'ON'
         - 'OFF'
         base-image:
-        - amazonlinux:2.0.20230418.0
-        nginx-version:
-        - 1.26.3
-    name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch
-      >> WAF << matrix.waf >>
-    requires:
-    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf
-      >>
-- test:
-    matrix:
-      parameters:
-        arch:
-        - amd64
-        - arm64
-        waf:
-        - 'ON'
-        - 'OFF'
-        base-image:
         - amazonlinux:2023.3.20240219.0
         nginx-version:
         - 1.24.0
@@ -151,7 +114,8 @@ jobs:
         base-image:
         - registry.k8s.io/ingress-nginx/controller
         nginx-version:
-        - 1.12.3
+        - 1.13.0
+        - 1.12.4
 - system_tests:
     name: Run system tests
     requires:
