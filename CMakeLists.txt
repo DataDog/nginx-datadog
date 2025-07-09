@@ -282,7 +282,7 @@ include(sbom)
 
 # Initialize SBOM generation
 sbom_generate(
-  OUTPUT ${CMAKE_BINARY_DIR}/nginx-datadog-${NGINX_VERSION}.spdx
+  OUTPUT ${CMAKE_BINARY_DIR}/nginx-datadog-${NGINX_VERSION}-${ARCH}.spdx
   PROJECT "nginx-datadog"
   SUPPLIER "Organization: Datadog, Inc."
   SUPPLIER_URL "https://www.datadoghq.com/"
@@ -450,7 +450,7 @@ add_custom_target(generate_sbom ALL
   COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR} --prefix ${CMAKE_BINARY_DIR}
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/sbom/verify.cmake
   DEPENDS ngx_http_datadog_module
-  COMMENT "Generating SBOM file: ${CMAKE_BINARY_DIR}/nginx-datadog-${NGINX_VERSION}.spdx"
+  COMMENT "Generating SBOM file: ${CMAKE_BINARY_DIR}/nginx-datadog-${NGINX_VERSION}-${ARCH}.spdx"
   VERBATIM
 )
 
