@@ -303,7 +303,7 @@ sbom_generate(
 # Add dd-trace-cpp dependency
 sbom_add(
   PACKAGE "dd-trace-cpp"
-  VERSION "1.0.0"
+  VERSION "cf59df3cb6fbb4fbec31acb97505011b10cf0e83"
   LICENSE "Apache-2.0"
   SUPPLIER "Organization: Datadog, Inc. (info@datadoghq.com)"
   DOWNLOAD_LOCATION "https://github.com/DataDog/dd-trace-cpp"
@@ -313,7 +313,7 @@ sbom_add(
 # Add rapidjson dependency
 sbom_add(
   PACKAGE "rapidjson"
-  VERSION "1.1.0"
+  VERSION "ab1842a2dae061284c0a62dca1cc6d5e7e37e346"
   LICENSE "MIT"
   SUPPLIER "Organization: Tencent (rapidjson@googlegroups.com)"
   DOWNLOAD_LOCATION "https://github.com/Tencent/rapidjson"
