@@ -113,7 +113,7 @@ endif
 		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(DOCKER_REPOS):latest \
-		sh -c "apk --no-cache add py3-pip && pip3 install --break-system-packages reuse spdx-tools ntia-conformance-checker && make -C /mnt/repo $@-aux"
+		sh -c "apk --no-cache add py3-pip && pip3 install --break-system-packages reuse spdx-tools ntia-conformance-checker && git config --global --add safe.directory /mnt/repo && make -C /mnt/repo $@-aux"
 
 # this is what's run inside the container nginx_musl_toolchain
 .PHONY: build-musl-aux build-musl-cov-aux
