@@ -4,3 +4,6 @@
 [submodule "libddwaf"]
 	path = libddwaf
 	url = ../libddwaf.git
+[submodule "cmake-sbom"]
+	path = cmake-sbom
+	url = git@github.com:DEMCON/cmake-sbom.git
