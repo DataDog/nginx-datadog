@@ -40,7 +40,7 @@ jobs:
         paths:
           - ".musl-build/ngx_http_datadog_module.so"
           - ".musl-build/ngx_http_datadog_module.so.debug"
-          - ".musl-build/nginx-datadog-*.spdx"
+          - ".musl-build/nginx-datadog-<< parameters.nginx-version >>.spdx"
     - store_artifacts:
         path: ".musl-build/ngx_http_datadog_module.so"
         destination: ngx_http_datadog_module.so
@@ -48,7 +48,7 @@ jobs:
         path: ".musl-build/ngx_http_datadog_module.so.debug"
         destination: ngx_http_datadog_module.so.debug
     - store_artifacts:
-        path: ".musl-build/nginx-datadog-*.spdx"
+        path: ".musl-build/nginx-datadog-<< parameters.nginx-version >>.spdx"
         destination: sbom
     executor:
       name: ubuntu-<< parameters.arch >>

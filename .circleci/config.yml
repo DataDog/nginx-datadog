@@ -69,7 +69,7 @@ jobs:
                 paths:
                     - .musl-build/ngx_http_datadog_module.so
                     - .musl-build/ngx_http_datadog_module.so.debug
-                    - .musl-build/nginx-datadog-*.spdx
+                    - .musl-build/nginx-datadog-<< parameters.nginx-version >>.spdx
                 root: .
             - store_artifacts:
                 destination: ngx_http_datadog_module.so
@@ -79,7 +79,7 @@ jobs:
                 path: .musl-build/ngx_http_datadog_module.so.debug
             - store_artifacts:
                 destination: sbom
-                path: .musl-build/nginx-datadog-*.spdx
+                path: .musl-build/nginx-datadog-<< parameters.nginx-version >>.spdx
     build_ingress_nginx_module:
         environment:
             MAKE_JOB_COUNT: 8
