@@ -49,7 +49,7 @@ jobs:
         destination: ngx_http_datadog_module.so.debug
     - store_artifacts:
         path: ".musl-build/nginx-datadog-<< parameters.nginx-version >>-<< parameters.arch >>.spdx"
-        destination: sbom
+        destination: sbom-<< parameters.nginx-version >>-<< parameters.arch >>
     executor:
       name: ubuntu-<< parameters.arch >>
     environment:

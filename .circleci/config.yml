@@ -78,7 +78,7 @@ jobs:
                 destination: ngx_http_datadog_module.so.debug
                 path: .musl-build/ngx_http_datadog_module.so.debug
             - store_artifacts:
-                destination: sbom
+                destination: sbom-<< parameters.nginx-version >>-<< parameters.arch >>
                 path: .musl-build/nginx-datadog-<< parameters.nginx-version >>-<< parameters.arch >>.spdx
     build_ingress_nginx_module:
         environment:
