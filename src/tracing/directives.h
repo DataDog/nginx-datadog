@@ -52,6 +52,14 @@ constexpr datadog::nginx::directive tracing_directives[] = {
         nullptr,
     },
     {
+        "datadog_apm_tracing_enabled",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_flag_slot,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(datadog_main_conf_t, apm_tracing_enabled),
+        nullptr,
+    },
+    {
         "datadog_trace_locations",
         anywhere | NGX_CONF_TAKE1,
         ngx_conf_set_flag_slot,
