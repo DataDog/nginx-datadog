@@ -113,7 +113,7 @@ endif
 		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(DOCKER_REPOS):latest \
-		make -C /mnt/repo $@-aux
+		sh -c "apk --no-cache add py3-pip && pip3 install --break-system-packages reuse spdx-tools ntia-conformance-checker && make -C /mnt/repo $@-aux"
 
 # this is what's run inside the container nginx_musl_toolchain
 .PHONY: build-musl-aux build-musl-cov-aux
@@ -127,6 +127,7 @@ build-musl-aux build-musl-cov-aux:
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
+		&& cmake --build .musl-build --target generate_sbom \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
 .PHONY: build-openresty
