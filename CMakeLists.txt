@@ -280,9 +280,18 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake-sbom/cmake")
 include(version)
 include(sbom)
 
+# Map architecture to CI format
+if(ARCH STREQUAL "x86_64")
+  set(CI_ARCH "amd64")
+elseif(ARCH STREQUAL "aarch64")
+  set(CI_ARCH "arm64")
+else()
+  set(CI_ARCH ${ARCH})
+endif()
+
 # Initialize SBOM generation
 sbom_generate(
-  OUTPUT ${CMAKE_BINARY_DIR}/nginx-datadog-${NGINX_VERSION}-${ARCH}.spdx
+  OUTPUT ${CMAKE_BINARY_DIR}/nginx-datadog-${NGINX_VERSION}-${CI_ARCH}.spdx
   PROJECT "nginx-datadog"
   SUPPLIER "Organization: Datadog, Inc."
   SUPPLIER_URL "https://www.datadoghq.com/"
@@ -450,7 +459,7 @@ add_custom_target(generate_sbom ALL
   COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR} --prefix ${CMAKE_BINARY_DIR}
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/sbom/verify.cmake
   DEPENDS ngx_http_datadog_module
-  COMMENT "Generating SBOM file: ${CMAKE_BINARY_DIR}/nginx-datadog-${NGINX_VERSION}-${ARCH}.spdx"
+  COMMENT "Generating SBOM file: ${CMAKE_BINARY_DIR}/nginx-datadog-${NGINX_VERSION}-${CI_ARCH}.spdx"
   VERBATIM
 )
 
