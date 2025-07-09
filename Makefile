@@ -123,9 +123,10 @@ build-musl-aux build-musl-cov-aux:
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_VERSION="$(NGINX_VERSION)" \
-		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
-		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
+		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" \
+		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" \
 		-DNGINX_COVERAGE=$(COVERAGE) \
+		-DARCH=$(ARCH) \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 		&& cmake --build .musl-build --target generate_sbom \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
