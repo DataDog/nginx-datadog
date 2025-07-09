@@ -28,6 +28,154 @@ endif ()
 
 include(CTest)
 
+list(APPEND CMAKE_MODULE_PATH "/Users/louis.tricot/datadog-work/proxy/nginx-datadog/cmake-sbom/cmake")
+include(version)
+include(sbom)
+
+# Initialize SBOM generation
+sbom_generate(
+  OUTPUT ${CMAKE_BINARY_DIR}/nginx-datadog-${GIT_VERSION}.spdx
+  PROJECT "nginx-datadog"
+  SUPPLIER "Organization: Datadog, Inc."
+  SUPPLIER_URL "https://www.datadoghq.com/"
+  LICENSE "Apache-2.0"
+  COPYRIGHT "2022 Datadog, Inc."
+  DOWNLOAD_URL "https://github.com/DataDog/nginx-datadog"
+)
+
+# Add main library target to SBOM
+sbom_add(
+  TARGET ngx_http_datadog_module
+  LICENSE "Apache-2.0"
+  SPDXID "SPDXRef-nginx-datadog-module"
+)
+
+# Add dd-trace-cpp dependency
+sbom_add(
+  PACKAGE "dd-trace-cpp"
+  VERSION "1.0.0"
+  LICENSE "Apache-2.0"
+  COPYRIGHT "2022 Datadog, Inc."
+  SUPPLIER "Organization: Datadog, Inc. (info@datadoghq.com)"
+  DOWNLOAD_LOCATION "https://github.com/DataDog/dd-trace-cpp"
+  SPDXID "SPDXRef-dd-trace-cpp"
+)
+
+# Add rapidjson dependency
+sbom_add(
+  PACKAGE "rapidjson"
+  VERSION "1.1.0"
+  LICENSE "MIT"
+  SUPPLIER "Organization: Tencent (rapidjson@googlegroups.com)"
+  COPYRIGHT  "2015 THL A29 Limited, a Tencent company, and Milo Yip"
+  DOWNLOAD_LOCATION "https://github.com/Tencent/rapidjson"
+  SPDXID "SPDXRef-rapidjson"
+)
+
+# Add nlohmann/json dependency (used by dd-trace-cpp)
+sbom_add(
+  PACKAGE "nlohmann/json"
+  VERSION "3.11.2"
+  LICENSE "MIT"
+  SUPPLIER "Organization: Niels Lohmann (http://nlohmann.me)"
+  COPYRIGHT "2013-2018 Niels Lohmann"
+  DOWNLOAD_LOCATION "https://github.com/nlohmann/json"
+  SPDXID "SPDXRef-nlohmann-json"
+)
+
+# Add libcurl dependency (used by dd-trace-cpp)
+sbom_add(
+  PACKAGE "curl"
+  VERSION "8.8.0"
+  LICENSE "curl"
+  COPYRIGHT "1996 - 2025, Daniel Stenberg"
+  SUPPLIER "Organization: Daniel Stenberg (daniel@haxx.se)"
+  DOWNLOAD_LOCATION "https://github.com/curl/curl"
+  SPDXID "SPDXRef-curl"
+)
+
+# Add nginx dependency
+sbom_add(
+  PACKAGE "nginx"
+  VERSION "${NGINX_VERSION}"
+  LICENSE "BSD-2-Clause"
+  COPYRIGHT "2011-2025 Nginx, Inc."
+  SUPPLIER "Organization: Nginx, Inc."
+  DOWNLOAD_LOCATION "https://nginx.org/"
+  SPDXID "SPDXRef-nginx"
+)
+
+# Add libddwaf dependency if ASM is enabled
+if(NGINX_DATADOG_ASM_ENABLED)
+  sbom_add(
+    PACKAGE "libddwaf"
+    VERSION "${LIBDDWAF_VERSION}"
+    LICENSE "Apache-2.0"
+    SUPPLIER "Organization: Datadog, Inc."
+    DOWNLOAD_LOCATION "https://github.com/DataDog/libddwaf"
+    SPDXID "SPDXRef-libddwaf"
+  )
+endif()
+
+# Add inject-browser-sdk dependency if RUM is enabled
+if(NGINX_DATADOG_RUM_ENABLED)
+  sbom_add(
+    PACKAGE "inject-browser-sdk"
+    VERSION "${RUM_SDK_INJECTOR_VERSION}"
+    LICENSE "Apache-2.0"
+    SUPPLIER "Organization: Datadog, Inc."
+    DOWNLOAD_LOCATION "https://github.com/DataDog/browser-sdk"
+    SPDXID "SPDXRef-inject-browser-sdk"
+  )
+endif()
+
+# Add system dependencies
+sbom_add(
+  PACKAGE "libc"
+  VERSION "system"
+  LICENSE "NOASSERTION"
+  SUPPLIER "Organization: System Vendor"
+  SPDXID "SPDXRef-libc"
+)
+
+sbom_add(
+  PACKAGE "libstdc++"
+  VERSION "system"
+  LICENSE "GPL-3.0"
+  SUPPLIER "Organization: Free Software Foundation"
+  SPDXID "SPDXRef-libstdc++"
+)
+
+# Add libc++ dependency (used with clang)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  sbom_add(
+    PACKAGE "libc++"
+    VERSION "system"
+    LICENSE "Apache-2.0"
+    SUPPLIER "Organization: LLVM Project (https://llvm.org/)"
+    SPDXID "SPDXRef-libcxx"
+  )
+endif()
+
+# Finalize SBOM generation
+sbom_finalize(VERIFY)
+
+# Install the SBOM file
+install(FILES ${CMAKE_BINARY_DIR}/nginx-datadog-${GIT_VERSION}.spdx
+  DESTINATION .
+  OPTIONAL
+)
+
+# Add a custom target for SBOM generation without install
+add_custom_target(sbom
+  COMMAND ${CMAKE_COMMAND} -E echo "Generating SBOM file..."
+  COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ngx_http_datadog_static_lib
+  COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR} --prefix ${CMAKE_BINARY_DIR}
+  COMMAND ${CMAKE_COMMAND} -E echo "SBOM generated: ${CMAKE_BINARY_DIR}/nginx-datadog-${GIT_VERSION}.spdx"
+  COMMENT "Generating SBOM file: ${CMAKE_BINARY_DIR}/nginx-datadog-${GIT_VERSION}.spdx"
+  DEPENDS ngx_http_datadog_module ngx_http_datadog_static_lib
+)
+
 if(BUILD_TESTING)
   add_subdirectory(test/unit)
 endif()
