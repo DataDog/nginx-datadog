@@ -40,6 +40,7 @@ jobs:
         paths:
           - ".musl-build/ngx_http_datadog_module.so"
           - ".musl-build/ngx_http_datadog_module.so.debug"
+          - ".musl-build/nginx-datadog-*.spdx"
     - store_artifacts:
         path: ".musl-build/ngx_http_datadog_module.so"
         destination: ngx_http_datadog_module.so
