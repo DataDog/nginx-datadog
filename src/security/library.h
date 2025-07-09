@@ -50,8 +50,6 @@ class Library {
 
   static std::optional<std::size_t> max_saved_output_data();
 
-  static bool apm_tracing_enabled() noexcept;
-
  protected:
   static std::atomic<bool> active_;                                  // NOLINT
   static std::unique_ptr<FinalizedConfigSettings> config_settings_;  // NOLINT

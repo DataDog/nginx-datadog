@@ -51,6 +51,8 @@ class DatadogContext {
 
   void on_log_request(ngx_http_request_t* request);
 
+  ngx_int_t on_precontent_phase(ngx_http_request_t* request);
+
   ngx_str_t lookup_span_variable_value(ngx_http_request_t* request,
                                        std::string_view key);
 

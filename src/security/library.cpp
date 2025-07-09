@@ -3,8 +3,6 @@
 #include <atomic>
 #include <string>
 
-#include "global_tracer.h"
-
 extern "C" {
 #include <ngx_core.h>
 #include <ngx_cycle.h>
@@ -792,14 +790,4 @@ std::vector<std::string_view> Library::environment_variable_names() {
 std::optional<std::size_t> Library::max_saved_output_data() {
   return config_settings_->get_max_saved_output_data();
 };
-
-bool Library::apm_tracing_enabled() noexcept {
-  // get global tracer
-  dd::Tracer *tracer = global_tracer();
-  if (!tracer) {
-    return false;
-  }
-  // check if it's enabled
-  return tracer->is_apm_tracing_enabled();
-}
 }  // namespace datadog::nginx::security

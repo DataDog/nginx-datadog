@@ -7,10 +7,8 @@
 #include <string_view>
 #include <utility>
 
-#include "datadog/injection_options.h"
 #include "datadog_conf.h"
 #include "datadog_conf_handler.h"
-#include "datadog_context.h"
 #include "datadog_directive.h"
 #include "datadog_handler.h"
 #include "datadog_variable.h"
@@ -28,7 +26,6 @@
 #include "rum/config.h"
 #endif
 #include "common/variable.h"
-#include "ngx_header_writer.h"
 #include "string_util.h"
 #include "tracing_library.h"
 #include "version.h"
@@ -279,8 +276,6 @@ static ngx_int_t datadog_master_process_post_config(
   return NGX_OK;
 }
 
-static ngx_int_t on_precontent_phase(ngx_http_request_t *request) noexcept;
-
 static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   ngx_http_next_header_filter = ngx_http_top_header_filter;
   ngx_http_top_header_filter = on_header_filter;
@@ -500,32 +495,4 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
 #endif
 
   return NGX_CONF_OK;
-}
-
-static ngx_int_t on_precontent_phase(ngx_http_request_t *request) noexcept {
-  auto *ctx = get_datadog_context(request);
-  if (!ctx) {
-    return NGX_DECLINED;
-  }
-
-  // inject headers in the precontent phase into the request headers
-  // These headers will be copied by ngx_http_proxy_create_request on the
-  // content phase into the outgoing request headers (probably)
-  RequestTracing &tracing = ctx->single_trace();
-  dd::Span &span = tracing.active_span();
-  span.set_tag("span.kind", "client");
-
-  datadog::tracing::InjectionOptions opts{};
-#ifdef WITH_WAF
-  if (auto sec_ctx = ctx->get_security_context()) {
-    if (sec_ctx->has_matches()) {
-      opts.trace_source = {'0', '2'};
-    }
-  }
-#endif
-
-  NgxHeaderWriter writer(request);
-  span.inject(writer, opts);
-
-  return NGX_DECLINED;
 }

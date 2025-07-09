@@ -20,9 +20,9 @@ class TestApmTracingEnabled(case.TestCase):
         super().setUp()
         # avoid reconfiguration (cuts time almost in half)
         if not TestApmTracingEnabled.config_setup_done:
-            waf_path = Path(__file__).parent / './conf/waf.json'
+            waf_path = Path(__file__).parent / "./conf/waf.json"
             waf_text = waf_path.read_text()
-            self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
+            self.orch.nginx_replace_file("/tmp/waf.json", waf_text)
 
             conf_path = Path(__file__).parent / "conf" / "apm_tracing_off.conf"
             conf_text = conf_path.read_text()
@@ -32,13 +32,13 @@ class TestApmTracingEnabled(case.TestCase):
             self.assertEqual(0, status, log_lines)
 
             # clear any previous agent data
-            self.orch.sync_service('agent')
+            self.orch.sync_service("agent")
 
             TestApmTracingEnabled.config_setup_done = True
 
     def get_traces(self, on_chunk):
         self.orch.reload_nginx()
-        log_lines = self.orch.sync_service('agent')
+        log_lines = self.orch.sync_service("agent")
         # Find the trace that came from nginx, and pass its chunks (groups of
         # spans) to the callback.
         found_nginx_trace = False
@@ -47,7 +47,7 @@ class TestApmTracingEnabled(case.TestCase):
             if trace is None:
                 continue
             for chunk in trace:
-                if chunk[0]['service'] != 'nginx':
+                if chunk[0]["service"] != "nginx":
                     continue
                 found_nginx_trace = True
                 on_chunk(chunk)
@@ -84,7 +84,7 @@ class TestApmTracingEnabled(case.TestCase):
     def test_apm_tracing_off_waf(self):
         for _ in range(2):
             status, _, body = self.orch.send_nginx_http_request(
-                "/http/", headers={'User-agent': 'no_block'})
+                "/http/", headers={"User-agent": "no_block"})
             self.assertEqual(200, status)
 
             response = json.loads(body)
@@ -115,13 +115,13 @@ class TestApmTracingEnabled(case.TestCase):
 
     def test_distributed_tracing_no_waf(self):
         headers = {
-            'x-datadog-trace-id':
+            "x-datadog-trace-id":
             str(self.DISTRIBUTED_TRACE_ID_DEC),
-            'x-datadog-parent-id':
+            "x-datadog-parent-id":
             str(self.DISTRIBUTED_PARENT_ID_DEC),
-            'x-datadog-sampling-priority':
+            "x-datadog-sampling-priority":
             str(self.INJECTED_SAMPLING_PRIORITY_USER_KEEP),
-            'x-datadog-origin':
+            "x-datadog-origin":
             self.X_DATADOG_ORIGIN_RUM,
         }
         request_count = 0
@@ -138,20 +138,26 @@ class TestApmTracingEnabled(case.TestCase):
 
                 # Assert that the propagation headers match the expected format
                 # The trace ID should remain the same, but parent ID should be different (new span)
-                self.assertIn("x-datadog-trace-id", forwarded_headers,
-                              "Missing x-datadog-trace-id header")
+                self.assertIn(
+                    "x-datadog-trace-id",
+                    forwarded_headers,
+                    "Missing x-datadog-trace-id header",
+                )
                 self.assertEqual(
                     forwarded_headers["x-datadog-trace-id"],
                     str(self.DISTRIBUTED_TRACE_ID_DEC),
-                    f"x-datadog-trace-id mismatch: expected {self.DISTRIBUTED_TRACE_ID_DEC}, got {forwarded_headers['x-datadog-trace-id']}"
+                    f"x-datadog-trace-id mismatch: expected {self.DISTRIBUTED_TRACE_ID_DEC}, got {forwarded_headers['x-datadog-trace-id']}",
                 )
 
-                self.assertIn("x-datadog-parent-id", forwarded_headers,
-                              "Missing x-datadog-parent-id header")
+                self.assertIn(
+                    "x-datadog-parent-id",
+                    forwarded_headers,
+                    "Missing x-datadog-parent-id header",
+                )
                 self.assertNotEqual(
                     forwarded_headers["x-datadog-parent-id"],
                     str(self.DISTRIBUTED_PARENT_ID_DEC),
-                    f"x-datadog-parent-id should be different from original {self.DISTRIBUTED_PARENT_ID_DEC}, but got {forwarded_headers['x-datadog-parent-id']}"
+                    f"x-datadog-parent-id should be different from original {self.DISTRIBUTED_PARENT_ID_DEC}, but got {forwarded_headers['x-datadog-parent-id']}",
                 )
 
                 expected_headers = {
@@ -174,9 +180,13 @@ class TestApmTracingEnabled(case.TestCase):
 
                 # Assert that propagation headers are NOT present on the second request
                 propagation_headers = [
-                    "x-datadog-trace-id", "x-datadog-parent-id",
-                    "x-datadog-sampling-priority", "x-datadog-origin",
-                    "x-datadog-tags", "traceparent", "tracestate"
+                    "x-datadog-trace-id",
+                    "x-datadog-parent-id",
+                    "x-datadog-sampling-priority",
+                    "x-datadog-origin",
+                    "x-datadog-tags",
+                    "traceparent",
+                    "tracestate",
                 ]
 
                 for header_name in propagation_headers:
@@ -198,13 +208,15 @@ class TestApmTracingEnabled(case.TestCase):
             if span_count == 1:
                 self.assertEqual(
                     span["metrics"]["_sampling_priority_v1"],
-                    int(self.INJECTED_SAMPLING_PRIORITY_USER_KEEP))
+                    int(self.INJECTED_SAMPLING_PRIORITY_USER_KEEP),
+                )
                 self.assertNotIn("_dd.p.ts", span.get("meta", {}))
                 self.assertNotEqual(span["meta"].get("_dd.p.dm", ""), "-4")
             else:
                 self.assertEqual(
                     span["metrics"]["_sampling_priority_v1"],
-                    int(self.INJECTED_SAMPLING_PRIORITY_USER_DROP))
+                    int(self.INJECTED_SAMPLING_PRIORITY_USER_DROP),
+                )
 
             self.assertEqual(
                 span.get("meta", {}).get("_dd.origin"),
@@ -212,19 +224,22 @@ class TestApmTracingEnabled(case.TestCase):
 
         self.assertTrue(
             self.get_traces(on_chunk),
-            "Failed to find traces for distributed_tracing_no_waf")
+            "Failed to find traces for distributed_tracing_no_waf",
+        )
         self.assertEqual(
-            span_count, 2,
-            "Expected to process two spans for distributed_tracing_no_waf")
+            span_count,
+            2,
+            "Expected to process two spans for distributed_tracing_no_waf",
+        )
 
     def test_distributed_tracing_waf(self):
         headers = {
-            'x-datadog-trace-id': self.DISTRIBUTED_TRACE_ID_DEC,
-            'x-datadog-parent-id': self.DISTRIBUTED_PARENT_ID_DEC,
-            'x-datadog-sampling-priority':
+            "x-datadog-trace-id": self.DISTRIBUTED_TRACE_ID_DEC,
+            "x-datadog-parent-id": self.DISTRIBUTED_PARENT_ID_DEC,
+            "x-datadog-sampling-priority":
             self.INJECTED_SAMPLING_PRIORITY_AUTO_KEEP,
-            'x-datadog-origin': self.X_DATADOG_ORIGIN_RUM,
-            'x-datadog-tags': '_dd.p.ts=02',
+            "x-datadog-origin": self.X_DATADOG_ORIGIN_RUM,
+            "x-datadog-tags": "_dd.p.ts=02",
         }
         for _ in range(2):
             status, _, body = self.orch.send_nginx_http_request(
@@ -237,34 +252,41 @@ class TestApmTracingEnabled(case.TestCase):
 
             # Assert that the propagation headers match the expected format
             # The trace ID should remain the same, but parent ID should be different (new span)
-            self.assertIn("x-datadog-trace-id", forwarded_headers,
-                          "Missing x-datadog-trace-id header")
+            self.assertIn(
+                "x-datadog-trace-id",
+                forwarded_headers,
+                "Missing x-datadog-trace-id header",
+            )
             self.assertEqual(
                 forwarded_headers["x-datadog-trace-id"],
                 str(self.DISTRIBUTED_TRACE_ID_DEC),
-                f"x-datadog-trace-id mismatch: expected {self.DISTRIBUTED_TRACE_ID_DEC}, got {forwarded_headers['x-datadog-trace-id']}"
+                f"x-datadog-trace-id mismatch: expected {self.DISTRIBUTED_TRACE_ID_DEC}, got {forwarded_headers['x-datadog-trace-id']}",
             )
 
-            self.assertIn("x-datadog-parent-id", forwarded_headers,
-                          "Missing x-datadog-parent-id header")
+            self.assertIn(
+                "x-datadog-parent-id",
+                forwarded_headers,
+                "Missing x-datadog-parent-id header",
+            )
             self.assertNotEqual(
                 forwarded_headers["x-datadog-parent-id"],
                 str(self.DISTRIBUTED_PARENT_ID_DEC),
-                f"x-datadog-parent-id should be different from original {self.DISTRIBUTED_PARENT_ID_DEC}, but got {forwarded_headers['x-datadog-parent-id']}"
+                f"x-datadog-parent-id should be different from original {self.DISTRIBUTED_PARENT_ID_DEC}, but got {forwarded_headers['x-datadog-parent-id']}",
             )
 
             expected_headers = {
                 "x-datadog-sampling-priority": "2",
                 "x-datadog-origin": "rum",
-                "x-datadog-tags": "_dd.p.ts=02,_dd.p.dm=-5",
+                "x-datadog-tags": "_dd.p.dm=-5,_dd.p.ts=02",
             }
 
             for header_name, expected_value in expected_headers.items():
                 self.assertIn(header_name, forwarded_headers,
                               f"Missing header: {header_name}")
                 self.assertEqual(
-                    forwarded_headers[header_name], expected_value,
-                    f"Header {header_name} mismatch: expected {expected_value}, got {forwarded_headers[header_name]}"
+                    forwarded_headers[header_name],
+                    expected_value,
+                    f"Header {header_name} mismatch: expected {expected_value}, got {forwarded_headers[header_name]}",
                 )
 
             # Check traceparent format (trace ID should match, span ID should be different)
@@ -275,23 +297,29 @@ class TestApmTracingEnabled(case.TestCase):
             self.assertEqual(len(traceparent_parts), 4,
                              f"Invalid traceparent format: {traceparent}")
             self.assertEqual(
-                traceparent_parts[0], "00",
-                f"Invalid traceparent version: {traceparent_parts[0]}")
+                traceparent_parts[0],
+                "00",
+                f"Invalid traceparent version: {traceparent_parts[0]}",
+            )
             # Convert decimal trace ID to hex and pad to 32 chars
             expected_trace_id_hex = f"{self.DISTRIBUTED_TRACE_ID_DEC:032x}"
             self.assertEqual(
-                traceparent_parts[1], expected_trace_id_hex,
-                f"traceparent trace ID mismatch: expected {expected_trace_id_hex}, got {traceparent_parts[1]}"
+                traceparent_parts[1],
+                expected_trace_id_hex,
+                f"traceparent trace ID mismatch: expected {expected_trace_id_hex}, got {traceparent_parts[1]}",
             )
             # Span ID should be different from the original parent ID
             original_parent_id_hex = f"{self.DISTRIBUTED_PARENT_ID_DEC:016x}"
             self.assertNotEqual(
-                traceparent_parts[2], original_parent_id_hex,
-                f"traceparent span ID should be different from original {original_parent_id_hex}, but got {traceparent_parts[2]}"
+                traceparent_parts[2],
+                original_parent_id_hex,
+                f"traceparent span ID should be different from original {original_parent_id_hex}, but got {traceparent_parts[2]}",
             )
             self.assertEqual(
-                traceparent_parts[3], "01",
-                f"Invalid traceparent flags: {traceparent_parts[3]}")
+                traceparent_parts[3],
+                "01",
+                f"Invalid traceparent flags: {traceparent_parts[3]}",
+            )
 
             # Check tracestate format
             self.assertIn("tracestate", forwarded_headers,
@@ -299,10 +327,11 @@ class TestApmTracingEnabled(case.TestCase):
             tracestate = forwarded_headers["tracestate"]
             # The tracestate should contain the new span ID (same as in traceparent)
             expected_span_id = traceparent_parts[2]
-            expected_tracestate = f"dd=s:2;p:{expected_span_id};o:rum;t.ts:02;t.dm:-5"
+            expected_tracestate = f"dd=s:2;p:{expected_span_id};o:rum;t.dm:-5;t.ts:02"
             self.assertEqual(
-                tracestate, expected_tracestate,
-                f"tracestate mismatch: expected {expected_tracestate}, got {tracestate}"
+                tracestate,
+                expected_tracestate,
+                f"tracestate mismatch: expected {expected_tracestate}, got {tracestate}",
             )
 
         span_count = 0
@@ -326,8 +355,10 @@ class TestApmTracingEnabled(case.TestCase):
                 span.get("meta", {}).get("_dd.origin"),
                 self.X_DATADOG_ORIGIN_RUM)
 
-        self.assertTrue(self.get_traces(on_chunk),
-                        "Failed to find traces for distributed_tracing_waf")
+        self.assertTrue(
+            self.get_traces(on_chunk),
+            "Failed to find traces for distributed_tracing_waf",
+        )
         self.assertEqual(
             span_count, 2,
             "Expected to process two spans for distributed_tracing_waf")

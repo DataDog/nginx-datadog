@@ -1792,7 +1792,7 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
   results_.clear();
 
   if (!apm_tracing_enabled_) {
-    span.set_tag("_dd.p.ts"sv, "02"sv);
+    span.set_source(tracing::Source::appsec);
   }
 }
 
