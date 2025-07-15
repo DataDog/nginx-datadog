@@ -43,10 +43,6 @@ variables:
     K6_OPTIONS_HIGH_LOAD_PRE_ALLOCATED_VUS: 4
     K6_OPTIONS_HIGH_LOAD_MAX_VUS: 4
 
-    # Gitlab and BP specific env vars. Do not modify.
-    KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: nginx-datadog
-    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
-
   # Workaround: Currently we're not running the benchmarks on every PR, but GitHub still shows them as pending.
   # By marking the benchmarks as allow_failure, the Github checks are not displayed.
   allow_failure: true
