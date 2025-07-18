@@ -318,3 +318,58 @@ class TestSecBlocking(case.TestCase):
         report = self.orch.find_first_appsec_report()
         self.assertEqual(report['triggers'][0]['rule']['id'],
                          "block_websocket_upgrade_response")
+
+    def test_block_response_body_text(self):
+        """Test that response body text content can trigger blocking."""
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http/response_body_test?trigger=blo_res_bod&format=text', 80)
+        self.assertEqual(status, 501)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assert_has_report(log_lines, 'block_501')
+
+    def test_block_response_body_json(self):
+        """Test that response body JSON content can trigger blocking."""
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http/response_body_test?trigger=blo_res_bod', 80)
+        self.assertEqual(status, 501)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assert_has_report(log_lines, 'block_501')
+
+    def test_block_response_body_http2(self):
+        """Test that response body blocking works with HTTP/2."""
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http/response_body_test?trigger=blo_res_bod', 80, http_version=2)
+        self.assertEqual(status, 501)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assert_has_report(log_lines, 'block_501')
+
+    def test_block_response_body_http3(self):
+        """Test that response body blocking works with HTTP/3."""
+        status, headers, body = self.orch.send_nginx_http_request(
+            '/http/response_body_test?trigger=blo_res_bod',
+            port=443,
+            tls=True,
+            http_version=3)
+        self.assertEqual(status, 501)
+        headers = TestSecBlocking.convert_headers(headers)
+        self.assertEqual(headers['content-type'], 'application/json')
+        self.assertRegex(body, r'"title":"You\'ve been blocked')
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service('agent')
+        self.assert_has_report(log_lines, 'block_501')

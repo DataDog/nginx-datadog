@@ -25,7 +25,8 @@ class RapidNgxChainInputStream {
  public:
   using Ch = char;
 
-  RapidNgxChainInputStream(const ngx_chain_t *chain) : current_{chain} {
+  RapidNgxChainInputStream(const ngx_chain_t *chain, size_t limit)
+      : current_{chain}, limit_{limit} {
     if (!current_) {
       throw std::invalid_argument{"chain must not be null"};
     }
@@ -60,6 +61,10 @@ class RapidNgxChainInputStream {
 
  private:
   bool advance_buffer() {
+    if (read_ >= limit_) {
+      return false;
+    }
+
     if (current_->next) {
       current_ = current_->next;
       pos_ = current_->buf->pos;
@@ -82,6 +87,7 @@ class RapidNgxChainInputStream {
   u_char *pos_{};
   u_char *end_{};
   std::size_t read_{};
+  std::size_t limit_{};
 };
 
 /* Rapidjson event handler for serializing into ddwaf_obj, allowing for
@@ -93,7 +99,7 @@ class ToDdwafObjHandler
   ToDdwafObjHandler(ddwaf_obj &slot, dnsec::DdwafMemres &memres)
       : pool_{memres}, memres_{memres}, bufs_{{&slot, 0, 1}} {}
 
-  ddwaf_obj *finish(ngx_http_request_t &req) {
+  ddwaf_obj *finish(const ngx_http_request_t &req) {
     if (bufs_.size() != 1) {
       ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
                      "json parsing finished prematurely");
@@ -262,8 +268,9 @@ class ToDdwafObjHandler
 
 namespace datadog::nginx::security {
 
-bool parse_json(ddwaf_obj &slot, ngx_http_request_t &req,
-                const ngx_chain_t &chain, dnsec::DdwafMemres &memres) {
+bool parse_json(ddwaf_obj &slot, const ngx_http_request_t &req,
+                const ngx_chain_t &chain, size_t limit,
+                dnsec::DdwafMemres &memres) {
   // be as permissive as possible
   static constexpr unsigned parse_flags =
       rapidjson::kParseStopWhenDoneFlag |
@@ -273,7 +280,7 @@ bool parse_json(ddwaf_obj &slot, ngx_http_request_t &req,
 
   ToDdwafObjHandler handler{slot, memres};
   rapidjson::Reader reader;
-  RapidNgxChainInputStream is{&chain};
+  RapidNgxChainInputStream is{&chain, limit};
   rapidjson::ParseResult res =
       reader.Parse<parse_flags, RapidNgxChainInputStream>(is, handler);
   ddwaf_obj *json_obj = handler.finish(req);

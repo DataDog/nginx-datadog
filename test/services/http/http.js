@@ -63,6 +63,52 @@ const requestListener = function (request, response) {
     return;
   }
 
+  // Parameterized response body test endpoint
+  if (request.url.match(/.*\/response_body_test\/?.*/)) {
+    ignoreRequestBody(request);
+    try {
+      const urlObj = new URL(request.url, `http://${request.headers.host}`);
+      const trigger = urlObj.searchParams.get("trigger");
+      const format = urlObj.searchParams.get("format") || "json";
+
+      // Mapping to avoid WAF trigger words in query parameters
+      const triggerMap = {
+        "res_bod_tri": "response_body_trigger",
+        "mat_val": "matched value",
+        "mat_key": "matched key",
+        "blo_def": "block_default",
+        "blo_res_bod": "block_response_body",
+        "safe": "safe_content"
+      };
+
+      const triggerWord = triggerMap[trigger] || "safe_content";
+
+      if (format === "text") {
+        response.writeHead(200, { "content-type": "text/plain" });
+        response.end(`This response contains the ${triggerWord} keyword`);
+      } else {
+        response.writeHead(200, { "content-type": "application/json" });
+        if (trigger === "mat_key") {
+          // For matched key test - put the trigger as a JSON key
+          response.end(JSON.stringify({
+            [triggerWord]: "some value",
+            "other_key": "another value"
+          }));
+        } else {
+          // For other tests - put the trigger as a JSON value
+          response.end(JSON.stringify({
+            "message": triggerWord,
+            "test": "response body"
+          }));
+        }
+      }
+    } catch (err) {
+      response.writeHead(400, { "content-type": "text/plain" });
+      response.end("Invalid query parameters");
+    }
+    return;
+  }
+
   const responseBody = JSON.stringify({
     "service": "http",
     "headers": request.headers

@@ -64,6 +64,9 @@
               },
               {
                 "address": "server.request.body"
+              },
+              {
+                "address": "server.response.body"
               }
             ],
             "regex": "^block_default$"
@@ -226,6 +229,30 @@
               }
             ],
             "regex": "^block me$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "on_match": [
+        "block_501"
+      ]
+    },
+    {
+      "id": "block_response_body",
+      "name": "Block based on response body content",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.body"
+              }
+            ],
+            "regex": "block_response_body"
           },
           "operator": "match_regex"
         }

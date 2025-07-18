@@ -11,6 +11,7 @@
 
 #include "../dd.h"
 #include "blocking.h"
+#include "ddwaf_req.h"
 #include "library.h"
 #include "util.h"
 
@@ -26,30 +27,6 @@ namespace datadog::nginx::security {
 
 // the tag used for the buffers we allocate
 static constexpr uintptr_t kBufferTag = 0xD47AD06;
-
-struct DdwafResultFreeFunctor {
-  void operator()(ddwaf_result &res) { ddwaf_result_free(&res); }
-};
-struct OwnedDdwafResult
-    : FreeableResource<ddwaf_result, DdwafResultFreeFunctor> {
-  using FreeableResource::FreeableResource;
-};
-
-struct DdwafContextFreeFunctor {
-  void operator()(ddwaf_context ctx) { ddwaf_context_destroy(ctx); }
-};
-struct OwnedDdwafContext
-    : FreeableResource<ddwaf_context, DdwafContextFreeFunctor> {
-  using FreeableResource::FreeableResource;
-  explicit OwnedDdwafContext(std::nullptr_t) : FreeableResource{nullptr} {}
-  OwnedDdwafContext &operator=(ddwaf_context ctx) {
-    if (resource) {
-      ddwaf_context_destroy(resource);
-    }
-    resource = ctx;
-    return *this;
-  }
-};
 
 class Context {
   Context(std::shared_ptr<OwnedDdwafHandle> waf_handle);
@@ -96,7 +73,6 @@ class Context {
                                   ngx_chain_t *chain, dd::Span &span);
   void do_on_main_log_request(ngx_http_request_t &request, dd::Span &span);
 
-  bool has_matches() const noexcept;
   void report_matches(ngx_http_request_t &request, dd::Span &span);
   void report_client_ip(dd::Span &span) const;
 
@@ -158,6 +134,8 @@ class Context {
      * Incoming transitions: SUSPENDED_ON_REQ_WAF → AFTER_ON_REQ_WAF_BLOCK */
     AFTER_ON_REQ_WAF_BLOCK,
 
+    COLLECTING_ON_RESP_DATA,
+
     /* Set on the 1st call of the output body filter, just before trying to
      * submit the WAF final run.
      * Incoming transitions: AFTER_BEGIN_WAF → BEFORE_RUN_WAF_END
@@ -179,6 +157,41 @@ class Context {
     // - AFTER_RUN_WAF_END (WAF finished)
   };
 
+  static ngx_str_t to_ngx_str(stage st) {
+    switch (st) {
+      case stage::DISABLED:
+        return ngx_string("DISABLED");
+      case stage::START:
+        return ngx_string("START");
+      case stage::ENTERED_ON_START:
+        return ngx_string("ENTERED_ON_START");
+      case stage::AFTER_BEGIN_WAF:
+        return ngx_string("AFTER_BEGIN_WAF");
+      case stage::AFTER_BEGIN_WAF_BLOCK:
+        return ngx_string("AFTER_BEGIN_WAF_BLOCK");
+      case stage::COLLECTING_ON_REQ_DATA_PREREAD:
+        return ngx_string("COLLECTING_ON_REQ_DATA_PREREAD");
+      case stage::COLLECTING_ON_REQ_DATA:
+        return ngx_string("COLLECTING_ON_REQ_DATA");
+      case stage::SUSPENDED_ON_REQ_WAF:
+        return ngx_string("SUSPENDED_ON_REQ_WAF");
+      case stage::AFTER_ON_REQ_WAF:
+        return ngx_string("AFTER_ON_REQ_WAF");
+      case stage::AFTER_ON_REQ_WAF_BLOCK:
+        return ngx_string("AFTER_ON_REQ_WAF_BLOCK");
+      case stage::COLLECTING_ON_RESP_DATA:
+        return ngx_string("COLLECTING_ON_RESP_DATA");
+      case stage::PENDING_WAF_END:
+        return ngx_string("PENDING_WAF_END");
+      case stage::WAF_END_BLOCK_COMMIT:
+        return ngx_string("WAF_END_BLOCK_COMMIT");
+      case stage::AFTER_RUN_WAF_END:
+        return ngx_string("AFTER_RUN_WAF_END");
+      default:
+        return ngx_string("UNKNOWN");
+    }
+  }
+
   std::unique_ptr<std::atomic<stage>> stage_;
   [[maybe_unused]] stage transition_to_stage(stage stage) {
     stage_->store(stage, std::memory_order_release);
@@ -188,14 +201,15 @@ class Context {
     return stage_->compare_exchange_strong(from, to, std::memory_order_acq_rel);
   }
 
-  std::shared_ptr<OwnedDdwafHandle> waf_handle_;
-  std::vector<OwnedDdwafResult> results_;
-  OwnedDdwafContext ctx_{nullptr};
+  std::unique_ptr<DdwafContext> waf_ctx_;
   DdwafMemres memres_;
   std::optional<std::string> client_ip_;
 
+  // max request or response body data we parse
   static inline constexpr std::size_t kMaxFilterData = 40 * 1024;
   static inline constexpr std::size_t kDefaultMaxSavedOutputData = 256 * 1024;
+
+  bool waf_send_resp_body_{true};
   std::size_t max_saved_output_data_{kDefaultMaxSavedOutputData};
 
   struct FilterCtx {
