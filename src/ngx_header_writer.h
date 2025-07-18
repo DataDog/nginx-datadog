@@ -32,6 +32,10 @@ class NgxHeaderWriter : public datadog::tracing::DictWriter {
       common::add_header(*pool_, request_->headers_in.headers, key, value);
     }
   }
+
+  void erase(std::string_view key) override {
+    common::remove_header(request_->headers_in.headers, key);
+  }
 };
 
 }  // namespace nginx

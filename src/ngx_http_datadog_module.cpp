@@ -3,9 +3,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <exception>
-#include <iterator>
 #include <memory>
-#include <new>
 #include <string_view>
 #include <utility>
 
@@ -312,6 +310,11 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
     return NGX_ERROR;
   }
 #endif
+
+  if (set_handler(cf->log, core_main_config, NGX_HTTP_PRECONTENT_PHASE,
+                  on_precontent_phase) != NGX_OK) {
+    return NGX_ERROR;
+  }
 
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();

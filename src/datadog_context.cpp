@@ -8,6 +8,7 @@
 #include "datadog/span.h"
 #include "datadog_handler.h"
 #include "dd.h"
+#include "ngx_header_writer.h"
 #include "ngx_http_datadog_module.h"
 #ifdef WITH_WAF
 #include "security/context.h"
@@ -16,13 +17,27 @@
 
 namespace datadog {
 namespace nginx {
+namespace {
+
+#ifdef WITH_WAF
+bool is_apm_tracing_enabled(ngx_http_request_t *request) {
+  auto main_conf = static_cast<datadog_main_conf_t *>(
+      ngx_http_get_module_main_conf(request, ngx_http_datadog_module));
+  if (main_conf == nullptr) return false;
+
+  return main_conf->apm_tracing_enabled;
+}
+#endif
+
+}  // namespace
 
 DatadogContext::DatadogContext(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
                                datadog_loc_conf_t *loc_conf)
 #ifdef WITH_WAF
     : sec_ctx_{security::Context::maybe_create(
-          *loc_conf, security::Library::max_saved_output_data())}
+          security::Library::max_saved_output_data(),
+          is_apm_tracing_enabled(request))}
 #endif
 {
   if (loc_conf->enable_tracing) {
@@ -322,6 +337,28 @@ void destroy_datadog_context(ngx_http_request_t *request) noexcept {
   delete static_cast<DatadogContext *>(cleanup->data);
   cleanup->data = nullptr;
   ngx_http_set_ctx(request, nullptr, ngx_http_datadog_module);
+}
+
+ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t *request) {
+  // inject headers in the precontent phase into the request headers
+  // These headers will be copied by ngx_http_proxy_create_request on the
+  // content phase into the outgoing request headers (probably)
+  RequestTracing &trace = single_trace();
+  dd::Span &span = trace.active_span();
+  span.set_tag("span.kind", "client");
+
+#ifdef WITH_WAF
+  if (auto sec_ctx = get_security_context()) {
+    if (sec_ctx->has_matches()) {
+      span.set_source(datadog::tracing::Source::appsec);
+    }
+  }
+#endif
+
+  NgxHeaderWriter writer(request);
+  span.inject(writer);
+
+  return NGX_DECLINED;
 }
 
 }  // namespace nginx
