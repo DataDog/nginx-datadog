@@ -11,6 +11,7 @@
 
 #include "../dd.h"
 #include "blocking.h"
+#include "ddwaf_req.h"
 #include "library.h"
 #include "util.h"
 
@@ -26,30 +27,6 @@ namespace datadog::nginx::security {
 
 // the tag used for the buffers we allocate
 static constexpr uintptr_t kBufferTag = 0xD47AD06;
-
-struct DdwafResultFreeFunctor {
-  void operator()(ddwaf_result &res) { ddwaf_result_free(&res); }
-};
-struct OwnedDdwafResult
-    : FreeableResource<ddwaf_result, DdwafResultFreeFunctor> {
-  using FreeableResource::FreeableResource;
-};
-
-struct DdwafContextFreeFunctor {
-  void operator()(ddwaf_context ctx) { ddwaf_context_destroy(ctx); }
-};
-struct OwnedDdwafContext
-    : FreeableResource<ddwaf_context, DdwafContextFreeFunctor> {
-  using FreeableResource::FreeableResource;
-  explicit OwnedDdwafContext(std::nullptr_t) : FreeableResource{nullptr} {}
-  OwnedDdwafContext &operator=(ddwaf_context ctx) {
-    if (resource) {
-      ddwaf_context_destroy(resource);
-    }
-    resource = ctx;
-    return *this;
-  }
-};
 
 class Context {
   Context(std::shared_ptr<OwnedDdwafHandle> waf_handle,
@@ -102,6 +79,70 @@ class Context {
   void report_matches(ngx_http_request_t &request, dd::Span &span);
   void report_client_ip(dd::Span &span) const;
 
+  /*
+    Initial path:
+    ┌───────┐   on_request_start   ┌──────────────────┐  1st WAF task   ┌─────────────────┐
+    │ START │ ───────────────────► │ ENTERED_ON_START │ ──────────────► │ AFTER_BEGIN_WAF │
+    └───────┘                      └──────────────────┘                 └───────┬───┬─────┘
+                                             │                                  │   │
+                                (no waf_pool)│                                  │   └──────────► To req/resp body proc
+                                             ▼                                  │
+                                         ┌──────────┐                           │(WAF blocked)
+                                         │ DISABLED │                           │
+                                         └──────────┘                           ▼
+                                                                  ┌───────────────────────┐
+                                                                  │ AFTER_BEGIN_WAF_BLOCK │ (Terminal)
+                                                                  └───────────────────────┘
+
+    Request Body Processing (from AFTER_BEGIN_WAF):
+    ┌─────────────────┐
+    │ AFTER_BEGIN_WAF │ ─────► (no parseable) To Response Processing
+    └──┬────┬─────────┘
+       |    |
+       |    |   ┌────────────────────────────────┐
+       |    └ ► │ COLLECTING_ON_REQ_DATA_PREREAD │
+       |        └────────┬───────────────────────┘
+       |                 |
+       ▼                 ▼
+    ┌────────────────────────┐
+    │ COLLECTING_ON_REQ_DATA │
+    └───┬─────┬──────────────┘
+        |     │              │ (enough/no more data)
+        |     |              ▼
+        |     │  ┌──────────────────────┐
+        |     └─►│ SUSPENDED_ON_REQ_WAF │
+        |        └──────────────────────┘
+        |                │(no block)  │ (blocked)
+        |                │            ▼
+        | (no data/      │    ┌────────────────────────┐
+        |  failed waf    |    | AFTER_ON_REQ_WAF_BLOCK │ (Terminal)
+        |  submission)   |    └────────────────────────┘
+        |                │
+        |                ▼
+        |        ┌──────────────────┐
+        └──────► │ AFTER_ON_REQ_WAF │ ───► To Response Processing
+                 └──────────────────┘
+
+    Response Processing (from AFTER_BEGIN_WAF or AFTER_ON_REQ_WAF):
+    (header filter)
+            │                       ┌─────────────────────────┐
+            ├─(needs resp body)───► │ COLLECTING_ON_RESP_DATA │
+            │                       └─────────┬───────────────┘
+            │                                 │ (body filter: enough data)
+            │                                 ▼
+            |                         ┌─────────────────┐
+            └─(no resp body needed)─► │ PENDING_WAF_END │
+                                      └───────┬─────────┘
+                                              │
+                         ┌────────────────────┴──────────────────┐
+                         │ (final WAF, no block)                 │ (final WAF, block)
+                         ▼                                       ▼
+                ┌───────────────────┐                 ┌──────────────────────┐
+                │ AFTER_RUN_WAF_END │ (Terminal)      │ WAF_END_BLOCK_COMMIT │
+                └───────────────────┘                 └──────────┬───────────┘
+                         ▲                                       │
+                         └── ( block response sent)──────────────┘
+  */
   enum class stage {
     /* Set on on_request_start (NGX_HTTP_ACCESS_PHASE) if there's no thread
      * pool mapped for the request.
@@ -160,26 +201,98 @@ class Context {
      * Incoming transitions: SUSPENDED_ON_REQ_WAF → AFTER_ON_REQ_WAF_BLOCK */
     AFTER_ON_REQ_WAF_BLOCK,
 
-    /* Set on the 1st call of the output body filter, just before trying to
-     * submit the WAF final run.
+    /* Set on the header filter, if we need to collect response body data
+     * before doing the final WAF run.
+     * Incoming transitions: AFTER_BEGIN_WAF → COLLECTIING_ON_RESP_DATA
+     *                       AFTER_ON_REQ_WAF → COLLECTING_ON_RESP_DATA */
+    COLLECTING_ON_RESP_DATA,
+
+    /* Set on the header filter, if we don't need to collect the body response,
+     * or on the body filter, once we have enough data.
      * Incoming transitions: AFTER_BEGIN_WAF → BEFORE_RUN_WAF_END
-     *                       AFTER_ON_REQ_WAF → BEFORE_RUN_WAF_END */
+     *                       AFTER_ON_REQ_WAF → BEFORE_RUN_WAF_END
+     *                       COLLECTING_ON_RESP_DATA → BEFORE_RUN_WAF_END */
     PENDING_WAF_END,
 
+    /* Set on the main thread, on the completion handler of the final waf run
+     * task.
+     * Incoming transitions: PENDING_WAF_END → WAF_END_BLOCK_COMMIT */
     WAF_END_BLOCK_COMMIT,
 
-    /* Set on the thread of the final WAF run, after the WAF has run, or
-     * directly on the main thread, if we could not submit the WAF final task.
-     * Incoming transitions: PENDING_WAF_END → AFTER_RUN_WAF_END */
+    /* Set on the completion handler of the final WAF run, after the WAF has
+     * run, in exceptional circumstances, in the header filter (downstream
+     * filter failed), in the body filter, after committing the block response,
+     * or on the completion handler of the final waf run task, if we're not
+     * to block.
+     * Incoming transitions: PENDING_WAF_END → AFTER_RUN_WAF_END
+     *                       WAF_END_BLOCK_COMMIT → AFTER_RUN_WAF_END
+     *                       AFTER_BEGIN_WAF → AFTER_RUN_WAF_END (rare)
+     *                       AFTER_ON_REQ_WAF → AFTER_RUN_WAF_END (rare) */
     AFTER_RUN_WAF_END,
 
     // possible final states:
     // - DISABLED
     // - AFTER_BEGIN_WAF_BLOCK (blocked on 1st WAF run)
     // - AFTER_ON_REQ_WAF_BLOCK (blocked on req body WAF run)
-    // - BEFORE_RUN_WAF_END (submission of last WAF run failed)
     // - AFTER_RUN_WAF_END (WAF finished)
   };
+
+  static ngx_str_t *to_ngx_str(stage st) {
+    switch (st) {
+      case stage::DISABLED:
+        static ngx_str_t disabled = ngx_string("DISABLED");
+        return &disabled;
+      case stage::START:
+        static ngx_str_t start = ngx_string("START");
+        return &start;
+      case stage::ENTERED_ON_START:
+        static ngx_str_t entered_on_start = ngx_string("ENTERED_ON_START");
+        return &entered_on_start;
+      case stage::AFTER_BEGIN_WAF:
+        static ngx_str_t after_begin_waf = ngx_string("AFTER_BEGIN_WAF");
+        return &after_begin_waf;
+      case stage::AFTER_BEGIN_WAF_BLOCK:
+        static ngx_str_t after_begin_waf_block =
+            ngx_string("AFTER_BEGIN_WAF_BLOCK");
+        return &after_begin_waf_block;
+      case stage::COLLECTING_ON_REQ_DATA_PREREAD:
+        static ngx_str_t collecting_on_req_data_preread =
+            ngx_string("COLLECTING_ON_REQ_DATA_PREREAD");
+        return &collecting_on_req_data_preread;
+      case stage::COLLECTING_ON_REQ_DATA:
+        static ngx_str_t collecting_on_req_data =
+            ngx_string("COLLECTING_ON_REQ_DATA");
+        return &collecting_on_req_data;
+      case stage::SUSPENDED_ON_REQ_WAF:
+        static ngx_str_t suspended_on_req_waf =
+            ngx_string("SUSPENDED_ON_REQ_WAF");
+        return &suspended_on_req_waf;
+      case stage::AFTER_ON_REQ_WAF:
+        static ngx_str_t after_on_req_waf = ngx_string("AFTER_ON_REQ_WAF");
+        return &after_on_req_waf;
+      case stage::AFTER_ON_REQ_WAF_BLOCK:
+        static ngx_str_t after_on_req_waf_block =
+            ngx_string("AFTER_ON_REQ_WAF_BLOCK");
+        return &after_on_req_waf_block;
+      case stage::COLLECTING_ON_RESP_DATA:
+        static ngx_str_t collecting_on_resp_data =
+            ngx_string("COLLECTING_ON_RESP_DATA");
+        return &collecting_on_resp_data;
+      case stage::PENDING_WAF_END:
+        static ngx_str_t pending_waf_end = ngx_string("PENDING_WAF_END");
+        return &pending_waf_end;
+      case stage::WAF_END_BLOCK_COMMIT:
+        static ngx_str_t waf_end_block_commit =
+            ngx_string("WAF_END_BLOCK_COMMIT");
+        return &waf_end_block_commit;
+      case stage::AFTER_RUN_WAF_END:
+        static ngx_str_t after_run_waf_end = ngx_string("AFTER_RUN_WAF_END");
+        return &after_run_waf_end;
+      default:
+        static ngx_str_t unknown = ngx_string("UNKNOWN");
+        return &unknown;
+    }
+  }
 
   std::unique_ptr<std::atomic<stage>> stage_;
   [[maybe_unused]] stage transition_to_stage(stage stage) {
@@ -190,14 +303,15 @@ class Context {
     return stage_->compare_exchange_strong(from, to, std::memory_order_acq_rel);
   }
 
-  std::shared_ptr<OwnedDdwafHandle> waf_handle_;
-  std::vector<OwnedDdwafResult> results_;
-  OwnedDdwafContext ctx_{nullptr};
+  std::unique_ptr<DdwafContext> waf_ctx_;
   DdwafMemres memres_;
   std::optional<std::string> client_ip_;
 
+  // max request or response body data we parse
   static inline constexpr std::size_t kMaxFilterData = 40 * 1024;
   static inline constexpr std::size_t kDefaultMaxSavedOutputData = 256 * 1024;
+
+  bool waf_send_resp_body_{true};
   std::size_t max_saved_output_data_{kDefaultMaxSavedOutputData};
 
   bool apm_tracing_enabled_;
@@ -215,6 +329,7 @@ class Context {
   FilterCtx filter_ctx_{};         // for request body
   FilterCtx header_filter_ctx_{};  // for the header data
   FilterCtx out_filter_ctx_{};     // for response body
+  bool header_only_{false};        // HEAD requests
 
   static ngx_int_t buffer_chain(FilterCtx &filter_ctx, ngx_pool_t &pool,
                                 ngx_chain_t const *in, bool consume) noexcept;

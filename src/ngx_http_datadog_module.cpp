@@ -90,7 +90,7 @@ static auto datadog_commands =
     generate_directives(tracing_directives, module_directives
 #ifdef WITH_WAF
                         ,
-                        datadog::nginx::security::appsec_directives
+                        datadog::nginx::security::kAppsecDirectives
 #endif
 
 #ifdef WITH_RUM

@@ -144,7 +144,7 @@ void remove_final_crlf(std::string &content) {
 
 namespace datadog::nginx::security {
 
-bool parse_multipart(ddwaf_obj &slot, ngx_http_request_t &req,
+bool parse_multipart(ddwaf_obj &slot, const ngx_http_request_t &req,
                      HttpContentType &ct, const ngx_chain_t &chain,
                      DdwafMemres &memres) {
   if (ct.boundary.size() == 0) {

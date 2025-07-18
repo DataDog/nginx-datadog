@@ -43,6 +43,11 @@ class TestSecAddresses(case.TestCase):
         self.assertEqual(status, 200)
         return self.do_request_common()
 
+    def do_response_body(self, endpoint):
+        status, headers, body = self.orch.send_nginx_http_request(endpoint, 80)
+        self.assertEqual(status, 200)
+        return self.do_request_common()
+
     def do_response_code(self, endpoint, expected_code):
         status, _, _ = self.orch.send_nginx_http_request(endpoint, 80)
         self.assertEqual(status, expected_code)
@@ -601,3 +606,34 @@ class TestSecAddresses(case.TestCase):
             self.fail("Unexpected appsec report found in trace")
         self.assertEqual(
             found_span.get("meta", {}).get("http.status_code"), "101")
+
+    def test_response_body_text_trigger(self):
+        """Test that response body text triggers WAF rule."""
+        result = self.do_response_body(
+            '/http/response_body_test/?trigger=res_bod_tri&format=text')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'This response contains the response_body_trigger keyword')
+
+    def test_response_body_json_key(self):
+        """Test that response body JSON keys trigger WAF rule."""
+        result = self.do_response_body(
+            '/http/response_body_test/?trigger=mat_key')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]
+            ['key_path'], ['matched key'])
+
+    def test_response_body_json_value(self):
+        """Test that response body JSON values trigger WAF rule."""
+        result = self.do_response_body(
+            '/http/response_body_test/?trigger=mat_val')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_response_body_large_content(self):
+        """Test that we don't break long responses"""
+        status, _, body = self.orch.send_nginx_http_request(
+            '/http/repeat/?card=1000&num_bouts=2&delay=100', 80)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body), 26000)
