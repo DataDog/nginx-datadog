@@ -186,4 +186,35 @@ inline ngx_str_t ngx_stringv(std::string_view sv) noexcept {
           const_cast<u_char *>(reinterpret_cast<const u_char *>(sv.data()))};
 }
 
+namespace chain {
+inline std::size_t length(ngx_chain_t const *ch) {
+  std::size_t len = 0;
+  for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
+    len++;
+  }
+  return len;
+}
+inline std::size_t size(ngx_chain_t const *ch) {
+  std::size_t size = 0;
+  for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
+    size += ngx_buf_size(cl->buf);
+  }
+  return size;
+}
+inline std::size_t has_special(ngx_chain_t const *ch) {
+  for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
+    return ngx_buf_special(cl->buf);
+  }
+  return false;
+}
+inline std::size_t has_last(ngx_chain_t const *ch) {
+  for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
+    if (cl->buf->last) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace chain
+
 }  // namespace datadog::nginx::security

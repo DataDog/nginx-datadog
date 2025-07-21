@@ -16,5 +16,6 @@ ddwaf_object *collect_request_data(const ngx_http_request_t &request,
                                    const std::optional<std::string> &client_ip,
                                    DdwafMemres &memres);
 ddwaf_object *collect_response_data(const ngx_http_request_t &request,
-                                    DdwafMemres &memres);
+                                    ngx_chain_t *body_chain,
+                                    std::size_t body_size, DdwafMemres &memres);
 }  // namespace datadog::nginx::security

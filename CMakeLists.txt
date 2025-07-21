@@ -173,6 +173,7 @@ if(NGINX_DATADOG_ASM_ENABLED)
     src/security/directives.cpp
     src/security/context.cpp
     src/security/ddwaf_obj.cpp
+    src/security/ddwaf_req.cpp
     src/security/decode.cpp
     src/security/header_tags.cpp
     src/security/library.cpp
