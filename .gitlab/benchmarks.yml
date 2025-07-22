@@ -7,6 +7,7 @@ stages:
 include:
  project: 'DataDog/benchmarking-platform-tools'
  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+ ref: igoragoli/notify-on-check-slo-breaches-failures
 
 variables:
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
@@ -43,9 +44,9 @@ build-nginx-module:
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
+    - cp .musl-build/ngx_http_datadog_module.so /usr/lib/nginx/modules/ngx_http_datadog_module.so
+    - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     - echo "Pretending to run benchmarks"
-    # - cp .musl-build/ngx_http_datadog_module.so /usr/lib/nginx/modules/ngx_http_datadog_module.so
-    # - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
     # - bp-runner bp-runner.yml --debug
   artifacts:
     name: "artifacts"
