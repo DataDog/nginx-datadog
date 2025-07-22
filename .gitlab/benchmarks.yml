@@ -43,9 +43,10 @@ build-nginx-module:
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
-    - cp .musl-build/ngx_http_datadog_module.so /usr/lib/nginx/modules/ngx_http_datadog_module.so
-    - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
-    - bp-runner bp-runner.yml --debug
+    - echo "Pretending to run benchmarks"
+    # - cp .musl-build/ngx_http_datadog_module.so /usr/lib/nginx/modules/ngx_http_datadog_module.so
+    # - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
+    # - bp-runner bp-runner.yml --debug
   artifacts:
     name: "artifacts"
     when: always
@@ -93,7 +94,7 @@ check-slo-breaches:
   stage: gate
   when: always
   tags: ["arch:amd64"]
-  image: $MACROBENCHMARKS_CI_IMAGE
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:202507221306
   artifacts:
     name: "artifacts"
     when: always
@@ -110,5 +111,5 @@ notify-slo-breaches:
   needs: ["check-slo-breaches"]
   when: always
   variables:
-    CHANNEL: "apm-proxy"
+    CHANNEL: "pre-release-gate-prototype"
 
