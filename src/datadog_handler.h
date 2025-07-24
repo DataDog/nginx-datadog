@@ -30,5 +30,7 @@ ngx_int_t request_body_filter(ngx_http_request_t *r,
 ngx_int_t on_output_body_filter(ngx_http_request_t *r,
                                 ngx_chain_t *chain) noexcept;
 
+ngx_int_t on_precontent_phase(ngx_http_request_t *request) noexcept;
+
 }  // namespace nginx
 }  // namespace datadog

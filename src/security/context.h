@@ -52,13 +52,14 @@ struct OwnedDdwafContext
 };
 
 class Context {
-  Context(std::shared_ptr<OwnedDdwafHandle> waf_handle);
+  Context(std::shared_ptr<OwnedDdwafHandle> waf_handle,
+          bool apm_tracing_enabled);
 
  public:
   // returns a new context or an empty unique_ptr if the waf is not active
   static std::unique_ptr<Context> maybe_create(
-      datadog_loc_conf_t &loc_conf,
-      std::optional<std::size_t> max_saved_output_data);
+      std::optional<std::size_t> max_saved_output_data,
+      bool apm_tracing_enabled);
 
   ngx_int_t request_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
                                 dd::Span &span) noexcept;
@@ -87,6 +88,8 @@ class Context {
   std::optional<BlockSpecification> run_waf_end(ngx_http_request_t &request,
                                                 dd::Span &span);
 
+  bool has_matches() const noexcept;
+
  private:
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
   ngx_int_t do_request_body_filter(ngx_http_request_t &request,
@@ -96,7 +99,6 @@ class Context {
                                   ngx_chain_t *chain, dd::Span &span);
   void do_on_main_log_request(ngx_http_request_t &request, dd::Span &span);
 
-  bool has_matches() const noexcept;
   void report_matches(ngx_http_request_t &request, dd::Span &span);
   void report_client_ip(dd::Span &span) const;
 
@@ -197,6 +199,8 @@ class Context {
   static inline constexpr std::size_t kMaxFilterData = 40 * 1024;
   static inline constexpr std::size_t kDefaultMaxSavedOutputData = 256 * 1024;
   std::size_t max_saved_output_data_{kDefaultMaxSavedOutputData};
+
+  bool apm_tracing_enabled_;
 
   struct FilterCtx {
     ngx_chain_t *out;  // the buffered request or response body

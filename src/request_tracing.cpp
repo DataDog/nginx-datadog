@@ -1,7 +1,6 @@
 #include "request_tracing.h"
 
 #include <datadog/dict_writer.h>
-#include <datadog/injection_options.h>
 #include <datadog/span.h>
 #include <datadog/span_config.h>
 #include <datadog/trace_segment.h>
@@ -19,7 +18,6 @@
 #include "dd.h"
 #include "global_tracer.h"
 #include "ngx_header_reader.h"
-#include "ngx_header_writer.h"
 #include "ngx_http_datadog_module.h"
 #include "string_util.h"
 #include "tracing_library.h"
@@ -240,12 +238,6 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
-
-  // Inject the active span
-  NgxHeaderWriter writer(request_);
-  auto &span = active_span();
-  span.set_tag("span.kind", "client");
-  span.inject(writer);
 }
 
 void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
@@ -275,12 +267,6 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   // We care about sampling rules for the request span only, because it's the
   // only span that could be the root span.
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
-
-  // Inject the active span
-  NgxHeaderWriter writer(request_);
-  auto &span = active_span();
-  span.set_tag("span.kind", "client");
-  span.inject(writer);
 }
 
 dd::Span &RequestTracing::active_span() {

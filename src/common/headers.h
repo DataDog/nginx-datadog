@@ -50,4 +50,20 @@ ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key);
 bool add_header(ngx_pool_t &pool, ngx_list_t &headers, std::string_view key,
                 std::string_view value);
 
+/// Deletes a request header with the specified key from a NGINX-request header
+/// list.
+///
+/// @param headers
+///     A reference to an NGINX-style list (`ngx_list_t`) containing
+///     `ngx_table_elt_t` elements, typically representing HTTP headers.
+///
+/// @param key
+///     A string view representing the name of the header to delete.
+///     The comparison is case-insensitive.
+///
+/// @return
+///     `true` if a header with the given key was found and deleted;
+///     `false` if no header with the given key exists in the list.
+bool remove_header(ngx_list_t &headers, std::string_view key);
+
 }  // namespace datadog::common
