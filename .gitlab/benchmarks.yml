@@ -9,7 +9,7 @@ include:
  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
 
 variables:
-  MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
+  MACROBENCHMARKS_CI_IMAGE: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   BUILD_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/images/mirror/b1o7r7e0/nginx_musl_toolchain
   NGINX_VERSION: 1.26.0
 
