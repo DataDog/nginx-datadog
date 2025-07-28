@@ -82,7 +82,8 @@ constexpr ngx_int_t kTaskPostFailureMaskInitialWaf = 1;
 constexpr ngx_int_t kTaskPostFailureMaskReqBodyWaf = 2;
 constexpr ngx_int_t kTaskPostFailureMaskFinalWaf = 4;
 
-Context::Context(std::shared_ptr<OwnedDdwafHandle> handle)
+Context::Context(std::shared_ptr<OwnedDdwafHandle> handle,
+                 bool apm_tracing_enabled)
     : stage_{new std::atomic<stage>{}},
       apm_tracing_enabled_{apm_tracing_enabled} {
   if (!handle) {
@@ -231,7 +232,7 @@ class PolTaskCtx {
     // maybe *this is no longer valid
     alignas(Self) char self_copy_storage[sizeof(Self)];
     std::memcpy(self_copy_storage, this, sizeof(Self));
-    Self* self_copy = reinterpret_cast<Self*>(self_copy_storage);
+    Self *self_copy = reinterpret_cast<Self *>(self_copy_storage);
 
     if (count > 1) {
       // ngx_del_event(connection->read, NGX_READ_EVENT, 0) may've been called
@@ -1557,6 +1558,10 @@ std::optional<BlockSpecification> Context::run_waf_end(
   return block_spec;
 }
 
+bool Context::has_matches() const noexcept {
+  return waf_ctx_ && waf_ctx_->has_matches();
+}
+
 void Context::on_main_log_request(ngx_http_request_t &request,
                                   dd::Span &span) noexcept {
   catch_exceptions("on_log_request"sv, request, [&]() {
@@ -1591,10 +1596,9 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
   if (did_report) {
     trace_segment.override_sampling_priority(2);  // USER-KEEP
     span.set_tag("appsec.event"sv, "true");
-  }
-
-  if (!apm_tracing_enabled_) {
-    span.set_source(tracing::Source::appsec);
+    if (!apm_tracing_enabled_) {
+      span.set_source(tracing::Source::appsec);
+    }
   }
 }
 

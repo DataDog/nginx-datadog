@@ -79,6 +79,7 @@ class Context {
   void report_matches(ngx_http_request_t &request, dd::Span &span);
   void report_client_ip(dd::Span &span) const;
 
+  // clang-format off
   /*
     Initial path:
     ┌───────┐   on_request_start   ┌──────────────────┐  1st WAF task   ┌─────────────────┐
@@ -143,6 +144,7 @@ class Context {
                          ▲                                       │
                          └── ( block response sent)──────────────┘
   */
+  // clang-format on
   enum class stage {
     /* Set on on_request_start (NGX_HTTP_ACCESS_PHASE) if there's no thread
      * pool mapped for the request.
