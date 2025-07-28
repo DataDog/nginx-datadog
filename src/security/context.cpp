@@ -225,6 +225,14 @@ class PolTaskCtx {
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
                   "refcount before decrement upon task %p completion: %d", this,
                   count);
+
+    // create a stack copy to safely call destructor later
+    // the task is allocated on the request pool, so by the end of this method
+    // maybe *this is no longer valid
+    alignas(Self) char self_copy_storage[sizeof(Self)];
+    std::memcpy(self_copy_storage, this, sizeof(Self));
+    Self* self_copy = reinterpret_cast<Self*>(self_copy_storage);
+
     if (count > 1) {
       // ngx_del_event(connection->read, NGX_READ_EVENT, 0) may've been called
       // by ngx_http_block_reading
@@ -248,7 +256,8 @@ class PolTaskCtx {
       ngx_http_finalize_request(&req_, NGX_DONE);
     }
 
-    as_self().~Self();
+    // call destructor on the safe stack copy instead of the original
+    self_copy->~Self();
   }
 
   // define in subclasses

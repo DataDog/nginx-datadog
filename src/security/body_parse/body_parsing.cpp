@@ -195,7 +195,7 @@ bool is_body_resp_parseable(const ngx_http_request_t &req) {
 }
 
 // chain may be longer than size, so size can act as a limit too
-// the limit can't be smaller than the size of the chain though
+// size (size/limit) <= chain size
 bool parse_body_resp(ddwaf_obj &slot, const ngx_http_request_t &req,
                      const ngx_chain_t &chain, std::size_t size,
                      DdwafMemres &memres) {
