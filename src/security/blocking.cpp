@@ -1,5 +1,7 @@
 #include "blocking.h"
 
+#include <ngx_http_core_module.h>
+
 #include <cmath>
 #include <fstream>
 #include <sstream>
@@ -358,8 +360,15 @@ ngx_int_t BlockingService::block(BlockSpecification spec,
   ngx_int_t res = ngx_http_send_header(&req);
   ngx_log_debug1(NGX_LOG_DEBUG, req.connection->log, 0,
                  "block(): status %d returned by ngx_http_send_header", res);
-  if (res != NGX_OK || req.header_only) {
+  if (res != NGX_OK) {
     return res;
+  }
+
+  if (req.header_only) {
+    ngx_log_debug(NGX_LOG_DEBUG, req.connection->log, 0,
+                  "block(): header_only is set, calling ngx_http_output_filter "
+                  "with NULL chain");
+    return ngx_http_output_filter(&req, NULL);
   }
 
   ngx_buf_t *b = static_cast<decltype(b)>(ngx_calloc_buf(req.pool));

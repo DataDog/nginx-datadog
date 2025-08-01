@@ -369,6 +369,11 @@ def curl(url, headers, stderr=None, method="GET", body=None, http_version=1):
         # read data from stdin
         body_args = ["--data-binary", "@-"]
 
+    if method == "HEAD":
+        method_args = ["--head"]
+    else:
+        method_args = [f"-X{method}"]
+
     # "-T" means "don't allocate a TTY".  This prevents `jq` from outputting in
     # color.
     command = docker_compose_command(
@@ -377,7 +382,7 @@ def curl(url, headers, stderr=None, method="GET", body=None, http_version=1):
         "--",
         "client",
         "curljson.sh",
-        f"-X{method}",
+        *method_args,
         *header_args(),
         "-k",
         version_arg,

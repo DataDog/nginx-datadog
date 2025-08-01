@@ -141,6 +141,13 @@ struct datadog_main_conf_t {
   // before we stall the output filter chain with busy buffers
   std::size_t appsec_max_saved_output_data{NGX_CONF_UNSET_SIZE};
 
+  // (only nginx configuration: datadog_appsec_test_task_post_failure_mask)
+  // For testing: bitmap to simulate ngx_thread_task_post failures
+  // Bit 0: initial WAF task (Pol1stWafCtx)
+  // Bit 1: request body WAF task (PolReqBodyWafCtx)
+  // Bit 2: final WAF task (PolFinalWafCtx)
+  ngx_int_t appsec_test_task_post_failure_mask{NGX_CONF_UNSET};
+
   // TODO: missing settings and their functionality
   // DD_TRACE_CLIENT_IP_RESOLVER_ENABLED (whether to collect headers and run the
   // client ip resolution. Also requires AppSec to be enabled or
