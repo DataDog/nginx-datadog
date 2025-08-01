@@ -108,8 +108,9 @@ check-slo-breaches:
     - touch ./platform/artifacts/fail-on-breach-ci-job-id.txt
     - echo "$CI_JOB_ID" > ./platform/artifacts/fail-on-breach-ci-job-id.txt
     - echo "true" > ./platform/artifacts/threshold_check_completed
+    - echo "true" > ./platform/artifacts/threshold_datadog_metrics_submission_failed
     # - echo "true" > ./platform/artifacts/threshold_breach_detected
-    - echo "true" > ./platform/artifacts/threshold_warning_detected
+    # - echo "true" > ./platform/artifacts/threshold_warning_detected
 
 notify-slo-breaches:
   extends: .notify-slo-breaches
