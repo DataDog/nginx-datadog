@@ -7,7 +7,6 @@ stages:
 include:
  project: 'DataDog/benchmarking-platform-tools'
  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
- ref: igoragoli/notify-on-check-slo-breaches-failures
 
 variables:
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
