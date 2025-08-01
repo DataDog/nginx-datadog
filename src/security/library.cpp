@@ -1,6 +1,7 @@
 #include "library.h"
 
 #include <atomic>
+#include <charconv>
 #include <string>
 
 extern "C" {
@@ -21,6 +22,7 @@ extern "C" {
 
 #include "blocking.h"
 #include "ddwaf_obj.h"
+#include "stats.h"
 #include "util.h"
 
 extern "C" {
@@ -432,6 +434,11 @@ class FinalizedConfigSettings {
     return appsec_max_saved_output_data_;
   }
 
+  std::optional<std::pair<std::string_view, uint16_t>> get_stats_host_port()
+      const {
+    return stats_host_port_;
+  }
+
  private:
   // NOLINTNEXTLINE(readability-identifier-naming)
   using ev_t = std::vector<environment_variable_t>;
@@ -472,6 +479,7 @@ class FinalizedConfigSettings {
   std::string obfuscation_key_regex_;
   std::string obfuscation_value_regex_;
   std::optional<std::size_t> appsec_max_saved_output_data_;
+  std::optional<std::pair<std::string, uint16_t>> stats_host_port_;
 };
 
 FinalizedConfigSettings::FinalizedConfigSettings(
@@ -553,6 +561,28 @@ FinalizedConfigSettings::FinalizedConfigSettings(
   if (ngx_conf.appsec_max_saved_output_data != NGX_CONF_UNSET_SIZE) {
     appsec_max_saved_output_data_.emplace(
         ngx_conf.appsec_max_saved_output_data);
+  }
+
+  if (ngx_conf.appsec_stats_host_port.len > 0) {
+    std::string_view host_port =
+        to_string_view(ngx_conf.appsec_stats_host_port);
+    size_t colon_pos = host_port.find(':');
+    if (colon_pos != std::string_view::npos) {
+      std::string_view host = host_port.substr(0, colon_pos);
+      std::string_view port_str = host_port.substr(colon_pos + 1);
+      uint16_t port;
+      auto *port_last = port_str.data() + port_str.size();
+      auto [ptr, ec] = std::from_chars(port_str.data(), port_last, port);
+      if (ec == std::errc{} && ptr == port_last) {
+        stats_host_port_ = std::make_pair(host, port);
+      } else {
+        ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,
+                      "Invalid port number in appsec_stats_host_port: %V",
+                      ngx_conf.appsec_stats_host_port);
+      }
+    } else {
+      stats_host_port_ = std::make_pair(host_port, 8125);
+    }
   }
 }
 
@@ -674,6 +704,10 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
     ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                   "AppSec loaded %uz rules from file %V", num_loaded_rules,
                   &source);
+  }
+
+  if (auto stats_host_port = conf.get_stats_host_port()) {
+    Stats::start(stats_host_port->first, stats_host_port->second);
   }
 
   BlockingService::initialize(conf.blocked_template_html(),

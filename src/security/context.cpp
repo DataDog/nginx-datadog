@@ -18,6 +18,7 @@
 #include "ddwaf_obj.h"
 #include "header_tags.h"
 #include "library.h"
+#include "stats.h"
 #include "util.h"
 
 extern "C" {
@@ -93,7 +94,10 @@ Context::Context(std::shared_ptr<OwnedDdwafHandle> handle,
   waf_ctx_ = std::make_unique<DdwafContext>(handle);
 
   stage_->store(stage::START, std::memory_order_relaxed);
+  Stats::context_started();
 }
+
+Context::~Context() { Stats::context_closed(); }
 
 std::unique_ptr<Context> Context::maybe_create(
     std::optional<std::size_t> max_saved_output_data,
@@ -129,6 +133,7 @@ class PolTaskCtx {
     if (!task) {
       throw std::runtime_error{"failed to allocate task"};
     }
+    Stats::task_created();
 
     // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
     auto *task_ctx =
@@ -139,6 +144,8 @@ class PolTaskCtx {
 
     return *task_ctx;
   }
+
+  ~PolTaskCtx() { Stats::task_destructed(); }
 
   // Takes an rvalue reference because once submitted the caller should no
   // longer interact with the task.
@@ -162,12 +169,16 @@ class PolTaskCtx {
       ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
                     "failed to post task %p", &get_task());
 
+      Stats::task_submission_failed();
+
       req_.main->count--;
       as_self().restore_handlers();
 
       as_self().~Self();
       return false;
     }
+
+    Stats::task_submitted();
 
     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                    "task %p submitted. Request refcount: %d", &get_task(),
@@ -217,6 +228,7 @@ class PolTaskCtx {
 
   // runs on the main thread
   static void completion_handler(ngx_event_t *evt) noexcept {
+    Stats::task_completed();
     auto *self = static_cast<Self *>(evt->data);
     self->completion_handler_impl();
   }

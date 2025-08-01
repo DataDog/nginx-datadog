@@ -50,6 +50,9 @@ class Library {
 
   static std::optional<std::size_t> max_saved_output_data();
 
+  static void start_stats(std::string_view host, uint16_t port);
+  static void stop_stats();
+
  protected:
   static std::atomic<bool> active_;                                  // NOLINT
   static std::unique_ptr<FinalizedConfigSettings> config_settings_;  // NOLINT
