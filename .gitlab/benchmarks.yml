@@ -1,6 +1,6 @@
 stages:
-  - build
-  - run-benchmarks
+  # - build
+  # - run-benchmarks
   - gate
   - notify
 
@@ -103,8 +103,10 @@ check-slo-breaches:
       - platform/artifacts/
     expire_in: 3 months
   script:
-    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin cpp/nginx)
-    - bp-runner bp-runner.fail-on-breach.yml
+    - echo "Pretending to fail a benchmarks"
+    - echo "true" > platform/artifacts/threshold_check_completed
+    - echo "true" > platform/artifacts/threshold_breach_detected
+    - echo "true" > platform/artifacts/threshold_warning_detected
 
 notify-slo-breaches:
   extends: .notify-slo-breaches
