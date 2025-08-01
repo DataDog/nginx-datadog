@@ -95,7 +95,7 @@ check-slo-breaches:
   stage: gate
   when: always
   tags: ["arch:amd64"]
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:202507221306
+  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:202508011234
   artifacts:
     name: "artifacts"
     when: always
