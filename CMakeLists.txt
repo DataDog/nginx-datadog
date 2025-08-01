@@ -177,7 +177,8 @@ if(NGINX_DATADOG_ASM_ENABLED)
     src/security/decode.cpp
     src/security/header_tags.cpp
     src/security/library.cpp
-    src/security/waf_remote_cfg.cpp)
+    src/security/waf_remote_cfg.cpp
+    src/security/stats.cpp)
   target_compile_definitions(ngx_http_datadog_objs PUBLIC WITH_WAF)
 endif()
 

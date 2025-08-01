@@ -33,6 +33,8 @@ class Context {
           bool apm_tracing_enabled);
 
  public:
+  ~Context();
+
   // returns a new context or an empty unique_ptr if the waf is not active
   static std::unique_ptr<Context> maybe_create(
       std::optional<std::size_t> max_saved_output_data,
