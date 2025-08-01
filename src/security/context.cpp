@@ -121,7 +121,7 @@ class PolTaskCtx {
 
  public:
   // the returned reference is request pool allocated and must have its
-  // destructor explicitly called if not submitted
+  // destructor explicitly called if not submitted (submit() is not called)
   template <typename... Args>
   static Self &create(ngx_http_request_t &req, Context &ctx, dd::Span &span,
                       Args &&...extra_args) {
@@ -140,6 +140,8 @@ class PolTaskCtx {
     return *task_ctx;
   }
 
+  // Takes an rvalue reference because once submitted the caller should no
+  // longer interact with the task.
   bool submit(ngx_thread_pool_t *pool) &&noexcept {
     as_self().replace_handlers();
 
@@ -620,7 +622,7 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
                     "suppressing req.header_only");
       req.header_only = 0;
     }
-    req.header_sent = 1;  // skip/alert when attempting to sent headers
+    req.header_sent = 1;  // skip/alert when attempting to send headers
 
     // call super implementation
     bool submitted =
@@ -1275,8 +1277,8 @@ ngx_int_t Context::do_header_filter(ngx_http_request_t &request,
                 "and invoking the next header filter");
 
   if (request.header_only) {
-    header_only_ =
-        true;  // save it; we'll change req.header_only upon waf task submission
+    // save it; we'll change req.header_only upon waf task submission
+    header_only_ = true;
   }
 
   // first, buffer the header data
@@ -1306,10 +1308,9 @@ ngx_int_t Context::do_header_filter(ngx_http_request_t &request,
   if (!waf_send_resp_body_) {
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
                   "waf header filter: downstream filters returned NGX_OK; "
-                  "attempting to submit WAF task (waf_send_resp_body=%d, "
+                  "attempting to submit WAF task (waf_send_resp_body=false, "
                   "header_only=%d, content_length=%d)",
-                  waf_send_resp_body_, request.header_only,
-                  request.headers_out.content_length_n);
+                  request.header_only, request.headers_out.content_length_n);
 
     PolFinalWafCtx &task_ctx = PolFinalWafCtx::create(request, *this, span);
     auto *conf = static_cast<datadog_loc_conf_t *>(
@@ -1587,8 +1588,14 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
 
   bool did_report = waf_ctx_->report_matches([&](std::string_view json) {
     ngx_str_t json_ns{dnsec::ngx_stringv(json)};
-    ngx_log_error(NGX_LOG_INFO, request.connection->log, 0, "appsec event: %V",
-                  &json_ns);
+
+    if (request.connection->log->log_level & NGX_LOG_DEBUG_HTTP) {
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                    "reporting an appsec event: %V", &json_ns);
+    } else {
+      ngx_log_error(NGX_LOG_INFO, request.connection->log, 0,
+                    "reporting an appsec event", &json_ns);
+    }
 
     span.set_tag("_dd.appsec.json"sv, json);
   });

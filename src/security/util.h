@@ -203,7 +203,9 @@ inline std::size_t size(ngx_chain_t const *ch) {
 }
 inline std::size_t has_special(ngx_chain_t const *ch) {
   for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
-    return ngx_buf_special(cl->buf);
+    if (ngx_buf_special(cl->buf)) {
+      return true;
+    }
   }
   return false;
 }
