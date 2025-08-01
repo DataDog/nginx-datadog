@@ -104,6 +104,7 @@ check-slo-breaches:
     expire_in: 3 months
   script:
     - echo "Pretending to fail a benchmarks"
+    - touch platform/artifacts/fail-on-breach-ci-job-id.txt
     - echo "$CI_JOB_ID" > platform/artifacts/fail-on-breach-ci-job-id.txt
     - echo "true" > platform/artifacts/threshold_check_completed
     - echo "true" > platform/artifacts/threshold_breach_detected
