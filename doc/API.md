@@ -61,7 +61,8 @@ May overwrite `DD_SERVICE` environment variable.
 - **default**: (no value)
 - **context**: `http`, `server`, `location`
 
-Set the service version to associate with each span produce by the `http` or `server` block.
+Set the name of the environment within which nginx is running. Common values
+include `prod`, `dev`, and `staging`.
 May overwrite `DD_ENV` environment variable.
 
 ### `datadog_version`
@@ -69,9 +70,7 @@ May overwrite `DD_ENV` environment variable.
 - **default**: (no value)
 - **context**: `http`, `server`, `location`
 
-Set the name of the environment within which nginx is running. Common values
-include `prod`, `dev`, and `staging`.
-
+Set the service version to associate with each span produce by the `http` or `server` block.
 May overwrite `DD_VERSION` environment variable.
 
 ### `datadog_sample_rate`
