@@ -27,20 +27,35 @@ class MetricsServer:
                 return None
             name, value = name_value[0], int(name_value[1])
             metric_type = parts[1] if len(parts) > 1 else 'g'
-            return {'name': name, 'value': value, 'type': metric_type, 'clock_us': time.monotonic_ns() // 1000}
+
+            pid = None
+            if len(parts) > 2:
+                for part in parts[2:]:
+                    if part.startswith('#'):
+                        tag_pairs = part[1:].split(',')
+                        for tag_pair in tag_pairs:
+                            if ':' in tag_pair:
+                                key, val = tag_pair.split(':', 1)
+                                if key == 'pid':
+                                    pid = val
+                                    break
+
+            return {'name': name, 'value': value, 'type': metric_type, 'pid': pid, 'clock_us': time.monotonic_ns() // 1000}
         except:
             return None
 
     def write_metric(self, metric):
         with self.lock:
-            self.last_values[metric['name']] = metric['value']
+            metric_key = f"{metric['name']}_{metric['pid']}" if metric['pid'] else metric['name']
+            self.last_values[metric_key] = {'value': metric['value'], 'pid': metric['pid']}
             with open(self.csv_file, 'a', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow([
                     metric['clock_us'],
                     metric['name'],
                     metric['value'],
-                    metric['type']
+                    metric['type'],
+                    metric['pid']
                 ])
 
     def log_status(self):
@@ -49,13 +64,13 @@ class MetricsServer:
             with self.lock:
                 if self.last_values:
                     pid_metrics = defaultdict(list)
-                    for metric_name, value in self.last_values.items():
-                        match = re.match(r'(.+)_(\d+)$', metric_name)
-                        if match:
-                            base_name, pid = match.group(1), match.group(2)
-                            pid_metrics[pid].append((base_name, value))
+                    for metric_key, metric_data in self.last_values.items():
+                        if '_' in metric_key and metric_data['pid']:
+                            base_name = metric_key.rsplit('_', 1)[0]
+                            pid = metric_data['pid']
+                            pid_metrics[pid].append((base_name, metric_data['value']))
                         else:
-                            pid_metrics['N/A'].append((metric_name, value))
+                            pid_metrics['N/A'].append((metric_key, metric_data['value'] if isinstance(metric_data, dict) else metric_data))
 
                     print(f"\n[{datetime.datetime.now().strftime('%H:%M:%S')}]", file=sys.stderr)
                     print(f"{'PID':<5} {'Metric':<30} {'Value':<12}", file=sys.stderr)
@@ -76,7 +91,7 @@ class MetricsServer:
 
         with open(self.csv_file, 'w', newline='') as f:
             writer = csv.writer(f)
-            writer.writerow(['timestamp', 'name', 'value', 'type'])
+            writer.writerow(['timestamp', 'name', 'value', 'type', 'pid'])
 
         status_thread = threading.Thread(target=self.log_status, daemon=True)
         status_thread.start()

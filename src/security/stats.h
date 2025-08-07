@@ -3,6 +3,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <string_view>
 #include <thread>
@@ -12,6 +13,8 @@ extern "C" {
 }
 
 namespace datadog::nginx::security {
+
+class MetricSender;
 
 class Stats {
  public:
@@ -61,10 +64,7 @@ class Stats {
   bool do_start(std::string_view host, uint16_t port);
   bool do_stop();
 
-  void reporting_loop();
-
-  int socket_fd_{-1};
-  struct sockaddr_storage server_address_ {};
+  void reporting_loop(std::unique_ptr<MetricSender> sender);
 
   std::thread reporting_thread_;
   std::mutex stop_mutex_;
