@@ -47,8 +47,8 @@ jobs:
         - 'amd64'
         - 'arm64'
         version:
-        - 1.12.4
-        - 1.13.0
+        - 1.12.5
+        - 1.13.1
 - coverage:
     name: Coverage on 1.27.0 with WAF ON
 - test:
@@ -114,8 +114,8 @@ jobs:
         base-image:
         - registry.k8s.io/ingress-nginx/controller
         nginx-version:
-        - 1.13.0
-        - 1.12.4
+        - 1.13.1
+        - 1.12.5
 - system_tests:
     name: Run system tests
     requires:
