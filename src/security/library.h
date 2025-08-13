@@ -8,8 +8,11 @@
 
 #include "../datadog_conf.h"
 #include "ddwaf_obj.h"
+#include "limiter.h"
 
 namespace datadog::nginx::security {
+
+using ApiSecurityLimiter = Limiter<50 /* refreshes per minute */>;
 
 inline constexpr auto kConfigMaxDepth = 25;
 
@@ -50,12 +53,15 @@ class Library {
 
   static std::optional<std::size_t> max_saved_output_data();
 
+  static bool api_security_should_sample() noexcept;
+
   static void start_stats(std::string_view host, uint16_t port);
   static void stop_stats();
 
  protected:
   static std::atomic<bool> active_;                                  // NOLINT
   static std::unique_ptr<FinalizedConfigSettings> config_settings_;  // NOLINT
+  static std::unique_ptr<ApiSecurityLimiter> api_security_limiter_;  // NOLINT
 };
 
 struct DdwafHandleFreeFunctor {

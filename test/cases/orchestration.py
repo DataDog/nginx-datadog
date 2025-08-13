@@ -793,7 +793,7 @@ class Orchestration:
 dir=/tmp
 file="$dir/{file_name}"
 cat >"$file" <<'END_CONFIG'
-error_log stderr notice;
+error_log stderr debug;
 {nginx_conf_text}
 END_CONFIG
 nginx -t -c "$file"
@@ -835,7 +835,7 @@ exit "$rcode"
                 "-T",
                 "--",
                 "nginx",
-                "nginx",  # nginx-debug to show debug messages (+ change error_log)
+                "nginx-debug",  # nginx-debug to show debug messages (+ change error_log)
                 "-g",
                 "pid /run/nginx.pid;",
                 "-c",
@@ -893,7 +893,7 @@ exit "$rcode"
 
         script = f"""
 >{nginx_conf_path} cat <<'END_CONF'
-error_log stderr notice;
+error_log stderr debug;
 {nginx_conf_text}
 END_CONF
 """
@@ -984,7 +984,7 @@ END_CONF
         # Let the caller play with the child process, and when they're done,
         # send SIGQUIT to the child process and wait for it to terminate.
         pid_path = temp_dir + "/nginx.pid"
-        conf_preamble = f'daemon off; pid "{pid_path}"; error_log stderr notice;'
+        conf_preamble = f'daemon off; pid "{pid_path}"; error_log stderr debug;'
         env_args = []
         if extra_env is not None:
             for key, value in extra_env.items():

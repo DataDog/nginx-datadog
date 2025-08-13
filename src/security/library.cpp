@@ -439,6 +439,14 @@ class FinalizedConfigSettings {
     return stats_host_port_;
   }
 
+  bool api_security_enabled() const {
+    return api_security_enabled_ && api_security_proxy_sample_rate_ > 0;
+  }
+
+  ngx_uint_t api_security_proxy_sample_rate() const {
+    return api_security_proxy_sample_rate_;
+  }
+
  private:
   // NOLINTNEXTLINE(readability-identifier-naming)
   using ev_t = std::vector<environment_variable_t>;
@@ -480,6 +488,8 @@ class FinalizedConfigSettings {
   std::string obfuscation_value_regex_;
   std::optional<std::size_t> appsec_max_saved_output_data_;
   std::optional<std::pair<std::string, uint16_t>> stats_host_port_;
+  bool api_security_enabled_;
+  ngx_uint_t api_security_proxy_sample_rate_;
 };
 
 FinalizedConfigSettings::FinalizedConfigSettings(
@@ -584,6 +594,34 @@ FinalizedConfigSettings::FinalizedConfigSettings(
       stats_host_port_ = std::make_pair(host_port, 8125);
     }
   }
+
+  // DD_API_SECURITY_ENABLED
+  if (ngx_conf.api_security_enabled == NGX_CONF_UNSET) {
+    auto maybe_enabled = get_env_bool(evs, "DD_API_SECURITY_ENABLED"sv);
+    api_security_enabled_ = maybe_enabled.value_or(true);
+  } else {
+    api_security_enabled_ = ngx_conf.api_security_enabled == 1;
+  }
+
+  // DD_API_SECURITY_PROXY_SAMPLE_RATE (default: 300)
+  if (ngx_conf.api_security_proxy_sample_rate == NGX_CONF_UNSET) {
+    auto maybe_sample_rate = get_env_unsigned(evs, "DD_API_SECURITY_PROXY_SAMPLE_RATE"sv);
+    api_security_proxy_sample_rate_ = maybe_sample_rate.value_or(300);
+  } else {
+    api_security_proxy_sample_rate_ = ngx_conf.api_security_proxy_sample_rate;
+  }
+
+  // Validation: warn if DD_API_SECURITY_ENABLED is true but DD_API_SECURITY_PROXY_SAMPLE_RATE is 0
+  if (api_security_enabled_ && api_security_proxy_sample_rate_ == 0) {
+    ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
+                  "DD_API_SECURITY_ENABLED is true but DD_API_SECURITY_PROXY_SAMPLE_RATE is 0. "
+                  "API Security will not be enabled.");
+  } else {
+    ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                  "API Security is %s; max samples per minute: %ui",
+                  api_security_enabled_ ? "enabled" : "disabled",
+                  api_security_proxy_sample_rate_);
+  }
 }
 
 std::optional<bool> FinalizedConfigSettings::get_env_bool(
@@ -656,6 +694,7 @@ std::unique_ptr<UpdateableWafInstance> upd_waf_instance{
     new UpdateableWafInstance{}};
 std::atomic<bool> Library::active_{true};
 std::unique_ptr<FinalizedConfigSettings> Library::config_settings_;
+std::unique_ptr<ApiSecurityLimiter> Library::api_security_limiter_;
 
 std::optional<ddwaf_owned_map> Library::initialize_security_library(
     const datadog_main_conf_t &ngx_conf) {
@@ -712,6 +751,20 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
 
   BlockingService::initialize(conf.blocked_template_html(),
                               conf.blocked_template_json());
+
+  if (conf.api_security_enabled()) {
+    ngx_uint_t max_per_min = conf.api_security_proxy_sample_rate();
+    if (max_per_min > std::numeric_limits<std::uint32_t>::max()) {
+      ngx_log_error(
+          NGX_LOG_ERR, ngx_cycle->log, 0,
+          "DD_API_SECURITY_PROXY_SAMPLE_RATE is too large, capping at %" PRIu32,
+          std::numeric_limits<std::uint32_t>::max());
+      max_per_min = std::numeric_limits<std::uint32_t>::max();
+    }
+    api_security_limiter_ = std::make_unique<ApiSecurityLimiter>(max_per_min);
+  } else {
+    api_security_limiter_.reset(nullptr);
+  }
 
   Library::set_active(conf.enable_status() ==
                       FinalizedConfigSettings::enable_status::ENABLED);
@@ -818,10 +871,19 @@ std::vector<std::string_view> Library::environment_variable_names() {
           "DD_TRACE_CLIENT_IP_HEADER"sv,
           "DD_APPSEC_WAF_TIMEOUT"sv,
           "DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP"sv,
-          "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP"sv};
+          "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP"sv,
+          "DD_API_SECURITY_ENABLED"sv,
+          "DD_API_SECURITY_PROXY_SAMPLE_RATE"sv};
 }
 
 std::optional<std::size_t> Library::max_saved_output_data() {
   return config_settings_->get_max_saved_output_data();
 };
+
+bool Library::api_security_should_sample() noexcept {
+  if (!api_security_limiter_) {
+    return false;
+  }
+  return api_security_limiter_->allow();
+}
 }  // namespace datadog::nginx::security

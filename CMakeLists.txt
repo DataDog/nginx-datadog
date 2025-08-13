@@ -82,6 +82,7 @@ add_compile_options(-fno-omit-frame-pointer)
 # Nginx module boilerplate (code within the nginx repository)
 include(./cmake/deps/nginx-module.cmake)
 include(./cmake/deps/rapidjson.cmake)
+include(./cmake/deps/cppcodec.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
@@ -177,8 +178,8 @@ if(NGINX_DATADOG_ASM_ENABLED)
     src/security/decode.cpp
     src/security/header_tags.cpp
     src/security/library.cpp
-    src/security/waf_remote_cfg.cpp
-    src/security/stats.cpp)
+    src/security/stats.cpp
+    src/security/waf_remote_cfg.cpp)
   target_compile_definitions(ngx_http_datadog_objs PUBLIC WITH_WAF)
 endif()
 
@@ -225,6 +226,7 @@ target_link_libraries(ngx_http_datadog_objs PUBLIC
   dd_trace_cpp-static
   nginx_module
   rapidjson
+  cppcodec
 )
 target_link_libraries(ngx_http_datadog_module PRIVATE
   ngx_http_datadog_objs
