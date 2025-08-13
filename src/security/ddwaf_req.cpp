@@ -1,18 +1,27 @@
 #include "ddwaf_req.h"
 
+#include <ngx_cycle.h>
 #include <rapidjson/document.h>
 #include <rapidjson/encodings.h>
 #include <rapidjson/prettywriter.h>
 
 #include <charconv>
+#include <cppcodec/base64_rfc4648.hpp>
+#include <functional>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "blocking.h"
+#include "compress.h"
 #include "ddwaf_obj.h"
-#include "security/blocking.h"
+#include "string_util.h"
+
+extern "C" {
+#include "ngx_log.h"
+}
 
 using namespace std::literals;
 
@@ -22,6 +31,7 @@ namespace dnsec = datadog::nginx::security;
 using dnsec::BlockSpecification;
 using dnsec::ddwaf_map_obj;
 using dnsec::ddwaf_obj;
+using LibddwafOwnedMap = dnsec::libddwaf_owned_ddwaf_obj<ddwaf_map_obj>;
 
 class JsonWriter : public rapidjson::Writer<rapidjson::StringBuffer> {
   using rapidjson::Writer<rapidjson::StringBuffer>::Writer;
@@ -238,6 +248,60 @@ std::optional<BlockSpecification> resolve_block_spec(
 
 namespace datadog::nginx::security {
 
+namespace {
+constexpr int kMaxPlainSchemaAllowed = 260;
+constexpr int kMaxSchemaSize = 25000;
+
+template <typename Func>
+void handle_attribute(ngx_log_t &log, const ddwaf_obj &obj, Func &&f) {
+  ngx_str_t key = to_ngx_str(obj.key());
+
+  if (!obj.key().starts_with("_dd.appsec.s."sv)) {
+    ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                  "ddwaf_req: ignoring attribute %V", &key);
+    return;
+  }
+
+  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, &log, 0,
+                 "ddwaf_req: handling attribute %V", &key);
+
+  rapidjson::StringBuffer buffer;
+  JsonWriter w(buffer);
+  ddwaf_object_to_json(w, obj);
+
+  std::string_view json = {buffer.GetString(), buffer.GetLength()};
+  std::string b64;
+  // compress + base64
+  if (json.size() > kMaxPlainSchemaAllowed) {
+    auto compressed = compress(json);
+    if (!compressed) {
+      ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                    "ddwaf_req: failed to compress attribute %V", &key);
+      return;
+    }
+
+    if (compressed->length() > kMaxSchemaSize * 3 / 4 + 1) {
+      ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                    "ddwaf_req: compressed attribute %V is too large", &key);
+      return;
+    }
+
+    // then we need to base-64 encode it
+    b64 = cppcodec::base64_rfc4648::encode(*compressed);
+    if (b64.size() > kMaxSchemaSize) {
+      ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                    "ddwaf_req: base-64 encoded attribute %V is too large",
+                    key);
+      return;
+    }
+
+    json = b64;
+  }
+
+  std::invoke(std::forward<Func>(f), json);
+}
+}  // namespace
+
 DdwafContext::DdwafContext(std::shared_ptr<OwnedDdwafHandle> &handle)
     : ctx_{nullptr} {
   if (!handle) {
@@ -251,8 +315,9 @@ DdwafContext::DdwafContext(std::shared_ptr<OwnedDdwafHandle> &handle)
   }
 }
 
-DdwafContext::WafRunResult DdwafContext::run(ddwaf_object &persistent_data) {
-  ddwaf_result result;
+DdwafContext::WafRunResult DdwafContext::run(ngx_log_t &log,
+                                             ddwaf_object &persistent_data) {
+  LibddwafOwnedMap result{{}};
   DDWAF_RET_CODE const code =
       ddwaf_run(ctx_.resource, &persistent_data, nullptr, &result,
                 Library::waf_timeout());
@@ -260,16 +325,26 @@ DdwafContext::WafRunResult DdwafContext::run(ddwaf_object &persistent_data) {
   WafRunResult waf_result;
   waf_result.ret_code = code;
 
-  if (code == DDWAF_MATCH) {
-    results_.emplace_back(result);
+  std::optional<ddwaf_map_obj> maybe_attributes =
+      result.get_opt<ddwaf_map_obj>("attributes"sv);
+  if (maybe_attributes) {
+    ddwaf_map_obj &attributes = *maybe_attributes;
+    for (auto &&a : attributes) {
+      handle_attribute(log, a, [&a, &waf_result](std::string_view json) {
+        waf_result.tags.emplace(a.key(), json);
+      });
+    }
+  }
 
-    ddwaf_map_obj actions_arr{result.actions};
-    if (!actions_arr.empty()) {
-      ActionsResult actions_res{actions_arr};
+  if (code == DDWAF_MATCH) {
+    LibddwafOwnedMap &iresult = results_.emplace_back(std::move(result));
+
+    std::optional<ddwaf_map_obj> actions_arr{
+        iresult.get_opt<ddwaf_map_obj>("actions"sv)};
+    if (actions_arr) {
+      ActionsResult actions_res{*actions_arr};
       waf_result.block_spec = resolve_block_spec(actions_res);
     }
-  } else {
-    ddwaf_result_free(&result);
   }
 
   return waf_result;
@@ -287,9 +362,13 @@ bool DdwafContext::report_matches(
   w.ConstLiteralKey("triggers"sv);
 
   w.StartArray();
-  for (auto &&result : results_) {
-    auto events = dnsec::ddwaf_arr_obj{(*result).events};
-    for (auto &&evt : events) {
+  for (LibddwafOwnedMap &result : results_) {
+    std::optional<ddwaf_arr_obj> maybe_events =
+        result.get_opt<ddwaf_arr_obj>("events");
+    if (!maybe_events) {
+      continue;
+    }
+    for (auto &&evt : *maybe_events) {
       ddwaf_object_to_json(w, evt);
     }
   }

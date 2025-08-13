@@ -442,7 +442,8 @@ std::optional<BlockSpecification> Context::run_waf_start(
 
   client_ip_ = std::move(client_ip);
 
-  auto [_, block_spec] = waf_ctx_->run(*data);
+  auto &&log = *req.connection->log;
+  auto [_, block_spec, tags_unused] = waf_ctx_->run(log, *data);
 
   if (block_spec) {
     stage_->store(stage::AFTER_BEGIN_WAF_BLOCK, std::memory_order_release);
@@ -1518,7 +1519,8 @@ std::optional<BlockSpecification> Context::run_waf_req_post(
     return std::nullopt;
   }
 
-  auto [_, block_spec] = waf_ctx_->run(input);
+  auto &&log = *request.connection->log;
+  auto [_, block_spec, tags_unused] = waf_ctx_->run(log, input);
   return block_spec;
 }
 
@@ -1564,10 +1566,19 @@ std::optional<BlockSpecification> Context::run_waf_end(
     body_size = 0;
   }
 
-  ddwaf_object *resp_data =
-      collect_response_data(request, body_chain, body_size, memres_);
+  bool extract_schema = Library::api_security_should_sample();
+  ddwaf_object *resp_data = collect_response_data(
+      request, body_chain, body_size, extract_schema, memres_);
 
-  auto [_, block_spec] = waf_ctx_->run(*resp_data);
+  auto &&log = *request.connection->log;
+  auto [_, block_spec, tags] = waf_ctx_->run(log, *resp_data);
+
+  for (auto &[key, json] : tags) {
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, &log, 0, "Setting tag %s with value %s",
+                  key.c_str(), json.c_str());
+    span.set_tag(key, json);
+  }
+
   return block_spec;
 }
 

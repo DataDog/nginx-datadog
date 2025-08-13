@@ -285,7 +285,11 @@ void Stats::reporting_loop(std::unique_ptr<MetricSender> sender) {
   ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                 "Stats: reporting loop started");
 
+#ifdef __APPLE__
+  pthread_setname_np("appsec-stats");
+#else
   pthread_setname_np(pthread_self(), "appsec-stats");
+#endif
 
   if (!sender || !sender->is_valid()) {
     ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,

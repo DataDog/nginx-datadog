@@ -373,13 +373,13 @@ struct __attribute__((__may_alias__)) libddwaf_owned_ddwaf_obj : T {
   static auto constexpr inline kInvalid =
       ddwaf_object{.type = DDWAF_OBJ_INVALID};
 
-  libddwaf_owned_ddwaf_obj(T const &obj) : T{obj} {}
+  explicit libddwaf_owned_ddwaf_obj(T const &obj) : T{obj} {}
   libddwaf_owned_ddwaf_obj(const libddwaf_owned_ddwaf_obj &) = delete;
   libddwaf_owned_ddwaf_obj &operator=(const libddwaf_owned_ddwaf_obj &) =
       delete;
   libddwaf_owned_ddwaf_obj(libddwaf_owned_ddwaf_obj &&oth) noexcept
-      : libddwaf_owned_ddwaf_obj{{oth}} {
-    static_cast<ddwaf_object &>(*this) = kInvalid;
+      : libddwaf_owned_ddwaf_obj{static_cast<T>(oth)} {
+    static_cast<ddwaf_object &>(oth) = kInvalid;
   };
   libddwaf_owned_ddwaf_obj &operator=(libddwaf_owned_ddwaf_obj &&oth) noexcept {
     if (this != &oth) {

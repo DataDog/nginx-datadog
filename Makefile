@@ -111,7 +111,7 @@ endif
 		--env WAF=$(WAF) \
 		--env RUM=$(RUM) \
 		--env COVERAGE=$(COVERAGE) \
-		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		--mount "type=bind,source=$(dir $(lastword $(MAKEFILE_LIST))),destination=/mnt/repo" \
 		$(DOCKER_REPOS):latest \
 		make -C /mnt/repo $@-aux
 

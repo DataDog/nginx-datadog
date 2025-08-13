@@ -152,6 +152,12 @@ struct datadog_main_conf_t {
   // (Undocumented) Host and port to send statsd stats to
   ngx_str_t appsec_stats_host_port = ngx_null_string;
 
+  // DD_API_SECURITY_ENABLED
+  ngx_flag_t api_security_enabled{NGX_CONF_UNSET};
+
+  // DD_API_SECURITY_PROXY_SAMPLE_RATE (default: 300 samples per minute)
+  ngx_int_t api_security_proxy_sample_rate{NGX_CONF_UNSET};
+
   // TODO: missing settings and their functionality
   // DD_TRACE_CLIENT_IP_RESOLVER_ENABLED (whether to collect headers and run the
   // client ip resolution. Also requires AppSec to be enabled or

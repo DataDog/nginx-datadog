@@ -12,7 +12,7 @@
 # If VERSION is specified, then the download link of the most recent matching
 # release will be printed instead of all releases with versions.
 
-downloads=https://nginx.org/download
+downloads=https://nginx.org/en/download.html
 
 if [ "$(uname)" = 'Darwin' ]; then
   SED='gsed'
@@ -34,8 +34,9 @@ filter() {
 }
 
 curl -s -S -L "$downloads" | \
-    $SED -n 's/^.*href="\([^"]\+\)".*$/\1/p' | \
+    $SED 's/href="/\n&/g' | \
+    $SED -n 's@^href="/download/\([^"]*\)".*@\1@p' | \
     grep '^nginx-.*\.tar\.gz$' | \
-    $SED "s,^nginx-\(.*\)\.tar\.gz,\1 $downloads/\0," | \
+    $SED "s,^nginx-\(.*\)\.tar\.gz,\1 https://nginx.org/download/\0," | \
     sort --version-sort | \
     filter "$@"

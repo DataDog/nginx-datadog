@@ -68,16 +68,32 @@ class ReqSerializer {
   }
 
   ddwaf_object *serialize_end(const ngx_http_request_t &request,
-                              ngx_chain_t *body_chain, std::size_t body_size) {
+                              ngx_chain_t *body_chain, std::size_t body_size,
+                              bool extract_schema) {
     dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
+    datadog::nginx::security::ddwaf_obj::nb_entries_t nb_entries = 2;
+    if (extract_schema) {
+      nb_entries++;
+    }
     const bool has_body = body_chain && body_size > 0;
-    dnsec::ddwaf_map_obj &root_map = root->make_map(has_body ? 3 : 2, memres_);
+    if (has_body) {
+      nb_entries++;
+    }
+    dnsec::ddwaf_map_obj &root_map = root->make_map(nb_entries, memres_);
 
-    set_response_status(request, root_map.at_unchecked(0));
-    set_response_headers_no_cookies(request, root_map.at_unchecked(1));
+    decltype(nb_entries) idx = 0;
+    set_response_status(request, root_map.at_unchecked(idx++));
+    set_response_headers_no_cookies(request, root_map.at_unchecked(idx++));
     if (has_body) {
       set_response_body(request, *body_chain, body_size,
-                        root_map.at_unchecked(2));
+                        root_map.at_unchecked(idx++));
+    }
+
+    if (extract_schema) {
+      auto &slot = root_map.at_unchecked(idx++);
+      slot.set_key("waf.context.processor"sv);
+      auto &inner_map = slot.make_map(1 /* 1 entry */, memres_);
+      inner_map.at_unchecked(0).set_key("extract-schema").make_bool(true);
     }
 
     return root;
@@ -398,10 +414,10 @@ ddwaf_object *collect_request_data(const ngx_http_request_t &request,
 
 ddwaf_object *collect_response_data(const ngx_http_request_t &request,
                                     ngx_chain_t *body_chain,
-                                    std::size_t body_size,
+                                    std::size_t body_size, bool extract_schema,
                                     DdwafMemres &memres) {
   ReqSerializer rs{memres};
-  return rs.serialize_end(request, body_chain, body_size);
+  return rs.serialize_end(request, body_chain, body_size, extract_schema);
 }
 }  // namespace datadog::nginx::security
 

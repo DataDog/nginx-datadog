@@ -7,6 +7,7 @@
 
 #include "blocking.h"
 #include "library.h"
+#include "security/ddwaf_obj.h"
 #include "util.h"
 
 namespace datadog::nginx::security {
@@ -23,9 +24,10 @@ class DdwafContext {
   struct WafRunResult {
     DDWAF_RET_CODE ret_code;
     std::optional<BlockSpecification> block_spec;
+    std::unordered_map<std::string, std::string> tags;
   };
 
-  WafRunResult run(ddwaf_object& persistent_data);
+  WafRunResult run(ngx_log_t& log, ddwaf_object& persistent_data);
 
   bool has_matches() const { return !results_.empty(); }
 
@@ -50,16 +52,7 @@ class DdwafContext {
     }
   };
 
-  struct DdwafResultFreeFunctor {
-    void operator()(ddwaf_result result) { ddwaf_result_free(&result); }
-  };
-  struct OwnedDdwafResult
-      : FreeableResource<ddwaf_result, DdwafResultFreeFunctor> {
-    using FreeableResource::FreeableResource;
-    explicit OwnedDdwafResult(ddwaf_result result) : FreeableResource{result} {}
-  };
-
   OwnedDdwafContext ctx_;
-  std::vector<OwnedDdwafResult> results_;
+  std::vector<libddwaf_owned_ddwaf_obj<ddwaf_map_obj>> results_;
 };
 }  // namespace datadog::nginx::security
