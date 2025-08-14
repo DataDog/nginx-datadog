@@ -61,6 +61,16 @@ only-tracing:
   variables:
     DD_BENCHMARKS_CONFIGURATION: only-tracing
 
+# This repository is using pre-release performance quality gates.
+
+# On release/v{major}.{minor}.{patch} branch, verify that the latest CI pipeline passed the check-slo-breaches job.
+
+# If any SLO is breached, your release will be blocked.
+
+# See our thresholds file(s) at https://github.com/DataDog/benchmarking-platform/blob/cpp/nginx/bp-runner.fail-on-breach.yml
+
+# If bypassing is necessary, see
+# https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/5158175217/Performance+quality+gates+-+User+Guide for more details.
 check-slo-breaches:
   stage: gate
   when: always
