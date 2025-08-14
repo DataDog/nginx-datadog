@@ -57,6 +57,10 @@ struct sampling_rule_t {
 };
 
 struct datadog_main_conf_t {
+  // DD_APM_TRACING_ENABLED
+  // Whether we discard almost all traces not setting  _dd.p.ts
+  ngx_flag_t apm_tracing_enabled{NGX_CONF_UNSET};
+
   std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
   // `are_propagation_styles_locked` is whether the tracer's propagation styles
   // have been set, either by an explicit `datadog_propagation_styles`
@@ -136,6 +140,17 @@ struct datadog_main_conf_t {
   // How much data we're willing to copy while waiting for the final WAF run
   // before we stall the output filter chain with busy buffers
   std::size_t appsec_max_saved_output_data{NGX_CONF_UNSET_SIZE};
+
+  // (only nginx configuration: datadog_appsec_test_task_post_failure_mask)
+  // (Undocumentd) For testing: bitmap to simulate ngx_thread_task_post failures
+  // Bit 0: initial WAF task (Pol1stWafCtx)
+  // Bit 1: request body WAF task (PolReqBodyWafCtx)
+  // Bit 2: final WAF task (PolFinalWafCtx)
+  ngx_int_t appsec_test_task_post_failure_mask{NGX_CONF_UNSET};
+
+  // (only nginx configuration: datadog_appsec_stats_host_port)
+  // (Undocumented) Host and port to send statsd stats to
+  ngx_str_t appsec_stats_host_port = ngx_null_string;
 
   // TODO: missing settings and their functionality
   // DD_TRACE_CLIENT_IP_RESOLVER_ENABLED (whether to collect headers and run the

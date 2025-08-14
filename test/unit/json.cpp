@@ -24,7 +24,7 @@ std::optional<ddwaf_obj> parse(std::vector<std::string_view> parts,
   ddwaf_obj slot;
 
   test::ManagedChain chain{parts};
-  bool success = datadog::nginx::security::parse_body(slot, req, chain,
+  bool success = datadog::nginx::security::parse_body_req(slot, req, chain,
                                                       chain.size(), memres);
 
   if (!success) {

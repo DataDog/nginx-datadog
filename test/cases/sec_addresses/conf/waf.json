@@ -29,6 +29,9 @@
               },
               {
                 "address": "server.request.body"
+              },
+              {
+                "address": "server.response.body"
               }
             ],
             "regex": "^(?:%(?:a)?)?matched[ -]key(?:%(?:a)?)?$"
@@ -65,6 +68,9 @@
               },
               {
                 "address": "server.request.body"
+              },
+              {
+                "address": "server.response.body"
               }
             ],
             "regex": "^(?:%(?:a)?)?matched value(?:%(?:a)?)?$$"
@@ -92,6 +98,30 @@
               }
             ],
             "regex": ".*matched\\+partial\\+value.*"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [
+        "values_only"
+      ]
+    },
+    {
+      "id": "response_body_trigger",
+      "name": "Response body trigger test",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.body"
+              }
+            ],
+            "regex": "response_body_trigger"
           },
           "operator": "match_regex"
         }
@@ -184,7 +214,10 @@
           "parameters": {
             "inputs": [
               {
-                "address": "server.response.headers.upgrade"
+                "address": "server.response.headers.no_cookies",
+                "key_path": [
+                  "upgrade"
+                ]
               }
             ],
             "regex": "^websocket$"

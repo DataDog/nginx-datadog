@@ -175,5 +175,22 @@ ngx_int_t on_output_body_filter(ngx_http_request_t *request,
   }
 }
 
+ngx_int_t on_precontent_phase(ngx_http_request_t *request) noexcept {
+  auto *context = get_datadog_context(request);
+  if (!context) {
+    return NGX_DECLINED;
+  }
+
+  try {
+    return context->on_precontent_phase(request);
+  } catch (const std::exception &e) {
+    telemetry::log::error(e.what(), CURRENT_FRAME(request));
+    ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
+                  "Datadog instrumentation failed for request %p: %s", request,
+                  e.what());
+    return NGX_ERROR;
+  }
+}
+
 }  // namespace nginx
 }  // namespace datadog

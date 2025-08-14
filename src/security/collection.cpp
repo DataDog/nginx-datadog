@@ -11,6 +11,7 @@
 #include "../string_util.h"
 #include "ddwaf_obj.h"
 #include "decode.h"
+#include "security/body_parse/body_parsing.h"
 #include "util.h"
 
 extern "C" {
@@ -46,6 +47,7 @@ class ReqSerializer {
   static constexpr std::string_view kClientIp{"http.client_ip"};
   static constexpr std::string_view kRespHeadersNoCookies{
       "server.response.headers.no_cookies"};
+  static constexpr std::string_view kRespBody{"server.response.body"};
 
  public:
   explicit ReqSerializer(dnsec::DdwafMemres &memres) : memres_{memres} {}
@@ -65,12 +67,18 @@ class ReqSerializer {
     return root;
   }
 
-  ddwaf_object *serialize_end(const ngx_http_request_t &request) {
+  ddwaf_object *serialize_end(const ngx_http_request_t &request,
+                              ngx_chain_t *body_chain, std::size_t body_size) {
     dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
-    dnsec::ddwaf_map_obj &root_map = root->make_map(2, memres_);
+    const bool has_body = body_chain && body_size > 0;
+    dnsec::ddwaf_map_obj &root_map = root->make_map(has_body ? 3 : 2, memres_);
 
     set_response_status(request, root_map.at_unchecked(0));
     set_response_headers_no_cookies(request, root_map.at_unchecked(1));
+    if (has_body) {
+      set_response_body(request, *body_chain, body_size,
+                        root_map.at_unchecked(2));
+    }
 
     return root;
   }
@@ -367,6 +375,13 @@ class ReqSerializer {
     set_value_from_iter(it, slot);
   }
 
+  void set_response_body(const ngx_http_request_t &request,
+                         const ngx_chain_t &body_chain, std::size_t body_size,
+                         dnsec::ddwaf_obj &slot) {
+    slot.set_key(kRespBody);
+    dnsec::parse_body_resp(slot, request, body_chain, body_size, memres_);
+  }
+
   dnsec::DdwafMemres &memres_;
 };
 
@@ -382,9 +397,11 @@ ddwaf_object *collect_request_data(const ngx_http_request_t &request,
 }
 
 ddwaf_object *collect_response_data(const ngx_http_request_t &request,
+                                    ngx_chain_t *body_chain,
+                                    std::size_t body_size,
                                     DdwafMemres &memres) {
   ReqSerializer rs{memres};
-  return rs.serialize_end(request);
+  return rs.serialize_end(request, body_chain, body_size);
 }
 }  // namespace datadog::nginx::security
 

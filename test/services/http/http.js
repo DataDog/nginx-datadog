@@ -63,6 +63,71 @@ const requestListener = function (request, response) {
     return;
   }
 
+  // parameterized response body test endpoint
+  if (request.url.match(/.*\/response_body_test\/?.*/)) {
+    ignoreRequestBody(request);
+    try {
+      const urlObj = new URL(request.url, `http://${request.headers.host}`);
+      const trigger = urlObj.searchParams.get("trigger");
+      const format = urlObj.searchParams.get("format") || "json";
+      const status = parseInt(urlObj.searchParams.get("status") || "200");
+
+      // mapping to avoid WAF trigger words in query parameters
+      const triggerMap = {
+        "res_bod_tri": "response_body_trigger",
+        "mat_val": "matched value",
+        "mat_key": "matched key",
+        "blo_def": "block_default",
+        "blo_res_bod": "block_response_body",
+        "safe": "safe_content"
+      };
+
+      const triggerWord = triggerMap[trigger] || "safe_content";
+
+      let responseBody;
+      let contentType;
+
+      if (format === "text") {
+        contentType = "text/plain";
+        responseBody = `This response contains the ${triggerWord} keyword`;
+      } else if (format === "html") {
+        contentType = "text/html";
+        responseBody = `<html><body>This response contains the <strong>${triggerWord}</strong> keyword</body></html>`;
+      } else {
+        contentType = "application/json";
+        if (trigger === "mat_key") {
+          responseBody = JSON.stringify({
+            [triggerWord]: "some value",
+            "other_key": "another value"
+          });
+        } else {
+          responseBody = JSON.stringify({
+            "message": triggerWord,
+            "test": "response body"
+          });
+        }
+      }
+
+      // HEAD requests should also get a Content-Length
+      const headers = {
+        "content-type": contentType,
+        "content-length": Buffer.byteLength(responseBody, 'utf8')
+      };
+
+      response.writeHead(status, headers);
+
+      if (request.method === 'HEAD') {
+        response.end();
+      } else {
+        response.end(responseBody);
+      }
+    } catch (err) {
+      response.writeHead(400, { "content-type": "text/plain" });
+      response.end("Invalid query parameters");
+    }
+    return;
+  }
+
   const responseBody = JSON.stringify({
     "service": "http",
     "headers": request.headers

@@ -20,3 +20,5 @@
 
 # Python
 __pycache__/
+
+/metrics.csv
