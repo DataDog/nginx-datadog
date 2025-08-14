@@ -7,7 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 cmake_policy(SET CMP0068 NEW)
 cmake_policy(SET CMP0135 NEW)
 
-set(NGINX_DATADOG_VERSION 1.6.1)
+set(NGINX_DATADOG_VERSION 1.7.0)
 project(ngx_http_datadog_module VERSION ${NGINX_DATADOG_VERSION})
 
 option(NGINX_DATADOG_ASM_ENABLED "Build with libddwaf" ON)
