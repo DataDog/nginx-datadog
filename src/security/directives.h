@@ -15,6 +15,8 @@ namespace datadog::nginx::security {
 char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
                            void *conf) noexcept;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
 constexpr directive kAppsecDirectives[] = {
     {"datadog_waf_thread_pool_name",
      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
@@ -139,6 +141,7 @@ constexpr directive kAppsecDirectives[] = {
         nullptr,
     },
 };
+#pragma clang diagnostic pop
 #endif  // WITH_WAF
 
 }  // namespace datadog::nginx::security

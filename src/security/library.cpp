@@ -694,7 +694,8 @@ std::unique_ptr<UpdateableWafInstance> upd_waf_instance{
     new UpdateableWafInstance{}};
 std::atomic<bool> Library::active_{true};
 std::unique_ptr<FinalizedConfigSettings> Library::config_settings_;
-std::unique_ptr<ApiSecurityLimiter> Library::api_security_limiter_;
+ngx_shm_zone_t* Library::api_security_shm_zone_ = nullptr;
+std::unique_ptr<SharedApiSecurityLimiter> Library::shared_api_security_limiter_;
 
 std::optional<ddwaf_owned_map> Library::initialize_security_library(
     const datadog_main_conf_t &ngx_conf) {
@@ -761,9 +762,20 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
           std::numeric_limits<std::uint32_t>::max());
       max_per_min = std::numeric_limits<std::uint32_t>::max();
     }
-    api_security_limiter_ = std::make_unique<ApiSecurityLimiter>(max_per_min);
+
+    if (api_security_shm_zone_ != nullptr) {
+      auto limiter_opt = ApiSecurityLimiterZone::get_limiter(api_security_shm_zone_, max_per_min);
+      if (limiter_opt) {
+        shared_api_security_limiter_ = std::make_unique<SharedApiSecurityLimiter>(*limiter_opt);
+        ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                      "API Security rate limiter using shared memory, max_per_min: %ui", max_per_min);
+      } else {
+        ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
+                      "Failed to get shared limiter from shared memory zone");
+      }
+    }
   } else {
-    api_security_limiter_.reset(nullptr);
+    shared_api_security_limiter_.reset(nullptr);
   }
 
   Library::set_active(conf.enable_status() ==
@@ -881,9 +893,25 @@ std::optional<std::size_t> Library::max_saved_output_data() {
 };
 
 bool Library::api_security_should_sample() noexcept {
-  if (!api_security_limiter_) {
-    return false;
-  }
-  return api_security_limiter_->allow();
+  return shared_api_security_limiter_ ? shared_api_security_limiter_->allow() : false;
 }
+
+ngx_int_t Library::initialize_api_security_shared_memory(ngx_conf_t *cf) {
+  // Create shared memory zone for API security rate limiter
+  const char* zone_name = "datadog_api_security_limiter";
+
+  api_security_shm_zone_ = ApiSecurityLimiterZone::create_zone(*cf, zone_name);
+  if (api_security_shm_zone_ == NULL) {
+    ngx_log_error(NGX_LOG_EMERG, cf->log, 0,
+                  "Failed to create shared memory zone for API security rate limiter");
+    return NGX_ERROR;
+  }
+
+  ngx_log_error(NGX_LOG_INFO, cf->log, 0,
+                "Created shared memory zone for API security rate limiter: %s (%uz bytes)",
+                zone_name, sizeof(SharedApiSecurityLimiter::StateType));
+
+  return NGX_OK;
+}
+
 }  // namespace datadog::nginx::security

@@ -42,6 +42,8 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
 char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
                                      void *conf) noexcept;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
 constexpr datadog::nginx::directive tracing_directives[] = {
     {
         "datadog_tracing",
@@ -221,5 +223,6 @@ constexpr datadog::nginx::directive tracing_directives[] = {
     WARN_DEPRECATED_COMMAND("datadog_grpc_propagate_context",
                             anywhere | NGX_CONF_NOARGS, nullptr),
 };
+#pragma clang diagnostic pop
 
 }  // namespace datadog::nginx

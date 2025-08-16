@@ -8,11 +8,12 @@
 
 #include "../datadog_conf.h"
 #include "ddwaf_obj.h"
-#include "limiter.h"
+#include "shared_limiter.h"
 
 namespace datadog::nginx::security {
 
-using ApiSecurityLimiter = Limiter<50 /* refreshes per minute */>;
+using SharedApiSecurityLimiter = SharedLimiter<50 /* refreshes per minute */>;
+using ApiSecurityLimiterZone = SharedLimiterZoneManager<50 /* refreshes per minute */>;
 
 inline constexpr auto kConfigMaxDepth = 25;
 
@@ -33,6 +34,9 @@ class Library {
 
   static std::optional<ddwaf_owned_map> initialize_security_library(
       const datadog_main_conf_t &conf);
+  
+  // Initialize shared memory zone for API security rate limiter
+  static ngx_int_t initialize_api_security_shared_memory(ngx_conf_t *cf);
 
   [[nodiscard]] static bool update_waf_config(std::string_view path,
                                               const ddwaf_map_obj &spec,
@@ -61,7 +65,8 @@ class Library {
  protected:
   static std::atomic<bool> active_;                                  // NOLINT
   static std::unique_ptr<FinalizedConfigSettings> config_settings_;  // NOLINT
-  static std::unique_ptr<ApiSecurityLimiter> api_security_limiter_;  // NOLINT
+  static ngx_shm_zone_t* api_security_shm_zone_;                    // NOLINT
+  static std::unique_ptr<SharedApiSecurityLimiter> shared_api_security_limiter_;  // NOLINT
 };
 
 struct DdwafHandleFreeFunctor {
