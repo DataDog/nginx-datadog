@@ -603,16 +603,31 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
     }
   }
 
+  static void empty_handler_read(ngx_event_t *wev) {
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                   "PolFinalWafCtx: http empty handler (read)");
+  }
+
+  static void empty_handler_write(ngx_event_t *wev) {
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                   "PolFinalWafCtx: http empty handler (write)");
+  }
+
+  ngx_event_handler_pt orig_conn_read_handler_{};
   ngx_event_handler_pt orig_conn_write_handler_{};
   void replace_handlers() noexcept {
-    auto &handler = req_.connection->write->handler;
-    orig_conn_write_handler_ = handler;
+    auto &read_handler = req_.connection->read->handler;
+    orig_conn_read_handler_ = read_handler;
+    read_handler = &empty_handler_read;
 
-    handler = ngx_http_empty_handler;
+    auto &write_handler = req_.connection->write->handler;
+    orig_conn_write_handler_ = write_handler;
+    write_handler = &empty_handler_write;
   }
 
   void restore_handlers() noexcept {
     req_.connection->write->handler = orig_conn_write_handler_;
+    req_.connection->read->handler = orig_conn_read_handler_;
   }
 
   friend PolTaskCtx;

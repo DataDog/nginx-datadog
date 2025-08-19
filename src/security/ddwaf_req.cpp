@@ -1,6 +1,5 @@
 #include "ddwaf_req.h"
 
-#include <ngx_cycle.h>
 #include <rapidjson/document.h>
 #include <rapidjson/encodings.h>
 #include <rapidjson/prettywriter.h>
@@ -20,7 +19,8 @@
 #include "string_util.h"
 
 extern "C" {
-#include "ngx_log.h"
+#include <ngx_cycle.h>
+#include <ngx_log.h>
 }
 
 using namespace std::literals;

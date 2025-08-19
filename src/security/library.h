@@ -12,9 +12,10 @@
 
 namespace datadog::nginx::security {
 
-using SharedApiSecurityLimiter = SharedLimiter<50 /* refreshes per minute */>;
-using ApiSecurityLimiterZone =
-    SharedLimiterZoneManager<50 /* refreshes per minute */>;
+inline constexpr std::uint32_t kShLimRefreshesPerMin = 50;
+
+using SharedApiSecurityLimiter = SharedLimiter<kShLimRefreshesPerMin>;
+using ApiSecurityLimiterZone = SharedLimiterZoneManager<kShLimRefreshesPerMin>;
 
 inline constexpr auto kConfigMaxDepth = 25;
 
