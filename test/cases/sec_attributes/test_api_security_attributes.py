@@ -83,6 +83,41 @@ class TestApiSecurityAttributes(case.TestCase):
         return api_security_tags
 
     @staticmethod
+    def find_all_appsec_tags(spans):
+        """Find all AppSec tags starting with _dd.appsec."""
+        appsec_tags = {}
+        for span in spans:
+            meta = span.get('meta', {})
+            for key, value in meta.items():
+                if key.startswith('_dd.appsec.') or key.startswith('appsec.'):
+                    appsec_tags[key] = value
+            metrics = span.get('metrics', {})
+            for key, value in metrics.items():
+                if key.startswith('_dd.appsec.') or key.startswith('appsec.'):
+                    appsec_tags[key] = value
+        return appsec_tags
+
+    @staticmethod
+    def find_all_appsec_metrics(spans):
+        """Find all AppSec metrics starting with _dd.appsec."""
+        appsec_metrics = {}
+        for span in spans:
+            metrics = span.get('metrics', {})
+            for key, value in metrics.items():
+                if key.startswith('_dd.appsec.'):
+                    appsec_metrics[key] = value
+        return appsec_metrics
+
+    @staticmethod
+    def get_sampling_priority(spans):
+        """Get the sampling priority from spans."""
+        for span in spans:
+            metrics = span.get('metrics', {})
+            if '_sampling_priority_v1' in metrics:
+                return metrics['_sampling_priority_v1']
+        return None
+
+    @staticmethod
     def decode_attribute_value(value):
         """Decode a potentially compressed and base64-encoded attribute value"""
         try:
@@ -255,3 +290,70 @@ class TestApiSecurityAttributes(case.TestCase):
         decoded_headers = self.decode_attribute_value(
             api_security_tags['_dd.appsec.s.res.headers'])
         self.assertIsInstance(decoded_headers, (dict, list))
+
+    def test_non_schema_numeric_attributes(self):
+        """Test that non-schema numeric attributes are collected and reported as metrics"""
+        headers = {'X-Test-Numeric': 'trigger'}
+
+        spans = self.do_request_and_get_spans('/http', headers=headers)
+        appsec_metrics = self.find_all_appsec_metrics(spans)
+
+        self.assertIn('_dd.appsec.test.numeric', appsec_metrics)
+        self.assertEqual(appsec_metrics['_dd.appsec.test.numeric'], 42.5)
+
+    def test_non_schema_string_attributes(self):
+        """Test that non-schema string attributes are collected and reported as tags"""
+        headers = {'X-Test-String': 'trigger'}
+
+        spans = self.do_request_and_get_spans('/http', headers=headers)
+        appsec_tags = self.find_all_appsec_tags(spans)
+
+        self.assertIn('_dd.appsec.test.string', appsec_tags)
+        self.assertEqual(appsec_tags['_dd.appsec.test.string'],
+                         'test_string_value')
+
+    def test_reference_attributes(self):
+        """Test that reference attributes are collected with actual values from input"""
+        test_value = 'my_reference_value'
+        headers = {'X-Test-Reference': test_value}
+
+        spans = self.do_request_and_get_spans('/http', headers=headers)
+        appsec_tags = self.find_all_appsec_tags(spans)
+
+        self.assertIn('_dd.appsec.test.reference', appsec_tags)
+        self.assertEqual(appsec_tags['_dd.appsec.test.reference'], test_value)
+
+    def test_keep_flag_true_event_false_behavior(self):
+        """Test that keep=true in rule output sets sampling priority to USER-KEEP"""
+        headers = {'X-Test-Keep-True': 'trigger'}
+
+        spans = self.do_request_and_get_spans('/http', headers=headers)
+
+        # Check sampling priority is set to USER-KEEP (2) when keep=true
+        sampling_priority = self.get_sampling_priority(spans)
+        self.assertEqual(
+            sampling_priority, 2,
+            "Sampling priority should be 2 (USER-KEEP) when rule has keep=true"
+        )
+
+        appsec_tags = self.find_all_appsec_tags(spans)
+        self.assertNotIn(
+            'appsec.event', appsec_tags,
+            "Should not have appsec.event tag when rules have event=false")
+
+    def test_keep_flag_false_event_true_behavior(self):
+        """Test that keep=false in rule output does not set sampling priority to USER-KEEP"""
+        headers = {'X-Test-Keep-False': 'trigger'}
+
+        spans = self.do_request_and_get_spans('/http', headers=headers)
+
+        sampling_priority = self.get_sampling_priority(spans)
+        self.assertNotEqual(
+            sampling_priority, 2,
+            "Sampling priority should NOT be 2 (USER-KEEP) when rule has keep=false"
+        )
+
+        appsec_tags = self.find_all_appsec_tags(spans)
+        self.assertIn(
+            'appsec.event', appsec_tags,
+            "Should have appsec.event tag when rules have event=true")

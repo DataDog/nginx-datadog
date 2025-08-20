@@ -154,5 +154,173 @@
       "evaluate": false,
       "output": true
     }
+  ],
+  "rules": [
+    {
+      "id": "test-001-numeric",
+      "name": "Test rule for numeric attribute collection",
+      "tags": {
+        "type": "test",
+        "category": "test",
+        "confidence": "0",
+        "module": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["x-test-numeric"]
+              }
+            ]
+          },
+          "operator": "exists"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.numeric": {
+            "value": 42.5
+          }
+        }
+      }
+    },
+    {
+      "id": "test-002-string",
+      "name": "Test rule for string attribute collection",
+      "tags": {
+        "type": "test",
+        "category": "test",
+        "confidence": "0",
+        "module": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["x-test-string"]
+              }
+            ]
+          },
+          "operator": "exists"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.string": {
+            "value": "test_string_value"
+          }
+        }
+      }
+    },
+    {
+      "id": "test-003-keep-true",
+      "name": "Test rule with keep=true",
+      "tags": {
+        "type": "test",
+        "category": "test",
+        "confidence": "0",
+        "module": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["x-test-keep-true"]
+              }
+            ]
+          },
+          "operator": "exists"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": true,
+        "attributes": {
+          "_dd.appsec.test.keep_true": {
+            "value": "keep_true_enabled"
+          }
+        }
+      }
+    },
+    {
+      "id": "test-003-keep-false",
+      "name": "Test rule with keep=false",
+      "tags": {
+        "type": "test",
+        "category": "test",
+        "confidence": "0",
+        "module": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["x-test-keep-false"]
+              }
+            ]
+          },
+          "operator": "exists"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": true,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.keep_false": {
+            "value": "keep_false_enabled"
+          }
+        }
+      }
+    },
+    {
+      "id": "test-004-reference",
+      "name": "Test rule for reference attribute collection",
+      "tags": {
+        "type": "test",
+        "category": "test",
+        "confidence": "0",
+        "module": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["x-test-reference"]
+              }
+            ]
+          },
+          "operator": "exists"
+        }
+      ],
+      "transformers": [],
+      "output": {
+        "event": false,
+        "keep": false,
+        "attributes": {
+          "_dd.appsec.test.reference": {
+            "address": "server.request.headers.no_cookies",
+            "key_path": ["x-test-reference"]
+          }
+        }
+      }
+    }
   ]
 }

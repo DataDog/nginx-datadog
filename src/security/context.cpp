@@ -443,7 +443,7 @@ std::optional<BlockSpecification> Context::run_waf_start(
   client_ip_ = std::move(client_ip);
 
   auto &&log = *req.connection->log;
-  auto [_, block_spec, tags_unused] = waf_ctx_->run(log, *data);
+  auto [_, block_spec] = waf_ctx_->run(log, *data);
 
   if (block_spec) {
     stage_->store(stage::AFTER_BEGIN_WAF_BLOCK, std::memory_order_release);
@@ -1535,7 +1535,7 @@ std::optional<BlockSpecification> Context::run_waf_req_post(
   }
 
   auto &&log = *request.connection->log;
-  auto [_, block_spec, tags_unused] = waf_ctx_->run(log, input);
+  auto [_, block_spec] = waf_ctx_->run(log, input);
   return block_spec;
 }
 
@@ -1586,13 +1586,7 @@ std::optional<BlockSpecification> Context::run_waf_end(
       request, body_chain, body_size, extract_schema, memres_);
 
   auto &&log = *request.connection->log;
-  auto [_, block_spec, tags] = waf_ctx_->run(log, *resp_data);
-
-  for (auto &[key, json] : tags) {
-    ngx_log_debug(NGX_LOG_DEBUG_HTTP, &log, 0, "Setting tag %s with value %s",
-                  key.c_str(), json.c_str());
-    span.set_tag(key, json);
-  }
+  auto [_, block_spec] = waf_ctx_->run(log, *resp_data);
 
   return block_spec;
 }
@@ -1608,6 +1602,31 @@ void Context::on_main_log_request(ngx_http_request_t &request,
   });
 }
 
+namespace {
+void set_tags_meta(
+    ngx_log_t &log,
+    const std::unordered_map<std::string_view, std::string> &tags,
+    dd::Span &span) {
+  for (auto &[key, value] : tags) {
+    ngx_str_t key_ns{dnsec::ngx_stringv(key)};
+    ngx_str_t value_ns{dnsec::ngx_stringv(value)};
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, &log, 0, "Setting tag %V with value %V",
+                  &key_ns, &value_ns);
+    span.set_tag(key, value);
+  }
+}
+void set_tags_metrics(
+    ngx_log_t &log, const std::unordered_map<std::string_view, double> &metrics,
+    dd::Span &span) {
+  for (auto &[key, value] : metrics) {
+    ngx_str_t key_ns{dnsec::ngx_stringv(key)};
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, &log, 0,
+                  "Setting metric %V with value %f", &key_ns, value);
+    span.set_metric(key, value);
+  }
+}
+}  // namespace
+
 void Context::do_on_main_log_request(ngx_http_request_t &request,
                                      dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
@@ -1616,7 +1635,10 @@ void Context::do_on_main_log_request(ngx_http_request_t &request,
     return;
   }
 
+  ngx_log_t &log = *request.connection->log;
   set_header_tags(waf_ctx_->has_matches(), request, span);
+  set_tags_meta(log, waf_ctx_->collected_tags(), span);
+  set_tags_metrics(log, waf_ctx_->collected_metrics(), span);
   report_matches(request, span);
   report_client_ip(span);
 }
@@ -1639,8 +1661,11 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
   });
 
   if (did_report) {
-    trace_segment.override_sampling_priority(2);  // USER-KEEP
     span.set_tag("appsec.event"sv, "true");
+  }
+
+  if (waf_ctx_->keep()) {
+    trace_segment.override_sampling_priority(2);  // USER-KEEP
     if (!apm_tracing_enabled_) {
       span.set_source(tracing::Source::appsec);
     }

@@ -242,6 +242,18 @@ struct __attribute__((__may_alias__)) ddwaf_str_obj : ddwaf_obj {
   char *buffer() { return const_cast<char *>(stringValue); }
 };
 
+// NOLINTNEXTLINE(readability-identifier-naming)
+struct __attribute__((__may_alias__)) ddwaf_bool_obj : ddwaf_obj {
+  ddwaf_bool_obj() : ddwaf_obj{} { type = DDWAF_OBJ_BOOL; }
+  explicit ddwaf_bool_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
+    if (dobj.type != DDWAF_OBJ_BOOL) {
+      throw std::invalid_argument("not a boolean");
+    }
+  }
+
+  operator bool() const { return boolean; }
+};
+
 struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {
   ddwaf_arr_obj() : ddwaf_obj{} { type = DDWAF_OBJ_ARRAY; }
   // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)

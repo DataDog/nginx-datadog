@@ -24,12 +24,20 @@ class DdwafContext {
   struct WafRunResult {
     DDWAF_RET_CODE ret_code;
     std::optional<BlockSpecification> block_spec;
-    std::unordered_map<std::string, std::string> tags;
   };
 
   WafRunResult run(ngx_log_t& log, ddwaf_object& persistent_data);
 
   bool has_matches() const { return !results_.empty(); }
+  bool keep() const { return keep_; }
+  const std::unordered_map<std::string_view, std::string>& collected_tags()
+      const {
+    return collected_tags_;
+  }
+  const std::unordered_map<std::string_view, double>& collected_metrics()
+      const {
+    return collected_metrics_;
+  }
 
   // if there are matches, calls the function with the desired contents for
   // _dd.appsec.json and returns true. O/wise returns false.
@@ -53,6 +61,10 @@ class DdwafContext {
   };
 
   OwnedDdwafContext ctx_;
+  bool keep_{false};
   std::vector<libddwaf_owned_ddwaf_obj<ddwaf_map_obj>> results_;
+  // string_views as backed by the results_ vector
+  std::unordered_map<std::string_view, std::string> collected_tags_;
+  std::unordered_map<std::string_view, double> collected_metrics_;
 };
 }  // namespace datadog::nginx::security

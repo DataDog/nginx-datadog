@@ -272,10 +272,17 @@ class AsmConfigListener : public ProductListener<AsmConfigListener> {
   static constexpr inline auto kProducts = {Product::ASM, Product::ASM_DATA,
                                             Product::ASM_DD};
   static constexpr inline auto kCapabilities = {
-      Capability::ASM_CUSTOM_RULES,     Capability::ASM_DD_RULES,
-      Capability::ASM_EXCLUSION_DATA,   Capability::ASM_IP_BLOCKING,
-      Capability::ASM_REQUEST_BLOCKING, Capability::ASM_RESPONSE_BLOCKING,
-      Capability::ASM_EXCLUSIONS};
+      Capability::ASM_CUSTOM_RULES,
+      Capability::ASM_DD_RULES,
+      Capability::ASM_EXCLUSION_DATA,
+      Capability::ASM_IP_BLOCKING,
+      Capability::ASM_REQUEST_BLOCKING,
+      Capability::ASM_RESPONSE_BLOCKING,
+      Capability::ASM_EXCLUSIONS,
+      static_cast<Capability>(static_cast<std::uint64_t>(1)
+                              << 42) /* ASM_DD_MULTICONFIG */,
+      static_cast<Capability>(static_cast<std::uint64_t>(1)
+                              << 43) /* ASM_DD_TRACE_TAGGING_RULES */};
 
   AsmConfigListener(CurrentAppSecConfig &cur_appsec_cfg, dn::NgxLogger &logger)
       : ProductListener{logger}, cur_appsec_cfg_{cur_appsec_cfg} {}
