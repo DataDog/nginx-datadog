@@ -373,18 +373,14 @@ DdwafContext::WafRunResult DdwafContext::run(ngx_log_t &log,
         collected_tags_.emplace(a.key(), json);
       });
       if (!is_schema) {
-        handle_non_schema_attribute(log, a, [&a, this](auto &&v) {
-          std::visit(
-              [&a, this](auto &&v) {
-                if constexpr (std::is_same_v<std::decay_t<decltype(v)>,
-                                             std::string_view>) {
-                  collected_tags_.emplace(a.key(), v);
-                } else {
-                  collected_metrics_.emplace(a.key(), v);
-                }
-              },
-              std::move(v));
-        });
+        handle_non_schema_attribute(
+            log, a, [&a, this](std::variant<std::string_view, double> v) {
+              if (std::holds_alternative<std::string_view>(v)) {
+                collected_tags_.emplace(a.key(), std::get<std::string_view>(v));
+              } else {
+                collected_metrics_.emplace(a.key(), std::get<double>(v));
+              }
+            });
       }
     }
   }

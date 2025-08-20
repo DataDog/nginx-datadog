@@ -8,6 +8,8 @@ extern "C" {
 
 namespace {
 size_t estimate_compressed_size(size_t in_len) {
+  // Taken from PHP approach
+  // https://heap.space/xref/PHP-7.3/ext/zlib/php_zlib.h?r=8d3f8ca1#36
   // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
   return (((size_t)((double)in_len * (double)1.015)) + 10 + 8 + 4 + 1);
   // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)

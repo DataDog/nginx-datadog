@@ -337,8 +337,8 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   // Initialize shared memory for API security rate limiter
   if (security::Library::initialize_api_security_shared_memory(cf) != NGX_OK) {
     ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                  "Failed to initialize API security shared memory, will use "
-                  "per-process limiter");
+                  "Failed to initialize API security shared memory, schema "
+                  "collection will be disabled");
     return NGX_ERROR;
   }
 #endif

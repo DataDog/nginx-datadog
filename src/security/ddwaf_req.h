@@ -63,7 +63,7 @@ class DdwafContext {
   OwnedDdwafContext ctx_;
   bool keep_{false};
   std::vector<libddwaf_owned_ddwaf_obj<ddwaf_map_obj>> results_;
-  // string_views as backed by the results_ vector
+  // string_views are backed by the results_ vector
   std::unordered_map<std::string_view, std::string> collected_tags_;
   std::unordered_map<std::string_view, double> collected_metrics_;
 };
