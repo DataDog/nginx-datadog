@@ -28,7 +28,7 @@ class DdwafContext {
 
   WafRunResult run(ngx_log_t& log, ddwaf_object& persistent_data);
 
-  bool has_matches() const { return !results_.empty(); }
+  bool has_matches() const;
   bool keep() const { return keep_; }
   const std::unordered_map<std::string_view, std::string>& collected_tags()
       const {

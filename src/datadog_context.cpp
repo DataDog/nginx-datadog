@@ -349,7 +349,7 @@ ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t *request) {
 
 #ifdef WITH_WAF
   if (auto sec_ctx = get_security_context()) {
-    if (sec_ctx->has_matches()) {
+    if (sec_ctx->keep_span()) {
       span.set_source(datadog::tracing::Source::appsec);
     }
   }

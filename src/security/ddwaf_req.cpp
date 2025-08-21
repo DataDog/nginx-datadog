@@ -397,13 +397,24 @@ DdwafContext::WafRunResult DdwafContext::run(ngx_log_t &log,
   return waf_result;
 }
 
+bool DdwafContext::has_matches() const {
+  for (const libddwaf_owned_ddwaf_obj<ddwaf_map_obj> &result : results_) {
+    std::optional<ddwaf_arr_obj> maybe_events =
+        result.get_opt<ddwaf_arr_obj>("events");
+    if (maybe_events && maybe_events->size() > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool DdwafContext::report_matches(
     const std::function<void(std::string_view)> &f) {
   if (results_.empty()) {
     return false;
   }
 
-  std::vector<ddwaf_arr_obj *> events_arrs;
+  std::vector<ddwaf_arr_obj> events_arrs;
   for (LibddwafOwnedMap &result : results_) {
     std::optional<ddwaf_arr_obj> maybe_events =
         result.get_opt<ddwaf_arr_obj>("events");
@@ -413,7 +424,7 @@ bool DdwafContext::report_matches(
     if (maybe_events->size() == 0) {
       continue;
     }
-    events_arrs.push_back(&maybe_events.value());
+    events_arrs.push_back(*maybe_events);
   }
 
   if (events_arrs.empty()) {
@@ -426,8 +437,8 @@ bool DdwafContext::report_matches(
   w.ConstLiteralKey("triggers"sv);
 
   w.StartArray();
-  for (ddwaf_arr_obj *events : events_arrs) {
-    for (auto &&evt : *events) {
+  for (const ddwaf_arr_obj &events : events_arrs) {
+    for (auto &&evt : events) {
       ddwaf_object_to_json(w, evt);
     }
   }

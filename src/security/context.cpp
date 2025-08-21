@@ -1591,8 +1591,8 @@ std::optional<BlockSpecification> Context::run_waf_end(
   return block_spec;
 }
 
-bool Context::has_matches() const noexcept {
-  return waf_ctx_ && waf_ctx_->has_matches();
+bool Context::keep_span() const noexcept {
+  return waf_ctx_ && waf_ctx_->keep();
 }
 
 void Context::on_main_log_request(ngx_http_request_t &request,
