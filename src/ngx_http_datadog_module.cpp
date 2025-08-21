@@ -51,6 +51,8 @@ static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent, void *child) noe
 
 using namespace datadog::nginx;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
 constexpr datadog::nginx::directive module_directives[] = {
     WARN_DEPRECATED_COMMAND("datadog_enable", anywhere | NGX_CONF_NOARGS,
                             "Use datadog_tracing instead"),
@@ -85,6 +87,7 @@ constexpr datadog::nginx::directive module_directives[] = {
     ALIAS_COMMAND("datadog_agent_url", "opentelemetry_otlp_traces_endpoint",
                   NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1),
 };
+#pragma clang diagnostic pop
 
 static auto datadog_commands =
     generate_directives(tracing_directives, module_directives
@@ -329,6 +332,16 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
       main_conf->tags.insert_or_assign(std::string(key), complex_value);
     }
   }
+
+#ifdef WITH_WAF
+  // Initialize shared memory for API security rate limiter
+  if (security::Library::initialize_api_security_shared_memory(cf) != NGX_OK) {
+    ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                  "Failed to initialize API security shared memory, schema "
+                  "collection will be disabled");
+    return NGX_ERROR;
+  }
+#endif
 
   return NGX_OK;
 }

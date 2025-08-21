@@ -242,6 +242,18 @@ struct __attribute__((__may_alias__)) ddwaf_str_obj : ddwaf_obj {
   char *buffer() { return const_cast<char *>(stringValue); }
 };
 
+// NOLINTNEXTLINE(readability-identifier-naming)
+struct __attribute__((__may_alias__)) ddwaf_bool_obj : ddwaf_obj {
+  ddwaf_bool_obj() : ddwaf_obj{} { type = DDWAF_OBJ_BOOL; }
+  explicit ddwaf_bool_obj(const ddwaf_object &dobj) : ddwaf_obj(dobj) {
+    if (dobj.type != DDWAF_OBJ_BOOL) {
+      throw std::invalid_argument("not a boolean");
+    }
+  }
+
+  operator bool() const { return boolean; }
+};
+
 struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {
   ddwaf_arr_obj() : ddwaf_obj{} { type = DDWAF_OBJ_ARRAY; }
   // NOLINTNEXTLINE(google-explicit-constructor, hicpp-explicit-conversions)
@@ -373,13 +385,13 @@ struct __attribute__((__may_alias__)) libddwaf_owned_ddwaf_obj : T {
   static auto constexpr inline kInvalid =
       ddwaf_object{.type = DDWAF_OBJ_INVALID};
 
-  libddwaf_owned_ddwaf_obj(T const &obj) : T{obj} {}
+  explicit libddwaf_owned_ddwaf_obj(T const &obj) : T{obj} {}
   libddwaf_owned_ddwaf_obj(const libddwaf_owned_ddwaf_obj &) = delete;
   libddwaf_owned_ddwaf_obj &operator=(const libddwaf_owned_ddwaf_obj &) =
       delete;
   libddwaf_owned_ddwaf_obj(libddwaf_owned_ddwaf_obj &&oth) noexcept
-      : libddwaf_owned_ddwaf_obj{{oth}} {
-    static_cast<ddwaf_object &>(*this) = kInvalid;
+      : libddwaf_owned_ddwaf_obj{static_cast<T>(oth)} {
+    static_cast<ddwaf_object &>(oth) = kInvalid;
   };
   libddwaf_owned_ddwaf_obj &operator=(libddwaf_owned_ddwaf_obj &&oth) noexcept {
     if (this != &oth) {

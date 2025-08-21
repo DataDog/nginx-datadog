@@ -5,14 +5,23 @@
 #include <rapidjson/prettywriter.h>
 
 #include <charconv>
+#include <cppcodec/base64_rfc4648.hpp>
+#include <functional>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "blocking.h"
+#include "compress.h"
 #include "ddwaf_obj.h"
-#include "security/blocking.h"
+#include "string_util.h"
+
+extern "C" {
+#include <ngx_cycle.h>
+#include <ngx_log.h>
+}
 
 using namespace std::literals;
 
@@ -22,6 +31,7 @@ namespace dnsec = datadog::nginx::security;
 using dnsec::BlockSpecification;
 using dnsec::ddwaf_map_obj;
 using dnsec::ddwaf_obj;
+using LibddwafOwnedMap = dnsec::libddwaf_owned_ddwaf_obj<ddwaf_map_obj>;
 
 class JsonWriter : public rapidjson::Writer<rapidjson::StringBuffer> {
   using rapidjson::Writer<rapidjson::StringBuffer>::Writer;
@@ -238,6 +248,87 @@ std::optional<BlockSpecification> resolve_block_spec(
 
 namespace datadog::nginx::security {
 
+namespace {
+constexpr int kMaxPlainSchemaAllowed = 260;
+constexpr int kMaxSchemaSize = 25000;
+
+template <typename Func>
+bool handle_schema(ngx_log_t &log, const ddwaf_obj &obj, Func &&f) {
+  ngx_str_t key = to_ngx_str(obj.key());
+
+  if (!obj.key().starts_with("_dd.appsec.s."sv)) {
+    return false;
+  }
+
+  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, &log, 0,
+                 "ddwaf_req: handling attribute %V", &key);
+
+  rapidjson::StringBuffer buffer;
+  JsonWriter w(buffer);
+  ddwaf_object_to_json(w, obj);
+
+  std::string_view json = {buffer.GetString(), buffer.GetLength()};
+  std::string b64;
+  // compress + base64
+  if (json.size() > kMaxPlainSchemaAllowed) {
+    auto compressed = compress(json);
+    if (!compressed) {
+      ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                    "ddwaf_req: failed to compress attribute %V", &key);
+      return true;
+    }
+
+    if (compressed->length() > kMaxSchemaSize * 3 / 4 + 1) {
+      ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                    "ddwaf_req: compressed attribute %V is too large", &key);
+      return true;
+    }
+
+    // then we need to base-64 encode it
+    b64 = cppcodec::base64_rfc4648::encode(*compressed);
+    if (b64.size() > kMaxSchemaSize) {
+      ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
+                    "ddwaf_req: base-64 encoded attribute %V is too large",
+                    key);
+      return true;
+    }
+
+    json = b64;
+  }
+
+  std::invoke(std::forward<Func>(f), json);
+  return true;
+}
+
+template <typename Func>
+void handle_non_schema_attribute(ngx_log_t &log, const ddwaf_obj &obj,
+                                 Func &&f) {
+  ngx_str_t key = to_ngx_str(obj.key());
+
+  if (obj.key().starts_with("_dd.appsec.s."sv)) {
+    return;
+  }
+
+  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, &log, 0,
+                 "ddwaf_req: handling non-schema attribute %V", &key);
+
+  std::variant<std::string_view, double> v;
+  if (obj.is_numeric()) {
+    v = obj.numeric_val<double>();
+  } else if (obj.is_string()) {
+    v = obj.string_val_unchecked();
+  } else {
+    ngx_log_error(
+        NGX_LOG_INFO, &log, 0,
+        "ddwaf_req: non-schema attribute %V is not a string or number", &key);
+    return;
+  }
+
+  std::invoke(std::forward<Func>(f), std::move(v));
+}
+
+}  // namespace
+
 DdwafContext::DdwafContext(std::shared_ptr<OwnedDdwafHandle> &handle)
     : ctx_{nullptr} {
   if (!handle) {
@@ -251,8 +342,9 @@ DdwafContext::DdwafContext(std::shared_ptr<OwnedDdwafHandle> &handle)
   }
 }
 
-DdwafContext::WafRunResult DdwafContext::run(ddwaf_object &persistent_data) {
-  ddwaf_result result;
+DdwafContext::WafRunResult DdwafContext::run(ngx_log_t &log,
+                                             ddwaf_object &persistent_data) {
+  LibddwafOwnedMap result{{}};
   DDWAF_RET_CODE const code =
       ddwaf_run(ctx_.resource, &persistent_data, nullptr, &result,
                 Library::waf_timeout());
@@ -260,24 +352,82 @@ DdwafContext::WafRunResult DdwafContext::run(ddwaf_object &persistent_data) {
   WafRunResult waf_result;
   waf_result.ret_code = code;
 
-  if (code == DDWAF_MATCH) {
-    results_.emplace_back(result);
+  LibddwafOwnedMap &iresult = results_.emplace_back(std::move(result));
 
-    ddwaf_map_obj actions_arr{result.actions};
-    if (!actions_arr.empty()) {
-      ActionsResult actions_res{actions_arr};
+  std::optional<ddwaf_obj> maybe_keep = iresult.get_opt<ddwaf_obj>("keep"sv);
+  if (maybe_keep && maybe_keep->is_bool()) {
+    keep_ |= ddwaf_bool_obj{*maybe_keep};
+  } else {
+    // should not happen
+    ngx_log_error(NGX_LOG_INFO, &log, 0,
+                  "libddwaf did not provide a keep flag");
+    keep_ = (code == DDWAF_MATCH);
+  }
+
+  std::optional<ddwaf_map_obj> maybe_attributes =
+      iresult.get_opt<ddwaf_map_obj>("attributes"sv);
+  if (maybe_attributes) {
+    ddwaf_map_obj &attributes = *maybe_attributes;
+    for (auto &&a : attributes) {
+      bool is_schema = handle_schema(log, a, [&a, this](std::string_view json) {
+        collected_tags_.emplace(a.key(), json);
+      });
+      if (!is_schema) {
+        handle_non_schema_attribute(
+            log, a, [&a, this](std::variant<std::string_view, double> v) {
+              if (std::holds_alternative<std::string_view>(v)) {
+                collected_tags_.emplace(a.key(), std::get<std::string_view>(v));
+              } else {
+                collected_metrics_.emplace(a.key(), std::get<double>(v));
+              }
+            });
+      }
+    }
+  }
+
+  if (code == DDWAF_MATCH) {
+    std::optional<ddwaf_map_obj> actions_arr{
+        iresult.get_opt<ddwaf_map_obj>("actions"sv)};
+    if (actions_arr) {
+      ActionsResult actions_res{*actions_arr};
       waf_result.block_spec = resolve_block_spec(actions_res);
     }
-  } else {
-    ddwaf_result_free(&result);
   }
 
   return waf_result;
 }
 
+bool DdwafContext::has_matches() const {
+  for (const libddwaf_owned_ddwaf_obj<ddwaf_map_obj> &result : results_) {
+    std::optional<ddwaf_arr_obj> maybe_events =
+        result.get_opt<ddwaf_arr_obj>("events");
+    if (maybe_events && maybe_events->size() > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool DdwafContext::report_matches(
     const std::function<void(std::string_view)> &f) {
   if (results_.empty()) {
+    return false;
+  }
+
+  std::vector<ddwaf_arr_obj> events_arrs;
+  for (LibddwafOwnedMap &result : results_) {
+    std::optional<ddwaf_arr_obj> maybe_events =
+        result.get_opt<ddwaf_arr_obj>("events");
+    if (!maybe_events) {
+      continue;
+    }
+    if (maybe_events->size() == 0) {
+      continue;
+    }
+    events_arrs.push_back(*maybe_events);
+  }
+
+  if (events_arrs.empty()) {
     return false;
   }
 
@@ -287,8 +437,7 @@ bool DdwafContext::report_matches(
   w.ConstLiteralKey("triggers"sv);
 
   w.StartArray();
-  for (auto &&result : results_) {
-    auto events = dnsec::ddwaf_arr_obj{(*result).events};
+  for (const ddwaf_arr_obj &events : events_arrs) {
     for (auto &&evt : events) {
       ddwaf_object_to_json(w, evt);
     }

@@ -36,5 +36,10 @@ COPY ./rum_conf.json /datadog-tests/rum_conf.json
 # settings for the generation of the profile data for coverage
 ENV LLVM_PROFILE_FILE="/tmp/nginx.%p.profraw"
 
+COPY ./.gdbinit /root/
+RUN mkdir /root/gdb/
+COPY ./nginx.py /root/gdb/
+COPY ./waf.py /root/gdb/
+
 ENTRYPOINT ["nginx", "-c", "/datadog-tests/nginx.conf"]
 CMD ["-g", "daemon off;"]

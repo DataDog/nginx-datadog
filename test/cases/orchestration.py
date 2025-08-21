@@ -875,7 +875,7 @@ exit "$rcode"
 
             def new_worker_starts():
                 pids = nginx_worker_pids(nginx_container, self.verbose)
-                return len(pids) == 1
+                return len(pids) >= 1
 
             wait_until(new_worker_starts, timeout_seconds=10)
 

@@ -15,6 +15,8 @@ namespace datadog::nginx::security {
 char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
                            void *conf) noexcept;
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
 constexpr directive kAppsecDirectives[] = {
     {"datadog_waf_thread_pool_name",
      NGX_HTTP_MAIN_CONF | NGX_HTTP_SRV_CONF | NGX_HTTP_LOC_CONF |
@@ -120,7 +122,26 @@ constexpr directive kAppsecDirectives[] = {
         offsetof(datadog_main_conf_t, appsec_stats_host_port),
         nullptr,
     },
+
+    {
+        "datadog_api_security_enabled",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_flag_slot,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(datadog_main_conf_t, api_security_enabled),
+        nullptr,
+    },
+
+    {
+        "datadog_api_security_proxy_sample_rate",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_num_slot,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(datadog_main_conf_t, api_security_proxy_sample_rate),
+        nullptr,
+    },
 };
+#pragma clang diagnostic pop
 #endif  // WITH_WAF
 
 }  // namespace datadog::nginx::security

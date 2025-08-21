@@ -7,6 +7,7 @@
 
 #include "blocking.h"
 #include "library.h"
+#include "security/ddwaf_obj.h"
 #include "util.h"
 
 namespace datadog::nginx::security {
@@ -25,9 +26,18 @@ class DdwafContext {
     std::optional<BlockSpecification> block_spec;
   };
 
-  WafRunResult run(ddwaf_object& persistent_data);
+  WafRunResult run(ngx_log_t& log, ddwaf_object& persistent_data);
 
-  bool has_matches() const { return !results_.empty(); }
+  bool has_matches() const;
+  bool keep() const { return keep_; }
+  const std::unordered_map<std::string_view, std::string>& collected_tags()
+      const {
+    return collected_tags_;
+  }
+  const std::unordered_map<std::string_view, double>& collected_metrics()
+      const {
+    return collected_metrics_;
+  }
 
   // if there are matches, calls the function with the desired contents for
   // _dd.appsec.json and returns true. O/wise returns false.
@@ -50,16 +60,11 @@ class DdwafContext {
     }
   };
 
-  struct DdwafResultFreeFunctor {
-    void operator()(ddwaf_result result) { ddwaf_result_free(&result); }
-  };
-  struct OwnedDdwafResult
-      : FreeableResource<ddwaf_result, DdwafResultFreeFunctor> {
-    using FreeableResource::FreeableResource;
-    explicit OwnedDdwafResult(ddwaf_result result) : FreeableResource{result} {}
-  };
-
   OwnedDdwafContext ctx_;
-  std::vector<OwnedDdwafResult> results_;
+  bool keep_{false};
+  std::vector<libddwaf_owned_ddwaf_obj<ddwaf_map_obj>> results_;
+  // string_views are backed by the results_ vector
+  std::unordered_map<std::string_view, std::string> collected_tags_;
+  std::unordered_map<std::string_view, double> collected_metrics_;
 };
 }  // namespace datadog::nginx::security

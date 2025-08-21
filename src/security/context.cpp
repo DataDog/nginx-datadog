@@ -442,7 +442,8 @@ std::optional<BlockSpecification> Context::run_waf_start(
 
   client_ip_ = std::move(client_ip);
 
-  auto [_, block_spec] = waf_ctx_->run(*data);
+  auto &&log = *req.connection->log;
+  auto [_, block_spec] = waf_ctx_->run(log, *data);
 
   if (block_spec) {
     stage_->store(stage::AFTER_BEGIN_WAF_BLOCK, std::memory_order_release);
@@ -602,16 +603,31 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
     }
   }
 
+  static void empty_handler_read(ngx_event_t *wev) {
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                   "PolFinalWafCtx: http empty handler (read)");
+  }
+
+  static void empty_handler_write(ngx_event_t *wev) {
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                   "PolFinalWafCtx: http empty handler (write)");
+  }
+
+  ngx_event_handler_pt orig_conn_read_handler_{};
   ngx_event_handler_pt orig_conn_write_handler_{};
   void replace_handlers() noexcept {
-    auto &handler = req_.connection->write->handler;
-    orig_conn_write_handler_ = handler;
+    auto &read_handler = req_.connection->read->handler;
+    orig_conn_read_handler_ = read_handler;
+    read_handler = &empty_handler_read;
 
-    handler = ngx_http_empty_handler;
+    auto &write_handler = req_.connection->write->handler;
+    orig_conn_write_handler_ = write_handler;
+    write_handler = &empty_handler_write;
   }
 
   void restore_handlers() noexcept {
     req_.connection->write->handler = orig_conn_write_handler_;
+    req_.connection->read->handler = orig_conn_read_handler_;
   }
 
   friend PolTaskCtx;
@@ -1518,7 +1534,8 @@ std::optional<BlockSpecification> Context::run_waf_req_post(
     return std::nullopt;
   }
 
-  auto [_, block_spec] = waf_ctx_->run(input);
+  auto &&log = *request.connection->log;
+  auto [_, block_spec] = waf_ctx_->run(log, input);
   return block_spec;
 }
 
@@ -1564,15 +1581,18 @@ std::optional<BlockSpecification> Context::run_waf_end(
     body_size = 0;
   }
 
-  ddwaf_object *resp_data =
-      collect_response_data(request, body_chain, body_size, memres_);
+  bool extract_schema = Library::api_security_should_sample();
+  ddwaf_object *resp_data = collect_response_data(
+      request, body_chain, body_size, extract_schema, memres_);
 
-  auto [_, block_spec] = waf_ctx_->run(*resp_data);
+  auto &&log = *request.connection->log;
+  auto [_, block_spec] = waf_ctx_->run(log, *resp_data);
+
   return block_spec;
 }
 
-bool Context::has_matches() const noexcept {
-  return waf_ctx_ && waf_ctx_->has_matches();
+bool Context::keep_span() const noexcept {
+  return waf_ctx_ && waf_ctx_->keep();
 }
 
 void Context::on_main_log_request(ngx_http_request_t &request,
@@ -1582,6 +1602,31 @@ void Context::on_main_log_request(ngx_http_request_t &request,
   });
 }
 
+namespace {
+void set_tags_meta(
+    ngx_log_t &log,
+    const std::unordered_map<std::string_view, std::string> &tags,
+    dd::Span &span) {
+  for (auto &[key, value] : tags) {
+    ngx_str_t key_ns{dnsec::ngx_stringv(key)};
+    ngx_str_t value_ns{dnsec::ngx_stringv(value)};
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, &log, 0, "Setting tag %V with value %V",
+                  &key_ns, &value_ns);
+    span.set_tag(key, value);
+  }
+}
+void set_tags_metrics(
+    ngx_log_t &log, const std::unordered_map<std::string_view, double> &metrics,
+    dd::Span &span) {
+  for (auto &[key, value] : metrics) {
+    ngx_str_t key_ns{dnsec::ngx_stringv(key)};
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, &log, 0,
+                  "Setting metric %V with value %f", &key_ns, value);
+    span.set_metric(key, value);
+  }
+}
+}  // namespace
+
 void Context::do_on_main_log_request(ngx_http_request_t &request,
                                      dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
@@ -1590,7 +1635,10 @@ void Context::do_on_main_log_request(ngx_http_request_t &request,
     return;
   }
 
+  ngx_log_t &log = *request.connection->log;
   set_header_tags(waf_ctx_->has_matches(), request, span);
+  set_tags_meta(log, waf_ctx_->collected_tags(), span);
+  set_tags_metrics(log, waf_ctx_->collected_metrics(), span);
   report_matches(request, span);
   report_client_ip(span);
 }
@@ -1613,8 +1661,11 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
   });
 
   if (did_report) {
-    trace_segment.override_sampling_priority(2);  // USER-KEEP
     span.set_tag("appsec.event"sv, "true");
+  }
+
+  if (waf_ctx_->keep()) {
+    trace_segment.override_sampling_priority(2);  // USER-KEEP
     if (!apm_tracing_enabled_) {
       span.set_source(tracing::Source::appsec);
     }

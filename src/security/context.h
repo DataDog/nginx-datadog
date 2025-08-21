@@ -67,7 +67,7 @@ class Context {
   std::optional<BlockSpecification> run_waf_end(ngx_http_request_t &request,
                                                 dd::Span &span);
 
-  bool has_matches() const noexcept;
+  bool keep_span() const noexcept;
 
  private:
   bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
