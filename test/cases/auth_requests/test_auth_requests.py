@@ -42,11 +42,15 @@ class TestAuthRequests(case.TestCase):
                 if first['service'] == 'nginx':
                     nginx_sent_a_trace = True
                     self.assertEqual(0, len(rest), chunk)
-                    self.assertEqual(first['meta']['http.url'], f'http://nginx{path}', first)
-                    self.assertEqual(first['meta']['nginx.location'], path, first)
+                    self.assertEqual(first['meta']['http.url'],
+                                     f'http://nginx{path}', first)
+                    self.assertEqual(first['meta']['nginx.location'], path,
+                                     first)
 
-                    self.assertEqual(str(first['trace_id']), str(trace_id), trace)
-                    self.assertEqual(str(first['span_id']), str(span_id), trace)
+                    self.assertEqual(str(first['trace_id']), str(trace_id),
+                                     trace)
+                    self.assertEqual(str(first['span_id']), str(span_id),
+                                     trace)
 
         self.assertTrue(nginx_sent_a_trace, log_lines)
 
@@ -59,8 +63,9 @@ class TestAuthRequests(case.TestCase):
 
         self.orch.sync_service('agent')
 
+        path = '/http'
         status, _, body = self.orch.send_nginx_http_request(
-            '/http', 80, headers={'x-token': 'mysecret'})
+            path, 80, headers={'x-token': 'mysecret'})
         self.assertEqual(status, 200)
         response = json.loads(body)
         self.assertEqual(response["service"], "http")
@@ -85,18 +90,24 @@ class TestAuthRequests(case.TestCase):
                 if first['service'] == 'nginx':
                     nginx_sent_a_trace = True
                     self.assertEqual(1, len(rest), chunk)
-                    self.assertEqual(first['meta']['http.url'], 'http://nginx/http', first)
-                    self.assertEqual(first['meta']['nginx.location'], '/http', first)
+                    self.assertEqual(first['meta']['http.url'],
+                                     f'http://nginx{path}', first)
+                    self.assertEqual(first['meta']['nginx.location'], path,
+                                     first)
 
                     # Assert that the subrequest was traced
                     self.assertEqual('nginx', rest[0]['service'], rest[0])
-                    self.assertEqual(rest[0]['meta']['http.url'], 'http://nginx/http', rest[0])
-                    self.assertEqual(rest[0]['meta']['nginx.location'], '/auth', rest[0])
+                    self.assertEqual(rest[0]['meta']['http.url'],
+                                     f'http://nginx{path}', rest[0])
+                    self.assertEqual(rest[0]['meta']['nginx.location'],
+                                     '/auth', rest[0])
 
                     # Assert existing behavior that the trace ID and span ID
                     # match the trace ID and span ID of the nginx subrequest.
-                    self.assertEqual(str(first['trace_id']), str(trace_id), trace)
-                    self.assertEqual(str(first['span_id']), str(span_id), trace)
+                    self.assertEqual(str(first['trace_id']), str(trace_id),
+                                     trace)
+                    self.assertEqual(str(first['span_id']), str(span_id),
+                                     trace)
 
         self.assertTrue(nginx_sent_a_trace, log_lines)
 
@@ -109,7 +120,8 @@ class TestAuthRequests(case.TestCase):
 
         self.orch.sync_service('agent')
 
-        status, _, _ = self.orch.send_nginx_http_request('/http')
+        path = '/http'
+        status, _, _ = self.orch.send_nginx_http_request(path)
         self.assertEqual(status, 401)
 
         self.orch.reload_nginx()
@@ -128,11 +140,15 @@ class TestAuthRequests(case.TestCase):
                 if first['service'] == 'nginx':
                     nginx_sent_a_trace = True
                     self.assertEqual(1, len(rest), chunk)
-                    self.assertEqual(first['meta']['http.url'], 'http://nginx/http', first)
-                    self.assertEqual(first['meta']['nginx.location'], '/http', first)
+                    self.assertEqual(first['meta']['http.url'],
+                                     f'http://nginx/{path}', first)
+                    self.assertEqual(first['meta']['nginx.location'], path,
+                                     first)
 
                     self.assertEqual('nginx', rest[0]['service'], rest[0])
-                    self.assertEqual(rest[0]['meta']['http.url'], 'http://nginx/http', rest[0])
-                    self.assertEqual(rest[0]['meta']['nginx.location'], '/auth', rest[0])
+                    self.assertEqual(rest[0]['meta']['http.url'],
+                                     'http://nginx/http', rest[0])
+                    self.assertEqual(rest[0]['meta']['nginx.location'],
+                                     '/auth', rest[0])
 
         self.assertTrue(nginx_sent_a_trace, log_lines)
