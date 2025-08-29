@@ -95,8 +95,8 @@ class TestAuthRequests(case.TestCase):
 
                     # Assert existing behavior that the trace ID and span ID
                     # match the trace ID and span ID of the nginx subrequest.
-                    self.assertEqual(str(rest[0]['trace_id']), str(trace_id), trace)
-                    self.assertEqual(str(rest[0]['span_id']), str(span_id), trace)
+                    self.assertEqual(str(first['trace_id']), str(trace_id), trace)
+                    self.assertEqual(str(first['span_id']), str(span_id), trace)
 
         self.assertTrue(nginx_sent_a_trace, log_lines)
 

@@ -343,7 +343,7 @@ ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t *request) {
   // inject headers in the precontent phase into the request headers
   // These headers will be copied by ngx_http_proxy_create_request on the
   // content phase into the outgoing request headers (probably)
-  RequestTracing &trace = traces_.back();
+  RequestTracing &trace = traces_.front();
   dd::Span &span = trace.active_span();
   span.set_tag("span.kind", "client");
 
