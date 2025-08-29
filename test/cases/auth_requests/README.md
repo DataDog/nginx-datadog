@@ -1,0 +1,3 @@
+NGINX can authenticate requests based on a subrequest to an external server, which is done by configuring 'auth_request <path>' for the protected locations. These tests ensure that our tracing corrrectly handles this configuration.
+
+IMPORTANT: The NGINX configuration under test sets 'log_subrequest on;' to ensure that we create a span for the auth subrequest, which introduces a child span inside the root nginx span.
