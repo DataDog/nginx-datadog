@@ -11,6 +11,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include "array_util.h"
@@ -73,6 +74,29 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
     span.set_error(true);
   }
 }
+
+static void add_baggage_span_tags(const std::unordered_set<std::string>& baggage_span_tags, tracing::Baggage& baggage, dd::Span &span) {
+  if (baggage.empty()) return;
+
+  static const std::string baggage_prefix = "baggage.";
+  // Special case: If we have one entry with key "*", copy all items as span tags.
+  if (baggage.size() == 1 && baggage_span_tags.contains("*"))
+  {
+    baggage.visit([&span](std::string_view key, std::string_view value) {
+      // std::string key_str = baggage_prefix.append(key.data(), key.length());
+      span.set_tag(baggage_prefix + std::string(key), value);
+    });
+  }
+  else
+  {
+    for (const auto &tag_name : baggage_span_tags) {
+      if (baggage.contains(tag_name)) {
+        span.set_tag(baggage_prefix + tag_name, baggage.get(tag_name).value());
+      }
+    }
+  }
+}
+
 
 static void add_upstream_name(const ngx_http_request_t *request,
                               dd::Span &span) {
@@ -211,6 +235,11 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
       request_span_.emplace(tracer->create_span(config));
     } else {
       request_span_.emplace(std::move(*maybe_span));
+    }
+
+    auto maybe_baggage = tracer->extract_baggage(reader);
+    if (maybe_baggage && request_span_) {
+      add_baggage_span_tags(loc_conf_->baggage_span_tags, *maybe_baggage, *request_span_);
     }
   }
 

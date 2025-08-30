@@ -179,6 +179,14 @@ whose value is the result of evaluating the specified `<value>` in the context
 of the current request.  `<value>` is a string that may contain
 `$`-[variables][2] (including those provided by this module).
 
+### `datadog_baggage_span_tag`
+- **syntax** `datadog_baggage_span_tag <key>`
+- **context**: `http`, `server`, `location`
+
+Specify items from the current Baggage that should be set as a span tag on
+the current span, if a matching key exists. The tag name is set to the speciified `<key>`
+and the value is set to the value of the Baggage item.
+
 ### `datadog_tracing`
 - **syntax** `datadog_tracing on|off`
 - **default** `on`

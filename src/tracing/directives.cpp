@@ -63,6 +63,24 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
   return NGX_CONF_OK;
 }
 
+char *set_datadog_baggage_span_tag(ngx_conf_t *cf, ngx_command_t *command,
+                                   void *conf) noexcept {
+  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  auto values = static_cast<ngx_str_t *>(cf->args->elts);
+
+  // values[0] is the command name, while values[1] is the single argument.
+  const auto baggage_key = to_string_view(values[1]);
+  if (baggage_key.empty()) {
+    ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                       "Invalid argument \"%V\" to %V directive.  Expected a non-empty string.",
+                       &values[1], &command->name);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  loc_conf->baggage_span_tags.insert(std::string(baggage_key));
+  return NGX_CONF_OK;
+}
+
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
                               void *conf) noexcept {
   const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);

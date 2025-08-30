@@ -232,6 +232,15 @@ TracingLibrary::default_tags() {
   return tags;
 }
 
+std::unordered_set<std::string_view>
+TracingLibrary::default_baggage_span_tags() {
+  static const std::unordered_set<std::string_view> baggage_span_tags{
+      "user.id",
+      "session.id",
+      "account.id"};
+  return baggage_span_tags;
+}
+
 std::string_view TracingLibrary::default_resource_name_pattern() {
   return "$request_method $uri";
 }

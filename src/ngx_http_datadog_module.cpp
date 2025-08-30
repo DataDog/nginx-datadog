@@ -333,6 +333,15 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
     }
   }
 
+  // If we have set this in a location block, we shouldn't add the default baggage span tags but I don't know how to do that.
+  // Add default baggage span tags, only if previously empty.
+  if (main_conf->baggage_span_tags.empty()) {
+    const auto baggage_span_tags = TracingLibrary::default_baggage_span_tags();
+    for (const auto &tag_name : baggage_span_tags) {
+      main_conf->baggage_span_tags.insert(std::string(tag_name));
+    }
+  }
+
 #ifdef WITH_WAF
   // Initialize shared memory for API security rate limiter
   if (security::Library::initialize_api_security_shared_memory(cf) != NGX_OK) {
@@ -495,6 +504,13 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
     auto parent_tags =
         prev->tags;  ///< Make a copy because merge steal the nodes.
     conf->tags.merge(parent_tags);
+  }
+
+  // If the more-specific location block lists baggage span tags, only apply those, not the default.
+  if (conf->baggage_span_tags.empty() && !prev->baggage_span_tags.empty()) {
+    // TODO: Do I need to make a copy here?
+    auto parent_baggage_span_tags = prev->baggage_span_tags;
+    conf->baggage_span_tags.merge(parent_baggage_span_tags);
   }
 
 #ifdef WITH_WAF
