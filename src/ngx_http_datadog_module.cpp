@@ -333,8 +333,7 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
     }
   }
 
-  // If we have set this in a location block, we shouldn't add the default baggage span tags but I don't know how to do that.
-  // Add default baggage span tags, only if previously empty.
+  // Add default baggage span tags.
   const auto baggage_span_tags = TracingLibrary::default_baggage_span_tags();
   for (const auto &tag_name : baggage_span_tags) {
     main_conf->baggage_span_tags.insert(std::string(tag_name));

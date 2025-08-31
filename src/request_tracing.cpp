@@ -76,9 +76,10 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
 }
 
 // Search through `conf` and its ancestors for the first `baggage_span_tags`
-// directive and copy the configured tags.
+// directive and copy the configured tags. If no tags are configured, then add the default tags,
+// which are stored in the main conf.
 // 
-// Precondition: The local conf has the directive `enable_baggage_span_tags` set.
+// Precondition: The local conf has the directive `datadog_baggage_span_tags_enabled` set.
 void add_baggage_span_tags(datadog_loc_conf_t *conf, datadog_main_conf_t *main_conf, tracing::Baggage& baggage, dd::Span &span) {
   if (baggage.empty()) return;
 
@@ -184,8 +185,6 @@ void set_sample_rate_tag(ngx_http_request_t *request, datadog_loc_conf_t *conf,
     conf = conf->parent;
   } while (conf);
 }
-
-
 
 RequestTracing::RequestTracing(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
