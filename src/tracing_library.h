@@ -136,6 +136,10 @@ struct TracingLibrary {
   // An HTTP location is an endpoint as configured using a "location" block
   // in the nginx configuration.
   static bool trace_locations_by_default();
+
+  // Return the default setting for whether baggage span tags will be added
+  // to the current span.
+  static bool bagage_span_tags_by_default();
 };
 
 }  // namespace nginx

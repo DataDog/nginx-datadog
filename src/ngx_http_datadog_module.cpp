@@ -335,11 +335,9 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
 
   // If we have set this in a location block, we shouldn't add the default baggage span tags but I don't know how to do that.
   // Add default baggage span tags, only if previously empty.
-  if (main_conf->baggage_span_tags.empty()) {
-    const auto baggage_span_tags = TracingLibrary::default_baggage_span_tags();
-    for (const auto &tag_name : baggage_span_tags) {
-      main_conf->baggage_span_tags.insert(std::string(tag_name));
-    }
+  const auto baggage_span_tags = TracingLibrary::default_baggage_span_tags();
+  for (const auto &tag_name : baggage_span_tags) {
+    main_conf->baggage_span_tags.insert(std::string(tag_name));
   }
 
 #ifdef WITH_WAF
@@ -475,6 +473,8 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
                        TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
+  ngx_conf_merge_value(conf->baggage_span_tags_enabled, prev->baggage_span_tags_enabled,
+                       TracingLibrary::bagage_span_tags_by_default());
   ngx_conf_merge_ptr_value(conf->service_name, prev->service_name, nullptr);
   ngx_conf_merge_ptr_value(conf->service_env, prev->service_env, nullptr);
   ngx_conf_merge_ptr_value(conf->service_version, prev->service_version,
@@ -504,13 +504,6 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
     auto parent_tags =
         prev->tags;  ///< Make a copy because merge steal the nodes.
     conf->tags.merge(parent_tags);
-  }
-
-  // If the more-specific location block lists baggage span tags, only apply those, not the default.
-  if (conf->baggage_span_tags.empty() && !prev->baggage_span_tags.empty()) {
-    // TODO: Do I need to make a copy here?
-    auto parent_baggage_span_tags = prev->baggage_span_tags;
-    conf->baggage_span_tags.merge(parent_baggage_span_tags);
   }
 
 #ifdef WITH_WAF

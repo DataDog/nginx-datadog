@@ -105,7 +105,6 @@ class TestBaggageSpanTags(case.TestCase):
                 for span in segment:
                     if span["service"] != "nginx":
                         continue
-                    pprint.pprint(span, indent=4)
                     # Here's a span that nginx sent.  Make sure it has the default tags:
                     # - baggage.user.id (from baggage key "user.id")
                     # - baggage.session.id (from baggage key "session.id")
@@ -122,6 +121,9 @@ class TestBaggageSpanTags(case.TestCase):
 
                     self.assertIn("baggage.account.id", tags, span)
                     self.assertEqual(tags["baggage.account.id"], "456")
+
+                    self.assertNotIn("baggage.fancy.tag", tags, span)
+                    self.assertNotIn("baggage.snazzy.tag", tags, span)
 
     def test_overwite_default_tags_empty_inherits_previous_conf(self):
         """Verify default baggage span tags can be overwritten"""
@@ -161,6 +163,49 @@ class TestBaggageSpanTags(case.TestCase):
                     self.assertEqual(tags["baggage.user.id"], "doggo")
                     self.assertEqual(tags["baggage.session.id"], "123")
                     self.assertEqual(tags["baggage.account.id"], "456")
+                    self.assertNotIn("baggage.fancy.tag", tags, span)
+                    self.assertNotIn("baggage.snazzy.tag", tags, span)
+
+    def test_overwite_default_tags_disabed_at_location(self):
+        """Verify default baggage span tags can be overwritten"""
+        conf_path = Path(__file__).parent / "./conf/overwrite_defaults.conf"
+        conf_text = conf_path.read_text()
+        self.orch.nginx_replace_config(conf_text, conf_path.name)
+
+        # Consume any previous logging from the agent.
+        self.orch.sync_service("agent")
+
+        headers = {
+            "baggage": "user.id=doggo,session.id=123,account.id=456,snazzy.tag=hard-coded,fancy.tag=GET"
+        }
+
+        status, _, _ = self.orch.send_nginx_http_request("/disabled_tags", headers=headers)
+        self.assertEqual(status, 200)
+
+        self.orch.reload_nginx()
+        log_lines = self.orch.sync_service("agent")
+
+        for line in log_lines:
+            segments = formats.parse_trace(line)
+            if segments is None:
+                # some other kind of logging; ignore
+                continue
+            for segment in segments:
+                for span in segment:
+                    if span["service"] != "nginx":
+                        continue
+                    # Here's a span that nginx sent.  Make sure it has the default tags.
+                    # These tag names come from `TracingLibrary::default_tags` in
+                    # `tracing_library.cpp`.
+                    # Some of the span values are easy to predict, while for
+                    # others we just check that the tag is present.
+                    tags = span["meta"]
+
+                    self.assertNotIn("baggage.user.id", tags, span)
+                    self.assertNotIn("baggage.session.id", tags, span)
+                    self.assertNotIn("baggage.account.id", tags, span)
+                    self.assertNotIn("baggage.fancy.tag", tags, span)
+                    self.assertNotIn("baggage.snazzy.tag", tags, span)
 
     def test_overwite_default_tags_custom_ignores_previous_conf(self):
         """Verify default baggage span tags can be overwritten"""
@@ -175,7 +220,7 @@ class TestBaggageSpanTags(case.TestCase):
             "baggage": "user.id=doggo,session.id=123,account.id=456,snazzy.tag=hard-coded,fancy.tag=GET"
         }
 
-        status, _, _ = self.orch.send_nginx_http_request("/http", headers=headers)
+        status, _, _ = self.orch.send_nginx_http_request("/snazzy_tag", headers=headers)
         self.assertEqual(status, 200)
 
         self.orch.reload_nginx()
@@ -198,3 +243,8 @@ class TestBaggageSpanTags(case.TestCase):
                     tags = span["meta"]
 
                     self.assertEqual(tags["baggage.snazzy.tag"], "hard-coded")
+
+                    self.assertNotIn("baggage.fancy.tag", tags, span)
+                    self.assertNotIn("baggage.user.id", tags, span)
+                    self.assertNotIn("baggage.session.id", tags, span)
+                    self.assertNotIn("baggage.account.id", tags, span)

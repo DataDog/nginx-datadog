@@ -217,6 +217,7 @@ struct datadog_loc_conf_t {
   // `service_version` is set by the `datadog_version` directive.
   ngx_http_complex_value_t *service_version = DD_NGX_CONF_COMPLEX_UNSET;
   std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
+  ngx_flag_t baggage_span_tags_enabled = NGX_CONF_UNSET;
   std::unordered_set<std::string> baggage_span_tags;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
   // `nullptr` if this context has no parent.

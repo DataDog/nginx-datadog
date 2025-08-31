@@ -249,5 +249,7 @@ bool TracingLibrary::tracing_on_by_default() { return true; }
 
 bool TracingLibrary::trace_locations_by_default() { return false; }
 
+bool TracingLibrary::bagage_span_tags_by_default() { return true; }
+
 }  // namespace nginx
 }  // namespace datadog

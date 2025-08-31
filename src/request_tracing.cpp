@@ -75,25 +75,40 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
   }
 }
 
-static void add_baggage_span_tags(const std::unordered_set<std::string>& baggage_span_tags, tracing::Baggage& baggage, dd::Span &span) {
+// Search through `conf` and its ancestors for the first `baggage_span_tags`
+// directive and copy the configured tags.
+// 
+// Precondition: The local conf has the directive `enable_baggage_span_tags` set.
+void add_baggage_span_tags(datadog_loc_conf_t *conf, datadog_main_conf_t *main_conf, tracing::Baggage& baggage, dd::Span &span) {
   if (baggage.empty()) return;
 
   static const std::string baggage_prefix = "baggage.";
-  // Special case: If we have one entry with key "*", copy all items as span tags.
-  if (baggage.size() == 1 && baggage_span_tags.contains("*"))
-  {
-    baggage.visit([&span](std::string_view key, std::string_view value) {
-      // std::string key_str = baggage_prefix.append(key.data(), key.length());
-      span.set_tag(baggage_prefix + std::string(key), value);
-    });
-  }
-  else
-  {
-    for (const auto &tag_name : baggage_span_tags) {
-      if (baggage.contains(tag_name)) {
-        span.set_tag(baggage_prefix + tag_name, baggage.get(tag_name).value());
+
+  do {
+    if (!conf->baggage_span_tags.empty()) {
+      if (baggage.size() == 1 && conf->baggage_span_tags.contains("*")) {
+        baggage.visit([&span](std::string_view key, std::string_view value) {
+            span.set_tag(baggage_prefix + std::string(key), value);
+        });
       }
+      else {
+        for (const auto &tag_name : conf->baggage_span_tags) {
+          if (baggage.contains(tag_name)) {
+            span.set_tag(baggage_prefix + tag_name, baggage.get(tag_name).value());
+          }
+        }
+      }
+
+      return;
     }
+ 
+    conf = conf->parent;
+  } while (conf);
+
+  // At this point, no baggage span tags were found in the conf or its ancestors.
+  // Apply the main conf default baggage span tags.
+  for (const auto &tag_name : main_conf->baggage_span_tags) {
+    span.set_tag(baggage_prefix + tag_name, baggage.get(tag_name).value());
   }
 }
 
@@ -170,6 +185,8 @@ void set_sample_rate_tag(ngx_http_request_t *request, datadog_loc_conf_t *conf,
   } while (conf);
 }
 
+
+
 RequestTracing::RequestTracing(ngx_http_request_t *request,
                                ngx_http_core_loc_conf_t *core_loc_conf,
                                datadog_loc_conf_t *loc_conf, dd::Span *parent)
@@ -237,9 +254,11 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
       request_span_.emplace(std::move(*maybe_span));
     }
 
-    auto maybe_baggage = tracer->extract_baggage(reader);
-    if (maybe_baggage && request_span_) {
-      add_baggage_span_tags(loc_conf_->baggage_span_tags, *maybe_baggage, *request_span_);
+    if (loc_conf_->baggage_span_tags_enabled) {
+      auto maybe_baggage = tracer->extract_baggage(reader);
+      if (maybe_baggage && request_span_) {
+        add_baggage_span_tags(loc_conf, main_conf_, *maybe_baggage, *request_span_);
+      }
     }
   }
 
