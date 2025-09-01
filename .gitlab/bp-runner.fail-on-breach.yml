@@ -9,9 +9,9 @@ experiments:
         run: fail_on_breach
         warning_range: 7
         scenarios:
-          - name: high_load/only-tracing
+          - name: high_load--candidate-only-tracing
             thresholds:
               - throughput > 3426.8 op/s
-          - name: normal_operation/only-tracing
+          - name: normal_operation--candidate-only-tracing
             thresholds:
               - agg_http_req_duration_p50 < 0.11617 ms
