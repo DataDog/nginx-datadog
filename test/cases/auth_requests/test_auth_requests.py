@@ -141,7 +141,7 @@ class TestAuthRequests(case.TestCase):
                     nginx_sent_a_trace = True
                     self.assertEqual(1, len(rest), chunk)
                     self.assertEqual(first['meta']['http.url'],
-                                     f'http://nginx/{path}', first)
+                                     f'http://nginx{path}', first)
                     self.assertEqual(first['meta']['nginx.location'], path,
                                      first)
 
