@@ -69,8 +69,15 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
     static constexpr auto min = std::numeric_limits<T>::min();
     static constexpr auto max = std::numeric_limits<T>::max();
     if (type == DDWAF_OBJ_SIGNED) {
-      if (intValue < min || intValue > max) {
-        throw std::out_of_range("value out of range");
+      if constexpr (std::is_unsigned_v<T>) {
+        // special branch to avoid implicit signed -> unsigned conversions
+        if (intValue < 0 || static_cast<uint64_t>(intValue) > max) {
+          throw std::out_of_range("value out of range");
+        }
+      } else {
+        if (intValue < min || intValue > max) {
+          throw std::out_of_range("value out of range");
+        }
       }
       return static_cast<T>(intValue);
     }
