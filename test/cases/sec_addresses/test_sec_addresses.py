@@ -352,6 +352,19 @@ class TestSecAddresses(case.TestCase):
             result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
             'fe80::1')
 
+    def test_client_ip_14(self):
+        result = self.do_request_headers({'forwarded': 'for=1.2.3.4'})
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            '1.2.3.4')
+
+    def test_client_ip_15(self):
+        result = self.do_request_headers(
+            {'x-forwarded-for': '100.64.1.1, 1.2.3.4'})
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            '1.2.3.4')
+
     def test_client_ip_meta(self):
         status, _, _ = self.orch.send_nginx_http_request(
             '/http', 80, {'cf-connecting-ip': '10.10.10.10'})
@@ -410,6 +423,24 @@ class TestSecAddresses(case.TestCase):
         result = self.do_request_headers({
             'forwarded-for': '8.8.8.8',
             'x-forwarded': 'for=1.2.3.4'
+        })
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            '1.2.3.4')
+
+    def test_client_ip_prio_5a(self):
+        result = self.do_request_headers({
+            'forwarded': 'for=1.2.3.4',
+            'forwarded-for': '8.8.8.8'
+        })
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            '1.2.3.4')
+
+    def test_client_ip_prio_5b(self):
+        result = self.do_request_headers({
+            'x-cluster-client-ip': '8.8.8.8',
+            'forwarded': 'for=1.2.3.4'
         })
         self.assertEqual(
             result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],

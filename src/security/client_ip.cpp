@@ -138,6 +138,10 @@ bool IpAddr::is_private_v4() const {
           .base = {ct_htonl(0xA9FE0000U)},  // 169.254.0.0
           .mask = {ct_htonl(0xFFFF0000U)},  // 255.255.0.0
       },
+      {
+          .base = {ct_htonl(0x64400000U)},  // 100.64.0.0
+          .mask = {ct_htonl(0xFFC00000U)},  // 255.192.0.0
+      },
   };
 
   for (std::size_t i = 0; i < sizeof(priv_ranges) / sizeof(priv_ranges[0]);
@@ -240,13 +244,14 @@ std::optional<IpAddr> parse_ip_address_maybe_port_pair(std::string_view sv);
 // clang-format on
 
 static constexpr auto kPriorityHeaderArr =
-    std::array<HeaderProcessorDefinition, 10>{
+    std::array<HeaderProcessorDefinition, 11>{
         HeaderProcessorDefinition{"x-forwarded-for"sv,
                                   parse_multiple_maybe_port},
         {"x-real-ip"sv, parse_multiple_maybe_port},
         {"true-client-ip"sv, parse_multiple_maybe_port},
         {"x-client-ip"sv, parse_multiple_maybe_port},
         {"x-forwarded"sv, parse_forwarded},
+        {"forwarded"sv, parse_forwarded},
         {"forwarded-for"sv, parse_multiple_maybe_port},
         {"x-cluster-client-ip"sv, parse_multiple_maybe_port},
         {"fastly-client-ip"sv, parse_multiple_maybe_port},
@@ -303,6 +308,7 @@ HeaderIndex index_headers(const ngx_list_t &headers) {
       CASE("true-client-ip"sv)
       CASE("x-client-ip"sv)
       CASE("x-forwarded"sv)
+      CASE("forwarded"sv)
       CASE("forwarded-for"sv)
       CASE("x-cluster-client-ip"sv)
       CASE("fastly-client-ip"sv)
