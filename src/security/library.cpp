@@ -375,18 +375,18 @@ namespace datadog::nginx::security {
 class FinalizedConfigSettings {
   static constexpr ngx_uint_t kDefaultWafTimeoutUsec = 1000000;  // 100 ms
   static constexpr std::string_view kDefaultObfuscationKeyRegex =
-      R"((?i)pass|pw(?:or)?d|secret|(?:api|private|public|access)[_-]?key"
-      R"|token|consumer[_-]?(?:id|key|secret)|sign(?:ed|ature)|bearer"
-      R"|authorization|jsessionid|phpsessid|asp\.net[_-]sessionid|sid|jwt)";
+      R"((?i)pass|pw(?:or)?d|secret|(?:api|private|public|access)[_-]?key)"
+      R"(|token|consumer[_-]?(?:id|key|secret)|sign(?:ed|ature)|bearer)"
+      R"(|authorization|jsessionid|phpsessid|asp\.net[_-]sessionid|sid|jwt)";
   static constexpr std::string_view kDefaultObfuscationValueRegex =
-      R"((?i)(?:p(?:ass)?w(?:or)?d|pass(?:[_-]?phrase)?|secret(?:[_-]?key)?"
-      R"|(?:(?:api|private|public|access)[_-]?)key(?:[_-]?id)?
-      R"|(?:(?:auth|access|id|refresh)[_-]?)?token|consumer[_-]?(?:id|key|secret)
-      R"|sign(?:ed|ature)?|auth(?:entication|orization)?|jsessionid|phpsessid|
-      R"asp\.net(?:[_-]|-)sessionid|sid|jwt)(?:\s*=([^;&]+)|"\s*:\s*("[^"]+"|\d+))
-      R"|bearer\s+([a-z0-9\._\-]+)|token\s*:\s*([a-z0-9]{13})|gh[opsu]_([0-9a-zA-Z]{36})
-      R"|ey[I-L][\w=-]+\.(ey[I-L][\w=-]+(?:\.[\w.+\/=-]+)?)|[\-]{5}BEGIN[a-z\s]+
-      R"PRIVATE\sKEY[\-]{5}([^\-]+)[\-]{5}END[a-z\s]+PRIVATE\sKEY|ssh-rsa\s*([a-z0-9\/\.+]{100,}))";
+      R"((?i)(?:p(?:ass)?w(?:or)?d|pass(?:[_-]?phrase)?|secret(?:[_-]?key)?)"
+      R"(|(?:(?:api|private|public|access)[_-]?)key(?:[_-]?id)?)"
+      R"(|(?:(?:auth|access|id|refresh)[_-]?)?token|consumer[_-]?(?:id|key|secret))"
+      R"(|sign(?:ed|ature)?|auth(?:entication|orization)?|jsessionid|phpsessid|)"
+      R"(asp\.net(?:[_-]|-)sessionid|sid|jwt)(?:\s*=([^;&]+)|"\s*:\s*("[^"]+"|\d+)))"
+      R"(|bearer\s+([a-z0-9\._\-]+)|token\s*:\s*([a-z0-9]{13})|gh[opsu]_([0-9a-zA-Z]{36}))"
+      R"(|ey[I-L][\w=-]+\.(ey[I-L][\w=-]+(?:\.[\w.+\/=-]+)?)|[\-]{5}BEGIN[a-z\s]+)"
+      R"(PRIVATE\sKEY[\-]{5}([^\-]+)[\-]{5}END[a-z\s]+PRIVATE\sKEY|ssh-rsa\s*([a-z0-9\/\.+]{100,}))";
 
  public:
   enum class enable_status : std::uint8_t {
@@ -559,6 +559,10 @@ FinalizedConfigSettings::FinalizedConfigSettings(
             .value_or(std::string{kDefaultObfuscationKeyRegex});
   }
 
+  ngx_str_t key_regex = ngx_stringv(obfuscation_key_regex_);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
+                "obfuscation_key_regex_: %V", &key_regex);
+
   if (ngx_conf.appsec_obfuscation_value_regex.data != nullptr) {
     obfuscation_value_regex_ =
         to_string_view(ngx_conf.appsec_obfuscation_value_regex);
@@ -568,6 +572,9 @@ FinalizedConfigSettings::FinalizedConfigSettings(
             evs, "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP"sv)
             .value_or(std::string{kDefaultObfuscationValueRegex});
   }
+  ngx_str_t value_regex = ngx_stringv(obfuscation_value_regex_);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, ngx_cycle->log, 0,
+                "obfuscation_value_regex_: %V", &value_regex);
 
   if (ngx_conf.appsec_max_saved_output_data != NGX_CONF_UNSET_SIZE) {
     appsec_max_saved_output_data_.emplace(
