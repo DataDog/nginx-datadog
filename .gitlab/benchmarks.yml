@@ -1,5 +1,5 @@
 stages:
-  # - build
+  - build
   - run-benchmarks
   - gate
   - notify
@@ -15,32 +15,32 @@ variables:
   BUILD_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/images/mirror/b1o7r7e0/nginx_musl_toolchain
   NGINX_VERSION: 1.26.0
 
-# build-nginx-module:
-#   stage: build
-#   tags: ["arch:amd64"]
-#   timeout: 20min
-#   image: $BUILD_IMAGE
-#   variables:
-#     WAF: OFF
-#     COVERAGE: OFF
-#     RUM: OFF
-#     BUILD_TYPE: Release
-#     ARCH: x86_64
-#   script:
-#     - git submodule sync && git submodule update --init --recursive
-#     - export NGINX_SRC_DIR="$PWD/nginx"
-#     - make build-musl-aux
-#   artifacts:
-#     name: "artifacts"
-#     when: always
-#     paths:
-#       - .musl-build/ngx_http_datadog_module.so
-#     expire_in: 3 months
+build-nginx-module:
+  stage: build
+  tags: ["arch:amd64"]
+  timeout: 20min
+  image: $BUILD_IMAGE
+  variables:
+    WAF: OFF
+    COVERAGE: OFF
+    RUM: OFF
+    BUILD_TYPE: Release
+    ARCH: x86_64
+  script:
+    - git submodule sync && git submodule update --init --recursive
+    - export NGINX_SRC_DIR="$PWD/nginx"
+    - make build-musl-aux
+  artifacts:
+    name: "artifacts"
+    when: always
+    paths:
+      - .musl-build/ngx_http_datadog_module.so
+    expire_in: 3 months
 
 
 .benchmarks:
   stage: run-benchmarks
-  # needs: ["build-nginx-module"]
+  needs: ["build-nginx-module"]
   tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
@@ -81,15 +81,11 @@ baseline:
   extends: .benchmarks
   variables:
     DD_BENCHMARKS_CONFIGURATION: baseline
-  script:
-    - mkdir -p platform/artifacts/
-    - cp .gitlab/artifacts-dump/* platform/artifacts/
-    - ls -la platform/artifacts/
 
-# only-tracing:
-#   extends: .benchmarks
-#   variables:
-#     DD_BENCHMARKS_CONFIGURATION: only-tracing
+only-tracing:
+  extends: .benchmarks
+  variables:
+    DD_BENCHMARKS_CONFIGURATION: only-tracing
 
 # This repository is using pre-release performance quality gates.
 
