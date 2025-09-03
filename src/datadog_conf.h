@@ -62,7 +62,6 @@ struct datadog_main_conf_t {
   ngx_flag_t apm_tracing_enabled{NGX_CONF_UNSET};
 
   std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
-  std::vector<std::string> baggage_span_tags;
   // `are_propagation_styles_locked` is whether the tracer's propagation styles
   // have been set, either by an explicit `datadog_propagation_styles`
   // directive, or implicitly to a default configuration by another directive.

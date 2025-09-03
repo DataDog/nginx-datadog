@@ -333,12 +333,6 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
     }
   }
 
-  // Add default baggage span tags.
-  const auto baggage_span_tags = TracingLibrary::default_baggage_span_tags();
-  for (const auto &tag_name : baggage_span_tags) {
-    main_conf->baggage_span_tags.emplace_back(std::string(tag_name));
-  }
-
 #ifdef WITH_WAF
   // Initialize shared memory for API security rate limiter
   if (security::Library::initialize_api_security_shared_memory(cf) != NGX_OK) {
@@ -503,6 +497,16 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
     auto parent_tags =
         prev->tags;  ///< Make a copy because merge steal the nodes.
     conf->tags.merge(parent_tags);
+  }
+
+  // Merge baggage span tags, but only if this conf has no custom baggage span tags.
+  if (!prev->baggage_span_tags.empty() && conf->baggage_span_tags.empty()) {
+    conf->baggage_span_tags = prev->baggage_span_tags;
+  } else if (conf->baggage_span_tags.empty()) {
+    const auto baggage_span_tags = TracingLibrary::default_baggage_span_tags();
+    for (const auto &tag_name : baggage_span_tags) {
+      conf->baggage_span_tags.emplace_back(std::string(tag_name));
+    }
   }
 
 #ifdef WITH_WAF

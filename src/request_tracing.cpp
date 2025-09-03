@@ -75,41 +75,29 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
   }
 }
 
-// Search through `conf` and its ancestors for the first `baggage_span_tags`
-// directive and copy the configured tags. If no tags are configured, then add the default tags,
-// which are stored in the main conf.
+// Iterate through the configured baggage_span_tags and create span tags for the configured baggage keys.
+// The one special case is if baggage_span_tags=["*"]. In this case, create a corresponding span tag
+// for all baggage items.
 // 
 // Precondition: The local conf has the directive `datadog_baggage_span_tags_enabled` set.
-void add_baggage_span_tags(datadog_loc_conf_t *conf, datadog_main_conf_t *main_conf, tracing::Baggage& baggage, dd::Span &span) {
+void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage& baggage, dd::Span &span) {
   if (baggage.empty()) return;
 
   static const std::string baggage_prefix = "baggage.";
 
-  do {
-    if (!conf->baggage_span_tags.empty()) {
-      if (conf->baggage_span_tags.size() == 1 && conf->baggage_span_tags.front() == "*") {
-        baggage.visit([&span](std::string_view key, std::string_view value) {
-            span.set_tag(baggage_prefix + std::string(key), value);
-        });
-      }
-      else {
-        for (const auto &tag_name : conf->baggage_span_tags) {
-          if (baggage.contains(tag_name)) {
-            span.set_tag(baggage_prefix + tag_name, baggage.get(tag_name).value());
-          }
+  if (!conf->baggage_span_tags.empty()) {
+    if (conf->baggage_span_tags.size() == 1 && conf->baggage_span_tags.front() == "*") {
+      baggage.visit([&span](std::string_view key, std::string_view value) {
+          span.set_tag(baggage_prefix + std::string(key), value);
+      });
+    }
+    else {
+      for (const auto &tag_name : conf->baggage_span_tags) {
+        if (baggage.contains(tag_name)) {
+          span.set_tag(baggage_prefix + tag_name, baggage.get(tag_name).value());
         }
       }
-
-      return;
     }
- 
-    conf = conf->parent;
-  } while (conf);
-
-  // At this point, no baggage span tags were found in the conf or its ancestors.
-  // Apply the main conf default baggage span tags.
-  for (const auto &tag_name : main_conf->baggage_span_tags) {
-    span.set_tag(baggage_prefix + tag_name, baggage.get(tag_name).value());
   }
 }
 
@@ -256,7 +244,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
     if (loc_conf_->baggage_span_tags_enabled) {
       auto maybe_baggage = tracer->extract_baggage(reader);
       if (maybe_baggage && request_span_) {
-        add_baggage_span_tags(loc_conf, main_conf_, *maybe_baggage, *request_span_);
+        add_baggage_span_tags(loc_conf, *maybe_baggage, *request_span_);
       }
     }
   }
