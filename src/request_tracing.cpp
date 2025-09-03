@@ -87,7 +87,7 @@ void add_baggage_span_tags(datadog_loc_conf_t *conf, datadog_main_conf_t *main_c
 
   do {
     if (!conf->baggage_span_tags.empty()) {
-      if (baggage.size() == 1 && conf->baggage_span_tags.contains("*")) {
+      if (baggage.size() == 1 && conf->baggage_span_tags.front() == "*") {
         baggage.visit([&span](std::string_view key, std::string_view value) {
             span.set_tag(baggage_prefix + std::string(key), value);
         });

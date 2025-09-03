@@ -18,7 +18,6 @@ extern "C" {
 
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #define DD_NGX_CONF_COMPLEX_UNSET \
@@ -63,7 +62,7 @@ struct datadog_main_conf_t {
   ngx_flag_t apm_tracing_enabled{NGX_CONF_UNSET};
 
   std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
-  std::unordered_set<std::string> baggage_span_tags;
+  std::vector<std::string> baggage_span_tags;
   // `are_propagation_styles_locked` is whether the tracer's propagation styles
   // have been set, either by an explicit `datadog_propagation_styles`
   // directive, or implicitly to a default configuration by another directive.
@@ -218,7 +217,7 @@ struct datadog_loc_conf_t {
   ngx_http_complex_value_t *service_version = DD_NGX_CONF_COMPLEX_UNSET;
   std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
   ngx_flag_t baggage_span_tags_enabled = NGX_CONF_UNSET;
-  std::unordered_set<std::string> baggage_span_tags;
+  std::vector<std::string> baggage_span_tags;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
   // `nullptr` if this context has no parent.
   datadog_loc_conf_t *parent;

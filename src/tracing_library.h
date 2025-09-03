@@ -18,7 +18,6 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "dd.h"
@@ -127,7 +126,7 @@ struct TracingLibrary {
   // Note that the storage to which each returned `std::string_view` refers
   // must outlive any usage of the return value (realistically this means
   // that they will refer to string literals).
-  static std::unordered_set<std::string_view> default_baggage_span_tags();
+  static std::vector<std::string_view> default_baggage_span_tags();
 
   // Return the default setting for whether tracing is enabled in nginx.
   static bool tracing_on_by_default();

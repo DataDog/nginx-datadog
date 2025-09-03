@@ -77,7 +77,7 @@ char *set_datadog_baggage_span_tag(ngx_conf_t *cf, ngx_command_t *command,
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  loc_conf->baggage_span_tags.insert(std::string(baggage_key));
+  loc_conf->baggage_span_tags.emplace_back(std::string(baggage_key));
   return NGX_CONF_OK;
 }
 
