@@ -36,7 +36,7 @@ constexpr ngx_uint_t anywhere =
 char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
                       void *conf) noexcept;
 
-char *set_datadog_baggage_span_tag(ngx_conf_t *cf, ngx_command_t *command,
+char *set_datadog_baggage_span_tags(ngx_conf_t *cf, ngx_command_t *command,
                         void *conf) noexcept;
 
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
@@ -128,9 +128,9 @@ constexpr datadog::nginx::directive tracing_directives[] = {
     },
 
     {
-        "datadog_baggage_span_tag",
-        anywhere | NGX_CONF_TAKE1,
-        set_datadog_baggage_span_tag,
+        "datadog_baggage_span_tags",
+        anywhere | NGX_CONF_1MORE,
+        set_datadog_baggage_span_tags,
         NGX_HTTP_LOC_CONF_OFFSET,
         0,
         nullptr,
