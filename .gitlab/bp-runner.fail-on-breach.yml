@@ -1,0 +1,17 @@
+# Measurements from https://benchmarking.us1.prod.dog/benchmarks?projectId=8&page=1&ciJobDateStart=1746954906962&ciJobDateEnd=1749546906962&benchmarkGroupPipelineId=67348573&benchmarkGroupSha=9eb1ba2051efb90b557655c4deca14ab1312f22b
+
+# Thresholds set based on guidance in https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/5070193198/How+to+set+up+pre-release+performance+quality+gates#How-to-choose-thresholds-for-pre-release-gates%3F
+
+experiments:
+  - name: Run SLO breach check
+    steps:
+      - name: SLO breach check
+        run: fail_on_breach
+        warning_range: 7
+        scenarios:
+          - name: high_load/only-tracing
+            thresholds:
+              - throughput > 3426.8 op/s
+          - name: normal_operation/only-tracing
+            thresholds:
+              - agg_http_req_duration_p50 < 0.11617 ms

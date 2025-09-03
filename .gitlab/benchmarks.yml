@@ -5,8 +5,10 @@ stages:
   - notify
 
 include:
- project: 'DataDog/benchmarking-platform-tools'
- file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+- project: 'DataDog/benchmarking-platform-tools'
+  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+- project: 'DataDog/benchmarking-platform-tools'
+  file: 'images/templates/gitlab/check-slo-breaches.template.yml'
 
 variables:
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
@@ -96,19 +98,19 @@ only-tracing:
 # If bypassing is necessary, see
 # https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/5158175217/Performance+quality+gates+-+User+Guide for more details.
 check-slo-breaches:
+  extends: .check-slo-breaches
   stage: gate
   when: always
-  tags: ["arch:amd64"]
-  image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   artifacts:
     name: "artifacts"
     when: always
     paths:
       - platform/artifacts/
     expire_in: 3 months
-  script:
-    - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin cpp/nginx)
-    - bp-runner bp-runner.fail-on-breach.yml
+  variables:
+    DDOCTOSTS_POLICY: "gitlab.github-access.read"
+    ARTIFACTS_DIR: "platform/artifacts"
+    SLO_FILE: ".gitlab/bp-runner.fail-on-breach.yml"
 
 notify-slo-breaches:
   extends: .notify-slo-breaches
