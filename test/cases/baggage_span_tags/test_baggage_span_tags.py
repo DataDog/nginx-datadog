@@ -127,8 +127,9 @@ class TestBaggageSpanTags(case.TestCase):
                                          "/disabled_tags", [])
 
     def test_overwite_all_baggage_span_tags_using_wildcard(self):
-        return self.run_custom_tags_test("./conf/overwrite_defaults.conf",
-                                         "/all_baggage_span_tags", ["user.id", "session.id", "account.id", "snazzy.tag", "fancy.tag"])
+        return self.run_custom_tags_test(
+            "./conf/overwrite_defaults.conf", "/all_baggage_span_tags",
+            ["user.id", "session.id", "account.id", "snazzy.tag", "fancy.tag"])
 
     def test_overwite_default_tags_custom_ignores_previous_conf(self):
         return self.run_custom_tags_test("./conf/overwrite_defaults.conf",
