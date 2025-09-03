@@ -466,7 +466,8 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
                        TracingLibrary::tracing_on_by_default());
   ngx_conf_merge_value(conf->enable_locations, prev->enable_locations,
                        TracingLibrary::trace_locations_by_default());
-  ngx_conf_merge_value(conf->baggage_span_tags_enabled, prev->baggage_span_tags_enabled,
+  ngx_conf_merge_value(conf->baggage_span_tags_enabled,
+                       prev->baggage_span_tags_enabled,
                        TracingLibrary::bagage_span_tags_by_default());
   ngx_conf_merge_ptr_value(conf->service_name, prev->service_name, nullptr);
   ngx_conf_merge_ptr_value(conf->service_env, prev->service_env, nullptr);
@@ -499,7 +500,8 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
     conf->tags.merge(parent_tags);
   }
 
-  // Merge baggage span tags, but only if this conf has no custom baggage span tags.
+  // Merge baggage span tags, but only if this conf has no specified baggage
+  // span tags.
   if (!prev->baggage_span_tags.empty() && conf->baggage_span_tags.empty()) {
     conf->baggage_span_tags = prev->baggage_span_tags;
   } else if (conf->baggage_span_tags.empty()) {

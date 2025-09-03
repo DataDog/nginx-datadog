@@ -37,7 +37,7 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
                       void *conf) noexcept;
 
 char *set_datadog_baggage_span_tags(ngx_conf_t *cf, ngx_command_t *command,
-                        void *conf) noexcept;
+                                    void *conf) noexcept;
 
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
                               void *conf) noexcept;

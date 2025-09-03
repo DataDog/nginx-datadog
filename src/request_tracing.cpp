@@ -75,32 +75,34 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
   }
 }
 
-// Iterate through the configured baggage_span_tags and create span tags for the configured baggage keys.
-// The one special case is if baggage_span_tags=["*"]. In this case, create a corresponding span tag
-// for all baggage items.
-// 
-// Precondition: The local conf has the directive `datadog_baggage_span_tags_enabled` set.
-void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage& baggage, dd::Span &span) {
+// Iterate through the configured baggage_span_tags and create span tags for the
+// configured baggage keys. The one special case is if baggage_span_tags=["*"].
+// In this case, create a corresponding span tag for all baggage items.
+//
+// Precondition: The local conf has the directive
+// `datadog_baggage_span_tags_enabled` set.
+void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage &baggage,
+                           dd::Span &span) {
   if (baggage.empty()) return;
 
   static const std::string baggage_prefix = "baggage.";
 
   if (!conf->baggage_span_tags.empty()) {
-    if (conf->baggage_span_tags.size() == 1 && conf->baggage_span_tags.front() == "*") {
+    if (conf->baggage_span_tags.size() == 1 &&
+        conf->baggage_span_tags.front() == "*") {
       baggage.visit([&span](std::string_view key, std::string_view value) {
-          span.set_tag(baggage_prefix + std::string(key), value);
+        span.set_tag(baggage_prefix + std::string(key), value);
       });
-    }
-    else {
+    } else {
       for (const auto &tag_name : conf->baggage_span_tags) {
         if (baggage.contains(tag_name)) {
-          span.set_tag(baggage_prefix + tag_name, baggage.get(tag_name).value());
+          span.set_tag(baggage_prefix + tag_name,
+                       baggage.get(tag_name).value());
         }
       }
     }
   }
 }
-
 
 static void add_upstream_name(const ngx_http_request_t *request,
                               dd::Span &span) {

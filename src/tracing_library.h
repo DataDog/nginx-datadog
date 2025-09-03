@@ -113,13 +113,12 @@ struct TracingLibrary {
   // that they will refer to string literals).
   static std::unordered_map<std::string_view, std::string_view> default_tags();
 
-  // Return the default baggage span tags. These tags will be defined automatically
-  // during configuration as if they appeared in the nginx configuration file's
-  // http section, e.g.
+  // Return the default baggage span tags. These tags will be defined
+  // automatically during configuration as if they appeared in the nginx
+  // configuration file's http section, e.g.
   //
   //     http {
-  //       datadog_baggage_span_tag user.id;
-  //       datadog_baggage_span_tag session.id;
+  //       datadog_baggage_span_tags user.id session.id account.id;
   //       ...
   //     }
   //
