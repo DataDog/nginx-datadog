@@ -29,3 +29,28 @@ jobs:
         with:
           name: binaries
           path: .musl-build/ngx_http_datadog_module.so
+
+  main:
+    needs:
+    - build
+    uses:  DataDog/system-tests/.github/workflows/system-tests.yml@main
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+    with:
+      library: cpp_nginx
+      binaries_artifact: binaries
+      desired_execution_time: 300  # 5 minutes
+      scenarios: DEFAULT
+      scenarios_groups: appsec
+      skip_empty_scenarios: true
+
+  # Ensure the main job is run to completion
+  check:
+    name: Check system tests success
+    runs-on: ubuntu-latest
+    needs:
+    - main
+    steps:
+    - run: exit 0
