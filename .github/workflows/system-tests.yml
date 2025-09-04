@@ -42,8 +42,9 @@ jobs:
       library: cpp_nginx
       binaries_artifact: binaries
       desired_execution_time: 300  # 5 minutes
-      scenarios: DEFAULT
       scenarios_groups: appsec
+      scenarios: DEFAULT
+      excluded_scenarios: INTEGRATIONS  # no test activated, and long warm-up
       skip_empty_scenarios: true
 
   # Ensure the main job is run to completion
