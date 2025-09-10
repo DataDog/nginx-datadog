@@ -52,7 +52,7 @@ class TestBaggageSpanTags(case.TestCase):
                     # The two tags are assumed to be configured in `conf_text`.
                     tags = span["meta"]
 
-                    if ("user.id" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags and "user.id" in configured_baggage_span_tags):
                         self.assertIn("baggage.user.id", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.user.id"], "doggo",
@@ -61,7 +61,7 @@ class TestBaggageSpanTags(case.TestCase):
                         self.assertNotIn("baggage.user.id", tags,
                                          conf_relative_path)
 
-                    if ("session.id" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags and "session.id" in configured_baggage_span_tags):
                         self.assertIn("baggage.session.id", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.session.id"], "123",
@@ -70,7 +70,7 @@ class TestBaggageSpanTags(case.TestCase):
                         self.assertNotIn("baggage.session.id", tags,
                                          conf_relative_path)
 
-                    if ("account.id" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags and "account.id" in configured_baggage_span_tags):
                         self.assertIn("baggage.account.id", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.account.id"], "456",
@@ -79,7 +79,7 @@ class TestBaggageSpanTags(case.TestCase):
                         self.assertNotIn("baggage.account.id", tags,
                                          conf_relative_path)
 
-                    if ("snazzy.tag" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags and "snazzy.tag" in configured_baggage_span_tags):
                         self.assertIn("baggage.snazzy.tag", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.snazzy.tag"],
@@ -88,7 +88,7 @@ class TestBaggageSpanTags(case.TestCase):
                         self.assertNotIn("baggage.snazzy.tag", tags,
                                          conf_relative_path)
 
-                    if ("fancy.tag" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags and "fancy.tag" in configured_baggage_span_tags):
                         self.assertIn("baggage.fancy.tag", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.fancy.tag"], "GET",
@@ -99,38 +99,38 @@ class TestBaggageSpanTags(case.TestCase):
 
     def test_custom_in_location(self):
         return self.run_custom_tags_test("./conf/custom_in_location.conf",
-                                         "/http", ["snazzy.tag", "fancy.tag"])
+                                         "/http", ("snazzy.tag", "fancy.tag"))
 
     def test_custom_in_server(self):
         return self.run_custom_tags_test("./conf/custom_in_server.conf",
-                                         "/http", ["snazzy.tag", "fancy.tag"])
+                                         "/http", ("snazzy.tag", "fancy.tag"))
 
     def test_custom_in_http(self):
         return self.run_custom_tags_test("./conf/custom_in_http.conf", "/http",
-                                         ["snazzy.tag", "fancy.tag"])
+                                         ("snazzy.tag", "fancy.tag"))
 
     def test_default_tags(self):
         return self.run_custom_tags_test(
             "./conf/builtins.conf", "/http",
-            ["user.id", "session.id", "account.id"])
+            ("user.id", "session.id", "account.id"))
 
     def test_main_disabled(self):
-        return self.run_custom_tags_test("./conf/disabled.conf", "/http", [])
+        return self.run_custom_tags_test("./conf/disabled.conf", "/http", None)
 
     def test_overwite_default_tags_empty_inherits_previous_conf(self):
         return self.run_custom_tags_test(
             "./conf/builtins.conf", "/http",
-            ["user.id", "session.id", "account.id"])
+            ("user.id", "session.id", "account.id"))
 
     def test_overwite_default_tags_disabled_at_location(self):
         return self.run_custom_tags_test("./conf/overwrite_defaults.conf",
-                                         "/disabled_tags", [])
+                                         "/disabled_tags", None)
 
     def test_overwite_all_baggage_span_tags_using_wildcard(self):
         return self.run_custom_tags_test(
             "./conf/overwrite_defaults.conf", "/all_baggage_span_tags",
-            ["user.id", "session.id", "account.id", "snazzy.tag", "fancy.tag"])
+            ("user.id", "session.id", "account.id", "snazzy.tag", "fancy.tag"))
 
     def test_overwite_default_tags_custom_ignores_previous_conf(self):
         return self.run_custom_tags_test("./conf/overwrite_defaults.conf",
-                                         "/snazzy_tag", ["snazzy.tag"])
+                                         "/snazzy_tag", ("snazzy.tag"))
