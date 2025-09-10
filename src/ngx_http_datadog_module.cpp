@@ -505,10 +505,7 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
   if (!prev->baggage_span_tags.empty() && conf->baggage_span_tags.empty()) {
     conf->baggage_span_tags = prev->baggage_span_tags;
   } else if (conf->baggage_span_tags.empty()) {
-    const auto baggage_span_tags = TracingLibrary::default_baggage_span_tags();
-    for (const auto &tag_name : baggage_span_tags) {
-      conf->baggage_span_tags.emplace_back(std::string(tag_name));
-    }
+    conf->baggage_span_tags = TracingLibrary::default_baggage_span_tags();
   }
 
 #ifdef WITH_WAF

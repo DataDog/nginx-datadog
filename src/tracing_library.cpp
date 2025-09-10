@@ -232,10 +232,8 @@ TracingLibrary::default_tags() {
   return tags;
 }
 
-std::vector<std::string_view> TracingLibrary::default_baggage_span_tags() {
-  static const std::vector<std::string_view> baggage_span_tags{
-      "user.id", "session.id", "account.id"};
-  return baggage_span_tags;
+std::vector<std::string> TracingLibrary::default_baggage_span_tags() {
+  return {"user.id", "session.id", "account.id"};
 }
 
 std::string_view TracingLibrary::default_resource_name_pattern() {

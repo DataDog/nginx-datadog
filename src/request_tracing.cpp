@@ -11,7 +11,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <unordered_set>
 #include <utility>
 
 #include "array_util.h"
@@ -85,18 +84,16 @@ void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage &baggage,
                            dd::Span &span) {
   if (baggage.empty()) return;
 
-  static const std::string baggage_prefix = "baggage.";
-
   if (!conf->baggage_span_tags.empty()) {
     if (conf->baggage_span_tags.size() == 1 &&
         conf->baggage_span_tags.front() == "*") {
       baggage.visit([&span](std::string_view key, std::string_view value) {
-        span.set_tag(baggage_prefix + std::string(key), value);
+        span.set_tag(std::string("baggage.") + std::string(key), value);
       });
     } else {
       for (const auto &tag_name : conf->baggage_span_tags) {
         if (baggage.contains(tag_name)) {
-          span.set_tag(baggage_prefix + tag_name,
+          span.set_tag(std::string("baggage.") + tag_name,
                        baggage.get(tag_name).value());
         }
       }

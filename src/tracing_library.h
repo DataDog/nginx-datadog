@@ -125,7 +125,7 @@ struct TracingLibrary {
   // Note that the storage to which each returned `std::string_view` refers
   // must outlive any usage of the return value (realistically this means
   // that they will refer to string literals).
-  static std::vector<std::string_view> default_baggage_span_tags();
+  static std::vector<std::string> default_baggage_span_tags();
 
   // Return the default setting for whether tracing is enabled in nginx.
   static bool tracing_on_by_default();

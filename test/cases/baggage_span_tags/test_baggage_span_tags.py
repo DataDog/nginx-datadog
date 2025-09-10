@@ -52,7 +52,8 @@ class TestBaggageSpanTags(case.TestCase):
                     # The two tags are assumed to be configured in `conf_text`.
                     tags = span["meta"]
 
-                    if (configured_baggage_span_tags and "user.id" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags
+                            and "user.id" in configured_baggage_span_tags):
                         self.assertIn("baggage.user.id", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.user.id"], "doggo",
@@ -61,7 +62,8 @@ class TestBaggageSpanTags(case.TestCase):
                         self.assertNotIn("baggage.user.id", tags,
                                          conf_relative_path)
 
-                    if (configured_baggage_span_tags and "session.id" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags
+                            and "session.id" in configured_baggage_span_tags):
                         self.assertIn("baggage.session.id", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.session.id"], "123",
@@ -70,7 +72,8 @@ class TestBaggageSpanTags(case.TestCase):
                         self.assertNotIn("baggage.session.id", tags,
                                          conf_relative_path)
 
-                    if (configured_baggage_span_tags and "account.id" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags
+                            and "account.id" in configured_baggage_span_tags):
                         self.assertIn("baggage.account.id", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.account.id"], "456",
@@ -79,7 +82,8 @@ class TestBaggageSpanTags(case.TestCase):
                         self.assertNotIn("baggage.account.id", tags,
                                          conf_relative_path)
 
-                    if (configured_baggage_span_tags and "snazzy.tag" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags
+                            and "snazzy.tag" in configured_baggage_span_tags):
                         self.assertIn("baggage.snazzy.tag", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.snazzy.tag"],
@@ -88,7 +92,8 @@ class TestBaggageSpanTags(case.TestCase):
                         self.assertNotIn("baggage.snazzy.tag", tags,
                                          conf_relative_path)
 
-                    if (configured_baggage_span_tags and "fancy.tag" in configured_baggage_span_tags):
+                    if (configured_baggage_span_tags
+                            and "fancy.tag" in configured_baggage_span_tags):
                         self.assertIn("baggage.fancy.tag", tags,
                                       conf_relative_path)
                         self.assertEqual(tags["baggage.fancy.tag"], "GET",
