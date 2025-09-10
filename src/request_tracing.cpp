@@ -84,20 +84,20 @@ void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage &baggage,
                            dd::Span &span) {
   if (baggage.empty()) return;
 
-  if (!conf->baggage_span_tags.empty()) {
-    if (conf->baggage_span_tags.size() == 1 &&
-        conf->baggage_span_tags.front() == "*") {
-      baggage.visit([&span](std::string_view key, std::string_view value) {
-        span.set_tag(std::string("baggage.") + std::string(key), value);
-      });
-    } else {
-      for (const auto &tag_name : conf->baggage_span_tags) {
-        if (baggage.contains(tag_name)) {
-          span.set_tag(std::string("baggage.") + tag_name,
-                       baggage.get(tag_name).value());
-        }
+  if (std::holds_alternative<std::vector<std::string>>(
+          conf->baggage_span_tags)) {
+    for (const auto &tag_name :
+         std::get<std::vector<std::string>>(conf->baggage_span_tags)) {
+      if (baggage.contains(tag_name)) {
+        span.set_tag(std::string("baggage.") + tag_name,
+                     baggage.get(tag_name).value());
       }
     }
+  } else if (std::holds_alternative<bool>(conf->baggage_span_tags) &&
+             std::get<bool>(conf->baggage_span_tags)) {
+    baggage.visit([&span](std::string_view key, std::string_view value) {
+      span.set_tag(std::string("baggage.") + std::string(key), value);
+    });
   }
 }
 

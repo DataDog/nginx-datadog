@@ -502,10 +502,21 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
 
   // Merge baggage span tags, but only if this conf has no specified baggage
   // span tags.
-  if (!prev->baggage_span_tags.empty() && conf->baggage_span_tags.empty()) {
-    conf->baggage_span_tags = prev->baggage_span_tags;
-  } else if (conf->baggage_span_tags.empty()) {
-    conf->baggage_span_tags = TracingLibrary::default_baggage_span_tags();
+
+  // Update only if the child configuration has no specified baggage span tags.
+  if (std::holds_alternative<std::vector<std::string>>(
+          conf->baggage_span_tags) &&
+      std::get<std::vector<std::string>>(conf->baggage_span_tags).empty()) {
+    // If the parent configuration has no specified baggage span tags, use
+    // default values. Otherwise, use the parent configuration's baggage span
+    // tags.
+    if (std::holds_alternative<std::vector<std::string>>(
+            prev->baggage_span_tags) &&
+        std::get<std::vector<std::string>>(prev->baggage_span_tags).empty()) {
+      conf->baggage_span_tags = TracingLibrary::default_baggage_span_tags();
+    } else {
+      conf->baggage_span_tags = prev->baggage_span_tags;
+    }
   }
 
 #ifdef WITH_WAF

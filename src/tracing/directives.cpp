@@ -72,6 +72,17 @@ char *set_datadog_baggage_span_tags(ngx_conf_t *cf, ngx_command_t *command,
   const auto args = values + 1;
   const auto nargs = cf->args->nelts - 1;
 
+  if (nargs == 1 && str(args[0]) == "*") {
+    loc_conf->baggage_span_tags = true;
+    return NGX_CONF_OK;
+  }
+
+  // If a previous directive usage configured this to use the wildcard,
+  // reset the variant to a vector to hold the new directive's arguments.
+  if (std::holds_alternative<bool>(loc_conf->baggage_span_tags)) {
+    loc_conf->baggage_span_tags = std::vector<std::string>{};
+  }
+
   for (const ngx_str_t *arg = args; arg != args + nargs; ++arg) {
     const auto baggage_key = to_string_view(*arg);
     if (baggage_key.empty()) {
@@ -82,7 +93,8 @@ char *set_datadog_baggage_span_tags(ngx_conf_t *cf, ngx_command_t *command,
       return static_cast<char *>(NGX_CONF_ERROR);
     }
 
-    loc_conf->baggage_span_tags.emplace_back(std::string(baggage_key));
+    std::get<std::vector<std::string>>(loc_conf->baggage_span_tags)
+        .emplace_back(std::string(baggage_key));
   }
 
   return NGX_CONF_OK;
