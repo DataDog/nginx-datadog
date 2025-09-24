@@ -411,8 +411,8 @@ workflows:
                             - amd64
                             - arm64
                         version:
-                            - 1.12.5
-                            - 1.13.1
+                            - 1.12.6
+                            - 1.13.2
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - coverage:
                 name: Coverage on 1.27.0 with WAF ON
@@ -491,8 +491,8 @@ workflows:
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
-                            - 1.13.1
-                            - 1.12.5
+                            - 1.13.2
+                            - 1.12.6
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
@@ -518,8 +518,10 @@ workflows:
                             - amd64
                             - arm64
                         version:
+                            - 1.13.2
                             - 1.13.1
                             - 1.13.0
+                            - 1.12.6
                             - 1.12.5
                             - 1.12.4
                             - 1.12.3
@@ -556,8 +558,10 @@ workflows:
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
+                            - 1.13.2
                             - 1.13.1
                             - 1.13.0
+                            - 1.12.6
                             - 1.12.5
                             - 1.12.4
                             - 1.12.3
