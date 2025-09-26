@@ -184,14 +184,9 @@ of the current request.  `<value>` is a string that may contain
 - **default** `user.id account.id session.id`
 - **context**: `http`, `server`, `location`
 
-On the currently active span, if the current W3C baggage header has a baggage item
-whose key matches the specified `<key>`, automatically set a tag whose name is
-`baggage.<key>` and whose value is the value of the key-value pair.
+Set span tags for all items from the current W3C Baggage header with a matching `<key>`.
 
-This overrides any `baggage_span_tags_enabled` directives at higher levels,
-and may be overriden by `baggage_span_tags_enabled` directives at lower levels.
-
-As a convenience, you can capture all baggage items as span tags by setting the directive
+As a convenience, you can set span tags for all baggage items by setting the directive
 `datadog_baggage_span_tags *` rather than specifying each baggage item key.
 
 ### `baggage_span_tags_enabled`
@@ -199,10 +194,7 @@ As a convenience, you can capture all baggage items as span tags by setting the 
 - **context**: `http`, `server`, `location`
 
 If `on`, enable the `datadog_baggage_span_tags` feature in the current configuration context.
-If `off`, disables the `datadog_baggage_span_tags` feature in the current configuration context.
-
-This overrides any `baggage_span_tags_enabled` directives at higher levels,
-and may be overriden by `baggage_span_tags_enabled` directives at lower levels.
+If `off`, disable the `datadog_baggage_span_tags` feature in the current configuration context.
 
 ### `datadog_tracing`
 - **syntax** `datadog_tracing on|off`
