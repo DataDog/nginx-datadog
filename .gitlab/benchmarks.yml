@@ -11,9 +11,9 @@ include:
   file: 'images/templates/gitlab/check-slo-breaches.template.yml'
 
 variables:
-  MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
+  MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:glopes-cpp-nginx
   BUILD_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/images/mirror/b1o7r7e0/nginx_musl_toolchain
-  NGINX_VERSION: 1.26.0
+  NGINX_VERSION: 1.28.0
 
 build-nginx-module:
   stage: build
@@ -21,15 +21,15 @@ build-nginx-module:
   timeout: 20min
   image: $BUILD_IMAGE
   variables:
-    WAF: OFF
+    WAF: ON
     COVERAGE: OFF
     RUM: OFF
-    BUILD_TYPE: Release
+    BUILD_TYPE: RelWithDebInfo
     ARCH: x86_64
   script:
     - git submodule sync && git submodule update --init --recursive
     - export NGINX_SRC_DIR="$PWD/nginx"
-    - make build-musl-aux
+    - MAKE_JOB_COUNT=8 make build-musl-aux
   artifacts:
     name: "artifacts"
     when: always
@@ -37,23 +37,60 @@ build-nginx-module:
       - .musl-build/ngx_http_datadog_module.so
     expire_in: 3 months
 
+download-artifacts:
+  stage: build
+  tags: ["arch:amd64"]
+  needs:
+    - job: build-nginx-module
+      artifacts: true
+  image: $MACROBENCHMARKS_CI_IMAGE
+  script:
+    - |
+      set -e
+      echo "Installing vault"
+      cd /tmp
+      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
+      unzip vault.zip
+      cd -
+    - export CIRCLECI_TOKEN=$(/tmp/vault kv get --format=json kv/k8s/gitlab-runner/nginx-datadog/circleci | jq -r .data.data.token)
+    # this is a token only giving read access to public data
+    - export GITHUB_TOKEN=$(/tmp/vault kv get --format=json kv/k8s/gitlab-runner/nginx-datadog/github_pub | jq -r .data.data.token)
+    - git clone --branch glopes/cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform
+    - cd platform
+    - '[[ -z "$CI_COMMIT_BRANCH" ]] || ARTIFACT_ROLE=baseline steps/install-dd-nginx-module.sh'
+    - ARTIFACT_ROLE=candidate steps/install-dd-nginx-module.sh
+    - cd -
+    - mkdir -p artifacts
+    - cp -v platform/artifacts/*.so* artifacts/
+  artifacts:
+    name: artifacts
+    when: always
+    paths:
+      - artifacts
+    expire_in: 1 month
+  variables:
+    TEST_ARTIFACT: $CI_PROJECT_DIR/.musl-build/ngx_http_datadog_module.so
 
 .benchmarks:
   stage: run-benchmarks
-  needs: ["build-nginx-module"]
+  dependencies: ["download-artifacts"]
   tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
-    - cp .musl-build/ngx_http_datadog_module.so /usr/lib/nginx/modules/ngx_http_datadog_module.so
-    - git clone --branch cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform && cd platform
-    - bp-runner bp-runner.yml --debug
+    - git clone --branch glopes/cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform
+    - mkdir -p platform/artifacts
+    - cp -v artifacts/* platform/artifacts
+    - cd platform && bp-runner bp-runner.yml --debug
+    - cd -
+    - cp -v platform/artifacts/*.converted.json artifacts/
+    - cp -v platform/artifacts/lscpu.txt artifacts/
   artifacts:
-    name: "artifacts"
+    name: artifacts
     when: always
     paths:
-      - platform/artifacts/
-    expire_in: 3 months
+      - artifacts
+    expire_in: 1 month
   variables:
     # Benchmark's env variables. Modify to tweak benchmark parameters.
     DD_TRACE_DEBUG: "false"
@@ -73,19 +110,87 @@ build-nginx-module:
     K6_OPTIONS_HIGH_LOAD_PRE_ALLOCATED_VUS: 4
     K6_OPTIONS_HIGH_LOAD_MAX_VUS: 4
 
+    K6_OPTIONS_POST_NORMAL_OPERATION_RATE: 100
+    K6_OPTIONS_POST_NORMAL_OPERATION_DURATION: 5m
+    K6_OPTIONS_POST_NORMAL_OPERATION_GRACEFUL_STOP: 10s
+    K6_OPTIONS_POST_NORMAL_OPERATION_PRE_ALLOCATED_VUS: 150
+    K6_OPTIONS_POST_NORMAL_OPERATION_MAX_VUS: 200
+
+    K6_OPTIONS_POST_HIGH_LOAD_RATE: 500
+    K6_OPTIONS_POST_HIGH_LOAD_DURATION: 2m
+    K6_OPTIONS_POST_HIGH_LOAD_GRACEFUL_STOP: 10s
+    K6_OPTIONS_POST_HIGH_LOAD_PRE_ALLOCATED_VUS: 750
+    K6_OPTIONS_POST_HIGH_LOAD_MAX_VUS: 1000
+
   # Workaround: Currently we're not running the benchmarks on every PR, but GitHub still shows them as pending.
   # By marking the benchmarks as allow_failure, the Github checks are not displayed.
   allow_failure: true
 
-baseline:
+.candidate-benchmarks:
   extends: .benchmarks
+  variables:
+    ARTIFACT_ROLE: candidate
+
+.baseline-benchmarks:
+  extends: .benchmarks
+  before_script:
+  variables:
+    ARTIFACT_ROLE: baseline
+  rules:
+    - if: '$CI_COMMIT_BRANCH != "master"'
+
+# Candidate benchmarks
+candidate-baselineconf:
+  extends: .candidate-benchmarks
   variables:
     DD_BENCHMARKS_CONFIGURATION: baseline
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
 
-only-tracing:
-  extends: .benchmarks
+candidate-only-tracing:
+  extends: .candidate-benchmarks
   variables:
     DD_BENCHMARKS_CONFIGURATION: only-tracing
+
+candidate-appsec:
+  extends: .candidate-benchmarks
+  variables:
+    DD_BENCHMARKS_CONFIGURATION: appsec
+
+# Baseline benchmarks (only non-master)
+baseline-only-tracing:
+  extends: .baseline-benchmarks
+  variables:
+    DD_BENCHMARKS_CONFIGURATION: only-tracing
+
+baseline-appsec:
+  extends: .baseline-benchmarks
+  variables:
+    DD_BENCHMARKS_CONFIGURATION: appsec
+
+# Comparison between candidate and baseline
+compare-candidate-baseline:
+  stage: run-benchmarks
+  tags: ["arch:amd64"]
+  image: $MACROBENCHMARKS_CI_IMAGE
+  needs:
+    - job: baseline-only-tracing
+      artifacts: true
+    - job: candidate-only-tracing
+      artifacts: true
+    - job: baseline-appsec
+      artifacts: true
+    - job: candidate-appsec
+      artifacts: true
+  script:
+    - git clone --branch glopes/cpp/nginx https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform platform
+    - mkdir -p platform/artifacts
+    - cp -v artifacts/* platform/artifacts
+    - cd platform
+    - steps/analyze-results.sh
+    - steps/post-pr-comment.sh
+  variables:
+    ARTIFACTS_DIR: $CI_PROJECT_DIR/platform/artifacts
 
 # This repository is using pre-release performance quality gates.
 
@@ -101,15 +206,18 @@ check-slo-breaches:
   extends: .check-slo-breaches
   stage: gate
   when: always
+  needs:
+    - job: candidate-only-tracing
+      artifacts: true
   artifacts:
     name: "artifacts"
     when: always
     paths:
-      - platform/artifacts/
+      - artifacts/
     expire_in: 3 months
   variables:
     DDOCTOSTS_POLICY: "gitlab.github-access.read"
-    ARTIFACTS_DIR: "platform/artifacts"
+    ARTIFACTS_DIR: "$CI_PROJECT_DIR/artifacts"
     SLO_FILE: ".gitlab/bp-runner.fail-on-breach.yml"
 
 notify-slo-breaches:
