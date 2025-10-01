@@ -11,7 +11,7 @@ experiments:
         scenarios:
           - name: high_load/only-tracing
             thresholds:
-              - throughput > 3426.8 op/s
+              - throughput > 3700 op/s
           - name: normal_operation/only-tracing
             thresholds:
               - agg_http_req_duration_p50 < 0.11617 ms
