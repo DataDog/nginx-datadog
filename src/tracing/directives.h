@@ -157,7 +157,7 @@ constexpr datadog::nginx::directive tracing_directives[] = {
     },
 
     {
-        "datadog_baggage_tags",
+        "datadog_baggage_tags_keys",
         anywhere | NGX_CONF_1MORE,
         set_datadog_baggage_tags,
         NGX_HTTP_LOC_CONF_OFFSET,
