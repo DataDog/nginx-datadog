@@ -72,18 +72,44 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
   const auto args = values + 1;
   const auto nargs = cf->args->nelts - 1;
 
-  if (nargs == 1 && str(args[0]) == "*") {
-    loc_conf->baggage_span_tags = true;
-    return NGX_CONF_OK;
+  if (str(args[0]) == "all") {
+    if (nargs == 1) {
+      loc_conf->baggage_span_tags = true;
+      return NGX_CONF_OK;
+    }
+    else {
+      ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                         "Invalid arguments to %V directive.  \"all\" may not"
+                         "be followed with any other arguments.",
+                         &command->name);
+      return static_cast<char *>(NGX_CONF_ERROR);
+    }
+  }
+  else if (str(args[0]) == "select") {
+    if (nargs == 1) {
+      ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                         "Invalid arguments to %V directive.  \"select\" must"
+                         "be followed with at least one argument.",
+                         &command->name);
+      return static_cast<char *>(NGX_CONF_ERROR);
+    }
+  }
+  else
+  {
+    ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+      "Invalid arguments to %V directive.  The first argument must be \"all\" "
+      "or \"select\".",
+      &command->name);
+    return static_cast<char *>(NGX_CONF_ERROR);
   }
 
-  // If a previous directive usage configured this to use the wildcard,
+  // If a previous directive usage configured this to use the `all` wildcard,
   // reset the variant to a vector to hold the new directive's arguments.
   if (std::holds_alternative<bool>(loc_conf->baggage_span_tags)) {
     loc_conf->baggage_span_tags = std::vector<std::string>{};
   }
 
-  for (const ngx_str_t *arg = args; arg != args + nargs; ++arg) {
+  for (const ngx_str_t *arg = args + 1; arg != args + nargs; ++arg) {
     const auto baggage_key = to_string_view(*arg);
     if (baggage_key.empty()) {
       ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
