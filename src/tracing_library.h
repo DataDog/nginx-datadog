@@ -118,7 +118,7 @@ struct TracingLibrary {
   // configuration file's http section, e.g.
   //
   //     http {
-  //       datadog_baggage_span_tags user.id session.id account.id;
+  //       datadog_baggage_tags user.id session.id account.id;
   //       ...
   //     }
   //

@@ -63,7 +63,7 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
   return NGX_CONF_OK;
 }
 
-char *set_datadog_baggage_span_tags(ngx_conf_t *cf, ngx_command_t *command,
+char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
                                     void *conf) noexcept {
   auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
   const auto values = static_cast<ngx_str_t *>(cf->args->elts);

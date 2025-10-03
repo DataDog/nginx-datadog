@@ -79,7 +79,7 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
 // In this case, create a corresponding span tag for all baggage items.
 //
 // Precondition: The local conf has the directive
-// `datadog_baggage_span_tags_enabled` set.
+// `datadog_baggage_tags_enabled` set.
 void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage &baggage,
                            dd::Span &span) {
   if (baggage.empty()) return;

@@ -179,22 +179,22 @@ whose value is the result of evaluating the specified `<value>` in the context
 of the current request.  `<value>` is a string that may contain
 `$`-[variables][2] (including those provided by this module).
 
-### `datadog_baggage_span_tags`
-- **syntax** `datadog_baggage_span_tags <key> [<key> ...]`
+### `datadog_baggage_tags_enabled`
+- **syntax** `datadog_baggage_tags_enabled on|off`
+- **context**: `http`, `server`, `location`
+
+If `on`, enable the `datadog_baggage_tags` feature in the current configuration context.
+If `off`, disable the `datadog_baggage_tags` feature in the current configuration context.
+
+### `datadog_baggage_tags`
+- **syntax** `datadog_baggage_tags <key> [<key> ...]`
 - **default** `user.id account.id session.id`
 - **context**: `http`, `server`, `location`
 
 Set span tags for all items from the current W3C Baggage header with a matching `<key>`.
 
 As a convenience, you can set span tags for all baggage items by setting the directive
-`datadog_baggage_span_tags *` rather than specifying each baggage item key.
-
-### `baggage_span_tags_enabled`
-- **syntax** `baggage_span_tags_enabled on|off`
-- **context**: `http`, `server`, `location`
-
-If `on`, enable the `datadog_baggage_span_tags` feature in the current configuration context.
-If `off`, disable the `datadog_baggage_span_tags` feature in the current configuration context.
+`datadog_baggage_tags *` rather than specifying each baggage item key.
 
 ### `datadog_tracing`
 - **syntax** `datadog_tracing on|off`
