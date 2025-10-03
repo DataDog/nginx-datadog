@@ -64,7 +64,7 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
 }
 
 char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
-                                    void *conf) noexcept {
+                               void *conf) noexcept {
   auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
   const auto values = static_cast<ngx_str_t *>(cf->args->elts);
   assert(cf->args->nelts >= 1);
@@ -76,16 +76,14 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
     if (nargs == 1) {
       loc_conf->baggage_span_tags = true;
       return NGX_CONF_OK;
-    }
-    else {
+    } else {
       ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
                          "Invalid arguments to %V directive.  \"all\" may not"
                          "be followed with any other arguments.",
                          &command->name);
       return static_cast<char *>(NGX_CONF_ERROR);
     }
-  }
-  else if (str(args[0]) == "select") {
+  } else if (str(args[0]) == "select") {
     if (nargs == 1) {
       ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
                          "Invalid arguments to %V directive.  \"select\" must"
@@ -93,13 +91,12 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
                          &command->name);
       return static_cast<char *>(NGX_CONF_ERROR);
     }
-  }
-  else
-  {
+  } else {
     ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
-      "Invalid arguments to %V directive.  The first argument must be \"all\" "
-      "or \"select\".",
-      &command->name);
+                       "Invalid arguments to %V directive.  The first argument "
+                       "must be \"all\" "
+                       "or \"select\".",
+                       &command->name);
     return static_cast<char *>(NGX_CONF_ERROR);
   }
 
