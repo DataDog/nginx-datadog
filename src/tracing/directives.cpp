@@ -103,7 +103,12 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
   // If a previous directive usage configured this to use the `all` wildcard,
   // reset the variant to a vector to hold the new directive's arguments.
   if (std::holds_alternative<bool>(loc_conf->baggage_span_tags)) {
-    loc_conf->baggage_span_tags = std::vector<std::string>{};
+    ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                       "Invalid argument \"select\" to %V directive.  This "
+                       "directive was already configured with "
+                       "the setting \"all\".",
+                       &command->name);
+    return static_cast<char *>(NGX_CONF_ERROR);
   }
 
   for (const ngx_str_t *arg = args + 1; arg != args + nargs; ++arg) {
