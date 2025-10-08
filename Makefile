@@ -21,7 +21,7 @@ SHELL := /bin/bash
 
 .PHONY: build
 build: build-deps sources
-	cmake -B $(BUILD_DIR) -DNGINX_SRC_DIR=$(NGINX_SRC_DIR) \
+	cmake -B $(BUILD_DIR) -DNGINX_VERSION=$(NGINX_VERSION) \
 		-DNGINX_COVERAGE=$(COVERAGE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) -DNGINX_DATADOG_RUM_ENABLED=$(RUM) . \
 		-DBUILD_TESTING=$(BUILD_TESTING) $(CMAKE_PCRE_OPTIONS)\
 		&& cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
@@ -29,7 +29,7 @@ build: build-deps sources
 	@echo 'build successful 👍'
 
 .PHONY: sources
-sources: dd-trace-cpp/.git nginx/
+sources: dd-trace-cpp/.git
 
 .PHONY: build-deps
 build-deps: sources dd-trace-cpp-deps
@@ -39,16 +39,6 @@ dd-trace-cpp/.git:
 
 .PHONY: dd-trace-cpp-deps
 dd-trace-cpp-deps: dd-trace-cpp/.git
-
-nginx/:
-ifndef NGINX_VERSION
-	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
-endif
-	rm -rf nginx && \
-	    curl -s -S -L -o nginx.tar.gz "$(shell bin/nginx_release_downloads.sh $(NGINX_VERSION))" && \
-		mkdir nginx && \
-		tar xzf nginx.tar.gz -C nginx --strip-components 1 && \
-		rm nginx.tar.gz
 
 dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 
@@ -68,11 +58,6 @@ clean:
 		.build \
 		.musl-build \
 		.openresty-build
-
-.PHONY: clobber
-clobber: clean
-	rm -rf \
-	    nginx
 
 DOCKER_PLATFORM := linux/$(ARCH)
 ifeq ($(DOCKER_PLATFORM),linux/x86_64)
