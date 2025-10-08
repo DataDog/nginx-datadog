@@ -63,6 +63,71 @@ char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
   return NGX_CONF_OK;
 }
 
+char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
+                               void *conf) noexcept {
+  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
+  assert(cf->args->nelts >= 1);
+
+  const auto args = values + 1;
+  const auto nargs = cf->args->nelts - 1;
+
+  if (str(args[0]) == "all") {
+    if (nargs == 1) {
+      loc_conf->baggage_span_tags = true;
+      return NGX_CONF_OK;
+    } else {
+      ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                         "Invalid arguments to %V directive.  \"all\" may not"
+                         "be followed with any other arguments.",
+                         &command->name);
+      return static_cast<char *>(NGX_CONF_ERROR);
+    }
+  } else if (str(args[0]) == "select") {
+    if (nargs == 1) {
+      ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                         "Invalid arguments to %V directive.  \"select\" must"
+                         "be followed with at least one argument.",
+                         &command->name);
+      return static_cast<char *>(NGX_CONF_ERROR);
+    }
+  } else {
+    ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                       "Invalid arguments to %V directive.  The first argument "
+                       "must be \"all\" "
+                       "or \"select\".",
+                       &command->name);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  // If a previous directive usage configured this to use the `all` wildcard,
+  // reset the variant to a vector to hold the new directive's arguments.
+  if (std::holds_alternative<bool>(loc_conf->baggage_span_tags)) {
+    ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                       "Invalid argument \"select\" to %V directive.  This "
+                       "directive was already configured with "
+                       "the setting \"all\".",
+                       &command->name);
+    return static_cast<char *>(NGX_CONF_ERROR);
+  }
+
+  for (const ngx_str_t *arg = args + 1; arg != args + nargs; ++arg) {
+    const auto baggage_key = to_string_view(*arg);
+    if (baggage_key.empty()) {
+      ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
+                         "Invalid argument \"%V\" to %V directive.  Expected a "
+                         "non-empty string.",
+                         arg, &command->name);
+      return static_cast<char *>(NGX_CONF_ERROR);
+    }
+
+    std::get<std::vector<std::string>>(loc_conf->baggage_span_tags)
+        .emplace_back(std::string(baggage_key));
+  }
+
+  return NGX_CONF_OK;
+}
+
 char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
                               void *conf) noexcept {
   const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);

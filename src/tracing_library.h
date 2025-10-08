@@ -113,6 +113,20 @@ struct TracingLibrary {
   // that they will refer to string literals).
   static std::unordered_map<std::string_view, std::string_view> default_tags();
 
+  // Return the default baggage span tags. These tags will be defined
+  // automatically during configuration as if they appeared in the nginx
+  // configuration file's http section, e.g.
+  //
+  //     http {
+  //       datadog_baggage_tags_keys user.id session.id account.id;
+  //       ...
+  //     }
+  //
+  // Note that the storage to which each returned `std::string_view` refers
+  // must outlive any usage of the return value (realistically this means
+  // that they will refer to string literals).
+  static std::vector<std::string> default_baggage_span_tags();
+
   // Return the default setting for whether tracing is enabled in nginx.
   static bool tracing_on_by_default();
 
@@ -120,6 +134,10 @@ struct TracingLibrary {
   // An HTTP location is an endpoint as configured using a "location" block
   // in the nginx configuration.
   static bool trace_locations_by_default();
+
+  // Return the default setting for whether baggage span tags will be added
+  // to the current span.
+  static bool bagage_span_tags_by_default();
 };
 
 }  // namespace nginx

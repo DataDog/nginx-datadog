@@ -74,6 +74,33 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
   }
 }
 
+// Iterate through the configured baggage_span_tags and create span tags for the
+// configured baggage keys. The one special case is if baggage_span_tags=["*"].
+// In this case, create a corresponding span tag for all baggage items.
+//
+// Precondition: The local conf has the directive
+// `datadog_baggage_tags_enabled` set.
+void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage &baggage,
+                           dd::Span &span) {
+  if (baggage.empty()) return;
+
+  if (std::holds_alternative<std::vector<std::string>>(
+          conf->baggage_span_tags)) {
+    for (const auto &tag_name :
+         std::get<std::vector<std::string>>(conf->baggage_span_tags)) {
+      if (baggage.contains(tag_name)) {
+        span.set_tag(std::string("baggage.") + tag_name,
+                     baggage.get(tag_name).value());
+      }
+    }
+  } else if (std::holds_alternative<bool>(conf->baggage_span_tags) &&
+             std::get<bool>(conf->baggage_span_tags)) {
+    baggage.visit([&span](std::string_view key, std::string_view value) {
+      span.set_tag(std::string("baggage.") + std::string(key), value);
+    });
+  }
+}
+
 static void add_upstream_name(const ngx_http_request_t *request,
                               dd::Span &span) {
   if (!request->upstream || !request->upstream->upstream ||
@@ -211,6 +238,13 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
       request_span_.emplace(tracer->create_span(config));
     } else {
       request_span_.emplace(std::move(*maybe_span));
+    }
+
+    if (loc_conf_->baggage_span_tags_enabled) {
+      auto maybe_baggage = tracer->extract_baggage(reader);
+      if (maybe_baggage && request_span_) {
+        add_baggage_span_tags(loc_conf, *maybe_baggage, *request_span_);
+      }
     }
   }
 

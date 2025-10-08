@@ -232,6 +232,10 @@ TracingLibrary::default_tags() {
   return tags;
 }
 
+std::vector<std::string> TracingLibrary::default_baggage_span_tags() {
+  return {"user.id", "session.id", "account.id"};
+}
+
 std::string_view TracingLibrary::default_resource_name_pattern() {
   return "$request_method $uri";
 }
@@ -239,6 +243,8 @@ std::string_view TracingLibrary::default_resource_name_pattern() {
 bool TracingLibrary::tracing_on_by_default() { return true; }
 
 bool TracingLibrary::trace_locations_by_default() { return false; }
+
+bool TracingLibrary::bagage_span_tags_by_default() { return true; }
 
 }  // namespace nginx
 }  // namespace datadog
