@@ -188,30 +188,6 @@ static int set_handler(ngx_log_t *log,
 //
 // Note that `ngx_set_env` is adapted from the function of the same name in
 // `nginx.c` within the nginx source code.
-static void *ngx_set_env(std::string_view entry, ngx_cycle_t *cycle) {
-  ngx_core_conf_t *ccf =
-      (ngx_core_conf_t *)ngx_get_conf(cycle->conf_ctx, ngx_core_module);
-
-  ngx_str_t *var;
-  ngx_uint_t i;
-
-  var = (ngx_str_t *)ngx_array_push(&ccf->env);
-  if (var == NULL) {
-    return NGX_CONF_ERROR;
-  }
-
-  const ngx_str_t entry_str = to_ngx_str(entry);
-  *var = entry_str;
-
-  for (i = 0; i < var->len; i++) {
-    if (var->data[i] == '=') {
-      var->len = i;
-      return NGX_CONF_OK;
-    }
-  }
-
-  return NGX_CONF_OK;
-}
 
 static ngx_int_t datadog_master_process_post_config(
     ngx_cycle_t *cycle) noexcept {
@@ -227,14 +203,6 @@ static ngx_int_t datadog_master_process_post_config(
                 "- rum-injection: inject-browser-sdk@%s",
                 datadog_semver_rum_injector);
 #endif
-
-  // Forward tracer-specific environment variables to worker processes.
-  for (const auto &env_var_name :
-       TracingLibrary::environment_variable_names()) {
-    if (const void *const error = ngx_set_env(env_var_name, cycle)) {
-      return ngx_int_t(error);
-    }
-  }
 
   // If tracing has not so far been configured, then give it a default
   // configuration.  This means that the nginx configuration did not use the
@@ -355,6 +323,11 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 
   std::shared_ptr<datadog::nginx::NgxLogger> logger =
       std::make_shared<NgxLogger>();
+
+  for (const auto &entry : main_conf->environment_variables) {
+    const bool overwrite = false;
+    ::setenv(entry.name.c_str(), entry.value.c_str(), overwrite);
+  }
 
 #ifdef WITH_WAF
   try {
