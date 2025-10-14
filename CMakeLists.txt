@@ -223,7 +223,7 @@ target_include_directories(ngx_http_datadog_objs
 )
 
 target_link_libraries(ngx_http_datadog_objs PUBLIC
-  dd_trace_cpp-static
+  dd-trace-cpp::static
   nginx_module
   rapidjson
   cppcodec
