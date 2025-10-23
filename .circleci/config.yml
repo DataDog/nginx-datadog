@@ -367,6 +367,13 @@ parameters:
 version: 2.1
 workflows:
     build-and-test:
+        triggers:
+            - schedule:
+                cron: "0 3 * * 1"
+                filters:
+                    branches:
+                        only:
+                            - master
         jobs:
             - check-ci-definition
             - format:
