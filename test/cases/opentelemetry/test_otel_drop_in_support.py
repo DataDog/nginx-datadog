@@ -137,6 +137,13 @@ class TestOTelDropInSupport(case.TestCase):
                 "service": "*",
                 "tags": {},
             })
+            rules.append({
+                "name": "*",
+                "resource": "GET /nginx_status",
+                "sample_rate": 0.0,
+                "service": "*",
+                "tags": {},
+            })
 
         pattern = {
             "service": "foo",
