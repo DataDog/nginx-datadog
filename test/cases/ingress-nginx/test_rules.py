@@ -45,8 +45,7 @@ class TestIngressNginxRules(case.TestCase):
             conf_text, conf_path.name)
         self.assertEqual(status, 0, log_lines)
 
-        status, _, body = self.orch.send_nginx_http_request(
-            "/nginx_status")
+        status, _, body = self.orch.send_nginx_http_request("/nginx_status")
         self.assertEqual(status, 200)
 
         response = json.loads(body)

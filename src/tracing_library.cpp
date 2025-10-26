@@ -31,24 +31,23 @@ extern "C" {
 namespace datadog {
 namespace nginx {
 
-inline constexpr std::string_view
-integration_name_from_flavor(flavor nginx_flavor) {
+inline constexpr std::string_view integration_name_from_flavor(
+    flavor nginx_flavor) {
   switch (nginx_flavor) {
-  case flavor::vanilla:
-    return "nginx";
-  case flavor::openresty:
-    return "nginx:openresty";
-  case flavor::ingress_nginx:
-    return "nginx:ingress-nginx";
+    case flavor::vanilla:
+      return "nginx";
+    case flavor::openresty:
+      return "nginx:openresty";
+    case flavor::ingress_nginx:
+      return "nginx:ingress-nginx";
   }
 
   static_assert(true, "unknown NGINX flavor");
   std::abort();
 }
 
-dd::Expected<dd::Tracer>
-TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf,
-                            std::shared_ptr<dd::Logger> logger) {
+dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
+    const datadog_main_conf_t &nginx_conf, std::shared_ptr<dd::Logger> logger) {
   dd::TracerConfig config;
   config.logger = std::move(logger);
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
@@ -98,8 +97,8 @@ TracingLibrary::make_tracer(const datadog_main_conf_t &nginx_conf,
         (nginx_conf.appsec_enabled != NGX_CONF_UNSET);
     security::register_with_remote_cfg(
         config.agent,
-        !has_custom_ruleset,        // no custom ruleset => ruleset via rem cfg
-        !appsec_enabling_explicit); // no explicit => control via rem cfg
+        !has_custom_ruleset,         // no custom ruleset => ruleset via rem cfg
+        !appsec_enabling_explicit);  // no explicit => control via rem cfg
   }
 #endif
 
@@ -157,7 +156,7 @@ namespace {
 class SpanContextJSONWriter : public dd::DictWriter {
   rapidjson::Document output_object_;
 
-public:
+ public:
   SpanContextJSONWriter() : output_object_() { output_object_.SetObject(); }
 
   void set(std::string_view key, std::string_view value) override {
@@ -205,7 +204,7 @@ std::string span_property(std::string_view key, const dd::Span &span) {
   return not_found;
 }
 
-} // namespace
+}  // namespace
 
 NginxVariableFamily TracingLibrary::span_variables() {
   return {.prefix = "datadog_", .resolve = span_property};
@@ -258,5 +257,5 @@ bool TracingLibrary::trace_locations_by_default() { return false; }
 
 bool TracingLibrary::bagage_span_tags_by_default() { return true; }
 
-} // namespace nginx
-} // namespace datadog
+}  // namespace nginx
+}  // namespace datadog
