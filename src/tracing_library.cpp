@@ -119,6 +119,17 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
                     .resource = "GET /is-dynamic-lb-initialized",
                     .tags = {}},
             .mechanism = datadog::tracing::SamplingMechanism::RULE});
+
+    // TODO(@dmehala): Disable tracing if `stub_status on;`.
+    final_config->trace_sampler.rules.emplace_back(
+        datadog::tracing::TraceSamplerRule{
+            .rate = datadog::tracing::Rate::zero(),
+            .matcher =
+                datadog::tracing::SpanMatcher{.service = "*",
+                                              .name = "*",
+                                              .resource = "GET /nginx_status",
+                                              .tags = {}},
+            .mechanism = datadog::tracing::SamplingMechanism::RULE});
   }
 
   if (!final_config) {
