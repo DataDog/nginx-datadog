@@ -500,13 +500,6 @@ workflows:
                 name: Run system tests
                 requires:
                     - build 1.25.4 on amd64 WAF ON
-        triggers:
-            - schedule:
-                cron: 0 3 * * 1
-                filters:
-                    branches:
-                        only:
-                            - master
         when:
             and:
                 - not: << pipeline.git.tag >>
