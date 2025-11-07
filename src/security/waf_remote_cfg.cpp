@@ -279,6 +279,8 @@ class AsmConfigListener : public ProductListener<AsmConfigListener> {
       Capability::ASM_REQUEST_BLOCKING,
       Capability::ASM_RESPONSE_BLOCKING,
       Capability::ASM_EXCLUSIONS,
+      Capability::ASM_PREPROCESSOR_OVERRIDES,
+      Capability::ASM_CUSTOM_DATA_SCANNERS,
       static_cast<Capability>(static_cast<std::uint64_t>(1)
                               << 42) /* ASM_DD_MULTICONFIG */,
       static_cast<Capability>(static_cast<std::uint64_t>(1)
