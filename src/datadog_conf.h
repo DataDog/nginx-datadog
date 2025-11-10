@@ -107,6 +107,15 @@ struct datadog_main_conf_t {
   // `agent_url` is set by the `datadog_agent_url` directive.
   std::optional<std::string> agent_url;
 
+  // DD_APM_RESOURCE_RENAMING_ENABLED
+  // Whether generation of http.endpoint is enabled.
+  ngx_flag_t resource_renaming_enabled{NGX_CONF_UNSET};
+
+  // DD_APM_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT
+  // Whether http.endpoint is always calculated, even when http.route is
+  // present.
+  ngx_flag_t resource_renaming_always_simplified_endpoint{NGX_CONF_UNSET};
+
 #ifdef WITH_WAF
   // DD_APPSEC_ENABLED
   ngx_flag_t appsec_enabled{NGX_CONF_UNSET};

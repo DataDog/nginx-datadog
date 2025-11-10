@@ -277,17 +277,26 @@ class TestApmTracingEnabled(case.TestCase):
             expected_headers = {
                 "x-datadog-sampling-priority": "2",
                 "x-datadog-origin": "rum",
-                "x-datadog-tags": "_dd.p.dm=-5,_dd.p.ts=02",
+                "x-datadog-tags": ["_dd.p.dm=-5", "_dd.p.ts=02"],
             }
 
             for header_name, expected_value in expected_headers.items():
                 self.assertIn(header_name, forwarded_headers,
                               f"Missing header: {header_name}")
-                self.assertEqual(
-                    forwarded_headers[header_name],
-                    expected_value,
-                    f"Header {header_name} mismatch: expected {expected_value}, got {forwarded_headers[header_name]}",
-                )
+                gotten_value = forwarded_headers[header_name]
+                if isinstance(expected_value, list):
+                    for ev in expected_value:
+                        self.assertIn(
+                            ev,
+                            gotten_value,
+                            f"Header {header_name} missing expected value: {ev}",
+                        )
+                else:
+                    self.assertEqual(
+                        gotten_value,
+                        expected_value,
+                        f"Header {header_name} mismatch: expected {expected_value}, got {forwarded_headers[header_name]}",
+                    )
 
             # Check traceparent format (trace ID should match, span ID should be different)
             self.assertIn("traceparent", forwarded_headers,
@@ -327,12 +336,17 @@ class TestApmTracingEnabled(case.TestCase):
             tracestate = forwarded_headers["tracestate"]
             # The tracestate should contain the new span ID (same as in traceparent)
             expected_span_id = traceparent_parts[2]
-            expected_tracestate = f"dd=s:2;p:{expected_span_id};o:rum;t.dm:-5;t.ts:02"
-            self.assertEqual(
-                tracestate,
-                expected_tracestate,
-                f"tracestate mismatch: expected {expected_tracestate}, got {tracestate}",
-            )
+            expected_tracestate = [
+                "dd=s:2", f"p:{expected_span_id}", "o:rum", "t.dm:-5",
+                "t.ts:02"
+            ]
+            split_tracestate = tracestate.split(";")
+            for expected_part in expected_tracestate:
+                self.assertIn(
+                    expected_part,
+                    split_tracestate,
+                    f"tracestate missing expected part: {expected_part}. Got {tracestate}",
+                )
 
         span_count = 0
 

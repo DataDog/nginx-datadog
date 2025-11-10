@@ -68,6 +68,29 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
     config.agent.url = nginx_conf.agent_url;
   }
 
+  if (nginx_conf.resource_renaming_enabled != NGX_CONF_UNSET) {
+    config.resource_renaming_enabled = {nginx_conf.resource_renaming_enabled ==
+                                        1};
+  }
+#ifdef WITH_WAF
+  else {
+    // we don't have it, in config
+    // if we also don't have in the environment it defaults to whether appsec
+    // is enabled
+    const char *env_renaming =
+        std::getenv("DD_TRACE_RESOURCE_RENAMING_ENABLED");
+    if (!env_renaming || !env_renaming[0]) {
+      config.resource_renaming_enabled = {nginx_conf.appsec_enabled == 1};
+    }
+  }
+#endif
+
+  if (nginx_conf.resource_renaming_always_simplified_endpoint !=
+      NGX_CONF_UNSET) {
+    config.resource_renaming_always_simplified_endpoint = {
+        nginx_conf.resource_renaming_always_simplified_endpoint == 1};
+  }
+
   // Set sampling rules based on any `datadog_sample_rate` directives.
   std::vector<sampling_rule_t> rules = nginx_conf.sampling_rules;
   // Sort by descending depth, so that rules in a `location` block come before

@@ -165,6 +165,25 @@ constexpr datadog::nginx::directive tracing_directives[] = {
         nullptr,
     },
 
+    {
+        "datadog_resource_renaming_enabled",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_flag_slot,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(datadog_main_conf_t, resource_renaming_enabled),
+        nullptr,
+    },
+
+    {
+        "datadog_resource_renaming_always_simplified_endpoint",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_flag_slot,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(datadog_main_conf_t,
+                 resource_renaming_always_simplified_endpoint),
+        nullptr,
+    },
+
     // aliases opentracing (legacy)
     ALIAS_COMMAND("datadog_tracing", "opentracing", anywhere | NGX_CONF_TAKE1),
     ALIAS_COMMAND("datadog_operation_name", "opentracing_operation_name",
