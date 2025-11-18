@@ -19,6 +19,10 @@ build-nginx-module:
   stage: build
   tags: ["arch:amd64"]
   timeout: 20min
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
+      interruptible: false
+    - interruptible: true
   image: $BUILD_IMAGE
   variables:
     WAF: OFF
@@ -43,6 +47,10 @@ build-nginx-module:
   needs: ["build-nginx-module"]
   tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
+      interruptible: false
+    - interruptible: true
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
     - cp .musl-build/ngx_http_datadog_module.so /usr/lib/nginx/modules/ngx_http_datadog_module.so
