@@ -20,16 +20,20 @@ executors:
     parameters:
       image:
         type: string
+      resource_class:
+        type: string
     docker:
     - image: "<< parameters.image >>"
-    resource_class: xlarge
+    resource_class: "<< parameters.resource_class >>"
   docker-arm64:
     parameters:
       image:
         type: string
+      resource_class:
+        type: string
     docker:
     - image: "<< parameters.image >>"
-    resource_class: arm.xlarge
+    resource_class: "arm.<< parameters.resource_class >>"
   ubuntu-amd64:
     machine:
       image: ubuntu-2204:current

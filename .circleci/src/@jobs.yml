@@ -146,6 +146,7 @@ jobs:
     executor:
       name: docker-<< parameters.arch >>
       image: cimg/python:3.10.13
+      resource_class: medium
     environment:
       # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
@@ -181,6 +182,7 @@ jobs:
     executor:
       name: docker-<< parameters.arch >>
       image: cimg/python:3.10.13
+      resource_class: medium
     environment:
       # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
@@ -210,6 +212,7 @@ jobs:
     executor:
       name: docker-<< parameters.arch >>
       image: cimg/python:3.10.13
+      resource_class: medium
     environment:
       # https://github.com/containers/podman/issues/13889
       DOCKER_BUILDKIT: 1
