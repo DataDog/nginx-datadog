@@ -5,14 +5,18 @@ executors:
         parameters:
             image:
                 type: string
-        resource_class: xlarge
+            resource_class:
+                type: string
+        resource_class: << parameters.resource_class >>
     docker-arm64:
         docker:
             - image: << parameters.image >>
         parameters:
             image:
                 type: string
-        resource_class: arm.xlarge
+            resource_class:
+                type: string
+        resource_class: arm.<< parameters.resource_class >>
     ubuntu-amd64:
         machine:
             image: ubuntu-2204:current
@@ -255,6 +259,7 @@ jobs:
         executor:
             image: cimg/python:3.10.13
             name: docker-<< parameters.arch >>
+            resource_class: medium
         parameters:
             arch:
                 type: string
@@ -294,6 +299,7 @@ jobs:
         executor:
             image: cimg/python:3.10.13
             name: docker-<< parameters.arch >>
+            resource_class: medium
         parameters:
             arch:
                 type: string
@@ -327,6 +333,7 @@ jobs:
         executor:
             image: cimg/python:3.10.13
             name: docker-<< parameters.arch >>
+            resource_class: medium
         parameters:
             arch:
                 type: string
