@@ -15,6 +15,10 @@ variables:
   BUILD_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/images/mirror/b1o7r7e0/nginx_musl_toolchain
   NGINX_VERSION: 1.26.0
 
+workflow: 
+  auto_cancel:
+    on_new_commit: interruptible
+
 build-nginx-module:
   stage: build
   tags: ["arch:amd64"]
@@ -108,7 +112,12 @@ only-tracing:
 check-slo-breaches:
   extends: .check-slo-breaches
   stage: gate
-  when: always
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
+      when: always
+      interruptible: false
+    - when: always
+      interruptible: true
   artifacts:
     name: "artifacts"
     when: always
@@ -124,7 +133,11 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  when: always
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
+      when: always
+      interruptible: false
+    - when: always
+      interruptible: true
   variables:
     CHANNEL: "apm-proxy"
-
