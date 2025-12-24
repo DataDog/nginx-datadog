@@ -1,0 +1,7 @@
+/target
+/sqlite-jdbc.jar
+/LogAnalyzer.class
+/log_messages.db
+/.claude
+/.venv
+*.sw[mnop]
