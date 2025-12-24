@@ -1,0 +1,130 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    expose:
+      - "3000"
+    networks:
+      default:
+        ipv4_address: 172.23.0.10
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "1"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.ingress
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    environment:
+      - DD_AGENT_HOST=agent
+      - DD_ENV=stage
+      - DD_SERVICE=ingress-nginx-stage
+      - DD_VERSION=v1.14.0
+      - DD_APPSEC_ENABLED=true
+      - DD_API_SECURITY_ENABLED=true
+      - DD_API_SECURITY_PROXY_SAMPLE_RATE=1000
+    depends_on:
+      - agent
+      - backend
+    privileged: true
+    volumes:
+      # Mount core dumps location
+      - ./core:/tmp/cores
+    ulimits:
+      core: -1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  agent:
+    image: gcr.io/datadoghq/agent:latest
+    environment:
+      - DD_API_KEY=${DD_API_KEY:-dummy_key_for_testing}
+      - DD_SITE=datad0g.com
+      - DD_LOGS_ENABLED=true
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "2"
+
+  # Load generator to create traffic and potentially trigger the crash
+  loadgen:
+    image: python:3.11-alpine
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./persistent_http2_client.py:/persistent_http2_client.py:ro
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache curl iptables iproute2-tc
+        pip install h2 --quiet --break-system-packages
+        echo 'Waiting for nginx to start...'
+        sleep 10
+        echo 'Starting persistent HTTP/2 client...'
+        python3 /persistent_http2_client.py nginx 10 &
+        echo 'Starting regular load generation...'
+        while true; do
+          curl -k -v --http2 https://nginx/get/30/3/50 -H 'Accept-Encoding: br, gzip, deflate' 2>&1 | grep -E '(HTTP/2|connection|content-encoding)' || true
+          curl -k -v --http2 -X POST https://nginx/post/25/2/50/10 -H 'Content-Type: application/json' -H 'Accept-Encoding: br, gzip' -d '{"test":"data","message":"This is a test POST request with a body that will generate a larger response to trigger brotli compression. Adding more text to make the request body larger and ensure we have enough data for meaningful compression testing.","timestamp":1234567890,"nested":{"key":"value","array":[1,2,3,4,5,6,7,8,9,10]}}' 2>&1 | grep -E '(HTTP/2|connection|content-encoding)' || true
+          curl -k --http2 https://nginx/json/600 -H 'Accept-Encoding: br, gzip' -H 'Content-Type: application/json' > /dev/null 2>&1 || true
+          curl -k --http2 https://nginx/lua/socket > /dev/null 2>&1 || true
+          curl -k --http2 https://nginx/lua/threads > /dev/null 2>&1 || true
+          curl -k --http2 https://nginx/lua/timer > /dev/null 2>&1 || true
+          curl -k --http2 https://nginx/lua/subrequest > /dev/null 2>&1 || true
+          curl -k --http2 -X POST https://nginx/post/20/3/100/5 -H 'Content-Type: text/plain' -H 'Accept-Encoding: br' -d 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.' > /dev/null 2>&1 || true
+          curl -k --http2 https://nginx/auth -H 'Authorization: mysecret' -H 'Accept-Encoding: br, gzip, deflate' > /dev/null 2>&1 || true
+          sleep 1
+        done
+    depends_on:
+      - nginx
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "1"
+
+  # Interrupt test generator - triggers connection interruptions
+  interruptgen:
+    image: python:3.11-alpine
+    volumes:
+      - ./test_interrupts.py:/test_interrupts.py:ro
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache curl
+        echo 'Waiting for nginx to start...'
+        sleep 15
+        echo 'Starting interrupt tests...'
+        python3 /test_interrupts.py nginx
+    depends_on:
+      - nginx
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "1"
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.23.0.0/16
+          gateway: 172.23.0.1

@@ -1,0 +1,30 @@
+# Build stage for backend_rs
+FROM rust:1.75-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache musl-dev
+
+WORKDIR /build
+
+# Copy Cargo files
+COPY Cargo.toml Cargo.lock ./
+
+# Copy source code
+COPY src ./src
+
+# Build the release binary
+RUN cargo build --release
+
+# Runtime stage
+FROM alpine:latest
+
+WORKDIR /app
+
+# Copy the binary from builder
+COPY --from=builder /build/target/release/backend_rs /app/backend_rs
+
+# Expose port 3000
+EXPOSE 3000
+
+# Run the backend
+CMD ["/app/backend_rs"]

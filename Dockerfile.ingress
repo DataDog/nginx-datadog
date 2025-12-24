@@ -1,0 +1,55 @@
+# Dockerfile to reproduce nginx ingress controller crash
+# Uses ingress-nginx controller as base and injects Datadog module
+
+# Stage 1: Extract Datadog module
+FROM docker.io/datadog/ingress-nginx-injection:v1.14.0 AS datadog-module
+
+# Stage 2: Use ingress-nginx controller as base
+FROM registry.k8s.io/ingress-nginx/controller:v1.14.0
+
+# Switch to root to install packages and modules
+USER root
+
+# Install debugging and testing tools (Alpine Linux)
+RUN apk add --no-cache \
+        gdb \
+        strace \
+        vim \
+        curl \
+        netcat-openbsd \
+        bash \
+        openssl \
+        openssl-dbg
+
+# Create directory for Datadog module and copy it
+RUN mkdir -p /usr/lib/nginx/modules
+#COPY --from=datadog-module /datadog/ngx_http_datadog_module.so /usr/lib/nginx/modules/
+ADD ngx_http_datadog_module.so* /usr/lib/nginx/modules/
+
+# Create necessary directories
+RUN mkdir -p /var/cache/nginx/common_proxy_cache \
+    /tmp/cores
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy Lua scripts and set permissions
+COPY lua /etc/nginx/lua
+RUN chmod -R 755 /etc/nginx/lua && chmod -R 644 /etc/nginx/lua/*.lua
+
+# Copy entrypoint
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Expose HTTP and HTTPS ports
+EXPOSE 80 443 8080
+
+# Set environment variables for Datadog
+ENV DD_AGENT_HOST=agent \
+    DD_ENV=stage \
+    DD_SERVICE=ingress-nginx-stage \
+    DD_VERSION=v1.14.0 \
+    DD_APPSEC_ENABLED=true
+
+# Stay as root for debugging
+CMD ["/usr/local/bin/entrypoint.sh"]
