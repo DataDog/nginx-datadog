@@ -9,7 +9,7 @@ if (NGINX_DATADOG_ASM_ENABLED)
 
     FetchContent_MakeAvailable(Catch2)
 
-    add_executable(unit_tests json.cpp multipart.cpp urlencoded.cpp test_limiter.cpp stub_nginx.c)
+    add_executable(unit_tests json.cpp multipart.cpp urlencoded.cpp test_limiter.cpp client_ip.cpp stub_nginx.c)
     add_test(NAME unit_tests COMMAND unit_tests)
     target_link_libraries(unit_tests PRIVATE ngx_http_datadog_static_lib Catch2::Catch2WithMain)
     target_compile_features(unit_tests PRIVATE cxx_std_20)
