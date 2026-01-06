@@ -578,8 +578,7 @@ std::optional<std::string> ClientIp::resolve() const {
     }
   }
 
-  // No public address found yet
-  // Try remote_addr. If it's public we'll use it
+  // No public address found yet. Try remote_addr.
   IpAddr remote_addr{};
   struct sockaddr *sockaddr = request_.connection->sockaddr;
   if (sockaddr->sa_family == AF_INET) {
@@ -591,13 +590,12 @@ std::optional<std::string> ClientIp::resolve() const {
   }
 
   if (!remote_addr.empty()) {
-    if (remote_addr.is_private()) {
-      if (cur_private.empty()) {
-        return {remote_addr.to_string()};
-      } else {
-        return {cur_private.to_string()};
-      }
+    if (!remote_addr.is_private()) {
+      return remote_addr.to_string();
     }
+    if (cur_private.empty()) {
+      return remote_addr.to_string();
+    }  // else cur_private is preferred below
   }
 
   // no remote address
