@@ -28,6 +28,27 @@ namespace datadog::nginx::security {
 // the tag used for the buffers we allocate
 static constexpr uintptr_t kBufferTag = 0xD47AD06;
 
+// A type-safe wrapper around ngx_pool_t* that can only be created from an
+// ngx_http_request_t. This prevents some accidental uses of connection pools
+// (c->pool) when request pools (r->pool) are required.
+class RequestPool {
+ public:
+  explicit RequestPool(ngx_http_request_t &request) noexcept
+      : pool_{request.pool} {}
+
+  RequestPool(const RequestPool &) noexcept = default;
+  RequestPool &operator=(const RequestPool &) noexcept = default;
+
+  // implicit conversion to ngx_pool_t* for use with nginx APIs
+  operator ngx_pool_t *() const noexcept { return pool_; }
+
+  ngx_pool_t &operator*() const noexcept { return *pool_; }
+  ngx_pool_t *operator->() const noexcept { return pool_; }
+
+ private:
+  ngx_pool_t *pool_;
+};
+
 class Context {
   Context(std::shared_ptr<OwnedDdwafHandle> waf_handle,
           bool apm_tracing_enabled);
@@ -327,7 +348,7 @@ class Context {
     std::size_t copied_total;
     bool found_last;
 
-    void clear(ngx_pool_t &pool) noexcept;
+    void clear(RequestPool pool) noexcept;
     void replace_out(ngx_chain_t *new_out) noexcept;
   };
   FilterCtx filter_ctx_{};         // for request body
@@ -335,14 +356,14 @@ class Context {
   FilterCtx out_filter_ctx_{};     // for response body
   bool header_only_{false};        // HEAD requests
 
-  static ngx_int_t buffer_chain(FilterCtx &filter_ctx, ngx_pool_t &pool,
+  static ngx_int_t buffer_chain(FilterCtx &filter_ctx, RequestPool pool,
                                 ngx_chain_t const *in, bool consume) noexcept;
 
   ngx_http_event_handler_pt prev_req_write_evt_handler_;
   static void drain_buffered_data_write_handler(ngx_http_request_t *r) noexcept;
 
  public:
-  ngx_int_t buffer_header_output(ngx_pool_t &pool, ngx_chain_t *chain) noexcept;
+  ngx_int_t buffer_header_output(RequestPool pool, ngx_chain_t *chain) noexcept;
   ngx_int_t send_buffered_header(ngx_http_request_t &request) noexcept;
 
   void prepare_drain_buffered_header(ngx_http_request_t &request) noexcept;
