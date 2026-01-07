@@ -510,13 +510,9 @@ workflows:
         when:
             and:
                 - not: << pipeline.git.tag >>
-                - or:
-                    - equal:
-                        - dev
-                        - << pipeline.parameters.action >>
-                    - equal:
-                        - master
-                        - << pipeline.git.branch >>
+                - equal:
+                    - dev
+                    - << pipeline.parameters.action >>
     build-and-test-all:
         jobs:
             - build_ingress_nginx_module:
