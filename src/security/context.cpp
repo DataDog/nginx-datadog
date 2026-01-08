@@ -166,8 +166,8 @@ class PolTaskCtx {
 
     if (simulate_task_post_failure ||
         ngx_thread_task_post(pool, &get_task()) != NGX_OK) {
-      ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
-                    "failed to post task %p", &get_task());
+      ngx_log_error(NGX_LOG_ERR, req_log(), 0, "failed to post task %p",
+                    &get_task());
 
       Stats::task_submission_failed();
 
@@ -180,7 +180,7 @@ class PolTaskCtx {
 
     Stats::task_submitted();
 
-    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, req_log(), 0,
                    "task %p submitted. Request refcount: %d", &get_task(),
                    req_.main->count);
 
@@ -207,15 +207,15 @@ class PolTaskCtx {
   void handle(ngx_log_t *tp_log) noexcept {
     try {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0, "before task %p main",
-                    this);
+                    &get_task());
       block_spec_ = as_self().do_handle(*tp_log);
       // test long libddwaf call
       // ::usleep(2000000);
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0, "after task %p main",
-                    this);
+                    &get_task());
       ran_on_thread_.store(true, std::memory_order_release);
     } catch (std::exception &e) {
-      ngx_log_error(NGX_LOG_ERR, tp_log, 0, "task %p failed: %s", this,
+      ngx_log_error(NGX_LOG_ERR, tp_log, 0, "task %p failed: %s", &get_task(),
                     e.what());
     } catch (...) {
       ngx_log_error(NGX_LOG_ERR, tp_log, 0, "task %p failed: unknown failure",
@@ -238,8 +238,8 @@ class PolTaskCtx {
 
     auto count = req_.main->count;
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
-                  "refcount before decrement upon task %p completion: %d", this,
-                  count);
+                  "refcount before decrement upon task %p completion: %d",
+                  &get_task(), count);
 
     // create a stack copy to safely call destructor later
     // the task is allocated on the request pool, so by the end of this method
@@ -254,11 +254,12 @@ class PolTaskCtx {
       if (ngx_handle_read_event(req_.connection->read, 0) != NGX_OK) {
         ngx_http_finalize_request(&req_, NGX_HTTP_INTERNAL_SERVER_ERROR);
         ngx_log_error(NGX_LOG_ERR, req_log(), 0,
-                      "failed to re-enable read event after task %p", this);
+                      "failed to re-enable read event after task %p",
+                      &get_task());
       } else {
         req_.main->count--;
         ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req_log(), 0,
-                       "calling complete on task %p", this);
+                       "calling complete on task %p", &get_task());
         as_self().complete();
         // req_ may be invalid at this point
       }
@@ -267,7 +268,7 @@ class PolTaskCtx {
           NGX_LOG_DEBUG_HTTP, req_log(), 0,
           "skipping run of completion handler for task %p because "
           "we're the only reference to the request; finalizing instead",
-          this);
+          &get_task());
       ngx_http_finalize_request(&req_, NGX_DONE);
     }
 
@@ -587,6 +588,9 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
       // point, although we cannot be sure (e.g. there may be a post action)
       if (count_before > 1) {
         ngx_post_event(req_.connection->write, &ngx_posted_events);
+        if (orig_upstream_read_handler_) {
+          trigger_upstream_read();
+        }
       }
       // req_ may be invalid at this point
     } else {
@@ -599,6 +603,9 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
         // it may be that the body filter is never called again, so we have
         // no chance to send the buffered data.
         ctx_.prepare_drain_buffered_header(req_);
+      }
+      if (orig_upstream_read_handler_) {
+        trigger_upstream_read();
       }
     }
   }
@@ -613,8 +620,27 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
                    "PolFinalWafCtx: http empty handler (write)");
   }
 
+  static void empty_upstream_handler_read(ngx_event_t *wev) {
+    ngx_connection_t &upstream_c = *static_cast<ngx_connection_t *>(wev->data);
+    ngx_http_request_t &req =
+        *static_cast<ngx_http_request_t *>(upstream_c.data);
+    ngx_connection_t &downstream_c = *req.connection;
+
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, downstream_c.log, 0,
+                   "PolFinalWafCtx: http empty upstream read handler");
+
+    // avoid busy loop on level-triggered (see ngx_http_block_reading)
+    if ((ngx_event_flags & NGX_USE_LEVEL_EVENT) && upstream_c.read->active) {
+      if (ngx_del_event(upstream_c.read, NGX_READ_EVENT, 0) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, downstream_c.log, 0,
+                      "failed to delete read event");
+      }
+    }
+  }
+
   ngx_event_handler_pt orig_conn_read_handler_{};
   ngx_event_handler_pt orig_conn_write_handler_{};
+  ngx_event_handler_pt orig_upstream_read_handler_{};
   void replace_handlers() noexcept {
     auto &read_handler = req_.connection->read->handler;
     orig_conn_read_handler_ = read_handler;
@@ -623,11 +649,37 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
     auto &write_handler = req_.connection->write->handler;
     orig_conn_write_handler_ = write_handler;
     write_handler = &empty_handler_write;
+
+    if (req_.upstream && req_.upstream->upgrade) {
+      // the upstream read handler bypasses the downstream handlers and calls
+      // connection->send directly. We need to neuter it
+      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                     "PolFinalWafCtx: replacing upstream read handler");
+      auto &upstream_read_handler =
+          req_.upstream->peer.connection->read->handler;
+      orig_upstream_read_handler_ = upstream_read_handler;
+      upstream_read_handler = &empty_upstream_handler_read;
+    }
   }
 
   void restore_handlers() noexcept {
     req_.connection->write->handler = orig_conn_write_handler_;
     req_.connection->read->handler = orig_conn_read_handler_;
+    if (orig_upstream_read_handler_) {
+      req_.upstream->peer.connection->read->handler =
+          orig_upstream_read_handler_;
+    }
+  }
+
+  void trigger_upstream_read() noexcept {
+    ngx_connection_t &upstream_c = *req_.upstream->peer.connection;
+
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_log(), 0,
+                   "PolFinalWafCtx: triggering upstream read");
+
+    // re-arm after possible del_event
+    ngx_handle_read_event(upstream_c.read, 0);
+    ngx_post_event(upstream_c.read, &ngx_posted_events);
   }
 
   friend PolTaskCtx;
