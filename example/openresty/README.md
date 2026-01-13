@@ -2,7 +2,7 @@ Example System
 ==============
 This is an example of how the Datadog module adds tracing to OpenResty.
 
-This directory is a [docker-compose][4] setup containing the following
+This directory is a [docker compose](https://docs.docker.com/compose) setup containing the following
 services:
 - `openresty` runs an instance of openresty that:
     - accepts HTTP on port 80,
@@ -10,7 +10,7 @@ services:
 - `client` contains the command line tools `curl`.
 
 Because client command line tools are available within the `client` service,
-this example requires only `docker-compose` and a working Docker environment as
+this example requires only `docker compose` and a working Docker environment as
 dependencies.
 
 Usage
@@ -45,7 +45,7 @@ Traces will appear in the Datadog UI with the configured service name, which in 
 OpenResty Version
 -------------
 The OpenResty version and target system can be specified by setting the `BASE_IMAGE`
-environment variable.  The value of the environment variable is the name of a
+environment variable. The value of the environment variable is the name of a
 Docker image where openresty is installed or can be installed using the native
 package manager.
 
@@ -56,8 +56,8 @@ compatibility with Openresty 1.27.1.1 running on Alpine.
 Command Line Tools
 ------------------
 [bin/](bin/) contains the following scripts:
-- [bin/run](bin/run) is a wrapper around `docker-compose up`.
-- [bin/curl](bin/curl) executes `curl` inside the `client` service.  This way,
-  `curl` has access to the network internal to `docker-compose`.  For example,
+- [bin/run](bin/run) is a wrapper around `docker compose up`.
+- [bin/curl](bin/curl) executes `curl` inside the `client` service. This way,
+  `curl` has access to the network internal to `docker compose`. For example,
   `bin/curl http://openresty` sends a request to the `openresty` service, because that
-  service is known by the host name "nginx" within `docker-compose`.
+  service is known by the host name "nginx" within `docker compose`.

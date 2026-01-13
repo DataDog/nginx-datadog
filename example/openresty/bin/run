@@ -27,4 +27,4 @@ if [ "$DD_API_KEY" = '' ]; then
     exit 1
 fi
 
-docker-compose up --build --abort-on-container-exit --remove-orphans
+docker compose up --build --abort-on-container-exit --remove-orphans
