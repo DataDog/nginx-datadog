@@ -153,7 +153,65 @@ console.log('http node.js web server is running');
 const server = http.createServer(requestListener);
 server.listen(8080);
 
-const wss = new WebSocket.Server({ server });
+// For ?immediate_raw= we handle the upgrade ourselves to send data in the same packet
+server.on('upgrade', (request, socket, head) => {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+  const immediateRaw = url.searchParams.get('immediate_raw');
+
+  if (immediateRaw) {
+    console.log('WebSocket upgrade with immediate_raw:', immediateRaw);
+
+    const crypto = require('crypto');
+    const key = request.headers['sec-websocket-key'];
+    const acceptKey = crypto
+      .createHash('sha1')
+      .update(key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
+      .digest('base64');
+
+    // WebSocket frame for the message
+    const messageBytes = Buffer.from(immediateRaw, 'utf8');
+    let frame;
+    if (messageBytes.length < 126) {
+      frame = Buffer.alloc(2 + messageBytes.length);
+      frame[0] = 0x81; // FIN + text opcode
+      frame[1] = messageBytes.length;
+      messageBytes.copy(frame, 2);
+    } else {
+      frame = Buffer.alloc(4 + messageBytes.length);
+      frame[0] = 0x81;
+      frame[1] = 126;
+      frame.writeUInt16BE(messageBytes.length, 2);
+      messageBytes.copy(frame, 4);
+    }
+
+    // write HTTP 101 response AND WebSocket frame in a single write.
+    // This sends them in the same TCP packet
+    const response = Buffer.concat([
+      Buffer.from(
+        'HTTP/1.1 101 Switching Protocols\r\n' +
+        'Upgrade: websocket\r\n' +
+        'Connection: Upgrade\r\n' +
+        `Sec-WebSocket-Accept: ${acceptKey}\r\n` +
+        '\r\n'
+      ),
+      frame
+    ]);
+
+    socket.write(response);
+    console.log('Sent 101 + WebSocket frame in single packet');
+
+    // Keep socket open briefly then close
+    setTimeout(() => socket.end(), 1000);
+    return;
+  }
+
+  // for regular WebSocket connections, let wss handle it
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
+
+const wss = new WebSocket.Server({ noServer: true });
 
 wss.on('connection', (ws) => {
   ws.on('message', (message) => {
