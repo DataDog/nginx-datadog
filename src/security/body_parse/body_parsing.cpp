@@ -190,8 +190,7 @@ bool parse_body_req(ddwaf_obj &slot, const ngx_http_request_t &req,
 }
 
 bool is_body_resp_parseable(const ngx_http_request_t &req) {
-  return !req.header_only && req.headers_out.content_length_n != 0 &&
-         (is_resp_json(req) || is_resp_text_plain(req));
+  return !req.header_only && (is_resp_json(req) || is_resp_text_plain(req));
 }
 
 // chain may be longer than size, so size can act as a limit too
