@@ -2,7 +2,7 @@ Example System
 ==============
 This is an example of how the Datadog module adds tracing to Nginx.
 
-This directory is a [docker-compose][4] setup containing the following
+This directory is a [docker compose](https://docs.docker.com/compose) setup containing the following
 services:
 - `nginx` runs an instance of Nginx that:
     - accepts HTTP on port 80,
@@ -16,7 +16,7 @@ services:
 - `client` contains the command line tools `curl` and `grpcurl`.
 
 Because client command line tools are available within the `client` service,
-this example requires only `docker-compose` and a working Docker environment as
+this example requires only `docker compose` and a working Docker environment as
 dependencies.
 
 Usage
@@ -56,27 +56,23 @@ Traces will appear in the Datadog UI with the configured service name, which in 
 Nginx Version
 -------------
 The Nginx version and target system can be specified by setting the `BASE_IMAGE`
-environment variable.  The value of the environment variable is the name of a
+environment variable. The value of the environment variable is the name of a
 Docker image where nginx is installed or can be installed using the native
 package manager.
 
 For example, the default value for `BASE_IMAGE` in this example is
-`nginx:1.23.1-alpine`, which indicates compatibility with Nginx 1.23.1 running
-on Alpine, as per [nginx:1.23.1-alpine][3].
+`nginx:1.29.3-alpine`, which indicates compatibility with Nginx 1.29.3 running
+on Alpine, as per [nginx:1.29.3-alpine](https://hub.docker.com/layers/nginx/library/nginx/1.29.3-alpine/images).
 
 Command Line Tools
 ------------------
 [bin/](bin/) contains the following scripts:
-- [bin/run](bin/run) is a wrapper around `docker-compose up`.
-- [bin/curl](bin/curl) executes `curl` inside the `client` service.  This way,
-  `curl` has access to the network internal to `docker-compose`.  For example,
+- [bin/run](bin/run) is a wrapper around `docker compose up`.
+- [bin/curl](bin/curl) executes `curl` inside the `client` service. This way,
+  `curl` has access to the network internal to `docker compose`. For example,
   `bin/curl http://nginx` sends a request to the `nginx` service, because that
-  service is known by the host name "nginx" within `docker-compose`.
+  service is known by the host name "nginx" within `docker compose`.
 - [bin/grpcurl](bin/grpcurl) executes `grpcurl` in plaintext mode within the
-  `client` service.  It exists for the same reason as `bin/curl`.  For example,
+  `client` service. It exists for the same reason as `bin/curl`. For example,
   `bin/grpcurl nginx:1337 upstream.Upstream.GetMetadata` requests gRPC service
   metadata from the `nginx` service listening on port 1337.
-
-[1]: https://hub.docker.com/_/nginx/
-[3]: https://hub.docker.com/layers/nginx/library/nginx/1.23.1-alpine/images/sha256-2959a35e1b1e61e2419c01e0e457f75497e02d039360a658b66ff2d4caab19c4?context=explore
-[4]: https://docs.docker.com/compose/
