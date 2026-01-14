@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-This script manages the process of building a version of the module compatible with ingress-nginx.
+This script manages the process of building a version of the module compatible with Ingress Nginx.
 
 Usage:
 ======
-1. Prepare the environment by downloading the specified ingress-nginx version source code.
-This command fetches ingress-nginx version 1.10.4 and outputs it to the 'controller-src' directory.
-
+1. Prepare the environment by downloading the specified Ingress Nginx version source code.
+The following command fetches Ingress Nginx version 1.10.4 and outputs it to the 'controller-src' directory:
 ./ingress-nginx prepare --ingress-nginx-version v1.10.4 --output_dir controller-src
 
-2. Set up the build system using CMake.
+2. Set up the build system using CMake:
 cmake -B build -DNGINX_SRC_DIR=controller-src .
 
 3: Build the module:
@@ -34,7 +33,9 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 def get_underlying_nginx_version(controller_version: str) -> str:
     # Map an ingress-nginx version to an NGINX version
     mapping = {
+        "v1.14.1": "1.27.1",
         "v1.14.0": "1.27.1",
+        "v1.13.5": "1.27.1",
         "v1.13.4": "1.27.1",
         "v1.13.3": "1.27.1",
         "v1.13.2": "1.27.1",
@@ -65,7 +66,6 @@ def get_underlying_nginx_version(controller_version: str) -> str:
         "v1.10.2": "1.25.5",
         "v1.10.1": "1.25.3",
         "v1.10.0": "1.25.3",
-        "v1.9.6": "1.21.6",
     }
     return mapping.get(controller_version, "")
 
@@ -94,7 +94,9 @@ def clone_nginx(version: str, out_dir: str) -> str:
 
 def get_patch_directory(version: str, ingress_rootdir: str) -> str:
     mapping = {
+        "v1.14.1": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.14.0": f"{ingress_rootdir}/images/nginx/rootfs/patches",
+        "v1.13.5": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.13.4": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.13.3": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.13.2": f"{ingress_rootdir}/images/nginx/rootfs/patches",
@@ -125,8 +127,6 @@ def get_patch_directory(version: str, ingress_rootdir: str) -> str:
         "v1.10.2": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
         "v1.10.1": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
         "v1.10.0": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.10.0": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.9.6": f"{ingress_rootdir}/images/nginx/rootfs/patches",
     }
     return mapping.get(version, "")
 
