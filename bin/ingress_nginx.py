@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-This script manages the process of building a version of the module compatible with Ingress Nginx.
+This script manages the process of building a version of the module compatible with ingress-nginx.
 
 Usage:
 ======
-1. Prepare the environment by downloading the specified Ingress Nginx version source code.
-The following command fetches Ingress Nginx version 1.10.4 and outputs it to the 'controller-src' directory:
+1. Prepare the environment by downloading the specified ingress-nginx version source code.
+The following command fetches ingress-nginx version 1.10.4 and outputs it to the 'controller-src' directory:
 ./ingress-nginx prepare --ingress-nginx-version v1.10.4 --output_dir controller-src
 
 2. Set up the build system using CMake:
