@@ -15,6 +15,11 @@ dependencies.
 
 Usage
 -----
+Get the tarball of the adequate version of the Datadog module for OpenResty from the
+[`nginx-datadog` releases](https://github.com/DataDog/nginx-datadog/releases). Download it and
+extract it in `services/openresty` (so that to get the `ngx_http_datadog_module.so`file in this
+directory).
+
 Bring up the services by setting a Datadog API key and invoking the
 [bin/run](bin/run) wrapper script:
 ```shell
