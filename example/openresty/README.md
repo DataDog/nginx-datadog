@@ -29,7 +29,7 @@ $ bin/run
 
 You can also choose which OpenResty version to run with the RESTY_VERSION environment variable:
 ```shell
-$ RESTY_VERSION=1.27.1.1 bin/run
+$ RESTY_VERSION=1.27.1.2 bin/run
 ```
 
 Then, in another shell, make HTTP or gRPC calls to the `openresty` service using
@@ -55,8 +55,8 @@ Docker image where openresty is installed or can be installed using the native
 package manager.
 
 By default, the value for `BASE_IMAGE` is the alpine version of default OpenResty
-version. In this example it is `openresty/openresty:1.27.1.1-alpine`, which indicates
-compatibility with Openresty 1.27.1.1 running on Alpine.
+version. In this example it is `openresty/openresty:1.27.1.2-alpine`, which indicates
+compatibility with Openresty 1.27.1.2 running on Alpine.
 
 Command Line Tools
 ------------------
