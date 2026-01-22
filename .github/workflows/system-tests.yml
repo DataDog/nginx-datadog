@@ -47,7 +47,7 @@ jobs:
       library: cpp_nginx
       binaries_artifact: binaries
       desired_execution_time: 300  # 5 minutes
-      scenarios_groups: appsec
+      scenarios_groups: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && 'tracer_release' || 'appsec' }}
       scenarios: DEFAULT
       excluded_scenarios: INTEGRATIONS  # no test activated, and long warm-up
       skip_empty_scenarios: true
