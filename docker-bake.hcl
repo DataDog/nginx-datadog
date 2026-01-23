@@ -1,5 +1,9 @@
 # docker-bake.hcl - Build configuration for nginx-datadog module
 #
+# The toolchain image (nginx_musl_toolchain) is built automatically from build_env/
+# as part of the bake process. To use a pre-built external image instead, set:
+#   TOOLCHAIN_IMAGE=public.ecr.aws/b1o7r7e0/nginx_musl_toolchain:latest docker buildx bake dev
+#
 # Usage examples:
 #   docker buildx bake nginx-all              # Build all nginx versions
 #   docker buildx bake openresty-all          # Build all openresty versions
@@ -13,6 +17,10 @@
 #   docker buildx bake nginx-1-29-4-arm64-waf-OFF
 #   docker buildx bake openresty-1-27-1-2-amd64-waf-ON
 #   docker buildx bake ingress-nginx-1-14-1-amd64
+#
+# Build just the toolchain:
+#   docker buildx bake toolchain-amd64
+#   docker buildx bake toolchain-arm64
 #
 # Override simple variables:
 #   OUTPUT_DIR=/tmp/out docker buildx bake dev
@@ -109,7 +117,9 @@ variable "OUTPUT_DIR" {
 }
 
 variable "TOOLCHAIN_IMAGE" {
-  default = "public.ecr.aws/b1o7r7e0/nginx_musl_toolchain:latest"
+  # When empty, the toolchain will be built from build_env/Dockerfile
+  # Set to an image name to use a pre-built toolchain (e.g., "public.ecr.aws/b1o7r7e0/nginx_musl_toolchain:latest")
+  default = ""
 }
 
 variable "BUILD_TYPE" {
@@ -140,6 +150,28 @@ function "version_to_name" {
 function "waf_to_dir" {
   params = [waf]
   result = waf == "ON" ? "waf" : "no-waf"
+}
+
+# =============================================================================
+# Toolchain Targets
+# =============================================================================
+
+# Build the musl toolchain from build_env/Dockerfile
+target "toolchain" {
+  name       = "toolchain-${arch}"
+  dockerfile = "Dockerfile"
+  context    = "build_env"
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    arch = ARCHITECTURES
+  }
+
+  args = {
+    ARCH = arch_to_toolchain(arch)
+  }
+
+  tags = ["nginx_musl_toolchain:${arch}"]
 }
 
 # =============================================================================
@@ -188,12 +220,16 @@ target "nginx" {
   }
 
   args = {
-    TOOLCHAIN_IMAGE = TOOLCHAIN_IMAGE
     ARCH            = arch_to_toolchain(arch)
     NGINX_VERSION   = version
     WAF             = waf
     BUILD_TYPE      = BUILD_TYPE
     MAKE_JOB_COUNT  = MAKE_JOB_COUNT
+  }
+
+  # Use locally built toolchain or external image
+  contexts = {
+    toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-${arch}" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
   output = ["type=local,dest=${OUTPUT_DIR}/nginx/${version}/${arch}/${waf_to_dir(waf)}"]
@@ -207,12 +243,15 @@ target "nginx-dev" {
   platforms  = ["linux/amd64"]
 
   args = {
-    TOOLCHAIN_IMAGE = TOOLCHAIN_IMAGE
     ARCH            = "x86_64"
     NGINX_VERSION   = "1.29.4"
     WAF             = "ON"
     BUILD_TYPE      = BUILD_TYPE
     MAKE_JOB_COUNT  = MAKE_JOB_COUNT
+  }
+
+  contexts = {
+    toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-amd64" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
   output = ["type=local,dest=${OUTPUT_DIR}/nginx/1.29.4/amd64/waf"]
@@ -236,12 +275,15 @@ target "openresty" {
   }
 
   args = {
-    TOOLCHAIN_IMAGE = TOOLCHAIN_IMAGE
     ARCH            = arch_to_toolchain(arch)
     RESTY_VERSION   = version
     WAF             = waf
     BUILD_TYPE      = BUILD_TYPE
     MAKE_JOB_COUNT  = MAKE_JOB_COUNT
+  }
+
+  contexts = {
+    toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-${arch}" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
   output = ["type=local,dest=${OUTPUT_DIR}/openresty/${version}/${arch}/${waf_to_dir(waf)}"]
@@ -255,12 +297,15 @@ target "openresty-dev" {
   platforms  = ["linux/amd64"]
 
   args = {
-    TOOLCHAIN_IMAGE = TOOLCHAIN_IMAGE
     ARCH            = "x86_64"
     RESTY_VERSION   = "1.27.1.2"
     WAF             = "ON"
     BUILD_TYPE      = BUILD_TYPE
     MAKE_JOB_COUNT  = MAKE_JOB_COUNT
+  }
+
+  contexts = {
+    toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-amd64" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
   output = ["type=local,dest=${OUTPUT_DIR}/openresty/1.27.1.2/amd64/waf"]
@@ -283,12 +328,15 @@ target "ingress-nginx" {
   }
 
   args = {
-    TOOLCHAIN_IMAGE      = TOOLCHAIN_IMAGE
     ARCH                 = arch_to_toolchain(arch)
     INGRESS_NGINX_VERSION = version
     WAF                  = "ON"
     BUILD_TYPE           = BUILD_TYPE
     MAKE_JOB_COUNT       = MAKE_JOB_COUNT
+  }
+
+  contexts = {
+    toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-${arch}" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
   output = ["type=local,dest=${OUTPUT_DIR}/ingress-nginx/${version}/${arch}"]
@@ -302,12 +350,15 @@ target "ingress-nginx-dev" {
   platforms  = ["linux/amd64"]
 
   args = {
-    TOOLCHAIN_IMAGE      = TOOLCHAIN_IMAGE
     ARCH                 = "x86_64"
     INGRESS_NGINX_VERSION = "1.14.1"
     WAF                  = "ON"
     BUILD_TYPE           = BUILD_TYPE
     MAKE_JOB_COUNT       = MAKE_JOB_COUNT
+  }
+
+  contexts = {
+    toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-amd64" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
   output = ["type=local,dest=${OUTPUT_DIR}/ingress-nginx/1.14.1/amd64"]

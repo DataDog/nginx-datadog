@@ -9,6 +9,10 @@ PWD ?= $(shell pwd)
 NGINX_SRC_DIR ?= $(PWD)/nginx
 NGINX_VERSION ?= $(if $(RESTY_VERSION),$(shell echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}'))
 ARCH ?= $(shell arch)
+# Normalize architecture names (macOS uses arm64, Linux tools use aarch64)
+ifeq ($(ARCH),arm64)
+	ARCH := aarch64
+endif
 COVERAGE ?= OFF
 BUILD_TESTING ?= ON
 DOCKER_REPOS ?= public.ecr.aws/b1o7r7e0/nginx_musl_toolchain

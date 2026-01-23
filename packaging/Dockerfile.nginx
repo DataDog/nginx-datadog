@@ -1,10 +1,13 @@
 # syntax=docker/dockerfile:1
 # Dockerfile for building nginx-datadog module for standard nginx
+#
+# Requires a build context named "toolchain" pointing to the musl toolchain image.
+# This is provided by docker-bake.hcl which either builds it from build_env/
+# or uses an external image.
 
-ARG TOOLCHAIN_IMAGE=public.ecr.aws/b1o7r7e0/nginx_musl_toolchain:latest
 ARG ARCH=x86_64
 
-FROM ${TOOLCHAIN_IMAGE} AS builder
+FROM toolchain AS builder
 
 ARG ARCH
 ARG NGINX_VERSION
