@@ -15,8 +15,8 @@
 #   docker buildx bake ssi-dev                # Build dev subset for SSI package
 #
 # Build specific targets:
-#   docker buildx bake nginx-1-28-1-amd64-waf-ON
-#   docker buildx bake nginx-1-29-4-arm64-waf-OFF
+#   docker buildx bake nginx-1-28-1-amd64
+#   docker buildx bake nginx-1-29-4-arm64
 #
 # Build just the toolchain:
 #   docker buildx bake toolchain-amd64
@@ -70,10 +70,6 @@ variable "NGINX_VERSIONS_SSI_DEV" {
 
 variable "ARCHITECTURES" {
   default = ["amd64", "arm64"]
-}
-
-variable "WAF_OPTIONS" {
-  default = ["ON", "OFF"]
 }
 
 variable "OUTPUT_DIR" {
@@ -137,12 +133,6 @@ function "version_to_name" {
   result = replace(version, ".", "-")
 }
 
-# Convert WAF option to directory name (ON -> waf, OFF -> no-waf)
-function "waf_to_dir" {
-  params = [waf]
-  result = waf == "ON" ? "waf" : "no-waf"
-}
-
 # =============================================================================
 # Toolchain Targets
 # =============================================================================
@@ -181,7 +171,7 @@ group "nginx-all" {
   targets = ["nginx"]
 }
 
-# Minimal dev build for testing (latest nginx, amd64 only, WAF ON)
+# Minimal dev build for testing (latest nginx, amd64 only)
 group "dev" {
   targets = ["nginx-dev"]
 }
@@ -206,7 +196,7 @@ group "ssi-dev" {
 # =============================================================================
 
 target "nginx" {
-  name       = "nginx-${version_to_name(version)}-${arch}-waf-${waf}"
+  name       = "nginx-${version_to_name(version)}-${arch}"
   dockerfile = "packaging/Dockerfile.nginx"
   context    = "."
   platforms  = ["linux/${arch}"]
@@ -214,13 +204,11 @@ target "nginx" {
   matrix = {
     version = NGINX_VERSIONS
     arch    = ARCHITECTURES
-    waf     = WAF_OPTIONS
   }
 
   args = {
     ARCH            = arch_to_toolchain(arch)
     NGINX_VERSION   = version
-    WAF             = waf
     BUILD_TYPE      = BUILD_TYPE
     MAKE_JOB_COUNT  = MAKE_JOB_COUNT
   }
@@ -230,7 +218,7 @@ target "nginx" {
     toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-${arch}" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
-  output = ["type=local,dest=${OUTPUT_DIR}/nginx/${version}/${arch}/${waf_to_dir(waf)}"]
+  output = ["type=local,dest=${OUTPUT_DIR}/nginx/${version}/${arch}"]
   target = "export"
 }
 
@@ -243,7 +231,6 @@ target "nginx-dev" {
   args = {
     ARCH            = "x86_64"
     NGINX_VERSION   = "1.29.4"
-    WAF             = "ON"
     BUILD_TYPE      = BUILD_TYPE
     MAKE_JOB_COUNT  = MAKE_JOB_COUNT
   }
@@ -252,7 +239,7 @@ target "nginx-dev" {
     toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-amd64" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
-  output = ["type=local,dest=${OUTPUT_DIR}/nginx/1.29.4/amd64/waf"]
+  output = ["type=local,dest=${OUTPUT_DIR}/nginx/1.29.4/amd64"]
   target = "export"
 }
 
@@ -260,7 +247,6 @@ target "nginx-dev" {
 # SSI Package Targets
 # =============================================================================
 # These targets build nginx modules for SSI packages with RUM injection enabled.
-# Note: RUM and WAF are mutually exclusive - SSI uses RUM only.
 
 # SSI Nginx - all versions, both architectures, RUM ON
 target "ssi-nginx" {
@@ -277,7 +263,6 @@ target "ssi-nginx" {
   args = {
     ARCH                       = arch_to_toolchain(arch)
     NGINX_VERSION              = version
-    WAF                        = "OFF"
     RUM                        = "ON"
     BUILD_TYPE                 = BUILD_TYPE
     MAKE_JOB_COUNT             = MAKE_JOB_COUNT
@@ -308,7 +293,6 @@ target "ssi-nginx-dev" {
   args = {
     ARCH                       = arch_to_toolchain(arch)
     NGINX_VERSION              = version
-    WAF                        = "OFF"
     RUM                        = "ON"
     BUILD_TYPE                 = BUILD_TYPE
     MAKE_JOB_COUNT             = MAKE_JOB_COUNT
