@@ -15,25 +15,34 @@ dependencies.
 
 Usage
 -----
+Get the tarball of the adequate version of the Datadog module for OpenResty from the
+[`nginx-datadog` releases](https://github.com/DataDog/nginx-datadog/releases). Download it and
+extract it in `services/openresty` (so that to get the `ngx_http_datadog_module.so`file in this
+directory).
+
 Bring up the services by setting a Datadog API key and invoking the
 [bin/run](bin/run) wrapper script:
+
 ```shell
-$ export DD_API_KEY=your_api_key_here
-$ bin/run
+export DD_API_KEY=your_api_key_here
+bin/run
 ```
 
 You can also choose which OpenResty version to run with the RESTY_VERSION environment variable:
+
 ```shell
-$ RESTY_VERSION=1.27.1.1 bin/run
+RESTY_VERSION=1.27.1.2 bin/run
 ```
 
 Then, in another shell, make HTTP or gRPC calls to the `openresty` service using
 the included command line tools:
+
 ```shell
-$ bin/curl http://openresty/openresty
+bin/curl http://openresty/openresty
+
 openresty lua
-$
 ```
+
 See [services/openresty/nginx.conf](services/openresty/nginx.conf) for the available routes.
 
 Traces will appear in the Datadog UI with the configured service name, which in this example is `openresty-datadog-example`:
@@ -50,8 +59,8 @@ Docker image where openresty is installed or can be installed using the native
 package manager.
 
 By default, the value for `BASE_IMAGE` is the alpine version of default OpenResty
-version. In this example it is `openresty/openresty:1.27.1.1-alpine`, which indicates
-compatibility with Openresty 1.27.1.1 running on Alpine.
+version. In this example it is `openresty/openresty:1.27.1.2-alpine`, which indicates
+compatibility with Openresty 1.27.1.2 running on Alpine.
 
 Command Line Tools
 ------------------
