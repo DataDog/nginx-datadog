@@ -234,7 +234,7 @@ target "nginx-dev" {
 
   args = {
     ARCH            = "x86_64"
-    NGINX_VERSION   = "1.29.4"
+    NGINX_VERSION   = "1.28.0"
     BUILD_TYPE      = BUILD_TYPE
     MAKE_JOB_COUNT  = MAKE_JOB_COUNT
   }
@@ -243,7 +243,7 @@ target "nginx-dev" {
     toolchain = TOOLCHAIN_IMAGE == "" ? "target:toolchain-amd64" : "docker-image://${TOOLCHAIN_IMAGE}"
   }
 
-  output = ["type=local,dest=${OUTPUT_DIR}/nginx/1.29.4/amd64"]
+  output = ["type=local,dest=${OUTPUT_DIR}/nginx/1.28.0/amd64"]
   target = "export"
 }
 
