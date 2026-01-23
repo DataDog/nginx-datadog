@@ -22,23 +22,27 @@ directory).
 
 Bring up the services by setting a Datadog API key and invoking the
 [bin/run](bin/run) wrapper script:
+
 ```shell
-$ export DD_API_KEY=your_api_key_here
-$ bin/run
+export DD_API_KEY=your_api_key_here
+bin/run
 ```
 
 You can also choose which OpenResty version to run with the RESTY_VERSION environment variable:
+
 ```shell
-$ RESTY_VERSION=1.27.1.2 bin/run
+RESTY_VERSION=1.27.1.2 bin/run
 ```
 
 Then, in another shell, make HTTP or gRPC calls to the `openresty` service using
 the included command line tools:
+
 ```shell
-$ bin/curl http://openresty/openresty
+bin/curl http://openresty/openresty
+
 openresty lua
-$
 ```
+
 See [services/openresty/nginx.conf](services/openresty/nginx.conf) for the available routes.
 
 Traces will appear in the Datadog UI with the configured service name, which in this example is `openresty-datadog-example`:

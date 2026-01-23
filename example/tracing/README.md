@@ -23,14 +23,18 @@ Usage
 -----
 Bring up the services by setting a Datadog API key and invoking the
 [bin/run](bin/run) wrapper script:
+
 ```shell
-$ export DD_API_KEY=your_api_key_here
-$ bin/run
+export DD_API_KEY=your_api_key_here
+bin/run
 ```
+
 Then, in another shell, make HTTP or gRPC calls to the `nginx` service using
 the included command line tools:
+
 ```shell
-$ bin/curl http://nginx/http-with-location
+bin/curl http://nginx/http-with-location
+
 {
   "service": "http",
   "headers": {
@@ -43,8 +47,8 @@ $ bin/curl http://nginx/http-with-location
     "accept": "*/*"
   }
 }
-$
 ```
+
 See [services/nginx/nginx.conf](services/nginx/nginx.conf) for the available routes.
 
 Traces will appear in the Datadog UI with the configured service name, which in this example is `nginx-datadog-example`:
