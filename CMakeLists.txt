@@ -105,14 +105,26 @@ if(NGINX_DATADOG_ASM_ENABLED)
 endif()
 
 if(NGINX_DATADOG_RUM_ENABLED)
-  execute_process (
-    COMMAND cargo pkgid --package inject-browser-sdk --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk/Cargo.toml"
-    OUTPUT_VARIABLE RUM_SDK_INJECTOR_PKGID
-  )
-  string(REGEX REPLACE ".*@(.*)" "\\1" RUM_SDK_INJECTOR_VERSION ${RUM_SDK_INJECTOR_PKGID})
-  string(STRIP "${RUM_SDK_INJECTOR_VERSION}" RUM_SDK_INJECTOR_VERSION)
+  # Check if we have the full source tree or pre-built artifacts
+  set(INJECT_BROWSER_SDK_PREBUILT_DIR "${CMAKE_SOURCE_DIR}/deps/inject-browser-sdk-prebuilt" CACHE PATH
+      "Path to pre-built inject-browser-sdk artifacts")
 
-  unset(RUM_SDK_INJECTOR_PKGID)
+  if(EXISTS "${INJECT_BROWSER_SDK_PREBUILT_DIR}/libinjectbrowsersdk.a")
+    # Using pre-built artifacts - version is unknown
+    set(RUM_SDK_INJECTOR_VERSION "prebuilt")
+    message(STATUS "Using pre-built inject-browser-sdk artifacts (version unknown)")
+  elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk/Cargo.toml")
+    # Full source tree available - get version from cargo
+    execute_process (
+      COMMAND cargo pkgid --package inject-browser-sdk --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk/Cargo.toml"
+      OUTPUT_VARIABLE RUM_SDK_INJECTOR_PKGID
+    )
+    string(REGEX REPLACE ".*@(.*)" "\\1" RUM_SDK_INJECTOR_VERSION ${RUM_SDK_INJECTOR_PKGID})
+    string(STRIP "${RUM_SDK_INJECTOR_VERSION}" RUM_SDK_INJECTOR_VERSION)
+    unset(RUM_SDK_INJECTOR_PKGID)
+  else()
+    message(FATAL_ERROR "inject-browser-sdk not found. Provide either pre-built artifacts or source tree.")
+  endif()
 
   add_subdirectory(deps)
 endif()
