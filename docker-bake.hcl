@@ -12,6 +12,10 @@
 #   docker buildx bake dev                    # Minimal set for testing
 #   docker buildx bake --print all            # List all targets
 #
+# SSI package builds:
+#   docker buildx bake ssi                    # Build all modules for SSI package
+#   docker buildx bake ssi-dev                # Build dev subset for SSI package
+#
 # Build specific targets:
 #   docker buildx bake nginx-1-28-1-amd64-waf-ON
 #   docker buildx bake nginx-1-29-4-arm64-waf-OFF
@@ -104,6 +108,17 @@ variable "INGRESS_NGINX_VERSIONS" {
   ]
 }
 
+# =============================================================================
+# SSI dev version subset (only latest stable nginx versions)
+# =============================================================================
+
+variable "NGINX_VERSIONS_SSI_DEV" {
+  default = [
+    "1.28.1",   # Latest stable
+    "1.29.4"    # Latest mainline
+  ]
+}
+
 variable "ARCHITECTURES" {
   default = ["amd64", "arm64"]
 }
@@ -114,6 +129,14 @@ variable "WAF_OPTIONS" {
 
 variable "OUTPUT_DIR" {
   default = "./artifacts"
+}
+
+variable "SSI_IMAGE_REPO" {
+  default = "ghcr.io/datadog/nginx-datadog-ssi"
+}
+
+variable "SSI_VERSION" {
+  default = "dev"
 }
 
 variable "TOOLCHAIN_IMAGE" {
@@ -128,6 +151,25 @@ variable "BUILD_TYPE" {
 
 variable "MAKE_JOB_COUNT" {
   default = "8"
+}
+
+# =============================================================================
+# Inject Browser SDK Targets (for RUM builds)
+# =============================================================================
+# Build FFI artifacts from the inject-browser-sdk submodule
+
+target "inject-browser-sdk" {
+  name       = "inject-browser-sdk-${arch}"
+  dockerfile = "Dockerfile.artifacts"
+  context    = "inject-browser-sdk"
+  platforms  = ["linux/${arch}"]
+  target     = "artifacts"
+
+  matrix = {
+    arch = ARCHITECTURES
+  }
+
+  tags = ["inject-browser-sdk-artifacts:${arch}"]
 }
 
 # =============================================================================
@@ -201,6 +243,21 @@ group "ingress-nginx-all" {
 # Minimal dev build for testing (latest nginx, amd64 only, WAF ON)
 group "dev" {
   targets = ["nginx-dev", "openresty-dev", "ingress-nginx-dev"]
+}
+
+# =============================================================================
+# SSI Package Groups
+# =============================================================================
+
+# Full SSI build - nginx only with RUM injection enabled
+# Use this for release builds
+group "ssi" {
+  targets = ["ssi-nginx"]
+}
+
+# Dev SSI build - subset of nginx versions for quick testing
+group "ssi-dev" {
+  targets = ["ssi-nginx-dev"]
 }
 
 # =============================================================================
@@ -362,5 +419,73 @@ target "ingress-nginx-dev" {
   }
 
   output = ["type=local,dest=${OUTPUT_DIR}/ingress-nginx/1.14.1/amd64"]
+  target = "export"
+}
+
+# =============================================================================
+# SSI Package Targets
+# =============================================================================
+# These targets build nginx modules for SSI packages with RUM injection enabled.
+# Note: RUM and WAF are mutually exclusive - SSI uses RUM only.
+
+# SSI Nginx - all versions, both architectures, RUM ON
+target "ssi-nginx" {
+  name       = "ssi-nginx-${version_to_name(version)}-${arch}"
+  dockerfile = "packaging/Dockerfile.nginx"
+  context    = "."
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    version = NGINX_VERSIONS
+    arch    = ARCHITECTURES
+  }
+
+  args = {
+    ARCH                       = arch_to_toolchain(arch)
+    NGINX_VERSION              = version
+    WAF                        = "OFF"
+    RUM                        = "ON"
+    BUILD_TYPE                 = BUILD_TYPE
+    MAKE_JOB_COUNT             = MAKE_JOB_COUNT
+  }
+
+  contexts = {
+    toolchain                  = TOOLCHAIN_IMAGE == "" ? "target:toolchain-${arch}" : "docker-image://${TOOLCHAIN_IMAGE}"
+    inject-browser-sdk-artifacts = "target:inject-browser-sdk-${arch}"
+  }
+
+  tags   = ["${SSI_IMAGE_REPO}:${SSI_VERSION}-nginx-${version}-${arch}"]
+  output = ["type=docker"]
+  target = "export"
+}
+
+# SSI Nginx Dev - subset of versions for quick testing
+target "ssi-nginx-dev" {
+  name       = "ssi-nginx-dev-${version_to_name(version)}-${arch}"
+  dockerfile = "packaging/Dockerfile.nginx"
+  context    = "."
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    version = NGINX_VERSIONS_SSI_DEV
+    arch    = ARCHITECTURES
+  }
+
+  args = {
+    ARCH                       = arch_to_toolchain(arch)
+    NGINX_VERSION              = version
+    WAF                        = "OFF"
+    RUM                        = "ON"
+    BUILD_TYPE                 = BUILD_TYPE
+    MAKE_JOB_COUNT             = MAKE_JOB_COUNT
+  }
+
+  contexts = {
+    toolchain                  = TOOLCHAIN_IMAGE == "" ? "target:toolchain-${arch}" : "docker-image://${TOOLCHAIN_IMAGE}"
+    inject-browser-sdk-artifacts = "target:inject-browser-sdk-${arch}"
+  }
+
+  tags   = ["${SSI_IMAGE_REPO}:${SSI_VERSION}-nginx-${version}-${arch}"]
+  output = ["type=docker"]
   target = "export"
 }
