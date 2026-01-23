@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1
+# Dockerfile for assembling SSI package sources (dev subset)
+#
+# This Dockerfile collects nginx-datadog modules from build targets and
+# reorganizes them into the directory structure expected by the OCI packaging tool.
+#
+# Dev subset: 1.28.1 and 1.29.4 only
+#
+# Output structure:
+#   nginx/
+#     1.28.1/ngx_http_datadog_module.so
+#     1.29.4/ngx_http_datadog_module.so
+#   version
+
+FROM alpine:3.20 AS builder
+
+ARG SSI_PACKAGE_VERSION
+
+WORKDIR /work
+
+# Create the package structure and version file
+RUN mkdir -p nginx/1.28.1 nginx/1.29.4 && \
+    echo "${SSI_PACKAGE_VERSION}" > version
+
+# Copy modules from nginx build contexts
+COPY --from=nginx-1-28-1 /ngx_http_datadog_module.so nginx/1.28.1/
+COPY --from=nginx-1-29-4 /ngx_http_datadog_module.so nginx/1.29.4/
+
+# List what was assembled
+RUN echo "Assembled modules:" && \
+    find nginx -type f -name "*.so" | sort
+
+FROM scratch AS export
+COPY --from=builder /work/nginx /nginx/
+COPY --from=builder /work/version /version

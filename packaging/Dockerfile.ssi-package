@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1
+# Dockerfile for creating SSI OCI packages using datadog-package tool
+#
+# Builds the datadog-package tool from source and uses it to create OCI packages.
+
+FROM golang:1.24-alpine AS go-builder
+
+WORKDIR /src
+COPY datadog-packages/go.mod datadog-packages/go.sum ./
+COPY datadog-packages/vendor ./vendor
+COPY datadog-packages/cmd ./cmd
+
+ARG TARGETOS TARGETARCH
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -mod=vendor -o /out/datadog-package ./cmd/datadog-package
+
+# Packaging stage - creates per-arch packages
+FROM alpine:3.20 AS packager
+COPY --from=go-builder /out/datadog-package /usr/local/bin/
+
+WORKDIR /work
+
+ARG PACKAGE_NAME
+ARG VERSION
+ARG TARGETOS
+ARG TARGETARCH
+
+# Copy sources from the sources context
+COPY --from=sources . ./sources/
+
+RUN datadog-package create \
+      --version="${VERSION}" \
+      --package="${PACKAGE_NAME}" \
+      --arch="${TARGETARCH}" \
+      --os="${TARGETOS}" \
+      ./sources
+
+FROM scratch AS package-export
+COPY --from=packager /work/*.tar /
+
+# Merge stage - merges all arch packages
+FROM alpine:3.20 AS merger
+COPY --from=go-builder /out/datadog-package /usr/local/bin/
+
+WORKDIR /work
+COPY --from=packages . ./
+RUN datadog-package merge *.tar
+
+FROM scratch AS merge-export
+COPY --from=merger /work/merged.tar /

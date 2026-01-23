@@ -14,6 +14,14 @@
 #   docker buildx bake ssi                    # Build all modules for SSI package
 #   docker buildx bake ssi-dev                # Build dev subset for SSI package
 #
+# SSI OCI package creation (builds modules automatically via dependencies):
+#   ./bin/generate-ssi-oci-package-dev.sh 1.0.0   # Dev build (1.28.1 + 1.29.4 only)
+#   ./bin/generate-ssi-oci-package.sh 1.0.0       # Full build (all versions)
+#
+# Or manually:
+#   SSI_PACKAGE_VERSION=1.0.0 docker buildx bake ssi-package-dev        # Step 1: create
+#   SSI_PACKAGE_VERSION=1.0.0 docker buildx bake ssi-package-merge-dev  # Step 2: merge
+#
 # Build specific targets:
 #   docker buildx bake nginx-1-28-1-amd64
 #   docker buildx bake nginx-1-29-4-arm64
@@ -86,6 +94,14 @@ variable "SSI_VERSION" {
 
 variable "PUSH" {
   default = false
+}
+
+variable "SSI_PACKAGE_NAME" {
+  default = "datadog-nginx-ssi"
+}
+
+variable "SSI_PACKAGE_VERSION" {
+  default = "0.0.1-dev"
 }
 
 variable "TOOLCHAIN_IMAGE" {
@@ -195,6 +211,18 @@ group "ssi-dev" {
   targets = ["ssi-nginx-dev"]
 }
 
+# SSI OCI package creation - creates per-arch packages
+# Run ssi-package-merge separately after this completes
+group "ssi-package" {
+  targets = ["ssi-package-create"]
+}
+
+# Dev SSI OCI package creation - creates per-arch packages
+# Run ssi-package-merge-dev separately after this completes
+group "ssi-package-dev" {
+  targets = ["ssi-package-create-dev"]
+}
+
 # =============================================================================
 # Nginx Targets
 # =============================================================================
@@ -277,12 +305,12 @@ target "ssi-nginx" {
     inject-browser-sdk-artifacts = "target:inject-browser-sdk-${arch}"
   }
 
-  tags   = ["${SSI_IMAGE_REPO}:${SSI_VERSION}-nginx-${version}-${arch}"]
-  output = [PUSH ? "type=registry" : "type=docker"]
+  output = ["type=local,dest=${OUTPUT_DIR}/nginx/${version}/${arch}/rum"]
   target = "export"
 }
 
 # SSI Nginx Dev - subset of versions for quick testing
+# Outputs both to local filesystem and as Docker image for chaining
 target "ssi-nginx-dev" {
   name       = "ssi-nginx-dev-${version_to_name(version)}-${arch}"
   dockerfile = "packaging/Dockerfile.nginx"
@@ -307,7 +335,145 @@ target "ssi-nginx-dev" {
     inject-browser-sdk-artifacts = "target:inject-browser-sdk-${arch}"
   }
 
-  tags   = ["${SSI_IMAGE_REPO}:${SSI_VERSION}-nginx-${version}-${arch}"]
-  output = [PUSH ? "type=registry" : "type=docker"]
+  tags   = ["ssi-nginx:${version}-${arch}"]
+  output = ["type=local,dest=${OUTPUT_DIR}/nginx/${version}/${arch}/rum"]
   target = "export"
+}
+
+# =============================================================================
+# SSI OCI Package Targets
+# =============================================================================
+# These targets create OCI packages for the SSI nginx modules using datadog-packages.
+
+# Assemble SSI sources - collects all built modules into the package structure
+target "ssi-package-assemble" {
+  name       = "ssi-package-assemble-${arch}"
+  dockerfile = "packaging/Dockerfile.ssi-sources"
+  context    = "."
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    arch = ARCHITECTURES
+  }
+
+  args = {
+    NGINX_VERSIONS      = join(",", NGINX_VERSIONS)
+    SSI_PACKAGE_VERSION = SSI_PACKAGE_VERSION
+    ARTIFACTS_DIR       = "${OUTPUT_DIR}/nginx"
+  }
+
+  tags   = ["ssi-sources:${arch}"]
+  target = "export"
+}
+
+# Assemble SSI sources (dev) - uses dev subset of nginx versions
+# Automatically builds nginx modules via context dependencies
+target "ssi-package-assemble-dev" {
+  name       = "ssi-package-assemble-dev-${arch}"
+  dockerfile = "packaging/Dockerfile.ssi-sources-dev"
+  context    = "."
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    arch = ARCHITECTURES
+  }
+
+  args = {
+    SSI_PACKAGE_VERSION = SSI_PACKAGE_VERSION
+  }
+
+  # These contexts create build dependencies on the nginx targets
+  contexts = {
+    nginx-1-28-1 = "target:ssi-nginx-dev-1-28-1-${arch}"
+    nginx-1-29-4 = "target:ssi-nginx-dev-1-29-4-${arch}"
+  }
+
+  tags   = ["ssi-sources:${arch}"]
+  target = "export"
+}
+
+# Create per-arch OCI packages (full)
+target "ssi-package-create" {
+  name       = "ssi-package-create-${arch}"
+  dockerfile = "packaging/Dockerfile.ssi-package"
+  context    = "."
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    arch = ARCHITECTURES
+  }
+
+  args = {
+    PACKAGE_NAME = SSI_PACKAGE_NAME
+    VERSION      = SSI_PACKAGE_VERSION
+  }
+
+  contexts = {
+    sources = "target:ssi-package-assemble-${arch}"
+  }
+
+  output = ["type=local,dest=${OUTPUT_DIR}/ssi-packages"]
+  target = "package-export"
+}
+
+# Create per-arch OCI packages (dev)
+target "ssi-package-create-dev" {
+  name       = "ssi-package-create-dev-${arch}"
+  dockerfile = "packaging/Dockerfile.ssi-package"
+  context    = "."
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    arch = ARCHITECTURES
+  }
+
+  args = {
+    PACKAGE_NAME = SSI_PACKAGE_NAME
+    VERSION      = SSI_PACKAGE_VERSION
+  }
+
+  contexts = {
+    sources = "target:ssi-package-assemble-dev-${arch}"
+  }
+
+  output = ["type=local,dest=${OUTPUT_DIR}/ssi-packages"]
+  target = "package-export"
+}
+
+# Merge per-arch packages into multi-arch OCI index (full)
+target "ssi-package-merge" {
+  dockerfile = "packaging/Dockerfile.ssi-package"
+  context    = "."
+  platforms  = ["linux/amd64"]
+
+  args = {
+    PACKAGE_NAME = SSI_PACKAGE_NAME
+    VERSION      = SSI_PACKAGE_VERSION
+  }
+
+  contexts = {
+    packages = "${OUTPUT_DIR}/ssi-packages"
+  }
+
+  output = ["type=local,dest=${OUTPUT_DIR}/ssi-packages"]
+  target = "merge-export"
+}
+
+# Merge per-arch packages into multi-arch OCI index (dev)
+target "ssi-package-merge-dev" {
+  dockerfile = "packaging/Dockerfile.ssi-package"
+  context    = "."
+  platforms  = ["linux/amd64"]
+
+  args = {
+    PACKAGE_NAME = SSI_PACKAGE_NAME
+    VERSION      = SSI_PACKAGE_VERSION
+  }
+
+  contexts = {
+    packages = "${OUTPUT_DIR}/ssi-packages"
+  }
+
+  output = ["type=local,dest=${OUTPUT_DIR}/ssi-packages"]
+  target = "merge-export"
 }

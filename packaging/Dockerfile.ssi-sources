@@ -1,0 +1,67 @@
+# syntax=docker/dockerfile:1
+# Dockerfile for assembling SSI package sources from built nginx modules
+#
+# This Dockerfile collects nginx-datadog modules from build targets and
+# reorganizes them into the directory structure expected by the OCI packaging tool.
+#
+# The nginx modules are provided via named contexts (nginx-<version>).
+#
+# Output structure:
+#   nginx/
+#     1.24.0/ngx_http_datadog_module.so
+#     1.26.0/ngx_http_datadog_module.so
+#     ...
+#   version
+
+FROM alpine:3.20 AS builder
+
+ARG NGINX_VERSIONS
+ARG SSI_PACKAGE_VERSION
+
+WORKDIR /work
+
+# Create the package structure
+RUN mkdir -p nginx && \
+    echo "${SSI_PACKAGE_VERSION}" > version
+
+# Copy modules from each nginx build context
+# The contexts are named nginx-<version> and contain the .so file at root
+COPY --from=nginx-1-24-0 /ngx_http_datadog_module.so* /tmp/nginx-1.24.0/
+COPY --from=nginx-1-26-0 /ngx_http_datadog_module.so* /tmp/nginx-1.26.0/
+COPY --from=nginx-1-26-1 /ngx_http_datadog_module.so* /tmp/nginx-1.26.1/
+COPY --from=nginx-1-26-2 /ngx_http_datadog_module.so* /tmp/nginx-1.26.2/
+COPY --from=nginx-1-26-3 /ngx_http_datadog_module.so* /tmp/nginx-1.26.3/
+COPY --from=nginx-1-27-0 /ngx_http_datadog_module.so* /tmp/nginx-1.27.0/
+COPY --from=nginx-1-27-1 /ngx_http_datadog_module.so* /tmp/nginx-1.27.1/
+COPY --from=nginx-1-27-2 /ngx_http_datadog_module.so* /tmp/nginx-1.27.2/
+COPY --from=nginx-1-27-3 /ngx_http_datadog_module.so* /tmp/nginx-1.27.3/
+COPY --from=nginx-1-27-4 /ngx_http_datadog_module.so* /tmp/nginx-1.27.4/
+COPY --from=nginx-1-27-5 /ngx_http_datadog_module.so* /tmp/nginx-1.27.5/
+COPY --from=nginx-1-28-0 /ngx_http_datadog_module.so* /tmp/nginx-1.28.0/
+COPY --from=nginx-1-28-1 /ngx_http_datadog_module.so* /tmp/nginx-1.28.1/
+COPY --from=nginx-1-29-0 /ngx_http_datadog_module.so* /tmp/nginx-1.29.0/
+COPY --from=nginx-1-29-1 /ngx_http_datadog_module.so* /tmp/nginx-1.29.1/
+COPY --from=nginx-1-29-2 /ngx_http_datadog_module.so* /tmp/nginx-1.29.2/
+COPY --from=nginx-1-29-3 /ngx_http_datadog_module.so* /tmp/nginx-1.29.3/
+COPY --from=nginx-1-29-4 /ngx_http_datadog_module.so* /tmp/nginx-1.29.4/
+
+# Move only the versions specified in NGINX_VERSIONS to the final structure
+RUN for version in $(echo "${NGINX_VERSIONS}" | tr ',' ' '); do \
+        src="/tmp/nginx-${version}/ngx_http_datadog_module.so"; \
+        if [ -f "${src}" ]; then \
+            mkdir -p "nginx/${version}" && \
+            cp "${src}" "nginx/${version}/ngx_http_datadog_module.so"; \
+        fi; \
+    done && \
+    # Verify at least one module was copied
+    if [ -z "$(ls -A nginx/)" ]; then \
+        echo "Error: No modules were found to package" >&2; \
+        exit 1; \
+    fi && \
+    # List what was assembled
+    echo "Assembled modules:" && \
+    find nginx -type f -name "*.so" | sort
+
+FROM scratch AS export
+COPY --from=builder /work/nginx /nginx/
+COPY --from=builder /work/version /version
