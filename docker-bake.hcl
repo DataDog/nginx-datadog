@@ -84,6 +84,10 @@ variable "SSI_VERSION" {
   default = "dev"
 }
 
+variable "PUSH" {
+  default = false
+}
+
 variable "TOOLCHAIN_IMAGE" {
   # When empty, the toolchain will be built from build_env/Dockerfile
   # Set to an image name to use a pre-built toolchain (e.g., "public.ecr.aws/b1o7r7e0/nginx_musl_toolchain:latest")
@@ -274,7 +278,7 @@ target "ssi-nginx" {
   }
 
   tags   = ["${SSI_IMAGE_REPO}:${SSI_VERSION}-nginx-${version}-${arch}"]
-  output = ["type=docker"]
+  output = [PUSH ? "type=registry" : "type=docker"]
   target = "export"
 }
 
@@ -304,6 +308,6 @@ target "ssi-nginx-dev" {
   }
 
   tags   = ["${SSI_IMAGE_REPO}:${SSI_VERSION}-nginx-${version}-${arch}"]
-  output = ["type=docker"]
+  output = [PUSH ? "type=registry" : "type=docker"]
   target = "export"
 }
