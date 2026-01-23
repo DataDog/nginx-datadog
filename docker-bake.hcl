@@ -345,7 +345,50 @@ target "ssi-nginx-dev" {
 # =============================================================================
 # These targets create OCI packages for the SSI nginx modules using datadog-packages.
 
-# Assemble SSI sources - collects all built modules into the package structure
+# Collect all nginx modules into a single image (full)
+# Uses dockerfile-inline to dynamically generate COPY statements from NGINX_VERSIONS
+target "ssi-nginx-modules" {
+  name       = "ssi-nginx-modules-${arch}"
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    arch = ARCHITECTURES
+  }
+
+  dockerfile-inline = join("\n", concat(
+    ["FROM scratch"],
+    [for v in NGINX_VERSIONS : "COPY --from=nginx-${replace(v, ".", "-")} /ngx_http_datadog_module.so /nginx/${v}/ngx_http_datadog_module.so"]
+  ))
+
+  contexts = merge(
+    {for v in NGINX_VERSIONS : "nginx-${replace(v, ".", "-")}" => "target:ssi-nginx-${replace(v, ".", "-")}-${arch}"}
+  )
+
+  tags = ["ssi-nginx-modules:${arch}"]
+}
+
+# Collect nginx modules into a single image (dev subset)
+target "ssi-nginx-modules-dev" {
+  name       = "ssi-nginx-modules-dev-${arch}"
+  platforms  = ["linux/${arch}"]
+
+  matrix = {
+    arch = ARCHITECTURES
+  }
+
+  dockerfile-inline = join("\n", concat(
+    ["FROM scratch"],
+    [for v in NGINX_VERSIONS_SSI_DEV : "COPY --from=nginx-${replace(v, ".", "-")} /ngx_http_datadog_module.so /nginx/${v}/ngx_http_datadog_module.so"]
+  ))
+
+  contexts = merge(
+    {for v in NGINX_VERSIONS_SSI_DEV : "nginx-${replace(v, ".", "-")}" => "target:ssi-nginx-dev-${replace(v, ".", "-")}-${arch}"}
+  )
+
+  tags = ["ssi-nginx-modules-dev:${arch}"]
+}
+
+# Assemble SSI sources - adds version file to collected modules (full)
 target "ssi-package-assemble" {
   name       = "ssi-package-assemble-${arch}"
   dockerfile = "packaging/Dockerfile.ssi-sources"
@@ -357,20 +400,21 @@ target "ssi-package-assemble" {
   }
 
   args = {
-    NGINX_VERSIONS      = join(",", NGINX_VERSIONS)
     SSI_PACKAGE_VERSION = SSI_PACKAGE_VERSION
-    ARTIFACTS_DIR       = "${OUTPUT_DIR}/nginx"
+  }
+
+  contexts = {
+    nginx-modules = "target:ssi-nginx-modules-${arch}"
   }
 
   tags   = ["ssi-sources:${arch}"]
   target = "export"
 }
 
-# Assemble SSI sources (dev) - uses dev subset of nginx versions
-# Automatically builds nginx modules via context dependencies
+# Assemble SSI sources (dev) - adds version file to collected modules
 target "ssi-package-assemble-dev" {
   name       = "ssi-package-assemble-dev-${arch}"
-  dockerfile = "packaging/Dockerfile.ssi-sources-dev"
+  dockerfile = "packaging/Dockerfile.ssi-sources"
   context    = "."
   platforms  = ["linux/${arch}"]
 
@@ -382,10 +426,8 @@ target "ssi-package-assemble-dev" {
     SSI_PACKAGE_VERSION = SSI_PACKAGE_VERSION
   }
 
-  # These contexts create build dependencies on the nginx targets
   contexts = {
-    nginx-1-28-1 = "target:ssi-nginx-dev-1-28-1-${arch}"
-    nginx-1-29-4 = "target:ssi-nginx-dev-1-29-4-${arch}"
+    nginx-modules = "target:ssi-nginx-modules-dev-${arch}"
   }
 
   tags   = ["ssi-sources:${arch}"]
