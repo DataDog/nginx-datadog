@@ -19,6 +19,7 @@ jobs:
         - amd64
         - arm64
         nginx-version:
+        # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
         - 1.24.0
         - 1.25.4
         - 1.28.1
