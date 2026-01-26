@@ -67,7 +67,6 @@ RUN clang --sysroot /sysroot/${ARCH}-none-linux-musl/ -fpie -O2 -fno-omit-frame-
     ar rcs /sysroot/${ARCH}-none-linux-musl/usr/lib/libglibc_compat.a /tmp/glibc_compat.o && \
     rm /tmp/glibc_compat.o
 
-
 # Install dependencies for nginx
 RUN apk add --no-cache pcre-dev pcre2-dev zlib-dev openssl-dev perl
 
@@ -78,3 +77,6 @@ RUN curl --proto '=https' –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq --
 
 RUN cargo install --locked cbindgen --version 0.26.0 \
   && ln -s ~/.cargo/bin/cbindgen /usr/local/bin/cbindgen
+
+# Install shellcheck
+RUN apk add --no-cache shellcheck

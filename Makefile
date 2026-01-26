@@ -49,18 +49,8 @@ else ifeq ($(CI_PLATFORM),gitlab)
 	TOOLCHAIN_DEPENDENCY :=
 endif
 
-SHELLCHECK_REGISTRY ?= koalaman
-SHELLCHECK_IMAGE ?= shellcheck-alpine:v0.9.0
-
-# replicate-tooling-image and build-push-musl-toolchain must be run, once, from a developer machine,
-#   to put in registry.ddbuild.io the needed Docker images.
-.PHONY: replicate-tooling-image
-replicate-tooling-image:
-	docker pull --platform linux/amd64 $(SHELLCHECK_REGISTRY)/$(SHELLCHECK_IMAGE)
-	docker tag $(SHELLCHECK_REGISTRY)/$(SHELLCHECK_IMAGE) $(CI_REGISTRY)/$(SHELLCHECK_IMAGE)
-	docker push $(CI_REGISTRY)/$(SHELLCHECK_IMAGE)
-	docker buildx imagetools create -t $(CI_REGISTRY)/$(SHELLCHECK_IMAGE) $(CI_REGISTRY)/$(SHELLCHECK_IMAGE)
-
+# build-push-musl-toolchain must be run, once, from a developer machine, to put in
+#   registry.ddbuild.io the needed Docker images.
 .PHONY: build-push-musl-toolchain
 build-push-musl-toolchain:
 	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(CI_BUILD_IMAGE):latest-amd64 build_env
