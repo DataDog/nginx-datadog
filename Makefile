@@ -19,7 +19,7 @@ ifneq ($(PCRE2_PATH),)
 endif
 
 
-# ----- Docker Images Handling
+# ----- Docker Images
 
 DOCKER_PLATFORM := linux/$(ARCH)
 ifeq ($(DOCKER_PLATFORM),linux/x86_64)
@@ -49,18 +49,8 @@ else ifeq ($(CI_PLATFORM),gitlab)
 	TOOLCHAIN_DEPENDENCY :=
 endif
 
-SHELLCHECK_REGISTRY ?= koalaman
-SHELLCHECK_IMAGE ?= shellcheck-alpine:v0.9.0
-
-# replicate-tooling-image and build-push-musl-toolchain must be run, once, from a developer machine,
-#   to put in registry.ddbuild.io the needed Docker images.
-.PHONY: replicate-tooling-image
-replicate-tooling-image:
-	docker pull --platform linux/amd64 $(SHELLCHECK_REGISTRY)/$(SHELLCHECK_IMAGE)
-	docker tag $(SHELLCHECK_REGISTRY)/$(SHELLCHECK_IMAGE) $(CI_REGISTRY)/$(SHELLCHECK_IMAGE)
-	docker push $(CI_REGISTRY)/$(SHELLCHECK_IMAGE)
-	docker buildx imagetools create -t $(CI_REGISTRY)/$(SHELLCHECK_IMAGE) $(CI_REGISTRY)/$(SHELLCHECK_IMAGE)
-
+# build-push-musl-toolchain must be run, once, from a developer machine, to put in
+#   registry.ddbuild.io the needed Docker images.
 .PHONY: build-push-musl-toolchain
 build-push-musl-toolchain:
 	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(CI_BUILD_IMAGE):latest-amd64 build_env
@@ -74,7 +64,7 @@ build-local-musl-toolchain:
 	docker build --progress=plain --platform $(DOCKER_PLATFORM) --build-arg ARCH=$(ARCH) -t $(BUILD_IMAGE) build_env
 
 
-# ----- Sources Dependencies, Formatting and Linting
+# ----- Sources Dependencies, Format and Lint
 
 .PHONY: dd-trace-cpp-deps
 dd-trace-cpp-deps: dd-trace-cpp/.git
@@ -102,7 +92,7 @@ circleci-config:
 	circleci config validate $(CIRCLE_CFG)
 
 
-# ----- Building
+# ----- Build
 
 .PHONY: clean
 clean:
@@ -180,47 +170,6 @@ build-openresty-aux:
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 
-.PHONY: test
-test:
-	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} \
-		--module-path .musl-build/ngx_http_datadog_module.so -- \
-		--verbose $(TEST_ARGS)
-
-.PHONY: test-openresty
-test-openresty:
-	RESTY_TEST=ON python3 test/bin/run.py --platform $(DOCKER_PLATFORM) \
-	   --image ${BASE_IMAGE} --module-path .openresty-build/ngx_http_datadog_module.so -- \
-	   --verbose $(TEST_ARGS)
-
-.PHONY: build-and-test
-build-and-test: build-musl test
-
-.PHONY: build-and-test-openresty
-build-and-test-openresty: build-openresty test-openresty
-
-.PHONY: example-openresty
-example-openresty: build-openresty
-	cp -v .openresty-build/ngx_http_datadog_module.so* example/openresty/services/openresty
-	./example/openresty/bin/run
-
-.PHONY: coverage
-coverage: $(TOOLCHAIN_DEPENDENCY)
-	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
-	docker run --init --rm --platform $(DOCKER_PLATFORM) \
-		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(BUILD_IMAGE) \
-		/bin/sh -c 'cd /mnt/repo/.musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests'
-	rm -f test/coverage_data.tar.gz
-	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
-	docker run --init --rm --platform $(DOCKER_PLATFORM) \
-		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(BUILD_IMAGE) \
-		tar -C /mnt/repo/.musl-build -xzf /mnt/repo/test/coverage_data.tar.gz
-	docker run --init --rm --platform $(DOCKER_PLATFORM) \
-		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(BUILD_IMAGE) \
-		/bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=/mnt/repo/src/coverage_fixup\.c > coverage.lcov'
-
 .PHONY: build-ingress-nginx
 build-ingress-nginx: $(TOOLCHAIN_DEPENDENCY)
 	python3 bin/ingress_nginx.py prepare --ingress-nginx-version v$(INGRESS_NGINX_VERSION) --output nginx-controller-$(INGRESS_NGINX_VERSION)
@@ -246,3 +195,47 @@ build-musl-aux-ingress:
 		-DNGINX_COVERAGE=$(COVERAGE) . \
 		-DNGINX_DATADOG_FLAVOR="ingress-nginx" \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v
+
+
+# ----- Test
+
+.PHONY: build-and-test
+build-and-test: build-musl test
+
+.PHONY: test
+test:
+	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} \
+		--module-path .musl-build/ngx_http_datadog_module.so -- \
+		--verbose $(TEST_ARGS)
+
+.PHONY: build-and-test-openresty
+build-and-test-openresty: build-openresty test-openresty
+
+.PHONY: test-openresty
+test-openresty:
+	RESTY_TEST=ON python3 test/bin/run.py --platform $(DOCKER_PLATFORM) \
+	   --image ${BASE_IMAGE} --module-path .openresty-build/ngx_http_datadog_module.so -- \
+	   --verbose $(TEST_ARGS)
+
+.PHONY: example-openresty
+example-openresty: build-openresty
+	cp -v .openresty-build/ngx_http_datadog_module.so* example/openresty/services/openresty
+	./example/openresty/bin/run
+
+.PHONY: coverage
+coverage: $(TOOLCHAIN_DEPENDENCY)
+	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
+	docker run --init --rm --platform $(DOCKER_PLATFORM) \
+		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		$(BUILD_IMAGE) \
+		/bin/sh -c 'cd /mnt/repo/.musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests'
+	rm -f test/coverage_data.tar.gz
+	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+	docker run --init --rm --platform $(DOCKER_PLATFORM) \
+		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		$(BUILD_IMAGE) \
+		tar -C /mnt/repo/.musl-build -xzf /mnt/repo/test/coverage_data.tar.gz
+	docker run --init --rm --platform $(DOCKER_PLATFORM) \
+		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
+		$(BUILD_IMAGE) \
+		/bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=/mnt/repo/src/coverage_fixup\.c > coverage.lcov'
