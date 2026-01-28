@@ -138,12 +138,16 @@ build-musl-aux build-musl-cov-aux:
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
+BUILD_OPENRESTY_COMMAND := ./bin/openresty/build_openresty.sh && make build-openresty-aux
 .PHONY: build-openresty
 build-openresty: $(TOOLCHAIN_DEPENDENCY)
 ifndef RESTY_VERSION
 	$(error RESTY_VERSION is not set. Please set RESTY_VERSION environment variable)
 endif
 	@export NGINX_VERSION=$$(echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}');
+ifdef GITLAB_CI
+	bash -c "$(BUILD_OPENRESTY_COMMAND)"
+else
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
 		--env ARCH=$(ARCH) \
@@ -153,7 +157,8 @@ endif
 		--env WAF=$(WAF) \
 		--mount type=bind,source="$(PWD)",target=/mnt/repo \
 		$(BUILD_IMAGE) \
-		bash -c "cd /mnt/repo && ./bin/openresty/build_openresty.sh && make build-openresty-aux"
+		bash -c "cd /mnt/repo && $(BUILD_OPENRESTY_COMMAND)"
+endif
 
 .PHONY: build-openresty-aux
 build-openresty-aux:

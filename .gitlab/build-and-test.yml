@@ -42,3 +42,30 @@ build:
     paths:
       - .musl-build/ngx_http_datadog_module.so
       - .musl-build/ngx_http_datadog_module.so.debug
+
+build-openresty:
+  stage: build-and-test
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  parallel:
+    matrix:
+      - arch: ["amd64", "arm64"]
+        RESTY_VERSION: ["1.27.1.2"]
+        WAF: ["ON", "OFF"]
+  tags: ["arch:$arch"]
+  variables:
+    BUILD_TYPE: "RelWithDebInfo"
+    GIT_SUBMODULE_STRATEGY: recursive
+    MAKE_JOB_COUNT: "8"
+  before_script:
+    - |
+      if [ "$arch" == "amd64" ]; then
+        export ARCH=x86_64
+      else
+        export ARCH=aarch64
+      fi
+  script:
+    - make build-openresty
+  artifacts:
+    paths:
+      - .openresty-build/ngx_http_datadog_module.so
+      - .openresty-build/ngx_http_datadog_module.so.debug
