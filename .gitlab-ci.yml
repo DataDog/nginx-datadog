@@ -2,6 +2,9 @@ stages:
   - build-and-test
   - benchmarks
 
+include:
+  - local: ".gitlab/build-and-test.yml"
+
 macrobenchmarks:
   stage: benchmarks
   needs: []
@@ -11,19 +14,3 @@ macrobenchmarks:
     - if: $NIGHTLY_BENCHMARKS || $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
       when: always
     - when: manual
-
-format:
-  stage: build-and-test
-  image: registry.ddbuild.io/ci/nginx-datadog/dd-trace-cpp-ci
-  tags: ["arch:amd64"]
-  script:
-    - pip install -r requirements.txt
-    - update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
-    - make lint
-
-shellcheck:
-  stage: build-and-test
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
-  tags: ["arch:amd64"]
-  script:
-    - find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317

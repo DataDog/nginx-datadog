@@ -35,18 +35,10 @@ endif
 BUILD_IMAGE := nginx_musl_toolchain
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
 CI_BUILD_IMAGE ?= $(CI_REGISTRY)/$(BUILD_IMAGE)
-ifdef CIRCLECI
-	CI_PLATFORM := circleci
-else ifdef GITLAB_CI
-	CI_PLATFORM := gitlab
-else
-	CI_PLATFORM := local
-endif
-ifneq (,$(filter $(CI_PLATFORM),circleci local))
-	TOOLCHAIN_DEPENDENCY := build-local-musl-toolchain
-else ifeq ($(CI_PLATFORM),gitlab)
-	BUILD_IMAGE := $(CI_BUILD_IMAGE)
+ifdef GITLAB_CI
 	TOOLCHAIN_DEPENDENCY :=
+else
+	TOOLCHAIN_DEPENDENCY := build-local-musl-toolchain
 endif
 
 # build-push-musl-toolchain must be run, once, from a developer machine, to put in
@@ -115,6 +107,9 @@ build-musl build-musl-cov: $(TOOLCHAIN_DEPENDENCY)
 ifndef NGINX_VERSION
 	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
 endif
+ifdef GITLAB_CI
+	$(MAKE) $@-aux
+else
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
 		--env ARCH=$(ARCH) \
@@ -127,6 +122,7 @@ endif
 		--mount "type=bind,source=$(dir $(lastword $(MAKEFILE_LIST))),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \
 		make -C /mnt/repo $@-aux
+endif
 
 # This is what's run inside the Docker container.
 .PHONY: build-musl-aux build-musl-cov-aux
