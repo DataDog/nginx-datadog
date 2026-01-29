@@ -12,7 +12,6 @@ RUM ?= OFF
 WAF ?= OFF
 
 NGINX_SRC_DIR ?= $(PWD)/nginx
-NGINX_VERSION ?= $(if $(RESTY_VERSION),$(shell echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}'))
 
 ifneq ($(PCRE2_PATH),)
 	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
@@ -105,7 +104,7 @@ build: dd-trace-cpp-deps
 .PHONY: build-musl build-musl-cov
 build-musl build-musl-cov: $(TOOLCHAIN_DEPENDENCY)
 ifndef NGINX_VERSION
-	$(error NGINX_VERSION is not set. Please set NGINX_VERSION environment variable)
+	$(error NGINX_VERSION is not set. Please set the NGINX_VERSION environment variable.)
 endif
 ifdef GITLAB_CI
 	$(MAKE) $@-aux
@@ -124,7 +123,6 @@ else
 		make -C /mnt/repo $@-aux
 endif
 
-# This is what's run inside the Docker container.
 .PHONY: build-musl-aux build-musl-cov-aux
 build-musl-aux build-musl-cov-aux:
 	cmake -B .musl-build \
@@ -138,13 +136,15 @@ build-musl-aux build-musl-cov-aux:
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
+# --- OpenResty
+
+NGINX_VERSION ?= $(if $(RESTY_VERSION),$(shell echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}'))
 BUILD_OPENRESTY_COMMAND := ./bin/openresty/build_openresty.sh && make build-openresty-aux
 .PHONY: build-openresty
 build-openresty: $(TOOLCHAIN_DEPENDENCY)
 ifndef RESTY_VERSION
-	$(error RESTY_VERSION is not set. Please set RESTY_VERSION environment variable)
+	$(error RESTY_VERSION is not set. Please set the RESTY_VERSION environment variable.)
 endif
-	@export NGINX_VERSION=$$(echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}');
 ifdef GITLAB_CI
 	bash -c "$(BUILD_OPENRESTY_COMMAND)"
 else
@@ -155,7 +155,7 @@ else
 		--env RESTY_VERSION=$(RESTY_VERSION) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
 		--env WAF=$(WAF) \
-		--mount type=bind,source="$(PWD)",target=/mnt/repo \
+		--mount type=bind,source="$(PWD)",destination=/mnt/repo \
 		$(BUILD_IMAGE) \
 		bash -c "cd /mnt/repo && $(BUILD_OPENRESTY_COMMAND)"
 endif
@@ -171,19 +171,28 @@ build-openresty-aux:
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		&& cmake --build .openresty-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 
+# --- Ingress Nginx
+
 .PHONY: build-ingress-nginx
 build-ingress-nginx: $(TOOLCHAIN_DEPENDENCY)
+ifndef INGRESS_NGINX_VERSION
+	$(error INGRESS_NGINX_VERSION is not set. Please set the INGRESS_NGINX_VERSION environment variable.)
+endif
 	python3 bin/ingress_nginx.py prepare --ingress-nginx-version v$(INGRESS_NGINX_VERSION) --output nginx-controller-$(INGRESS_NGINX_VERSION)
+ifdef GITLAB_CI
+	$(MAKE) build-musl-aux-ingress
+else
 	docker run --init --rm \
 		--platform $(DOCKER_PLATFORM) \
 		--env ARCH=$(ARCH) \
 		--env BUILD_TYPE=$(BUILD_TYPE) \
-		--env NGINX_SRC_DIR=/mnt/repo/nginx-controller-$(INGRESS_NGINX_VERSION) \
+		--env INGRESS_NGINX_VERSION=$(INGRESS_NGINX_VERSION) \
 		--env WAF=$(WAF) \
 		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \
 		make -C /mnt/repo build-musl-aux-ingress
+endif
 
 .PHONY: build-musl-aux-ingress
 build-musl-aux-ingress:
@@ -191,7 +200,7 @@ build-musl-aux-ingress:
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
-		-DNGINX_SRC_DIR="$(NGINX_SRC_DIR)" \
+		-DNGINX_SRC_DIR=nginx-controller-$(INGRESS_NGINX_VERSION) \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" \
 		-DNGINX_COVERAGE=$(COVERAGE) . \
 		-DNGINX_DATADOG_FLAVOR="ingress-nginx" \
