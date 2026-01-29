@@ -1,6 +1,5 @@
 .DELETE_ON_ERROR:
 
-ARCH ?= $(shell arch)
 BUILD_DIR ?= .build
 BUILD_TESTING ?= ON
 BUILD_TYPE ?= RelWithDebInfo
@@ -10,6 +9,14 @@ MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 RUM ?= OFF
 WAF ?= OFF
+
+ARCH ?= $(shell arch)
+ifeq ($(ARCH),amd64)
+	ARCH := x86_64
+endif
+ifeq ($(ARCH),arm64)
+	ARCH := aarch64
+endif
 
 NGINX_SRC_DIR ?= $(PWD)/nginx
 
