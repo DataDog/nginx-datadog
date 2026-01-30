@@ -1,0 +1,78 @@
+.build-and-test:
+  stage: build-and-test
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: always
+
+.build:
+  extends: .build-and-test
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    MAKE_JOB_COUNT: "8"
+
+format:
+  extends: .build-and-test
+  image: registry.ddbuild.io/ci/nginx-datadog/dd-trace-cpp-ci
+  tags: ["arch:amd64"]
+  script:
+    - pip install -r requirements.txt
+    - update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
+    - make lint
+
+shellcheck:
+  extends: .build-and-test
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  tags: ["arch:amd64"]
+  script:
+    - find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
+
+build:
+  extends: .build
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
+        NGINX_VERSION: ["1.24.0", "1.25.4", "1.28.1", "1.29.4"]
+        WAF: ["ON", "OFF"]
+  tags: ["arch:$ARCH"]
+  variables:
+    RUM: "OFF"
+  script:
+    - make build-musl-aux
+  artifacts:
+    paths:
+      - .musl-build/ngx_http_datadog_module.so
+      - .musl-build/ngx_http_datadog_module.so.debug
+
+build-openresty:
+  extends: .build
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        RESTY_VERSION: ["1.27.1.2"]
+        WAF: ["ON", "OFF"]
+  tags: ["arch:$ARCH"]
+  script:
+    - make build-openresty
+  artifacts:
+    paths:
+      - .openresty-build/ngx_http_datadog_module.so
+      - .openresty-build/ngx_http_datadog_module.so.debug
+
+build-ingess-nginx:
+  extends: .build
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        INGRESS_NGINX_VERSION: ["1.13.5", "1.14.1"]
+  tags: ["arch:$ARCH"]
+  variables:
+    WAF: "ON"
+  script:
+    - make build-ingress-nginx
+  artifacts:
+    paths:
+      - .musl-build/ngx_http_datadog_module.so
+      - .musl-build/ngx_http_datadog_module.so.debug
