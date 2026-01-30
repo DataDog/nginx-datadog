@@ -163,7 +163,7 @@ def docker_top(container, verbose_output):
     # `docker top` is picky about the output format of `ps`.  It allows us to
     # pass arbitrary options to `ps`, but, for example, if `pid` is not first,
     # it breaks `docker top`.
-    fields = ("pid", "cmd")
+    fields = ("pid", "args")
 
     command = docker_command("top", container, "-o", ",".join(fields))
     with print_duration("Consuming docker compose top PIDs", verbose_output):

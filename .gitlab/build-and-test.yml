@@ -12,6 +12,7 @@
     GIT_SUBMODULE_STRATEGY: recursive
     MAKE_JOB_COUNT: "8"
 
+
 format:
   extends: .build-and-test
   image: registry.ddbuild.io/ci/nginx-datadog/dd-trace-cpp-ci
@@ -34,17 +35,18 @@ build:
     matrix:
       - ARCH: ["amd64", "arm64"]
         # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
-        NGINX_VERSION: ["1.24.0", "1.25.4", "1.28.1", "1.29.4"]
+        NGINX_VERSION: ["1.24.0", "1.25.5", "1.28.1", "1.29.4"]
         WAF: ["ON", "OFF"]
   tags: ["arch:$ARCH"]
   variables:
     RUM: "OFF"
   script:
     - make build-musl-aux
+    - mkdir -p artifacts/$ARCH/$NGINX_VERSION/$WAF
+    - cp .musl-build/ngx_http_datadog_module.so* artifacts/$ARCH/$NGINX_VERSION/$WAF/
   artifacts:
     paths:
-      - .musl-build/ngx_http_datadog_module.so
-      - .musl-build/ngx_http_datadog_module.so.debug
+      - artifacts/$ARCH/$NGINX_VERSION/$WAF/
 
 build-openresty:
   extends: .build
@@ -56,12 +58,13 @@ build-openresty:
   tags: ["arch:$ARCH"]
   script:
     - make build-openresty
+    - mkdir -p artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF
+    - cp .openresty-build/ngx_http_datadog_module.so* artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
   artifacts:
     paths:
-      - .openresty-build/ngx_http_datadog_module.so
-      - .openresty-build/ngx_http_datadog_module.so.debug
+      - artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
 
-build-ingess-nginx:
+build-ingress-nginx:
   extends: .build
   parallel:
     matrix:
@@ -72,7 +75,40 @@ build-ingess-nginx:
     WAF: "ON"
   script:
     - make build-ingress-nginx
+    - mkdir -p artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION
+    - cp .musl-build/ngx_http_datadog_module.so* artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
   artifacts:
     paths:
-      - .musl-build/ngx_http_datadog_module.so
-      - .musl-build/ngx_http_datadog_module.so.debug
+      - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
+
+test:
+  extends: .build-and-test
+  needs:
+    - build
+  image: registry.ddbuild.io/ci/nginx-datadog/test
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.24.0", "nginx:1.24.0-alpine"]
+        NGINX_VERSION: ["1.24.0"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.5", "nginx:1.25.5-alpine"]
+        NGINX_VERSION: ["1.25.5"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.1", "nginx:1.28.1-alpine"]
+        NGINX_VERSION: ["1.28.1"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.4", "nginx:1.29.4-alpine"]
+        NGINX_VERSION: ["1.29.4"]
+        WAF: ["ON", "OFF"]
+  tags: ["docker-in-docker:$ARCH"]
+  variables:
+    RUM: "OFF"
+  script:
+    - python3 test/bin/run.py --platform linux/$ARCH --image $BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+  artifacts:
+    paths:
+      - test/logs/test.log

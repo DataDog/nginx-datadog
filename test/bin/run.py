@@ -33,6 +33,7 @@ def validate_file(arg):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run integration tests")
+    # The platform argument is unused!
     parser.add_argument(
         "--platform",
         help="Docker platform",
