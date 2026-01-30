@@ -40,15 +40,16 @@ endif
 # On GitLab, we get the nginx_musl_toolchain Docker image from registry.ddbuild.io.
 BUILD_IMAGE := nginx_musl_toolchain
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
-CI_BUILD_IMAGE ?= $(CI_REGISTRY)/$(BUILD_IMAGE)
+CI_BUILD_IMAGE := $(CI_REGISTRY)/$(BUILD_IMAGE)
+CI_TEST_IMAGE := $(CI_REGISTRY)/test
 ifdef GITLAB_CI
 	TOOLCHAIN_DEPENDENCY :=
 else
 	TOOLCHAIN_DEPENDENCY := build-local-musl-toolchain
 endif
 
-# build-push-musl-toolchain must be run, once, from a developer machine, to put in
-#   registry.ddbuild.io the needed Docker images.
+# build-push-musl-toolchain and build-push-test-image must be run, once, from a
+#   developer machine, to put in registry.ddbuild.io the needed Docker images.
 .PHONY: build-push-musl-toolchain
 build-push-musl-toolchain:
 	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(CI_BUILD_IMAGE):latest-amd64 build_env
@@ -60,6 +61,14 @@ build-push-musl-toolchain:
 .PHONY: build-local-musl-toolchain
 build-local-musl-toolchain:
 	docker build --progress=plain --platform $(DOCKER_PLATFORM) --build-arg ARCH=$(ARCH) -t $(BUILD_IMAGE) build_env
+
+.PHONY: build-push-test-image
+build-push-test-image:
+	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(CI_TEST_IMAGE):latest-amd64 test
+	docker push $(CI_TEST_IMAGE):latest-amd64
+	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(CI_TEST_IMAGE):latest-arm64 test
+	docker push $(CI_TEST_IMAGE):latest-arm64
+	docker buildx imagetools create -t $(CI_TEST_IMAGE):latest $(CI_TEST_IMAGE):latest-amd64 $(CI_TEST_IMAGE):latest-arm64
 
 
 # ----- Sources Dependencies, Format and Lint
@@ -221,7 +230,7 @@ build-and-test: build-musl test
 
 .PHONY: test
 test:
-	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} \
+	python3 test/bin/run.py --image ${BASE_IMAGE} \
 		--module-path .musl-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
 
@@ -230,9 +239,9 @@ build-and-test-openresty: build-openresty test-openresty
 
 .PHONY: test-openresty
 test-openresty:
-	RESTY_TEST=ON python3 test/bin/run.py --platform $(DOCKER_PLATFORM) \
-	   --image ${BASE_IMAGE} --module-path .openresty-build/ngx_http_datadog_module.so -- \
-	   --verbose $(TEST_ARGS)
+	RESTY_TEST=ON python3 test/bin/run.py --image ${BASE_IMAGE} \
+		--module-path .openresty-build/ngx_http_datadog_module.so -- \
+		--verbose $(TEST_ARGS)
 
 .PHONY: example-openresty
 example-openresty: build-openresty
@@ -247,7 +256,7 @@ coverage: $(TOOLCHAIN_DEPENDENCY)
 		$(BUILD_IMAGE) \
 		/bin/sh -c 'cd /mnt/repo/.musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests'
 	rm -f test/coverage_data.tar.gz
-	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+	python3 test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \

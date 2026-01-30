@@ -288,7 +288,7 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
+            - run: python3 test/bin/run.py --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
@@ -322,7 +322,7 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
+            - run: python3 test/bin/run.py --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log‡
                 path: test/logs/test.log
@@ -351,7 +351,7 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>>:v<<parameters.nginx-version>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+            - run: python3 test/bin/run.py --image <<parameters.base-image>>:v<<parameters.nginx-version>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log

@@ -7,8 +7,7 @@ COPY CHECKSUMS /CHECKSUMS
 
 RUN echo "Building LLVM ${LLVM_VERSION} on ${ARCH}"
 
-RUN apk --no-cache add alpine-sdk coreutils sudo bash samurai python3 linux-headers \
-	compiler-rt clang llvm lld wget cmake make binutils musl-dev git patchelf xz lit
+RUN apk --no-cache add alpine-sdk bash binutils clang cmake compiler-rt coreutils git linux-headers lit lld llvm make musl-dev patchelf python3 samurai sudo wget xz
 RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz && \
     grep -F llvm-project-${LLVM_VERSION}.src.tar.xz /CHECKSUMS | sha512sum --check && \
     tar -xvf llvm-project-${LLVM_VERSION}.src.tar.xz
