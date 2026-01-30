@@ -230,7 +230,7 @@ build-and-test: build-musl test
 
 .PHONY: test
 test:
-	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} \
+	python3 test/bin/run.py --image ${BASE_IMAGE} \
 		--module-path .musl-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
 
@@ -239,9 +239,9 @@ build-and-test-openresty: build-openresty test-openresty
 
 .PHONY: test-openresty
 test-openresty:
-	RESTY_TEST=ON python3 test/bin/run.py --platform $(DOCKER_PLATFORM) \
-	   --image ${BASE_IMAGE} --module-path .openresty-build/ngx_http_datadog_module.so -- \
-	   --verbose $(TEST_ARGS)
+	RESTY_TEST=ON python3 test/bin/run.py --image ${BASE_IMAGE} \
+		--module-path .openresty-build/ngx_http_datadog_module.so -- \
+		--verbose $(TEST_ARGS)
 
 .PHONY: example-openresty
 example-openresty: build-openresty
@@ -256,7 +256,7 @@ coverage: $(TOOLCHAIN_DEPENDENCY)
 		$(BUILD_IMAGE) \
 		/bin/sh -c 'cd /mnt/repo/.musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests'
 	rm -f test/coverage_data.tar.gz
-	python3 test/bin/run.py --platform $(DOCKER_PLATFORM) --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+	python3 test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \

@@ -4,8 +4,8 @@ Utility script to run integration tests.
 
 Usage:
 ======
-To release nginx-datadog modules:
-./run.py --platform linux/amd64 --image nginx:1.27.2 --module-path build/ngx_http_datadog_module.so "--failfast --verbose"
+To test nginx-datadog modules:
+./run.py --image nginx:1.27.2 --module-path build/ngx_http_datadog_module.so -- --failfast --verbose
 """
 
 import subprocess
@@ -33,13 +33,6 @@ def validate_file(arg):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run integration tests")
-    # The platform argument is unused!
-    parser.add_argument(
-        "--platform",
-        help="Docker platform",
-        choices=["linux/amd64", "linux/arm64"],
-        required=True,
-    )
     parser.add_argument("--image",
                         help="Docker NGINX image under tests",
                         required=True)
@@ -53,7 +46,6 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    print(f"       platform : {args.platform}")
     print(f"     base image : {args.image}")
     print(f"   NGINX module : {args.module_path}")
     print(f"      test args : {args.inputs}")
