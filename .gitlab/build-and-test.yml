@@ -129,3 +129,21 @@ test-openresty:
   artifacts:
     paths:
       - test/logs/test.log
+
+test-ingress-nginx:
+  extends: .build-and-test
+  needs:
+    - build-ingress-nginx
+  image: registry.ddbuild.io/ci/nginx-datadog/test
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        INGRESS_NGINX_VERSION: ["1.13.5", "1.14.1"]
+  tags: ["docker-in-docker:$ARCH"]
+  variables:
+    NGINX_FLAVOR: ingress-nginx
+  script:
+    - python3 test/bin/run.py --image registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
+  artifacts:
+    paths:
+      - test/logs/test.log
