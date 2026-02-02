@@ -199,7 +199,7 @@ jobs:
     - run: python3 test/bin/run.py --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
-        destination: test.log‡
+        destination: test.log
   test_ingress:
     parameters:
       base-image:

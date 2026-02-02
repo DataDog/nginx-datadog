@@ -324,7 +324,7 @@ jobs:
                 docker_layer_caching: true
             - run: python3 test/bin/run.py --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
-                destination: test.log‡
+                destination: test.log
                 path: test/logs/test.log
     test_ingress:
         environment:

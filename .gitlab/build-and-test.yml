@@ -112,3 +112,20 @@ test:
   artifacts:
     paths:
       - test/logs/test.log
+
+test-openresty:
+  extends: .build-and-test
+  needs:
+    - build-openresty
+  image: registry.ddbuild.io/ci/nginx-datadog/test
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        RESTY_VERSION: ["1.27.1.2"]
+        WAF: ["ON", "OFF"]
+  tags: ["docker-in-docker:$ARCH"]
+  script:
+    - python3 test/bin/run.py --image openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+  artifacts:
+    paths:
+      - test/logs/test.log
