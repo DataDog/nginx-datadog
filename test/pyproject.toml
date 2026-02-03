@@ -1,0 +1,7 @@
+[project]
+name = "nginx-datadog-test"
+version = "1.0.0"
+dependencies = [
+    "werkzeug==3.0.6",
+    "yapf==0.40.2",
+]
