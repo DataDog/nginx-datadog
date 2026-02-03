@@ -250,6 +250,15 @@ example-openresty: build-openresty
 
 .PHONY: coverage
 coverage: $(TOOLCHAIN_DEPENDENCY)
+ifdef GITLAB_CI
+	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
+	cd .musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests
+	rm -f test/coverage_data.tar.gz
+	python3 test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+	tar -C .musl-build -xzf test/coverage_data.tar.gz
+	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
+	codecov -f .musl-build/coverage.lcov --disable-search -t $$(vault kv get -field=token kv/k8s/gitlab-runner/nginx-datadog/codecov)
+else
 	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
 	docker run --init --rm --platform $(DOCKER_PLATFORM) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
@@ -265,3 +274,4 @@ coverage: $(TOOLCHAIN_DEPENDENCY)
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \
 		/bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=/mnt/repo/src/coverage_fixup\.c > coverage.lcov'
+endif
