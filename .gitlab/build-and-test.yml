@@ -12,6 +12,10 @@
     GIT_SUBMODULE_STRATEGY: recursive
     MAKE_JOB_COUNT: "8"
 
+.test:
+  extends: .build-and-test
+  image: registry.ddbuild.io/ci/nginx-datadog/test
+
 
 format:
   extends: .build-and-test
@@ -82,10 +86,9 @@ build-ingress-nginx:
       - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
 
 test:
-  extends: .build-and-test
+  extends: .test
   needs:
     - build
-  image: registry.ddbuild.io/ci/nginx-datadog/test
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -120,10 +123,9 @@ test:
       - test/logs/test.log
 
 test-openresty:
-  extends: .build-and-test
+  extends: .test
   needs:
     - build-openresty
-  image: registry.ddbuild.io/ci/nginx-datadog/test
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -137,10 +139,9 @@ test-openresty:
       - test/logs/test.log
 
 test-ingress-nginx:
-  extends: .build-and-test
+  extends: .test
   needs:
     - build-ingress-nginx
-  image: registry.ddbuild.io/ci/nginx-datadog/test
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -153,3 +154,14 @@ test-ingress-nginx:
   artifacts:
     paths:
       - test/logs/test.log
+
+coverage:
+  extends: .build
+  variables:
+    ARCH: "amd64"
+    BASE_IMAGE: "nginx:1.26.0"
+    NGINX_VERSION: "1.26.0"
+    WAF: "ON"
+  tags: ["docker-in-docker:$ARCH"]
+  script:
+    - make coverage

@@ -1,3 +1,5 @@
+# Dockerfile for registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+
 FROM alpine:3.20.3 AS sysroot
 
 ARG LLVM_VERSION=17.0.6
@@ -7,7 +9,9 @@ COPY CHECKSUMS /CHECKSUMS
 
 RUN echo "Building LLVM ${LLVM_VERSION} on ${ARCH}"
 
-RUN apk --no-cache add alpine-sdk bash binutils clang cmake compiler-rt coreutils git linux-headers lit lld llvm make musl-dev patchelf python3 samurai sudo wget xz
+RUN apk --no-cache add alpine-sdk bash binutils clang cmake compiler-rt coreutils docker-cli-buildx \
+  docker-cli-compose git linux-headers lit lld llvm make musl-dev patchelf python3 samurai sudo wget xz
+
 RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz && \
     grep -F llvm-project-${LLVM_VERSION}.src.tar.xz /CHECKSUMS | sha512sum --check && \
     tar -xvf llvm-project-${LLVM_VERSION}.src.tar.xz
@@ -61,21 +65,35 @@ RUN mv /usr/lib/gcc/${ARCH}-alpine-linux-musl/13.2.1/include/stdatomic.h /usr/li
 RUN cp /usr/lib/llvm${LLVM_VERSION%%.*}/lib/clang/${LLVM_VERSION%%.*}/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/13.2.1/include/stdatomic.h
 
 COPY glibc_compat.c /sysroot/
-RUN clang --sysroot /sysroot/${ARCH}-none-linux-musl/ -fpie -O2 -fno-omit-frame-pointer \
-    -ggdb3 -c /sysroot/glibc_compat.c -o /tmp/glibc_compat.o && \
+RUN clang --sysroot /sysroot/${ARCH}-none-linux-musl/ -fpie -O2 -fno-omit-frame-pointer -ggdb3 -c /sysroot/glibc_compat.c -o /tmp/glibc_compat.o && \
     ar rcs /sysroot/${ARCH}-none-linux-musl/usr/lib/libglibc_compat.a /tmp/glibc_compat.o && \
     rm /tmp/glibc_compat.o
 
-# Install dependencies for nginx
-RUN apk add --no-cache pcre-dev pcre2-dev zlib-dev openssl-dev perl
+# Dependencies for nginx
+RUN apk add --no-cache openssl-dev pcre-dev pcre2-dev perl zlib-dev
 
-# Install Rust toolchain
+# Rust toolchain
 RUN apk add --no-cache curl
-RUN curl --proto '=https' –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq --default-toolchain 1.73.0 \
-  && ln -s ~/.cargo/bin/cargo /usr/bin/cargo
+RUN curl --proto '=https' –tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq --default-toolchain 1.73.0 && \
+  ln -s ~/.cargo/bin/cargo /usr/bin/cargo
 
-RUN cargo install --locked cbindgen --version 0.26.0 \
-  && ln -s ~/.cargo/bin/cbindgen /usr/local/bin/cbindgen
+RUN cargo install --locked cbindgen --version 0.26.0 && \
+  ln -s ~/.cargo/bin/cbindgen /usr/local/bin/cbindgen
 
-# Install shellcheck
+# Shellcheck
 RUN apk add --no-cache shellcheck
+
+# UV and Python packages for tests
+COPY --from=ghcr.io/astral-sh/uv:0.9.28 /uv /usr/local/bin/uv
+COPY pyproject.toml .
+RUN uv sync
+ENV PATH="/.venv/bin:$PATH"
+
+# Vault
+RUN LINUX_ARCH=linux_$(echo ${ARCH} | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
+  wget -qO- https://releases.hashicorp.com/vault/1.21.2/vault_1.21.2_${LINUX_ARCH}.zip | busybox unzip -
+RUN chmod +x vault && mv vault /usr/local/bin/
+
+# CodeCov
+RUN curl -o bin/codecov https://uploader.codecov.io/v0.8.0/alpine/codecov
+RUN chmod +x bin/codecov
