@@ -69,7 +69,7 @@ build-ingress-nginx:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.5", "1.14.1"]
+        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
   tags: ["arch:$ARCH"]
   variables:
     WAF: "ON"
@@ -142,7 +142,7 @@ test-ingress-nginx:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.5", "1.14.1"]
+        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
   tags: ["docker-in-docker:$ARCH"]
   variables:
     NGINX_FLAVOR: ingress-nginx
