@@ -205,36 +205,6 @@ jobs:
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
-  system_tests:
-    machine:
-      # https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-use-Docker-volume-mounting-on-CircleCI-
-      image: ubuntu-2404:current
-    resource_class: large
-    steps:
-      - attach_workspace:
-          at: "/tmp/workspace"
-      - run:
-          name: clone system-tests repo
-          command: git clone https://github.com/DataDog/system-tests.git
-      - run:
-          name: Install python 3.12
-          command: |
-            sudo apt update -y 
-            sudo apt install -y python3.12-venv
-      - run:
-          name: Move the module to the system-tests directory
-          working_directory: ./system-tests
-          command: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so binaries/ngx_http_datadog_module-appsec-amd64-1.25.4.so
-      - run:
-          name: Build test targets
-          working_directory: ./system-tests
-          command: ./build.sh cpp_nginx
-      - run:
-          name: Run DEFAULT scenarios
-          working_directory: ./system-tests
-          command: ./run.sh
-          environment:
-            DD_API_KEY: fakekey
   format:
     docker:
     - image: datadog/docker-library:dd-trace-cpp-ci
