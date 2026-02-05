@@ -3,7 +3,7 @@ set -e
 
 cd "$(dirname "$0")"/..
 
-BASE_IMAGE="${BASE_IMAGE:-nginx:1.29.4-alpine}"
+BASE_IMAGE="${BASE_IMAGE:-nginx:1.29.5-alpine}"
 export BASE_IMAGE
 
 # Fail fast in case the base image is not supported.

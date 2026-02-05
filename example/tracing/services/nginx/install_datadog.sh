@@ -22,7 +22,7 @@ get_nginx_version() {
 }
 
 if [ "$BASE_IMAGE" = '' ]; then
-  >&2 echo 'This script expects BASE_IMAGE to be in the environment, e.g. "nginx:1.29.4-alpine" or "amazonlinux:2.0.20220121.0".'
+  >&2 echo 'This script expects BASE_IMAGE to be in the environment, e.g. "nginx:1.29.5-alpine" or "amazonlinux:2.0.20220121.0".'
   exit 1
 fi
 

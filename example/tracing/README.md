@@ -65,8 +65,8 @@ Docker image where nginx is installed or can be installed using the native
 package manager.
 
 For example, the default value for `BASE_IMAGE` in this example is
-`nginx:1.29.4-alpine`, which indicates compatibility with Nginx 1.29.4 running
-on Alpine, as per [nginx:1.29.4-alpine](https://hub.docker.com/layers/nginx/library/nginx/1.29.4-alpine/images).
+`nginx:1.29.5-alpine`, which indicates compatibility with Nginx 1.29.5 running
+on Alpine, as per [nginx:1.29.5-alpine](https://hub.docker.com/layers/nginx/library/nginx/1.29.5-alpine/images).
 
 Command Line Tools
 ------------------
