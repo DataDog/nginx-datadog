@@ -172,31 +172,6 @@ jobs:
             - run:
                 command: "CIRCLE_CFG=generated-config.yml make circleci-config \ndiff .circleci/config.yml generated-config.yml\n"
                 name: Verify
-    coverage:
-        environment:
-            DOCKER_BUILDKIT: 1
-        machine:
-            image: ubuntu-2204:current
-        resource_class: xlarge
-        steps:
-            - checkout
-            - run: git submodule sync && git submodule update --init --recursive
-            - run:
-                command: pip install -r requirements.txt
-                name: Install Python dependencies
-            - run:
-                command: make coverage
-                environment:
-                    ARCH: x86_64
-                    BASE_IMAGE: nginx:1.26.0
-                    BUILD_TYPE: RelWithDebInfo
-                    MAKE_JOB_COUNT: 8
-                    NGINX_VERSION: 1.26.0
-                    WAF: "ON"
-            - codecov/upload:
-                file: .musl-build/coverage.lcov
-                upload_args: --disable-search
-                upload_name: circleci
     format:
         docker:
             - image: datadog/docker-library:dd-trace-cpp-ci
@@ -422,8 +397,6 @@ workflows:
                             - 1.13.7
                             - 1.14.3
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
-            - coverage:
-                name: Coverage on 1.27.0 with WAF ON
             - test:
                 matrix:
                     parameters:

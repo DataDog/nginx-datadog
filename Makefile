@@ -120,7 +120,7 @@ build: dd-trace-cpp-deps
 .PHONY: build-musl build-musl-cov
 build-musl build-musl-cov: $(TOOLCHAIN_DEPENDENCY)
 ifndef NGINX_VERSION
-	$(error NGINX_VERSION is not set. Please set the NGINX_VERSION environment variable.)
+	$(error NGINX_VERSION is not set. Please set the NGINX_VERSION environment variable)
 endif
 ifdef GITLAB_CI
 	$(MAKE) $@-aux
@@ -159,7 +159,7 @@ BUILD_OPENRESTY_COMMAND := ./bin/openresty/build_openresty.sh && make build-open
 .PHONY: build-openresty
 build-openresty: $(TOOLCHAIN_DEPENDENCY)
 ifndef RESTY_VERSION
-	$(error RESTY_VERSION is not set. Please set the RESTY_VERSION environment variable.)
+	$(error RESTY_VERSION is not set. Please set the RESTY_VERSION environment variable)
 endif
 ifdef GITLAB_CI
 	bash -c "$(BUILD_OPENRESTY_COMMAND)"
@@ -192,7 +192,7 @@ build-openresty-aux:
 .PHONY: build-ingress-nginx
 build-ingress-nginx: $(TOOLCHAIN_DEPENDENCY)
 ifndef INGRESS_NGINX_VERSION
-	$(error INGRESS_NGINX_VERSION is not set. Please set the INGRESS_NGINX_VERSION environment variable.)
+	$(error INGRESS_NGINX_VERSION is not set. Please set the INGRESS_NGINX_VERSION environment variable)
 endif
 	python3 bin/ingress_nginx.py prepare --ingress-nginx-version v$(INGRESS_NGINX_VERSION) --output nginx-controller-$(INGRESS_NGINX_VERSION)
 ifdef GITLAB_CI
@@ -249,8 +249,10 @@ example-openresty: build-openresty
 	./example/openresty/bin/run
 
 .PHONY: coverage
-coverage: $(TOOLCHAIN_DEPENDENCY)
-ifdef GITLAB_CI
+coverage:
+ifndef GITLAB_CI
+	$(error make coverage should be run only from GitLab CI)
+endif
 	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
 	cd .musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests
 	rm -f test/coverage_data.tar.gz
@@ -258,20 +260,3 @@ ifdef GITLAB_CI
 	tar -C .musl-build -xzf test/coverage_data.tar.gz
 	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
 	codecov -f .musl-build/coverage.lcov --disable-search -t $$(vault kv get -field=token kv/k8s/gitlab-runner/nginx-datadog/codecov)
-else
-	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
-	docker run --init --rm --platform $(DOCKER_PLATFORM) \
-		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(BUILD_IMAGE) \
-		/bin/sh -c 'cd /mnt/repo/.musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests'
-	rm -f test/coverage_data.tar.gz
-	python3 test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
-	docker run --init --rm --platform $(DOCKER_PLATFORM) \
-		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(BUILD_IMAGE) \
-		tar -C /mnt/repo/.musl-build -xzf /mnt/repo/test/coverage_data.tar.gz
-	docker run --init --rm --platform $(DOCKER_PLATFORM) \
-		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(BUILD_IMAGE) \
-		/bin/sh -c 'cd /mnt/repo/.musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=/mnt/repo/src/coverage_fixup\.c > coverage.lcov'
-endif

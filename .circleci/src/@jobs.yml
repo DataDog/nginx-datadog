@@ -98,31 +98,6 @@ jobs:
       MAKE_JOB_COUNT: 8
       WAF: "<< parameters.waf >>"
       RESTY_VERSION: "<< parameters.resty-version >>"
-  coverage:
-    environment:
-      DOCKER_BUILDKIT: 1
-    steps:
-    - checkout
-    - run: git submodule sync && git submodule update --init --recursive
-    - run:
-        name: Install Python dependencies
-        command: pip install -r requirements.txt
-    - run:
-        command: 'make coverage'
-        environment:
-          ARCH: x86_64
-          MAKE_JOB_COUNT: 8
-          BUILD_TYPE: RelWithDebInfo
-          NGINX_VERSION: 1.26.0
-          WAF: ON
-          BASE_IMAGE: nginx:1.26.0
-    - codecov/upload:
-        upload_args: '--disable-search'
-        file: .musl-build/coverage.lcov
-        upload_name: circleci
-    machine:
-      image: ubuntu-2204:current
-    resource_class: xlarge
   test:
     parameters:
       base-image:
