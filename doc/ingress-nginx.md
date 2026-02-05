@@ -16,7 +16,7 @@ The following Helm values demonstrates how to inject `nginx-datadog` module into
 
 ```yaml
 controller:
-  config: 
+  config:
     main-snippet: "load_module /modules_mount/ngx_http_datadog_module.so;"
   opentelemetry:
     enabled: false
@@ -25,9 +25,9 @@ controller:
       image:
         registry: docker.io
         image: datadog/ingress-nginx-injection
-        # The tag should match the version of the ingress-nginx controller
-        # For example, this will inject the Datadog module for ingress v1.10.0
-        # Check <https://hub.docker.com/repository/docker/datadog/ingress-nginx-injection/tags> 
+        # The tag should match the version of the ingress-nginx controller.
+        # For example, this will inject the Datadog module for Ingress v1.10.0.
+        # Check <https://hub.docker.com/repository/docker/datadog/ingress-nginx-injection/tags>
         # for the list of all versions supported.
         tag: "v1.10.0"
         distroless: false
@@ -43,8 +43,8 @@ accessible by the main ingress-nginx container.
 When the main ingrees-nginx controller starts, the NGINX configuration must be updated with the `load_module` directive,
 allowing it to load the Datadog module seamlessly.
 
-> [!WARNING]  
-> We provide a specific init container **for each ingress-nginx controller version** start with `v1.10.0`. 
+> [!WARNING]
+> We provide a specific init container **for each ingress-nginx controller version** start with `v1.10.0`.
 > This is crucial because **each** init container must match the underlying NGINX version. Be sure to choose
 > the version of the Datadog init container matching your ingress-nginx version to ensure compatibility.
 

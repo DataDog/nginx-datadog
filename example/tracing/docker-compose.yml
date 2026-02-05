@@ -1,4 +1,3 @@
-version: "3.2"
 services:
 
   # `nginx` is an instance of nginx that has the Datadog tracing module loaded.
@@ -83,10 +82,10 @@ services:
       - agent
 
   # `client` is a container that exists solely so that the host can
-  # `docker-compose exec` into it to run command line tools such as `curl` and
-  # `grpcurl`.  This way, the host's network doesn't need access to the network
-  # created by docker-compose.  The host interacts with the docker-compose
-  # services via `docker-compose` and `docker` commands only.
+  # `docker compose exec` into it to run command line tools such as `curl` and
+  # `grpcurl`. This way, the host's network doesn't need access to the network
+  # created by docker compose. The host interacts with the docker compose
+  # services via `docker compose` and `docker` commands only.
   client:
     build:
       context: ./services/client

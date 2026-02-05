@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")"/..
 
 if [ -z "$RESTY_VERSION" ]; then
-    export RESTY_VERSION=1.27.1.1
+    export RESTY_VERSION=1.27.1.2
 fi
 
 if [ -z "$BASE_IMAGE" ]; then
@@ -27,4 +27,4 @@ if [ "$DD_API_KEY" = '' ]; then
     exit 1
 fi
 
-docker-compose up --build --abort-on-container-exit --remove-orphans
+docker compose up --build --abort-on-container-exit --remove-orphans

@@ -1,2 +1,3 @@
 * @DataDog/dd-trace-cpp
 src/security/ @DataDog/asm-cpp
+test/cases/baggage_span_tags @DataDog/apm-sdk-capabilities-cpp

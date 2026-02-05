@@ -288,7 +288,7 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
+            - run: python3 test/bin/run.py --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
@@ -322,9 +322,9 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
+            - run: python3 test/bin/run.py --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
-                destination: test.log‡
+                destination: test.log
                 path: test/logs/test.log
     test_ingress:
         environment:
@@ -351,7 +351,7 @@ jobs:
                 at: /tmp/workspace
             - setup_remote_docker:
                 docker_layer_caching: true
-            - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>>:v<<parameters.nginx-version>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+            - run: python3 test/bin/run.py --image <<parameters.base-image>>:v<<parameters.nginx-version>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
             - store_artifacts:
                 destination: test.log
                 path: test/logs/test.log
@@ -393,8 +393,8 @@ workflows:
                         nginx-version:
                             - 1.24.0
                             - 1.25.4
-                            - 1.28.0
-                            - 1.29.2
+                            - 1.28.1
+                            - 1.29.4
                         waf:
                             - "ON"
                             - "OFF"
@@ -418,8 +418,8 @@ workflows:
                             - amd64
                             - arm64
                         version:
-                            - 1.13.4
-                            - 1.14.0
+                            - 1.13.5
+                            - 1.14.1
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - coverage:
                 name: Coverage on 1.27.0 with WAF ON
@@ -430,10 +430,10 @@ workflows:
                             - amd64
                             - arm64
                         base-image:
-                            - nginx:1.28.0-alpine
-                            - nginx:1.28.0
+                            - nginx:1.28.1-alpine
+                            - nginx:1.28.1
                         nginx-version:
-                            - 1.28.0
+                            - 1.28.1
                         waf:
                             - "ON"
                             - "OFF"
@@ -447,10 +447,10 @@ workflows:
                             - amd64
                             - arm64
                         base-image:
-                            - nginx:1.29.2-alpine
-                            - nginx:1.29.2
+                            - nginx:1.29.4-alpine
+                            - nginx:1.29.4
                         nginx-version:
-                            - 1.29.2
+                            - 1.29.4
                         waf:
                             - "ON"
                             - "OFF"
@@ -498,8 +498,8 @@ workflows:
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
-                            - 1.13.4
-                            - 1.14.0
+                            - 1.13.5
+                            - 1.14.1
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
@@ -525,7 +525,9 @@ workflows:
                             - amd64
                             - arm64
                         version:
+                            - 1.14.1
                             - 1.14.0
+                            - 1.13.5
                             - 1.13.4
                             - 1.13.3
                             - 1.13.2
@@ -556,7 +558,6 @@ workflows:
                             - 1.10.2
                             - 1.10.1
                             - 1.10.0
-                            - 1.9.6
                 name: build ingress-nginx-<< matrix.version >> on << matrix.arch >>
             - test_ingress:
                 filters:
@@ -570,11 +571,15 @@ workflows:
                         base-image:
                             - registry.k8s.io/ingress-nginx/controller
                         nginx-version:
+                            - 1.14.1
                             - 1.14.0
+                            - 1.13.5
+                            - 1.13.4
                             - 1.13.3
                             - 1.13.2
                             - 1.13.1
                             - 1.13.0
+                            - 1.12.8
                             - 1.12.7
                             - 1.12.6
                             - 1.12.5
@@ -599,7 +604,6 @@ workflows:
                             - 1.10.2
                             - 1.10.1
                             - 1.10.0
-                            - 1.9.6
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
@@ -625,10 +629,12 @@ workflows:
                             - 1.27.4
                             - 1.27.5
                             - 1.28.0
+                            - 1.28.1
                             - 1.29.0
                             - 1.29.1
                             - 1.29.2
                             - 1.29.3
+                            - 1.29.4
                         waf:
                             - "ON"
                             - "OFF"
@@ -664,6 +670,26 @@ workflows:
                             - amazonlinux:2023.3.20240219.0
                         nginx-version:
                             - 1.24.0
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                filters:
+                    tags:
+                        only: /^v.*/
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:1.29.4-alpine
+                            - nginx:1.29.4
+                        nginx-version:
+                            - 1.29.4
                         waf:
                             - "ON"
                             - "OFF"
@@ -744,6 +770,26 @@ workflows:
                             - nginx:1.29.0
                         nginx-version:
                             - 1.29.0
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                filters:
+                    tags:
+                        only: /^v.*/
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:1.28.1-alpine
+                            - nginx:1.28.1
+                        nginx-version:
+                            - 1.28.1
                         waf:
                             - "ON"
                             - "OFF"

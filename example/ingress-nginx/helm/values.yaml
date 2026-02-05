@@ -1,5 +1,5 @@
 controller:
-  config: 
+  config:
     main-snippet: "load_module /modules_mount/ngx_http_datadog_module.so;"
   opentelemetry:
     enabled: false
@@ -8,11 +8,12 @@ controller:
       image:
         registry: docker.io
         image: datadog/ingress-nginx-injection
-        # The tag should match the version of the ingress-nginx controller
-        # For example, this will inject the Datadog module for ingress v1.10.0
-        # Check <https://hub.docker.com/repository/docker/datadog/ingress-nginx-injection/tags> 
+        # The first part of the tag, 'v1.14.1', is the version of the ingress-nginx controller.
+        # The second part of the tag, '-dd.v1.11.0', which is optional, is the version of the
+        # Datadog Nginx module.
+        # Check <https://hub.docker.com/repository/docker/datadog/ingress-nginx-injection/tags>
         # for the list of all versions supported.
-        tag: "v1.10.0"
+        tag: "v1.14.1-dd.v1.11.0"
         distroless: false
   extraEnvs:
     - name: DD_AGENT_HOST

@@ -21,8 +21,7 @@ The `build` target does the following:
 - Build `dd-trace-cpp` and the Datadog nginx module together using
   CMake.
 
-`make clean` deletes CMake's build directory. `make clobber` deletes
-everything done by the build.
+`make clean` deletes CMake's build directory.
 
 Testing
 -------
@@ -59,7 +58,7 @@ RESTY_VERSION=1.27.1.1 make test-openresty
 ```
 You can also specificy the openresty base image rather then the version using the `BASE_IMAGE` parameter.
 
-You can pass on arguments to test suites using :
+You can pass on arguments to test suites using:
 ```shell
 TEST_ARGS="foo=bar" NGINX_VERSION=1.25.2 make test
 ```
@@ -78,4 +77,3 @@ If the build still does not work, you can use the flag `PCRE2_PATH` to specify t
 ```shell
 PCRE2_PATH=/opt/homebrew/Cellar/pcre2/10.44 NGINX_VERSION=1.25.2 make build
 ```
-

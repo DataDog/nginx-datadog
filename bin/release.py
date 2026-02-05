@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-This script automates the release process for the nginx-dataadog module and
+This script automates the release process for the nginx-datadog module and
 ingress-nginx init container..
 
 Usage:
@@ -52,7 +52,7 @@ def get_gh():
     exe_path = shutil.which("gh")
     if exe_path is None:
         raise MissingDependency(
-            'The "gh" command must be available to publish a release to GitHub.  Installation instructions are available at <https://cli.github.com/>.'
+            'The "gh" command must be available to publish a release to GitHub. Installation instructions are available at <https://cli.github.com/>.'
         )
     return exe_path
 

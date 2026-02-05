@@ -40,7 +40,7 @@ close() {
 }
 
 block() {
-    <"$pipe" read -r
+    read -r _ <"$pipe"
 }
 
 trap 'close "$@"' "$@"
