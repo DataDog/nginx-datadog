@@ -394,7 +394,8 @@ workflows:
                             - 1.24.0
                             - 1.25.4
                             - 1.28.1
-                            - 1.29.4
+                            - 1.28.2
+                            - 1.29.5
                         waf:
                             - "ON"
                             - "OFF"
@@ -447,10 +448,27 @@ workflows:
                             - amd64
                             - arm64
                         base-image:
-                            - nginx:1.29.4-alpine
-                            - nginx:1.29.4
+                            - nginx:1.28.2-alpine
+                            - nginx:1.28.2
                         nginx-version:
-                            - 1.29.4
+                            - 1.28.2
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:1.29.5-alpine
+                            - nginx:1.29.5
+                        nginx-version:
+                            - 1.29.5
                         waf:
                             - "ON"
                             - "OFF"
@@ -630,11 +648,13 @@ workflows:
                             - 1.27.5
                             - 1.28.0
                             - 1.28.1
+                            - 1.28.2
                             - 1.29.0
                             - 1.29.1
                             - 1.29.2
                             - 1.29.3
                             - 1.29.4
+                            - 1.29.5
                         waf:
                             - "ON"
                             - "OFF"
@@ -670,6 +690,26 @@ workflows:
                             - amazonlinux:2023.3.20240219.0
                         nginx-version:
                             - 1.24.0
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                filters:
+                    tags:
+                        only: /^v.*/
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:1.29.5-alpine
+                            - nginx:1.29.5
+                        nginx-version:
+                            - 1.29.5
                         waf:
                             - "ON"
                             - "OFF"
@@ -770,6 +810,26 @@ workflows:
                             - nginx:1.29.0
                         nginx-version:
                             - 1.29.0
+                        waf:
+                            - "ON"
+                            - "OFF"
+                name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+                requires:
+                    - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+            - test:
+                filters:
+                    tags:
+                        only: /^v.*/
+                matrix:
+                    parameters:
+                        arch:
+                            - amd64
+                            - arm64
+                        base-image:
+                            - nginx:1.28.2-alpine
+                            - nginx:1.28.2
+                        nginx-version:
+                            - 1.28.2
                         waf:
                             - "ON"
                             - "OFF"
