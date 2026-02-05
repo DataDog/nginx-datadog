@@ -35,7 +35,7 @@ build:
     matrix:
       - ARCH: ["amd64", "arm64"]
         # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
-        NGINX_VERSION: ["1.24.0", "1.25.5", "1.28.1", "1.29.4"]
+        NGINX_VERSION: ["1.24.0", "1.25.5", "1.28.1", "1.28.2", "1.29.5"]
         WAF: ["ON", "OFF"]
   tags: ["arch:$ARCH"]
   variables:
@@ -69,7 +69,7 @@ build-ingress-nginx:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.5", "1.14.1"]
+        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
   tags: ["arch:$ARCH"]
   variables:
     WAF: "ON"
@@ -101,8 +101,12 @@ test:
         NGINX_VERSION: ["1.28.1"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.29.4", "nginx:1.29.4-alpine"]
-        NGINX_VERSION: ["1.29.4"]
+        BASE_IMAGE: ["nginx:1.28.2", "nginx:1.28.2-alpine"]
+        NGINX_VERSION: ["1.28.2"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.5", "nginx:1.29.5-alpine"]
+        NGINX_VERSION: ["1.29.5"]
         WAF: ["ON", "OFF"]
   tags: ["docker-in-docker:$ARCH"]
   variables:
@@ -138,7 +142,7 @@ test-ingress-nginx:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.5", "1.14.1"]
+        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
   tags: ["docker-in-docker:$ARCH"]
   variables:
     NGINX_FLAVOR: ingress-nginx
