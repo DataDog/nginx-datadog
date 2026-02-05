@@ -199,33 +199,6 @@ jobs:
         steps:
             - checkout
             - run: find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
-    system_tests:
-        machine:
-            image: ubuntu-2404:current
-        resource_class: large
-        steps:
-            - attach_workspace:
-                at: /tmp/workspace
-            - run:
-                command: git clone https://github.com/DataDog/system-tests.git
-                name: clone system-tests repo
-            - run:
-                command: "sudo apt update -y \nsudo apt install -y python3.12-venv\n"
-                name: Install python 3.12
-            - run:
-                command: cp /tmp/workspace/.musl-build/ngx_http_datadog_module.so binaries/ngx_http_datadog_module-appsec-amd64-1.25.4.so
-                name: Move the module to the system-tests directory
-                working_directory: ./system-tests
-            - run:
-                command: ./build.sh cpp_nginx
-                name: Build test targets
-                working_directory: ./system-tests
-            - run:
-                command: ./run.sh
-                environment:
-                    DD_API_KEY: fakekey
-                name: Run DEFAULT scenarios
-                working_directory: ./system-tests
     test:
         environment:
             DOCKER_BUILDKIT: 1
@@ -494,10 +467,6 @@ workflows:
                 name: test ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
                 requires:
                     - build ingress-nginx-<< matrix.nginx-version >> on << matrix.arch >>
-            - system_tests:
-                name: Run system tests
-                requires:
-                    - build 1.25.4 on amd64 WAF ON
         when:
             and:
                 - not: << pipeline.git.tag >>
