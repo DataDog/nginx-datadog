@@ -99,7 +99,7 @@ def clone_nginx(version: str, out_dir: str) -> str:
 def get_patch_directory(version: str, ingress_rootdir: str) -> str:
     mapping = {
         "v1.14.3": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.14.1": f"{ingress_rootdir}/images/nginx/rootfs/patches",
+        "v1.14.2": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.14.1": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.14.0": f"{ingress_rootdir}/images/nginx/rootfs/patches",
         "v1.13.7": f"{ingress_rootdir}/images/nginx/rootfs/patches",
