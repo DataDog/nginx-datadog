@@ -4,15 +4,14 @@
 # Builds the datadog-package tool from source and uses it to create OCI packages.
 
 FROM golang:1.24-alpine AS go-builder
-RUN apk add --no-cache git
 
 WORKDIR /src
 COPY datadog-packages/go.mod datadog-packages/go.sum ./
-RUN go mod download
+COPY datadog-packages/vendor ./vendor
 COPY datadog-packages/cmd ./cmd
 
 ARG TARGETOS TARGETARCH
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /out/datadog-package ./cmd/datadog-package
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -mod=vendor -o /out/datadog-package ./cmd/datadog-package
 
 # Packaging stage - creates per-arch packages
 FROM alpine:3.20 AS packager
