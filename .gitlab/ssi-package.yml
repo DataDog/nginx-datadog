@@ -1,6 +1,6 @@
 .ssi-package:
   extends: .build-and-test
-  image: docker:27
+  image: registry.ddbuild.io/images/mirror/docker:27
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
     TOOLCHAIN_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
