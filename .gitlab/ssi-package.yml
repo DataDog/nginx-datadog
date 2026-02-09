@@ -16,6 +16,11 @@ ssi-package-create:
     matrix:
       - ARCH: ["amd64", "arm64"]
   tags: ["docker-in-docker:$ARCH"]
+  variables:
+    KUBERNETES_CPU_REQUEST: "8"
+    KUBERNETES_CPU_LIMIT: "8"
+    KUBERNETES_MEMORY_REQUEST: "16Gi"
+    KUBERNETES_MEMORY_LIMIT: "16Gi"
   script:
     - VERSION="${CI_COMMIT_TAG:-0.0.1-${CI_COMMIT_SHORT_SHA}}"
     - docker buildx create --name ssi-builder --driver docker-container
@@ -30,6 +35,11 @@ ssi-package-merge:
   extends: .ssi-package
   needs: [ssi-package-create]
   tags: ["docker-in-docker:amd64"]
+  variables:
+    KUBERNETES_CPU_REQUEST: "4"
+    KUBERNETES_CPU_LIMIT: "4"
+    KUBERNETES_MEMORY_REQUEST: "8Gi"
+    KUBERNETES_MEMORY_LIMIT: "8Gi"
   script:
     - VERSION="${CI_COMMIT_TAG:-0.0.1-${CI_COMMIT_SHORT_SHA}}"
     - docker buildx create --name merge-builder --driver docker-container --use
