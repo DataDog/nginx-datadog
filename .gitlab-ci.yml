@@ -1,5 +1,9 @@
 stages:
+  - build-and-test
   - benchmarks
+
+include:
+  - local: ".gitlab/build-and-test.yml"
 
 macrobenchmarks:
   stage: benchmarks

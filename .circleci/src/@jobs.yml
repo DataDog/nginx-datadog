@@ -161,7 +161,7 @@ jobs:
         at: "/tmp/workspace"
     - setup_remote_docker:
         docker_layer_caching: true
-    - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
+    - run: python3 test/bin/run.py --image <<parameters.base-image>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so --  --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
@@ -196,10 +196,10 @@ jobs:
         at: "/tmp/workspace"
     - setup_remote_docker:
         docker_layer_caching: true
-    - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
+    - run: python3 test/bin/run.py --image <<parameters.base-image>> --module-path /tmp/workspace/.openresty-build/ngx_http_datadog_module.so -- --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
-        destination: test.log‡
+        destination: test.log
   test_ingress:
     parameters:
       base-image:
@@ -226,7 +226,7 @@ jobs:
         at: "/tmp/workspace"
     - setup_remote_docker:
         docker_layer_caching: true
-    - run: python3 test/bin/run.py --platform linux/<<parameters.arch>> --image <<parameters.base-image>>:v<<parameters.nginx-version>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+    - run: python3 test/bin/run.py --image <<parameters.base-image>>:v<<parameters.nginx-version>> --module-path /tmp/workspace/.musl-build/ngx_http_datadog_module.so -- --verbose --failfast
     - store_artifacts:
         path: test/logs/test.log
         destination: test.log
@@ -243,7 +243,7 @@ jobs:
           command: git clone https://github.com/DataDog/system-tests.git
       - run:
           name: Install python 3.12
-          command: | 
+          command: |
             sudo apt update -y 
             sudo apt install -y python3.12-venv
       - run:
@@ -294,7 +294,7 @@ jobs:
     steps:
     - checkout
     - run:
-        name: Verify 
+        name: Verify
         command: |
           CIRCLE_CFG=generated-config.yml make circleci-config 
           diff .circleci/config.yml generated-config.yml

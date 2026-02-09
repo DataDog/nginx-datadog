@@ -14,8 +14,12 @@
             - 'amd64'
             - 'arm64'
             version:
+            - 1.14.3
+            - 1.14.2
             - 1.14.1
             - 1.14.0
+            - 1.13.7
+            - 1.13.6
             - 1.13.5
             - 1.13.4
             - 1.13.3
@@ -62,8 +66,12 @@
             base-image:
             - registry.k8s.io/ingress-nginx/controller
             nginx-version:
+            - 1.14.3
+            - 1.14.2
             - 1.14.1
             - 1.14.0
+            - 1.13.7
+            - 1.13.6
             - 1.13.5
             - 1.13.4
             - 1.13.3
@@ -119,11 +127,13 @@
             - 1.27.5
             - 1.28.0
             - 1.28.1
+            - 1.28.2
             - 1.29.0
             - 1.29.1
             - 1.29.2
             - 1.29.3
             - 1.29.4
+            - 1.29.5
             waf:
             - 'ON'
             - 'OFF'
@@ -162,6 +172,26 @@
             - amazonlinux:2023.3.20240219.0
             nginx-version:
             - 1.24.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test:
+        filters:
+          tags:
+            only: /^v.*/
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.29.5-alpine
+            - nginx:1.29.5
+            nginx-version:
+            - 1.29.5
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
@@ -262,6 +292,26 @@
             - nginx:1.29.0
             nginx-version:
             - 1.29.0
+        name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
+        requires:
+        - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>
+    - test:
+        filters:
+          tags:
+            only: /^v.*/
+        matrix:
+          parameters:
+            arch:
+            - amd64
+            - arm64
+            waf:
+            - 'ON'
+            - 'OFF'
+            base-image:
+            - nginx:1.28.2-alpine
+            - nginx:1.28.2
+            nginx-version:
+            - 1.28.2
         name: test << matrix.nginx-version >> on << matrix.base-image >>:<< matrix.arch >> WAF << matrix.waf >>
         requires:
         - build << matrix.nginx-version >> on << matrix.arch >> WAF << matrix.waf >>

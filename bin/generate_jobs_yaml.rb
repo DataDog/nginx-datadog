@@ -2,6 +2,8 @@
 
 nginx_version_table = <<-TAB
 amazonlinux:2023.3.20240219.0 1.24.0
+nginx:1.29.5-alpine 1.29.5
+nginx:1.29.5 1.29.5
 nginx:1.29.4-alpine 1.29.4
 nginx:1.29.4 1.29.4
 nginx:1.29.3-alpine 1.29.3
@@ -12,6 +14,8 @@ nginx:1.29.1-alpine 1.29.1
 nginx:1.29.1 1.29.1
 nginx:1.29.0-alpine 1.29.0
 nginx:1.29.0 1.29.0
+nginx:1.28.2-alpine 1.28.2
+nginx:1.28.2 1.28.2
 nginx:1.28.1-alpine 1.28.1
 nginx:1.28.1 1.28.1
 nginx:1.28.0-alpine 1.28.0
