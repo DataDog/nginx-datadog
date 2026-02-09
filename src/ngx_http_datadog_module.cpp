@@ -244,6 +244,12 @@ static ngx_int_t datadog_master_process_post_config(
   }
 #endif
 
+#ifdef WITH_RUM
+  for (const auto &name : rum::environment_variable_names()) {
+    push_to_main_conf(std::string{name});
+  }
+#endif
+
   return NGX_OK;
 }
 
