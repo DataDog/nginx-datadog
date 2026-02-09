@@ -55,3 +55,14 @@ ssi-package-merge:
   artifacts:
     paths:
       - artifacts/ssi-packages/merged.tar
+
+ssi-package-push:
+  extends: .ssi-package
+  needs: [ssi-package-merge]
+  tags: ["docker-in-docker:amd64"]
+  script:
+    - apk add --no-cache skopeo
+    - skopeo login -u gitlab-ci-token -p "$CI_JOB_TOKEN" registry.ddbuild.io
+    - skopeo copy
+        oci-archive:artifacts/ssi-packages/merged.tar
+        docker://registry.ddbuild.io/ci/nginx-datadog/ssi-package:${CI_COMMIT_SHA}
