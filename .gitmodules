@@ -7,7 +7,3 @@
 [submodule "inject-browser-sdk"]
 	path = inject-browser-sdk
 	url = https://github.com/DataDog/inject-browser-sdk
-[submodule "datadog-packages"]
-	path = datadog-packages
-	url = https://github.com/DataDog/datadog-packages.git
-	branch = pawel/add_bake
