@@ -7,11 +7,11 @@ FROM golang:1.24-alpine AS go-builder
 
 WORKDIR /src
 COPY datadog-packages/go.mod datadog-packages/go.sum ./
-COPY datadog-packages/vendor ./vendor
+RUN go mod download
 COPY datadog-packages/cmd ./cmd
 
 ARG TARGETOS TARGETARCH
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -mod=vendor -o /out/datadog-package ./cmd/datadog-package
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -o /out/datadog-package ./cmd/datadog-package
 
 # Packaging stage - creates per-arch packages
 FROM alpine:3.20 AS packager
