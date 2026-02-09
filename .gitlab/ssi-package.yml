@@ -9,7 +9,7 @@
     TOOLCHAIN_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   before_script:
     - apk add --no-cache docker-cli-buildx
-    - docker run --rm -v "$PWD/datadog-packages":/src -w /src
+    - docker run --rm -v "$PWD":/repo -w /repo/datadog-packages
         -e GONOSUMCHECK="github.com/DataDog/*"
         -e GONOSUMDB="github.com/DataDog/*"
         -e GOPRIVATE="github.com/DataDog/*"
