@@ -9,7 +9,14 @@
     TOOLCHAIN_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   before_script:
     - apk add --no-cache docker-cli-buildx
-    - cd datadog-packages && docker run --rm -v "$PWD":/src -w /src golang:1.24-alpine go mod vendor && cd ..
+    - docker run --rm -v "$PWD/datadog-packages":/src -w /src
+        -e GONOSUMCHECK="github.com/DataDog/*"
+        -e GONOSUMDB="github.com/DataDog/*"
+        -e GOPRIVATE="github.com/DataDog/*"
+        golang:1.24-alpine sh -c
+        "apk add --no-cache git &&
+         git config --global url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/.insteadOf https://github.com/DataDog/ &&
+         go mod vendor"
 
 ssi-package-create:
   extends: .ssi-package
