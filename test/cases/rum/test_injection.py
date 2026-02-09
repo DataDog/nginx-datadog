@@ -372,6 +372,145 @@ class TestRUMInjection(case.TestCase):
         assert headers.get("x-datadog-rum-injected") == None
         assert "datadog-rum.js" not in body
 
+    def test_env_only_config(self):
+        """
+        Verify RUM injection works when configuration comes entirely from
+        DD_RUM_* environment variables, with no datadog_rum_config directive
+        in the nginx config.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.com",
+            "DD_RUM_SERVICE": "env-only-service",
+            "DD_RUM_ENV": "env-test",
+            "DD_RUM_VERSION": "3.0.0",
+            "DD_RUM_SESSION_SAMPLE_RATE": "100",
+            "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "50",
+            "DD_RUM_TRACK_RESOURCES": "true",
+            "DD_RUM_TRACK_LONG_TASKS": "true",
+            "DD_RUM_TRACK_USER_INTERACTIONS": "true",
+        }
+
+        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
+
+            assert '"applicationId":"<ENV_APP_ID>"' in body
+            assert '"clientToken":"<ENV_TOKEN>"' in body
+            assert '"service":"env-only-service"' in body
+            assert '"env":"env-test"' in body
+            assert '"version":"3.0.0"' in body
+
+    def test_partial_env_config(self):
+        """
+        Verify that nginx config fields override corresponding DD_RUM_* env
+        vars (per-field merging). The datadog_rum_config block sets service
+        and env; the remaining fields come from env vars.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_partial_env.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.eu",
+            "DD_RUM_SERVICE": "env-service-should-be-overridden",
+            "DD_RUM_ENV": "env-production-should-be-overridden",
+            "DD_RUM_SESSION_SAMPLE_RATE": "100",
+            "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "100",
+            "DD_RUM_TRACK_RESOURCES": "true",
+            "DD_RUM_TRACK_LONG_TASKS": "true",
+            "DD_RUM_TRACK_USER_INTERACTIONS": "true",
+        }
+
+        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
+
+            # nginx config values take precedence
+            assert '"service":"nginx-partial-env"' in body
+            assert '"env":"staging"' in body
+
+            # env var values used for fields not in nginx config
+            assert '"applicationId":"<ENV_APP_ID>"' in body
+            assert '"clientToken":"<ENV_TOKEN>"' in body
+            assert '"site":"datadoghq.eu"' in body
+
+    def test_nginx_config_takes_full_precedence(self):
+        """
+        Verify that when a full datadog_rum_config block is present, it
+        completely overrides all DD_RUM_* env vars for the fields it sets.
+        The existing rum_enabled.conf test still works unchanged.
+        """
+        status, lines = self.load_conf("rum_enabled.conf")
+        self.assertEqual(0, status, lines)
+
+        status, headers, body = self.orch.send_nginx_http_request("/")
+        self.assertEqual(200, status)
+        self.assertInjection(headers, body)
+
+        # Values from rum_enabled.conf should be present, not from
+        # DD_RUM_* env vars set in docker-compose.yml
+        assert '"service":"my-web-application"' in body
+        assert '"env":"production"' in body
+        assert '"applicationId":"<DATADOG_APPLICATION_ID>"' in body
+
+    def test_env_disabled_overrides_env_config(self):
+        """
+        Verify DD_RUM_ENABLED=false disables RUM even when DD_RUM_* config
+        env vars are present.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_ENABLED": "false",
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.com",
+            "DD_RUM_SERVICE": "should-not-inject",
+        }
+
+        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            headers = self.make_dict_headers(headers)
+            assert headers.get("x-datadog-rum-injected") is None
+            assert "datadog-rum.js" not in body
+
+    def test_env_disabled_location_override(self):
+        """
+        Verify that datadog_rum off in a location still disables injection
+        even when env vars provide a complete RUM config.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.com",
+            "DD_RUM_SERVICE": "env-service",
+        }
+
+        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request(
+                "/disable-rum")
+            self.assertEqual(200, status)
+            headers = self.make_dict_headers(headers)
+            assert headers.get("x-datadog-rum-injected") is None
+            assert "datadog-rum.js" not in body
+
 
 # TODO: no injection point found should only add spaces
 # TODO: when `x-datadog-sdk-injected = 1` no injection else inject

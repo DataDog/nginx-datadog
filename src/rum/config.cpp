@@ -5,10 +5,61 @@
 #include <rapidjson/writer.h>
 
 #include <charconv>
+#include <cstdlib>
+#include <optional>
+#include <string_view>
 
 #include "string_util.h"
 
+using namespace std::string_view_literals;
+
 namespace {
+
+struct env_mapping {
+  std::string_view env_name;
+  std::string_view config_key;
+};
+
+constexpr env_mapping rum_env_mappings[] = {
+    {"DD_RUM_APPLICATION_ID"sv, "applicationId"sv},
+    {"DD_RUM_CLIENT_TOKEN"sv, "clientToken"sv},
+    {"DD_RUM_SITE"sv, "site"sv},
+    {"DD_RUM_SERVICE"sv, "service"sv},
+    {"DD_RUM_ENV"sv, "env"sv},
+    {"DD_RUM_VERSION"sv, "version"sv},
+    {"DD_RUM_SESSION_SAMPLE_RATE"sv, "sessionSampleRate"sv},
+    {"DD_RUM_SESSION_REPLAY_SAMPLE_RATE"sv, "sessionReplaySampleRate"sv},
+    {"DD_RUM_TRACK_RESOURCES"sv, "trackResources"sv},
+    {"DD_RUM_TRACK_LONG_TASKS"sv, "trackLongTasks"sv},
+    {"DD_RUM_TRACK_USER_INTERACTIONS"sv, "trackUserInteractions"sv},
+};
+
+std::unordered_map<std::string, std::vector<std::string>>
+get_rum_config_from_env() {
+  std::unordered_map<std::string, std::vector<std::string>> config;
+  for (const auto &mapping : rum_env_mappings) {
+    const char *value = std::getenv(std::string(mapping.env_name).c_str());
+    if (value != nullptr && value[0] != '\0') {
+      config[std::string(mapping.config_key)] = {std::string(value)};
+    }
+  }
+  return config;
+}
+
+std::optional<bool> get_rum_enabled_from_env() {
+  const char *value = std::getenv("DD_RUM_ENABLED");
+  if (value == nullptr || value[0] == '\0') {
+    return std::nullopt;
+  }
+  std::string_view sv(value);
+  if (sv == "true" || sv == "1" || sv == "yes" || sv == "on") {
+    return true;
+  }
+  if (sv == "false" || sv == "0" || sv == "no" || sv == "off") {
+    return false;
+  }
+  return std::nullopt;
+}
 
 char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
   auto &rum_config =
@@ -130,7 +181,7 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
     return err_msg;
   }
 
-  std::unordered_map<std::string, std::vector<std::string>> rum_config;
+  auto rum_config = get_rum_config_from_env();
 
   ngx_conf_t save = *cf;
   cf->handler = set_config;
@@ -183,7 +234,11 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
 char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
                                    datadog::nginx::datadog_loc_conf_t *parent,
                                    datadog::nginx::datadog_loc_conf_t *child) {
+  bool child_explicit = (child->rum_enable != NGX_CONF_UNSET);
+  bool parent_explicit = (parent->rum_enable != NGX_CONF_UNSET);
+
   ngx_conf_merge_value(child->rum_enable, parent->rum_enable, 0);
+
   if (child->rum_snippet == nullptr) {
     child->rum_snippet = parent->rum_snippet;
   }
@@ -196,6 +251,61 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
     child->rum_remote_config_tag = parent->rum_remote_config_tag;
   }
 
+  // If no snippet was inherited from the directive, try building one from env
+  // vars.
+  if (child->rum_snippet == nullptr) {
+    try {
+      auto env_config = get_rum_config_from_env();
+      if (!env_config.empty()) {
+        auto json = make_rum_json_config(5, env_config);
+        if (!json.empty()) {
+          Snippet *snippet = snippet_create_from_json(json.c_str());
+          if (snippet != nullptr && !snippet->error_code) {
+            child->rum_snippet = snippet;
+            child->rum_remote_config_tag = "remote_config_used:false";
+            if (auto it = env_config.find("applicationId");
+                it != env_config.end() && !it->second.empty()) {
+              child->rum_application_id_tag =
+                  "application_id:" + it->second[0];
+            }
+          } else {
+            ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                          "nginx-datadog: failed to create RUM snippet from "
+                          "environment variables: %s",
+                          snippet ? snippet->error_message : "null snippet");
+          }
+        }
+      }
+    } catch (const std::exception &e) {
+      ngx_log_error(
+          NGX_LOG_WARN, cf->log, 0,
+          "nginx-datadog: invalid DD_RUM_* environment variable value: %s",
+          e.what());
+    }
+  }
+
+  // Determine rum_enable when neither child nor parent set it explicitly.
+  if (!child_explicit && !parent_explicit) {
+    auto env_enabled = get_rum_enabled_from_env();
+    if (env_enabled.has_value()) {
+      child->rum_enable = *env_enabled ? 1 : 0;
+    } else if (child->rum_snippet != nullptr) {
+      // Auto-enable if a valid snippet exists (from env vars or inherited).
+      child->rum_enable = 1;
+    }
+  }
+
   return NGX_OK;
 }
+
+std::vector<std::string_view> environment_variable_names() {
+  std::vector<std::string_view> names;
+  names.reserve(std::size(rum_env_mappings) + 1);
+  names.push_back("DD_RUM_ENABLED"sv);
+  for (const auto &mapping : rum_env_mappings) {
+    names.push_back(mapping.env_name);
+  }
+  return names;
+}
+
 }  // namespace datadog::nginx::rum
