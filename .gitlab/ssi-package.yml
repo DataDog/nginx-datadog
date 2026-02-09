@@ -2,13 +2,13 @@
   extends: .build-and-test
   image: registry.ddbuild.io/ci/nginx-datadog/test
   variables:
-    GIT_SUBMODULE_STRATEGY: none
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_CONFIG_COUNT: "1"
+    GIT_CONFIG_KEY_0: "url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/.insteadOf"
+    GIT_CONFIG_VALUE_0: "https://github.com/DataDog/"
     TOOLCHAIN_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   before_script:
-    - apk add --no-cache git docker-cli-buildx
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
+    - apk add --no-cache docker-cli-buildx
 
 ssi-package-create:
   extends: .ssi-package
