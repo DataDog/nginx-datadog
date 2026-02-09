@@ -3,9 +3,9 @@
   image: registry.ddbuild.io/ci/nginx-datadog/test
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_FORCE_HTTPS: "true"
     TOOLCHAIN_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   before_script:
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
     - apk add --no-cache docker-cli-buildx
 
 ssi-package-create:
