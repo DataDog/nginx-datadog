@@ -1,0 +1,34 @@
+.ssi-package:
+  extends: .build-and-test
+  image: docker:27
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    TOOLCHAIN_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+
+ssi-package-create:
+  extends: .ssi-package
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+  tags: ["docker-in-docker:$ARCH"]
+  script:
+    - VERSION="${CI_COMMIT_TAG:-0.0.1-${CI_COMMIT_SHORT_SHA}}"
+    - docker buildx create --name ssi-builder --driver docker-container
+        --config buildkitd.toml --use
+    - SSI_PACKAGE_VERSION="$VERSION" docker buildx bake
+        ssi-package-create-${ARCH}
+  artifacts:
+    paths:
+      - artifacts/ssi-packages/*.tar
+
+ssi-package-merge:
+  extends: .ssi-package
+  needs: [ssi-package-create]
+  tags: ["docker-in-docker:amd64"]
+  script:
+    - VERSION="${CI_COMMIT_TAG:-0.0.1-${CI_COMMIT_SHORT_SHA}}"
+    - docker buildx create --name merge-builder --driver docker-container --use
+    - SSI_PACKAGE_VERSION="$VERSION" docker buildx bake ssi-package-merge
+  artifacts:
+    paths:
+      - artifacts/ssi-packages/merged.tar

@@ -4,6 +4,7 @@ stages:
 
 include:
   - local: ".gitlab/build-and-test.yml"
+  - local: ".gitlab/ssi-package.yml"
 
 macrobenchmarks:
   stage: benchmarks
