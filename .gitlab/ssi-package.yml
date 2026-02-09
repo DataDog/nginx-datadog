@@ -2,10 +2,12 @@
   extends: .build-and-test
   image: registry.ddbuild.io/ci/nginx-datadog/test
   variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GIT_SUBMODULE_FORCE_HTTPS: "true"
+    GIT_SUBMODULE_STRATEGY: none
     TOOLCHAIN_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   before_script:
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
     - apk add --no-cache docker-cli-buildx
 
 ssi-package-create:
