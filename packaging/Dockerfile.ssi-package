@@ -4,6 +4,7 @@
 # Builds the datadog-package tool from source and uses it to create OCI packages.
 
 FROM golang:1.24-alpine AS go-builder
+RUN apk add --no-cache git
 
 WORKDIR /src
 COPY datadog-packages/go.mod datadog-packages/go.sum ./
