@@ -14,7 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ARCH: x86_64
-      NGINX_VERSION: 1.28.1
+      # The Nginx version must match the one in system-tests repository:
+      #   - https://github.com/DataDog/system-tests/blob/main/utils/build/docker/cpp_nginx/nginx.Dockerfile
+      #   - https://github.com/DataDog/system-tests/blob/main/utils/scripts/load-binary.sh
+      NGINX_VERSION: 1.29.5
       WAF: ON
     steps:
       - name: checkout
