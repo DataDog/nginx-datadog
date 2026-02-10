@@ -121,12 +121,12 @@ variable "MAKE_JOB_COUNT" {
 # =============================================================================
 # Inject Browser SDK Targets (for RUM builds)
 # =============================================================================
-# Build FFI artifacts from the inject-browser-sdk submodule
+# Build FFI artifacts from inject-browser-sdk
 
 target "inject-browser-sdk" {
   name       = "inject-browser-sdk-${arch}"
   dockerfile = "Dockerfile.artifacts"
-  context    = "inject-browser-sdk"
+  context    = "https://github.com/DataDog/inject-browser-sdk.git#cmake-corrosion-wrapper-external"
   platforms  = ["linux/${arch}"]
   target     = "artifacts"
 
