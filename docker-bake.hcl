@@ -126,7 +126,7 @@ variable "MAKE_JOB_COUNT" {
 target "inject-browser-sdk" {
   name       = "inject-browser-sdk-${arch}"
   dockerfile = "Dockerfile.artifacts"
-  context    = "https://github.com/DataDog/inject-browser-sdk.git#cmake-corrosion-wrapper-external"
+  context    = "inject-browser-sdk"
   platforms  = ["linux/${arch}"]
   target     = "artifacts"
 

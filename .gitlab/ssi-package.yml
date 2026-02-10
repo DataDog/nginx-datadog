@@ -10,6 +10,8 @@
   before_script:
     - apk add --no-cache docker-cli-buildx git
     - git clone https://github.com/DataDog/datadog-packages.git datadog-packages
+    - git clone https://github.com/DataDog/inject-browser-sdk.git
+        -b cmake-corrosion-wrapper-external inject-browser-sdk
     - docker run --rm -v "$PWD":/repo -w /repo/datadog-packages
         -e GONOSUMCHECK="github.com/DataDog/*"
         -e GONOSUMDB="github.com/DataDog/*"
