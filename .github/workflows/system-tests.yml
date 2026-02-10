@@ -7,7 +7,7 @@ on:
   pull_request:
   schedule:
     - cron:  '00 03 * * 2-6'
-    
+
 jobs:
 
   build:
@@ -46,7 +46,7 @@ jobs:
     with:
       library: cpp_nginx
       binaries_artifact: binaries
-      desired_execution_time: 300  # 5 minutes
+      desired_execution_time: 600  # 10 minutes
       scenarios_groups: appsec
       scenarios: DEFAULT
       excluded_scenarios: INTEGRATIONS  # no test activated, and long warm-up
