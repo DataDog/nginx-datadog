@@ -32,6 +32,7 @@ constexpr env_mapping rum_env_mappings[] = {
     {"DD_RUM_TRACK_RESOURCES"sv, "trackResources"sv},
     {"DD_RUM_TRACK_LONG_TASKS"sv, "trackLongTasks"sv},
     {"DD_RUM_TRACK_USER_INTERACTIONS"sv, "trackUserInteractions"sv},
+    {"DD_RUM_REMOTE_CONFIGURATION_ID"sv, "remoteConfigurationId"sv},
 };
 
 std::unordered_map<std::string, std::vector<std::string>>
@@ -267,6 +268,10 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
                 it != env_config.end() && !it->second.empty()) {
               child->rum_application_id_tag =
                   "application_id:" + it->second[0];
+            }
+            if (auto it = env_config.find("remoteConfigurationId");
+                it != env_config.end() && !it->second.empty()) {
+              child->rum_remote_config_tag = "remote_config_used:true";
             }
           } else {
             ngx_log_error(NGX_LOG_WARN, cf->log, 0,
