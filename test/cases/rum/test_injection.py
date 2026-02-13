@@ -463,6 +463,30 @@ class TestRUMInjection(case.TestCase):
         assert '"env":"production"' in body
         assert '"applicationId":"<DATADOG_APPLICATION_ID>"' in body
 
+    def test_env_remote_configuration_id(self):
+        """
+        Verify that DD_RUM_REMOTE_CONFIGURATION_ID is passed through to the
+        RUM SDK init call as remoteConfigurationId.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.com",
+            "DD_RUM_SERVICE": "env-service",
+            "DD_RUM_REMOTE_CONFIGURATION_ID": "abc-123-remote-cfg",
+        }
+
+        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
+
+            assert '"remoteConfigurationId":"abc-123-remote-cfg"' in body
+
     def test_env_disabled_overrides_env_config(self):
         """
         Verify DD_RUM_ENABLED=false disables RUM even when DD_RUM_* config
