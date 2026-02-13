@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+# Dockerfile for assembling SSI package sources
+#
+# This Dockerfile adds the version file to the collected nginx modules.
+# The nginx modules are provided via the nginx-modules context, which is
+# assembled by the bake file from individual nginx build targets.
+#
+# Output structure:
+#   nginx/
+#     <version>/ngx_http_datadog_module.so
+#     ...
+#   version
+
+FROM alpine:3.20 AS builder
+
+ARG SSI_PACKAGE_VERSION
+
+WORKDIR /work
+
+# Copy all nginx modules from the collector context
+COPY --from=nginx-modules /nginx ./nginx/
+
+# Add version file
+RUN echo "${SSI_PACKAGE_VERSION}" > version && \
+    echo "Assembled modules:" && \
+    find nginx -type f -name "*.so" | sort
+
+FROM scratch AS export
+COPY --from=builder /work/nginx /nginx/
+COPY --from=builder /work/version /version
