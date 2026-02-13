@@ -1,0 +1,4 @@
+requests==2.32.3
+pytest==8.3.3
+aiohttp==3.10.10
+licensecheck==2024.3

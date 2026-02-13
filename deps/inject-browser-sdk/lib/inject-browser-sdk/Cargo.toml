@@ -1,0 +1,15 @@
+[package]
+name = "inject-browser-sdk"
+description = "Injection library"
+edition.workspace = true
+version.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+pretty_assertions = { version = "1.4.0", features = ["unstable"] }
+rand = "0.8.5"
+
