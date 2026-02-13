@@ -3,6 +3,9 @@
 #include "datadog_conf.h"
 #include "datadog_directive.h"
 
+#include <string_view>
+#include <vector>
+
 extern "C" {
 #include <nginx.h>
 #include <ngx_config.h>
@@ -24,6 +27,10 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command, void *conf);
 char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
                                    datadog::nginx::datadog_loc_conf_t *parent,
                                    datadog::nginx::datadog_loc_conf_t *child);
+
+// Return the names of DD_RUM_* environment variables that should be forwarded
+// to worker processes.
+std::vector<std::string_view> environment_variable_names();
 
 constexpr datadog::nginx::directive rum_directives[] = {
     {
