@@ -1,0 +1,19 @@
+injector_java_servlet_unit_test:
+  stage: test
+  needs: []
+  rules:
+    - changes:
+      - scheduled
+      when: never
+    - changes:
+        - injector_java_servlet/**/*
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/mirror/maven:3.9.5-eclipse-temurin-17
+  script:
+    - mvn --errors --batch-mode -f ./injector_java_servlet/pom.xml test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - injector_java_servlet/**/target/surefire-reports/TEST-*.xml
+

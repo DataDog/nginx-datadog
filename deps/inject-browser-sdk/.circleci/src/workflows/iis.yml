@@ -1,0 +1,7 @@
+when: << pipeline.parameters.run-iis-workflow >>
+jobs:
+  - build-iis:
+      build-type: "Debug"
+  - test-iis:
+      requires:
+        - build-iis
