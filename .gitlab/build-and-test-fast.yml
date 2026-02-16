@@ -35,7 +35,8 @@ build-nginx-fast:
         NGINX_VERSION:
           - "1.24.0"
           - "1.25.5"
-          - "1.28.1"
+          - "1.26.3"
+          - "1.27.5"
           - "1.28.2"
           - "1.29.5"
         WAF: ["ON", "OFF"]
@@ -47,7 +48,9 @@ build-ingress-nginx-fast:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
+        INGRESS_NGINX_VERSION:
+          - "1.13.7"
+          - "1.14.3"
 
 build-openresty-fast:
   extends:
@@ -75,8 +78,12 @@ test-nginx-fast:
         NGINX_VERSION: ["1.25.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.28.1", "nginx:1.28.1-alpine"]
-        NGINX_VERSION: ["1.28.1"]
+        BASE_IMAGE: ["nginx:1.26.3", "nginx:1.26.3-alpine"]
+        NGINX_VERSION: ["1.26.3"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.5", "nginx:1.27.5-alpine"]
+        NGINX_VERSION: ["1.27.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.28.2", "nginx:1.28.2-alpine"]
@@ -99,7 +106,9 @@ test-ingress-nginx-fast:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
+        INGRESS_NGINX_VERSION:
+          - "1.13.7"
+          - "1.14.3"
 
 test-openresty-fast:
   extends:

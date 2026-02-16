@@ -5,7 +5,7 @@ stages:
 
 include:
   - local: ".gitlab/build-and-test-all.yml"
-  - local: ".gitlab/build-and-test-some.yml"
+  - local: ".gitlab/build-and-test-fast.yml"
 
 macrobenchmarks:
   stage: benchmarks
