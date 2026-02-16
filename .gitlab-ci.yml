@@ -1,5 +1,5 @@
 stages:
-  - build-and-test-some
+  - build-and-test-fast
   - build-and-test-all
   - benchmarks
 

@@ -1,16 +1,15 @@
 include:
   - local: ".gitlab/common.yml"
 
-.build-and-test-some:
-  stage: build-and-test-some
+.build-and-test-fast:
+  stage: build-and-test-fast
   rules:
     - if: $CI_COMMIT_TAG
       when: never
     - when: always
 
-
 format:
-  extends: .build-and-test-some
+  extends: .build-and-test-fast
   image: registry.ddbuild.io/ci/nginx-datadog/dd-trace-cpp-ci
   tags: ["arch:amd64"]
   script:
@@ -19,15 +18,15 @@ format:
     - make lint
 
 shellcheck:
-  extends: .build-and-test-some
+  extends: .build-and-test-fast
   image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   tags: ["arch:amd64"]
   script:
     - find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
-build-nginx-some:
+build-nginx-fast:
   extends:
-    - .build-and-test-some
+    - .build-and-test-fast
     - .build-nginx
   parallel:
     matrix:
@@ -41,9 +40,18 @@ build-nginx-some:
           - "1.29.5"
         WAF: ["ON", "OFF"]
 
-build-openresty-some:
+build-ingress-nginx-fast:
   extends:
-    - .build-and-test-some
+    - .build-and-test-fast
+    - .build-ingress-nginx
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
+
+build-openresty-fast:
+  extends:
+    - .build-and-test-fast
     - .build-openresty
   parallel:
     matrix:
@@ -51,20 +59,11 @@ build-openresty-some:
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
 
-build-ingress-nginx-some:
+test-nginx-fast:
   extends:
-    - .build-and-test-some
-    - .build-ingress-nginx
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
-
-test-nginx-some:
-  extends:
-    - .build-and-test-some
+    - .build-and-test-fast
     - .test
-  needs: [build-nginx-some]
+  needs: [build-nginx-fast]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -98,28 +97,11 @@ test-nginx-some:
     paths:
       - test/logs/test.log
 
-test-openresty-some:
+test-ingress-nginx-fast:
   extends:
-    - .build-and-test-some
+    - .build-and-test-fast
     - .test
-  needs: [build-openresty-some]
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64"]
-        RESTY_VERSION: ["1.27.1.2"]
-        WAF: ["ON", "OFF"]
-  tags: ["docker-in-docker:$ARCH"]
-  script:
-    - python3 test/bin/run.py --image openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
-  artifacts:
-    paths:
-      - test/logs/test.log
-
-test-ingress-nginx-some:
-  extends:
-    - .build-and-test-some
-    - .test
-  needs: [build-ingress-nginx-some]
+  needs: [build-ingress-nginx-fast]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -133,9 +115,26 @@ test-ingress-nginx-some:
     paths:
       - test/logs/test.log
 
+test-openresty-fast:
+  extends:
+    - .build-and-test-fast
+    - .test
+  needs: [build-openresty-fast]
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        RESTY_VERSION: ["1.27.1.2"]
+        WAF: ["ON", "OFF"]
+  tags: ["docker-in-docker:$ARCH"]
+  script:
+    - python3 test/bin/run.py --image openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+  artifacts:
+    paths:
+      - test/logs/test.log
+
 coverage:
   extends:
-    - .build-and-test-some
+    - .build-and-test-fast
     - .build
   variables:
     ARCH: "amd64"
