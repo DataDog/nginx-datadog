@@ -1,24 +1,16 @@
-.build-and-test:
-  stage: build-and-test
+include:
+  - local: ".gitlab/common.yml"
+
+.build-and-test-some:
+  stage: build-and-test-some
   rules:
     - if: $CI_COMMIT_TAG
       when: never
     - when: always
 
-.build:
-  extends: .build-and-test
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    MAKE_JOB_COUNT: "8"
-
-.test:
-  extends: .build-and-test
-  image: registry.ddbuild.io/ci/nginx-datadog/test
-
 
 format:
-  extends: .build-and-test
+  extends: .build-and-test-some
   image: registry.ddbuild.io/ci/nginx-datadog/dd-trace-cpp-ci
   tags: ["arch:amd64"]
   script:
@@ -27,39 +19,37 @@ format:
     - make lint
 
 shellcheck:
-  extends: .build-and-test
+  extends: .build-and-test-some
   image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   tags: ["arch:amd64"]
   script:
     - find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
-build:
-  extends: .build
+build-nginx-some:
+  extends:
+    - .build-and-test-some
+    - .build-nginx
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
-        NGINX_VERSION: ["1.24.0", "1.25.5", "1.28.1", "1.28.2", "1.29.5"]
+        NGINX_VERSION:
+          - "1.24.0"
+          - "1.25.5"
+          - "1.28.1"
+          - "1.28.2"
+          - "1.29.5"
         WAF: ["ON", "OFF"]
-  tags: ["arch:$ARCH"]
-  variables:
-    RUM: "OFF"
-  script:
-    - make build-musl-aux
-    - mkdir -p artifacts/$ARCH/$NGINX_VERSION/$WAF
-    - cp .musl-build/ngx_http_datadog_module.so* artifacts/$ARCH/$NGINX_VERSION/$WAF/
-  artifacts:
-    paths:
-      - artifacts/$ARCH/$NGINX_VERSION/$WAF/
 
-build-openresty:
-  extends: .build
+build-openresty-some:
+  extends:
+    - .build-and-test-some
+    - .build
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
-  tags: ["arch:$ARCH"]
   script:
     - make build-openresty
     - mkdir -p artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF
@@ -68,13 +58,14 @@ build-openresty:
     paths:
       - artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
 
-build-ingress-nginx:
-  extends: .build
+build-ingress-nginx-some:
+  extends:
+    - .build-and-test-some
+    - .build
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
-  tags: ["arch:$ARCH"]
   variables:
     WAF: "ON"
   script:
@@ -85,10 +76,11 @@ build-ingress-nginx:
     paths:
       - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
 
-test:
-  extends: .test
-  needs:
-    - build
+test-nginx-some:
+  extends:
+    - .build-and-test-some
+    - .test
+  needs: [build-nginx-some]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -122,10 +114,11 @@ test:
     paths:
       - test/logs/test.log
 
-test-openresty:
-  extends: .test
-  needs:
-    - build-openresty
+test-openresty-some:
+  extends:
+    - .build-and-test-some
+    - .test
+  needs: [build-openresty-some]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -138,10 +131,11 @@ test-openresty:
     paths:
       - test/logs/test.log
 
-test-ingress-nginx:
-  extends: .test
-  needs:
-    - build-ingress-nginx
+test-ingress-nginx-some:
+  extends:
+    - .build-and-test-some
+    - .test
+  needs: [build-ingress-nginx-some]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -156,7 +150,9 @@ test-ingress-nginx:
       - test/logs/test.log
 
 coverage:
-  extends: .build
+  extends:
+    - .build-and-test-some
+    - .build
   variables:
     ARCH: "amd64"
     BASE_IMAGE: "nginx:1.26.0"

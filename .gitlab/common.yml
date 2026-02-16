@@ -1,0 +1,21 @@
+.build:
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  tags: ["arch:$ARCH"]
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    MAKE_JOB_COUNT: "8"
+
+.build-nginx:
+  extends: .build
+  variables:
+    RUM: "OFF"
+  script:
+    - make build-musl-aux
+    - mkdir -p artifacts/$ARCH/$NGINX_VERSION/$WAF
+    - cp .musl-build/ngx_http_datadog_module.so* artifacts/$ARCH/$NGINX_VERSION/$WAF/
+  artifacts:
+    paths:
+      - artifacts/$ARCH/$NGINX_VERSION/$WAF/
+
+.test:
+  image: registry.ddbuild.io/ci/nginx-datadog/test
