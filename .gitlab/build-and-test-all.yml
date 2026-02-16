@@ -191,6 +191,15 @@ test-nginx-all:
         BASE_IMAGE: ["nginx:1.28.2", "nginx:1.28.2-alpine"]
         NGINX_VERSION: ["1.28.2"]
         WAF: ["ON", "OFF"]
+
+# GitLab CI has a maximum limit of 200 jobs that can be generated from a single parallel:matrix configuration.
+test-nginx-all-bis:
+  extends:
+    - .build-and-test-all
+    - .test-nginx
+  needs: [build-nginx-all]
+  parallel:
+    matrix:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.29.0", "nginx:1.29.0-alpine"]
         NGINX_VERSION: ["1.29.0"]
