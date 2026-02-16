@@ -17,5 +17,27 @@
     paths:
       - artifacts/$ARCH/$NGINX_VERSION/$WAF/
 
+.build-openresty:
+  extends: .build
+  script:
+    - make build-openresty
+    - mkdir -p artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF
+    - cp .openresty-build/ngx_http_datadog_module.so* artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
+  artifacts:
+    paths:
+      - artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
+
+.build-ingress-nginx:
+  extends: .build
+  variables:
+    WAF: "ON"
+  script:
+    - make build-ingress-nginx
+    - mkdir -p artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION
+    - cp .musl-build/ngx_http_datadog_module.so* artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
+  artifacts:
+    paths:
+      - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
+
 .test:
   image: registry.ddbuild.io/ci/nginx-datadog/test

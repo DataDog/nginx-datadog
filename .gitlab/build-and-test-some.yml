@@ -44,37 +44,21 @@ build-nginx-some:
 build-openresty-some:
   extends:
     - .build-and-test-some
-    - .build
+    - .build-openresty
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
-  script:
-    - make build-openresty
-    - mkdir -p artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF
-    - cp .openresty-build/ngx_http_datadog_module.so* artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
-  artifacts:
-    paths:
-      - artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
 
 build-ingress-nginx-some:
   extends:
     - .build-and-test-some
-    - .build
+    - .build-ingress-nginx
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
-  variables:
-    WAF: "ON"
-  script:
-    - make build-ingress-nginx
-    - mkdir -p artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION
-    - cp .musl-build/ngx_http_datadog_module.so* artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
-  artifacts:
-    paths:
-      - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
 
 test-nginx-some:
   extends:
