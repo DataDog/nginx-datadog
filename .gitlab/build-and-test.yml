@@ -17,13 +17,25 @@
   image: registry.ddbuild.io/ci/nginx-datadog/test
 
 
+build-formatter-image:
+  extends: .build-and-test
+  image: docker:latest
+  services:
+    - docker:dind
+  tags: ["arch:amd64"]
+  variables:
+    FORMATTER_TAG: $CI_PIPELINE_ID
+  script:
+    - apk add --no-cache make
+    - make build-push-formatter
+
 format:
   extends: .build-and-test
-  image: registry.ddbuild.io/ci/nginx-datadog/dd-trace-cpp-ci
+  needs:
+    - build-formatter-image
+  image: registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID
   tags: ["arch:amd64"]
   script:
-    - pip install -r requirements.txt
-    - update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
     - make lint
 
 shellcheck:

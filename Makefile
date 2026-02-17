@@ -20,6 +20,9 @@ endif
 
 NGINX_SRC_DIR ?= $(PWD)/nginx
 
+# Include Docker-based formatter targets
+-include Makefile.docker
+
 ifneq ($(PCRE2_PATH),)
 	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
 endif
@@ -69,6 +72,16 @@ build-push-test-image:
 	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(CI_TEST_IMAGE):latest-arm64 test
 	docker push $(CI_TEST_IMAGE):latest-arm64
 	docker buildx imagetools create -t $(CI_TEST_IMAGE):latest $(CI_TEST_IMAGE):latest-amd64 $(CI_TEST_IMAGE):latest-arm64
+
+FORMATTER_TAG ?= latest
+
+.PHONY: build-push-formatter
+build-push-formatter:
+	cat Dockerfile.formatter | docker build --progress=plain --platform linux/amd64 -t $(CI_REGISTRY)/formatter:$(FORMATTER_TAG)-amd64 -f - .
+	docker push $(CI_REGISTRY)/formatter:$(FORMATTER_TAG)-amd64
+	cat Dockerfile.formatter | docker build --progress=plain --platform linux/arm64 -t $(CI_REGISTRY)/formatter:$(FORMATTER_TAG)-arm64 -f - .
+	docker push $(CI_REGISTRY)/formatter:$(FORMATTER_TAG)-arm64
+	docker buildx imagetools create -t $(CI_REGISTRY)/formatter:$(FORMATTER_TAG) $(CI_REGISTRY)/formatter:$(FORMATTER_TAG)-amd64 $(CI_REGISTRY)/formatter:$(FORMATTER_TAG)-arm64
 
 
 # ----- Sources Dependencies, Format and Lint

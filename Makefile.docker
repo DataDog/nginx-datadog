@@ -1,0 +1,46 @@
+# Docker-based code formatting targets
+# This file is included by the main Makefile
+
+# Docker image name for formatter
+ifdef GITLAB_CI
+	FORMATTER_IMAGE := registry.ddbuild.io/ci/nginx-datadog/formatter:$(CI_PIPELINE_ID)
+else
+	FORMATTER_IMAGE := nginx-datadog-formatter
+endif
+
+# Build the formatter Docker image
+.PHONY: build-formatter-image
+build-formatter-image:
+	cat Dockerfile.formatter | docker build -t $(FORMATTER_IMAGE) -f - .
+
+# Format code using Docker (requires no local dependencies)
+.PHONY: format-docker
+format-docker: .clang-format
+	docker run --rm \
+		--mount type=bind,source=$(PWD),destination=/workspace \
+		$(FORMATTER_IMAGE) \
+		bin/format.sh
+
+# Lint code using Docker (requires no local dependencies)
+.PHONY: lint-docker
+lint-docker: .clang-format
+	docker run --rm \
+		--mount type=bind,source=$(PWD),destination=/workspace \
+		$(FORMATTER_IMAGE) \
+		bin/lint.sh
+
+# Check if formatter image exists, build if needed
+.PHONY: ensure-formatter-image
+ensure-formatter-image:
+	@if ! docker image inspect $(FORMATTER_IMAGE) > /dev/null 2>&1; then \
+		echo "Formatter image not found, building..."; \
+		$(MAKE) build-formatter-image; \
+	fi
+
+# Format with automatic image build
+.PHONY: format-docker-auto
+format-docker-auto: ensure-formatter-image format-docker
+
+# Lint with automatic image build
+.PHONY: lint-docker-auto
+lint-docker-auto: ensure-formatter-image lint-docker

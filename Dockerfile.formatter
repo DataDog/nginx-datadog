@@ -1,0 +1,25 @@
+# Docker image for code formatting
+# Contains all dependencies needed to format C/C++ and Python code
+
+FROM ubuntu:22.04
+
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install formatting tools
+RUN apt-get update && apt-get install -y \
+    clang-format-14 \
+    python3-yapf \
+    python3-toml \
+    findutils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create yapf3 wrapper for compatibility
+RUN echo '#!/bin/bash\nexec python3 -m yapf "$@"' > /usr/local/bin/yapf3 && \
+    chmod +x /usr/local/bin/yapf3
+
+# Set working directory
+WORKDIR /workspace
+
+# Default command runs the format script
+CMD ["bin/format.sh"]
