@@ -51,8 +51,6 @@ jobs:
         version:
         - 1.13.7
         - 1.14.3
-- coverage:
-    name: Coverage on 1.27.0 with WAF ON
 - test:
     matrix:
       parameters:
@@ -156,7 +154,3 @@ jobs:
         nginx-version:
         - 1.13.7
         - 1.14.3
-- system_tests:
-    name: Run system tests
-    requires:
-    - build 1.25.4 on amd64 WAF ON
