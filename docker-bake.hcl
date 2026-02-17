@@ -119,25 +119,6 @@ variable "MAKE_JOB_COUNT" {
 }
 
 # =============================================================================
-# Inject Browser SDK Targets (for RUM builds)
-# =============================================================================
-# Build FFI artifacts from inject-browser-sdk
-
-target "inject-browser-sdk" {
-  name       = "inject-browser-sdk-${arch}"
-  dockerfile = "Dockerfile.artifacts"
-  context    = "inject-browser-sdk"
-  platforms  = ["linux/${arch}"]
-  target     = "artifacts"
-
-  matrix = {
-    arch = ARCHITECTURES
-  }
-
-  tags = ["inject-browser-sdk-artifacts:${arch}"]
-}
-
-# =============================================================================
 # Helper functions
 # =============================================================================
 
