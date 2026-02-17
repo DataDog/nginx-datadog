@@ -1,16 +1,26 @@
 include:
   - local: ".gitlab/common.yml"
 
+# We split build and test all in two stages because GitLab is not able to handle dependencies graph
+# with more than 100 jobs!
+
 .build-and-test-all:
-  stage: build-and-test-all
   rules:
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
       when: always
     - when: never
 
+.build-all:
+  extends: .build-and-test-all
+  stage: build-all
+
+.test-all:
+  extends: .build-and-test-all
+  stage: test-all
+
 build-nginx-all:
   extends:
-    - .build-and-test-all
+    - .build-all
     - .build-nginx
   parallel:
     matrix:
@@ -46,7 +56,7 @@ build-nginx-all:
 
 build-ingress-nginx-all:
   extends:
-    - .build-and-test-all
+    - .build-all
     - .build-ingress-nginx
   parallel:
     matrix:
@@ -92,7 +102,7 @@ build-ingress-nginx-all:
 
 build-openresty-all:
   extends:
-    - .build-and-test-all
+    - .build-all
     - .build-openresty
   parallel:
     matrix:
@@ -106,9 +116,8 @@ build-openresty-all:
 
 test-nginx-all:
   extends:
-    - .build-and-test-all
+    - .test-all
     - .test-nginx
-  needs: [build-nginx-all]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -192,12 +201,11 @@ test-nginx-all:
         NGINX_VERSION: ["1.28.2"]
         WAF: ["ON", "OFF"]
 
-# GitLab CI has a maximum limit of 200 jobs that can be generated from a single parallel:matrix configuration.
+# GitLab is not able to handle a matrix with more than 200 jobs!
 test-nginx-all-bis:
   extends:
-    - .build-and-test-all
+    - .test-all
     - .test-nginx
-  needs: [build-nginx-all]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -231,9 +239,8 @@ test-nginx-all-bis:
 
 test-ingress-nginx-all:
   extends:
-    - .build-and-test-all
+    - .test-all
     - .test-ingress-nginx
-  needs: [build-ingress-nginx-all]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -278,9 +285,8 @@ test-ingress-nginx-all:
 
 test-openresty-all:
   extends:
-    - .build-and-test-all
+    - .test-all
     - .test-openresty
-  needs: [build-openresty-all]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]

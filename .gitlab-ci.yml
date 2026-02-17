@@ -1,6 +1,7 @@
 stages:
   - build-and-test-fast
-  - build-and-test-all
+  - build-all
+  - test-all
   - benchmarks
 
 include:
