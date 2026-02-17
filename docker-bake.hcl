@@ -302,7 +302,6 @@ target "ssi-nginx" {
 
   contexts = {
     toolchain                  = TOOLCHAIN_IMAGE == "" ? "target:toolchain-${arch}" : "docker-image://${TOOLCHAIN_IMAGE}"
-    inject-browser-sdk-artifacts = "target:inject-browser-sdk-${arch}"
   }
 
   output = ["type=local,dest=${OUTPUT_DIR}/nginx/${version}/${arch}/rum"]
@@ -332,7 +331,6 @@ target "ssi-nginx-dev" {
 
   contexts = {
     toolchain                  = TOOLCHAIN_IMAGE == "" ? "target:toolchain-${arch}" : "docker-image://${TOOLCHAIN_IMAGE}"
-    inject-browser-sdk-artifacts = "target:inject-browser-sdk-${arch}"
   }
 
   tags   = ["ssi-nginx:${version}-${arch}"]

@@ -28,14 +28,7 @@ COPY module/ ./module/
 COPY deps/ ./deps/
 COPY nginx_module.ld nginx_module.ld-prime ./
 
-# Copy pre-built inject-browser-sdk artifacts for RUM builds
-# These are built by the inject-browser-sdk-artifacts context from docker-bake.hcl
-RUN --mount=from=inject-browser-sdk-artifacts,target=/inject-browser-sdk-artifacts \
-    if [ "${RUM}" = "ON" ]; then \
-        mkdir -p deps/inject-browser-sdk-prebuilt && \
-        cp /inject-browser-sdk-artifacts/libinjectbrowsersdk.a deps/inject-browser-sdk-prebuilt/ && \
-        cp /inject-browser-sdk-artifacts/injectbrowsersdk.h deps/inject-browser-sdk-prebuilt/; \
-    fi
+# CMake will fetch and build inject-browser-sdk via FetchContent when RUM=ON
 
 # Run cmake configure and build
 # BUILD_TESTING=OFF avoids requiring test/unit directory
