@@ -1,3 +1,0 @@
-jobs:
-  - check
-  - build-and-test-rum-framework
