@@ -7,6 +7,10 @@
     GIT_CONFIG_KEY_0: "url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/.insteadOf"
     GIT_CONFIG_VALUE_0: "https://github.com/DataDog/"
     TOOLCHAIN_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  before_script:
+    - apk add --no-cache docker-cli-buildx git
+    - git clone https://github.com/DataDog/inject-browser-sdk.git
+        -b cmake-corrosion-wrapper-external inject-browser-sdk
 
 
 ssi-package-create:
