@@ -16,6 +16,9 @@ ARG RUM=OFF
 ARG BUILD_TYPE=RelWithDebInfo
 ARG MAKE_JOB_COUNT=8
 
+# Install git for CMake FetchContent (needed to fetch inject-browser-sdk when RUM=ON)
+RUN apk add --no-cache git
+
 WORKDIR /build
 
 # Copy only what's needed for the build
