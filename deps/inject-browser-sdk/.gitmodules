@@ -1,3 +1,0 @@
-[submodule "injector_IIS/deps/dd-trace-cpp"]
-	path = injector_IIS/deps/dd-trace-cpp
-	url = https://github.com/DataDog/dd-trace-cpp.git
