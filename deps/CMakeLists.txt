@@ -20,24 +20,22 @@ if(EXISTS "${INJECT_BROWSER_SDK_PREBUILT_DIR}/libinjectbrowsersdk.a" AND
   target_link_libraries(inject_browser_sdk INTERFACE inject_browser_sdk_headers)
 
 else()
-  message(STATUS "Building inject-browser-sdk from source using corrosion")
+  message(STATUS "Fetching inject-browser-sdk via FetchContent")
 
-  # Verify the source directory exists
-  if(NOT EXISTS "${CMAKE_SOURCE_DIR}/deps/inject-browser-sdk/lib/inject-browser-sdk-ffi/Cargo.toml")
-    message(FATAL_ERROR "inject-browser-sdk source not found at ${CMAKE_SOURCE_DIR}/deps/inject-browser-sdk\n"
-      "Either provide pre-built artifacts in ${INJECT_BROWSER_SDK_PREBUILT_DIR} or clone the inject-browser-sdk repository")
-  endif()
+  include(FetchContent)
 
-  include(corrosion.cmake)
+  set(INJECT_BROWSER_SDK_GIT_TAG "cmake-corrosion-wrapper-external" CACHE STRING
+      "Git tag/branch for inject-browser-sdk")
 
-  corrosion_import_crate(MANIFEST_PATH inject-browser-sdk/lib/inject-browser-sdk-ffi/Cargo.toml)
-
-  corrosion_experimental_cbindgen(
-    TARGET inject_browser_sdk_ffi
-    HEADER_NAME injectbrowsersdk.h
-    FLAGS --config ${CMAKE_SOURCE_DIR}/deps/cbindgen.toml
+  FetchContent_Declare(
+    InjectBrowserSDK
+    GIT_REPOSITORY https://github.com/DataDog/inject-browser-sdk.git
+    GIT_TAG        ${INJECT_BROWSER_SDK_GIT_TAG}
   )
+  FetchContent_MakeAvailable(InjectBrowserSDK)
 
   # Create an alias to match the pre-built target name
-  add_library(inject_browser_sdk ALIAS inject_browser_sdk_ffi)
+  if(NOT TARGET inject_browser_sdk)
+    add_library(inject_browser_sdk ALIAS inject_browser_sdk_ffi)
+  endif()
 endif()

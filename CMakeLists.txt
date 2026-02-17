@@ -105,28 +105,35 @@ if(NGINX_DATADOG_ASM_ENABLED)
 endif()
 
 if(NGINX_DATADOG_RUM_ENABLED)
-  # Check if we have the full source tree or pre-built artifacts
+  add_subdirectory(deps)
+
+  # Determine the inject-browser-sdk version for the build identifier
   set(INJECT_BROWSER_SDK_PREBUILT_DIR "${CMAKE_SOURCE_DIR}/deps/inject-browser-sdk-prebuilt" CACHE PATH
       "Path to pre-built inject-browser-sdk artifacts")
 
   if(EXISTS "${INJECT_BROWSER_SDK_PREBUILT_DIR}/libinjectbrowsersdk.a")
-    # Using pre-built artifacts - version is unknown
     set(RUM_SDK_INJECTOR_VERSION "prebuilt")
     message(STATUS "Using pre-built inject-browser-sdk artifacts (version unknown)")
-  elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk/Cargo.toml")
-    # Full source tree available - get version from cargo
-    execute_process (
-      COMMAND cargo pkgid --package inject-browser-sdk --manifest-path "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk/Cargo.toml"
-      OUTPUT_VARIABLE RUM_SDK_INJECTOR_PKGID
-    )
-    string(REGEX REPLACE ".*@(.*)" "\\1" RUM_SDK_INJECTOR_VERSION ${RUM_SDK_INJECTOR_PKGID})
-    string(STRIP "${RUM_SDK_INJECTOR_VERSION}" RUM_SDK_INJECTOR_VERSION)
-    unset(RUM_SDK_INJECTOR_PKGID)
   else()
-    message(FATAL_ERROR "inject-browser-sdk not found. Provide either pre-built artifacts or source tree.")
+    # FetchContent or local source — find Cargo.toml in either location
+    find_file(_inject_sdk_cargo_toml "Cargo.toml"
+      PATHS
+        "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk"
+        "${injectbrowsersdk_SOURCE_DIR}"
+      NO_DEFAULT_PATH)
+    if(_inject_sdk_cargo_toml)
+      execute_process(
+        COMMAND cargo pkgid --package inject-browser-sdk --manifest-path "${_inject_sdk_cargo_toml}"
+        OUTPUT_VARIABLE RUM_SDK_INJECTOR_PKGID
+      )
+      string(REGEX REPLACE ".*@(.*)" "\\1" RUM_SDK_INJECTOR_VERSION ${RUM_SDK_INJECTOR_PKGID})
+      string(STRIP "${RUM_SDK_INJECTOR_VERSION}" RUM_SDK_INJECTOR_VERSION)
+      unset(RUM_SDK_INJECTOR_PKGID)
+      unset(_inject_sdk_cargo_toml CACHE)
+    else()
+      set(RUM_SDK_INJECTOR_VERSION "unknown")
+    endif()
   endif()
-
-  add_subdirectory(deps)
 endif()
 
 include(./cmake/generate_build_id.cmake)
