@@ -1,9 +1,12 @@
 stages:
-  - build-and-test
+  - build-and-test-fast
+  - build-all
+  - test-all
   - benchmarks
 
 include:
-  - local: ".gitlab/build-and-test.yml"
+  - local: ".gitlab/build-and-test-all.yml"
+  - local: ".gitlab/build-and-test-fast.yml"
 
 macrobenchmarks:
   stage: benchmarks
