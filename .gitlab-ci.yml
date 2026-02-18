@@ -10,6 +10,7 @@ include:
 
 macrobenchmarks:
   stage: benchmarks
+  needs: []
   trigger:
     include: ".gitlab/benchmarks.yml"
   rules:
