@@ -121,6 +121,28 @@ test-openresty-fast:
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
 
+build-nginx-rum-fast:
+  extends:
+    - .build-and-test-fast
+    - .build-nginx-rum
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        NGINX_VERSION: ["1.28.2"]
+        WAF: ["OFF"]
+
+test-nginx-rum-fast:
+  extends:
+    - .build-and-test-fast
+    - .test-nginx-rum
+  needs: [build-nginx-rum-fast]
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.2"]
+        NGINX_VERSION: ["1.28.2"]
+        WAF: ["OFF"]
+
 coverage:
   extends:
     - .build-and-test-fast
