@@ -309,7 +309,7 @@ build-nginx-rum-all:
           - "1.26.3"
           - "1.28.2"
           - "1.29.5"
-        WAF: ["ON"]
+        WAF: ["OFF"]
 
 test-nginx-rum-all:
   extends:
@@ -320,16 +320,16 @@ test-nginx-rum-all:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.24.0"]
         NGINX_VERSION: ["1.24.0"]
-        WAF: ["ON"]
+        WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.26.3"]
         NGINX_VERSION: ["1.26.3"]
-        WAF: ["ON"]
+        WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.28.2"]
         NGINX_VERSION: ["1.28.2"]
-        WAF: ["ON"]
+        WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.29.5"]
         NGINX_VERSION: ["1.29.5"]
-        WAF: ["ON"]
+        WAF: ["OFF"]
