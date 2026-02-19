@@ -129,7 +129,7 @@ build-nginx-rum-fast:
     matrix:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION: ["1.28.2"]
-        WAF: ["ON"]
+        WAF: ["OFF"]
 
 test-nginx-rum-fast:
   extends:
@@ -141,7 +141,7 @@ test-nginx-rum-fast:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.28.2"]
         NGINX_VERSION: ["1.28.2"]
-        WAF: ["ON"]
+        WAF: ["OFF"]
 
 coverage:
   extends:
