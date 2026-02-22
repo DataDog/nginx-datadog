@@ -1,4 +1,5 @@
 #include "config.h"
+#include "config_internal.h"
 
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
@@ -13,14 +14,9 @@
 
 using namespace std::string_view_literals;
 
-namespace {
+namespace datadog::nginx::rum::internal {
 
-struct env_mapping {
-  std::string_view env_name;
-  std::string_view config_key;
-};
-
-constexpr env_mapping rum_env_mappings[] = {
+const env_mapping rum_env_mappings[] = {
     {"DD_RUM_APPLICATION_ID"sv, "applicationId"sv},
     {"DD_RUM_CLIENT_TOKEN"sv, "clientToken"sv},
     {"DD_RUM_SITE"sv, "site"sv},
@@ -35,10 +31,14 @@ constexpr env_mapping rum_env_mappings[] = {
     {"DD_RUM_REMOTE_CONFIGURATION_ID"sv, "remoteConfigurationId"sv},
 };
 
+const std::size_t rum_env_mappings_size =
+    sizeof(rum_env_mappings) / sizeof(rum_env_mappings[0]);
+
 std::unordered_map<std::string, std::vector<std::string>>
 get_rum_config_from_env() {
   std::unordered_map<std::string, std::vector<std::string>> config;
-  for (const auto &mapping : rum_env_mappings) {
+  for (std::size_t i = 0; i < rum_env_mappings_size; ++i) {
+    const auto &mapping = rum_env_mappings[i];
     const char *value = std::getenv(std::string(mapping.env_name).c_str());
     if (value != nullptr && value[0] != '\0') {
       config[std::string(mapping.config_key)] = {std::string(value)};
@@ -62,40 +62,7 @@ std::optional<bool> get_rum_enabled_from_env() {
   return std::nullopt;
 }
 
-char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
-  auto &rum_config =
-      *static_cast<std::unordered_map<std::string, std::vector<std::string>> *>(
-          conf);
-
-  if (cf->args->nelts < 2) {
-    char *err_msg =
-        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf(
-        (u_char *)err_msg, 256,
-        "invalid number of arguments. Expected at least two arguments.");
-    return err_msg;
-  }
-
-  ngx_str_t *arg_values = (ngx_str_t *)(cf->args->elts);
-
-  std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
-  if (key.empty()) {
-    char *err_msg =
-        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char *)err_msg, 256, "empty key");
-    return err_msg;
-  }
-
-  std::vector<std::string> values;
-  for (size_t i = 1; i < cf->args->nelts; ++i) {
-    values.emplace_back(datadog::nginx::to_string(arg_values[i]));
-  }
-
-  rum_config[std::string(key)] = std::move(values);
-  return NGX_CONF_OK;
-}
-
-static std::string make_rum_json_config(
+std::string make_rum_json_config(
     int config_version,
     const std::unordered_map<std::string, std::vector<std::string>> &config) {
   rapidjson::Document doc;
@@ -134,7 +101,6 @@ static std::string make_rum_json_config(
 
   doc.AddMember("rum", rum, allocator);
 
-  // Convert the document to a JSON string
   rapidjson::StringBuffer buffer;
   rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
   doc.Accept(writer);
@@ -159,9 +125,50 @@ std::optional<int> parse_rum_version(std::string_view config_version) {
   return version_number;
 }
 
+}  // namespace datadog::nginx::rum::internal
+
+namespace {
+
+using namespace datadog::nginx::rum::internal;
+
+char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
+  auto &rum_config =
+      *static_cast<std::unordered_map<std::string, std::vector<std::string>> *>(
+          conf);
+
+  if (cf->args->nelts < 2) {
+    char *err_msg =
+        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    ngx_snprintf(
+        (u_char *)err_msg, 256,
+        "invalid number of arguments. Expected at least two arguments.");
+    return err_msg;
+  }
+
+  ngx_str_t *arg_values = (ngx_str_t *)(cf->args->elts);
+
+  std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
+  if (key.empty()) {
+    char *err_msg =
+        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    ngx_snprintf((u_char *)err_msg, 256, "empty key");
+    return err_msg;
+  }
+
+  std::vector<std::string> values;
+  for (size_t i = 1; i < cf->args->nelts; ++i) {
+    values.emplace_back(datadog::nginx::to_string(arg_values[i]));
+  }
+
+  rum_config[std::string(key)] = std::move(values);
+  return NGX_CONF_OK;
+}
+
 }  // namespace
 
 namespace datadog::nginx::rum {
+
+using namespace internal;
 
 char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
                             void *conf) {
@@ -305,10 +312,10 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
 
 std::vector<std::string_view> environment_variable_names() {
   std::vector<std::string_view> names;
-  names.reserve(std::size(rum_env_mappings) + 1);
+  names.reserve(rum_env_mappings_size + 1);
   names.push_back("DD_RUM_ENABLED"sv);
-  for (const auto &mapping : rum_env_mappings) {
-    names.push_back(mapping.env_name);
+  for (std::size_t i = 0; i < rum_env_mappings_size; ++i) {
+    names.push_back(rum_env_mappings[i].env_name);
   }
   return names;
 }
