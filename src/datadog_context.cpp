@@ -112,8 +112,10 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
       if (status == NGX_ERROR) {
         rum_span.set_error(true);
       }
+      return status;
     } else {
-      rum_ctx_.on_header_filter(request, loc_conf, ngx_http_next_header_filter);
+      return rum_ctx_.on_header_filter(request, loc_conf,
+                                       ngx_http_next_header_filter);
     }
   }
 #elif WITH_WAF
@@ -340,6 +342,10 @@ void destroy_datadog_context(ngx_http_request_t *request) noexcept {
 }
 
 ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t *request) {
+  if (traces_.empty()) {
+    return NGX_DECLINED;
+  }
+
   // inject headers in the precontent phase into the request headers
   // These headers will be copied by ngx_http_proxy_create_request on the
   // content phase into the outgoing request headers (probably)
