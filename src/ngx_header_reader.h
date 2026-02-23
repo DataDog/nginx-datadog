@@ -28,11 +28,11 @@ class NgxHeaderReader : public dd::DictReader {
   mutable std::string buffer_;
 
  public:
-  explicit NgxHeaderReader(const ngx_list_t* headers) {
-    for_each<ngx_table_elt_t>(*headers, [&](const ngx_table_elt_t& header) {
-      auto key = std::string_view{reinterpret_cast<char*>(header.lowcase_key),
+  explicit NgxHeaderReader(const ngx_list_t *headers) {
+    for_each<ngx_table_elt_t>(*headers, [&](const ngx_table_elt_t &header) {
+      auto key = std::string_view{reinterpret_cast<char *>(header.lowcase_key),
                                   header.key.len};
-      auto value = std::string_view{reinterpret_cast<char*>(header.value.data),
+      auto value = std::string_view{reinterpret_cast<char *>(header.value.data),
                                     header.value.len};
       headers_.emplace(key, value);
     });
@@ -50,9 +50,9 @@ class NgxHeaderReader : public dd::DictReader {
   }
 
   void visit(
-      const std::function<void(std::string_view key, std::string_view value)>&
-          visitor) const override {
-    for (const auto& [key, value] : headers_) {
+      const std::function<void(std::string_view key, std::string_view value)>
+          &visitor) const override {
+    for (const auto &[key, value] : headers_) {
       visitor(key, value);
     }
   }

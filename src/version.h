@@ -4,7 +4,7 @@
 // identify the version of the library in the output of `strings`.
 
 extern "C" {
-extern const char* datadog_version_tracer;
+extern const char *datadog_version_tracer;
 
 extern const char datadog_semver_nginx_mod[];
 extern const char datadog_version_nginx_mod[];

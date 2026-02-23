@@ -25,7 +25,7 @@ class RapidNgxChainInputStream {
  public:
   using Ch = char;
 
-  RapidNgxChainInputStream(const ngx_chain_t* chain, size_t limit)
+  RapidNgxChainInputStream(const ngx_chain_t *chain, size_t limit)
       : current_{chain}, limit_{limit} {
     if (!current_) {
       throw std::invalid_argument{"chain must not be null"};
@@ -56,8 +56,8 @@ class RapidNgxChainInputStream {
   void Put(Ch) {  // NOLINT
                   // Not implemented because we're only reading
   }
-  char* PutBegin() { return nullptr; }  // NOLINT
-  size_t PutEnd(Ch*) { return 0; }      // NOLINT
+  char *PutBegin() { return nullptr; }  // NOLINT
+  size_t PutEnd(Ch *) { return 0; }     // NOLINT
 
  private:
   bool advance_buffer() {
@@ -83,9 +83,9 @@ class RapidNgxChainInputStream {
     return true;
   }
 
-  const ngx_chain_t* current_;
-  u_char* pos_{};
-  u_char* end_{};
+  const ngx_chain_t *current_;
+  u_char *pos_{};
+  u_char *end_{};
   std::size_t read_{};
   std::size_t limit_{};
 };
@@ -96,10 +96,10 @@ class ToDdwafObjHandler
     : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>,
                                           ToDdwafObjHandler> {
  public:
-  ToDdwafObjHandler(ddwaf_obj& slot, dnsec::DdwafMemres& memres)
+  ToDdwafObjHandler(ddwaf_obj &slot, dnsec::DdwafMemres &memres)
       : pool_{memres}, memres_{memres}, bufs_{{&slot, 0, 1}} {}
 
-  ddwaf_obj* finish(const ngx_http_request_t& req) {
+  ddwaf_obj *finish(const ngx_http_request_t &req) {
     if (bufs_.size() != 1) {
       ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
                      "json parsing finished prematurely");
@@ -113,7 +113,7 @@ class ToDdwafObjHandler
       return nullptr;
     }
 
-    auto& buf = bufs_.back();
+    auto &buf = bufs_.back();
     if (buf.len > 1) {
       // should not happen
       ngx_log_error(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
@@ -163,13 +163,13 @@ class ToDdwafObjHandler
     return true;
   }
 
-  bool String(const char* str, rapidjson::SizeType length, bool copy) {
+  bool String(const char *str, rapidjson::SizeType length, bool copy) {
     std::string_view sv{str, length};
     get_slot().make_string(sv, memres_);
     return true;
   }
 
-  bool Key(const char* str, rapidjson::SizeType length, bool copy) {
+  bool Key(const char *str, rapidjson::SizeType length, bool copy) {
     std::string_view sv{str, length};
     get_slot_for_key().set_key(sv, memres_);
 
@@ -198,29 +198,29 @@ class ToDdwafObjHandler
 
  private:
   dnsec::DdwafObjArrPool<ddwaf_obj> pool_;
-  dnsec::DdwafMemres& memres_;
+  dnsec::DdwafMemres &memres_;
   struct Buf {
-    ddwaf_obj* ptr;
+    ddwaf_obj *ptr;
     std::size_t len;
     std::size_t cap;
     bool key_last;
 
-    auto cur_obj() -> ddwaf_obj& {
+    auto cur_obj() -> ddwaf_obj & {
       assert(len > 0);
       return ptr[len - 1];
     }
   };
   std::vector<Buf> bufs_{{nullptr, 0, 0}};
 
-  ddwaf_obj& get_slot() { return do_get_slot(false); }
+  ddwaf_obj &get_slot() { return do_get_slot(false); }
 
-  ddwaf_obj& get_slot_for_key() { return do_get_slot(true); }
+  ddwaf_obj &get_slot_for_key() { return do_get_slot(true); }
 
-  ddwaf_obj& do_get_slot(bool for_key) {
-    auto& buf = bufs_.back();
+  ddwaf_obj &do_get_slot(bool for_key) {
+    auto &buf = bufs_.back();
     assert(!for_key || !buf.key_last);  // no two keys in succession
     if (buf.key_last) {
-      auto& ret = buf.cur_obj();
+      auto &ret = buf.cur_obj();
       buf.key_last = false;
       return ret;
     }
@@ -243,22 +243,22 @@ class ToDdwafObjHandler
   }
 
   void push_array() {
-    auto& slot = get_slot();
+    auto &slot = get_slot();
     slot.type = DDWAF_OBJ_ARRAY;
     bufs_.emplace_back(Buf{nullptr, 0, 0});
   }
 
   void push_map() {
-    auto& slot = get_slot();
+    auto &slot = get_slot();
     slot.type = DDWAF_OBJ_MAP;
     bufs_.emplace_back(Buf{nullptr, 0, 0});
   }
 
   void pop_container() {
-    auto& buf_arr = bufs_.back();
+    auto &buf_arr = bufs_.back();
     bufs_.pop_back();
     auto buf_cont = bufs_.back();
-    ddwaf_obj& slot = buf_cont.cur_obj();
+    ddwaf_obj &slot = buf_cont.cur_obj();
     slot.nbEntries = buf_arr.len;
     slot.array = buf_arr.ptr;
   }
@@ -268,9 +268,9 @@ class ToDdwafObjHandler
 
 namespace datadog::nginx::security {
 
-bool parse_json(ddwaf_obj& slot, const ngx_http_request_t& req,
-                const ngx_chain_t& chain, size_t limit,
-                dnsec::DdwafMemres& memres) {
+bool parse_json(ddwaf_obj &slot, const ngx_http_request_t &req,
+                const ngx_chain_t &chain, size_t limit,
+                dnsec::DdwafMemres &memres) {
   // be as permissive as possible
   static constexpr unsigned parse_flags =
       rapidjson::kParseStopWhenDoneFlag |
@@ -283,7 +283,7 @@ bool parse_json(ddwaf_obj& slot, const ngx_http_request_t& req,
   RapidNgxChainInputStream is{&chain, limit};
   rapidjson::ParseResult res =
       reader.Parse<parse_flags, RapidNgxChainInputStream>(is, handler);
-  ddwaf_obj* json_obj = handler.finish(req);
+  ddwaf_obj *json_obj = handler.finish(req);
   if (res.IsError()) {
     if (json_obj) {
       ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,

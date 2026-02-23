@@ -11,8 +11,8 @@ ngx_msec_t to_milliseconds(std::chrono::steady_clock::duration interval) {
       .count();
 }
 
-extern "C" void handle_event(ngx_event_t* ev) {
-  auto* event = static_cast<NgxEventScheduler::Event*>(ev->data);
+extern "C" void handle_event(ngx_event_t *ev) {
+  auto *event = static_cast<NgxEventScheduler::Event *>(ev->data);
   // Schedule the next round.
   ngx_add_timer(ev, to_milliseconds(event->interval));
 
@@ -46,7 +46,7 @@ dd::EventScheduler::Cancel NgxEventScheduler::schedule_recurring_event(
 }
 
 NgxEventScheduler::~NgxEventScheduler() {
-  for (auto* event : events_) {
+  for (auto *event : events_) {
     ngx_event_del_timer(&event->event);
     delete event;
   }

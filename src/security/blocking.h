@@ -33,10 +33,10 @@ class BlockingService {
   static void initialize(std::optional<std::string_view> templ_html,
                          std::optional<std::string_view> templ_json);
 
-  static BlockingService* get_instance() { return instance.get(); }
+  static BlockingService *get_instance() { return instance.get(); }
 
   [[nodiscard]] ngx_int_t block(BlockSpecification spec,
-                                ngx_http_request_t& req);
+                                ngx_http_request_t &req);
 
  private:
   BlockingService(std::optional<std::string_view> templ_html_path,
@@ -44,7 +44,7 @@ class BlockingService {
 
   static std::string load_template(std::string_view path);
 
-  static void push_header(ngx_http_request_t& req, std::string_view name,
+  static void push_header(ngx_http_request_t &req, std::string_view name,
                           std::string_view value);
 
   ngx_str_t templ_html_{};

@@ -35,7 +35,7 @@ inline std::string to_lc(std::string_view sv) {
   return result;
 }
 
-void consume_ows(std::string_view& sv) {
+void consume_ows(std::string_view &sv) {
   while (!sv.empty() && (sv.front() == ' ' || sv.front() == '\t')) {
     sv.remove_prefix(1);
   }
@@ -69,7 +69,7 @@ void consume_ows(std::string_view& sv) {
  * This is both more permissive (allows {}) and more restrictive (forbids
  * characters outside ASCII).
  */
-std::optional<std::string_view> consume_wg_token(std::string_view& sv) {
+std::optional<std::string_view> consume_wg_token(std::string_view &sv) {
   static constexpr std::string_view tchar =
       "abcdefghijklmnopqrstuvwxyz"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -93,7 +93,7 @@ std::optional<std::string_view> consume_wg_token(std::string_view& sv) {
  * obs-text       = %x80-FF
  * quoted-pair    = "\" ( HTAB / SP / VCHAR / obs-text )
  */
-std::optional<std::string> consume_9110_quoted_string(std::string_view& sv) {
+std::optional<std::string> consume_9110_quoted_string(std::string_view &sv) {
   if (!sv.starts_with('"')) {
     return std::nullopt;
   }
@@ -150,7 +150,7 @@ inline bool is_ext_ws(unsigned char ch) {  // not include \r or \n
  * This coroutine returns characters for a single header "line", unfolded.
  */
 dnsec::Generator<std::uint8_t> unfold_next_header(
-    dnsec::NgxChainInputStream& is) {
+    dnsec::NgxChainInputStream &is) {
 initial_line:
   if (is.eof()) {
     co_return;
@@ -381,11 +381,11 @@ std::optional<HttpContentType> HttpContentType::for_string(
  * (relaxed to allow plain LF).
  */
 std::optional<MimeContentDisposition> MimeContentDisposition::for_stream(
-    NgxChainInputStream& is) {
+    NgxChainInputStream &is) {
   MimeContentDisposition cd{};
 
   // consumes data, up until the last matching character; case insensitive
-  auto try_match_token = [](auto& gen, std::string_view token) {
+  auto try_match_token = [](auto &gen, std::string_view token) {
     assert(token == to_lc(token));
     std::size_t i;
     for (i = 0; gen.has_next() && i < token.size(); i++) {

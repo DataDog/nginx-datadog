@@ -35,14 +35,14 @@ class Library {
       "datadog/0/NONE/none/bundled_rule_data";
 
   static std::optional<ddwaf_owned_map> initialize_security_library(
-      const datadog_main_conf_t& conf);
+      const datadog_main_conf_t &conf);
 
   // Initialize shared memory zone for API security rate limiter
-  static ngx_int_t initialize_api_security_shared_memory(ngx_conf_t* cf);
+  static ngx_int_t initialize_api_security_shared_memory(ngx_conf_t *cf);
 
   [[nodiscard]] static bool update_waf_config(std::string_view path,
-                                              const ddwaf_map_obj& spec,
-                                              Diagnostics& diagnostics);
+                                              const ddwaf_map_obj &spec,
+                                              Diagnostics &diagnostics);
   [[nodiscard]] static bool remove_waf_config(std::string_view path);
   [[nodiscard]] static bool regenerate_handle();
 
@@ -67,7 +67,7 @@ class Library {
  protected:
   static std::atomic<bool> active_;                                  // NOLINT
   static std::unique_ptr<FinalizedConfigSettings> config_settings_;  // NOLINT
-  static ngx_shm_zone_t* api_security_shm_zone_;                     // NOLINT
+  static ngx_shm_zone_t *api_security_shm_zone_;                     // NOLINT
   static std::unique_ptr<SharedApiSecurityLimiter>
       shared_api_security_limiter_;  // NOLINT
 };

@@ -96,7 +96,7 @@ dnsec::ddwaf_owned_map read_ruleset(
   if (ruleset_file) {
     try {
       ruleset = read_rule_file(*ruleset_file);
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       throw std::runtime_error(std::string{"failed to read ruleset "} + "at " +
                                std::string{*ruleset_file} + ": " + e.what());
     }
@@ -104,7 +104,7 @@ dnsec::ddwaf_owned_map read_ruleset(
     try {
       ruleset = parse_rule_json(
           std::string_view{gRecommendedJsonData, gRecommendedJsonSize});
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       throw std::runtime_error{
           "failed to parse embedded recommended ruleset: " +
           std::string{e.what()}};
@@ -153,8 +153,8 @@ DDWAF_LOG_LEVEL ngx_log_level_to_ddwaf(int level) noexcept {
   }
 }
 
-void ddwaf_log(DDWAF_LOG_LEVEL level, const char* function, const char* file,
-               unsigned line, const char* message,
+void ddwaf_log(DDWAF_LOG_LEVEL level, const char *function, const char *file,
+               unsigned line, const char *message,
                uint64_t message_len) noexcept {
   int const log_level = ddwaf_log_level_to_nginx(level);
   ngx_str_t const message_ngxs = dnsec::ngx_stringv(
@@ -163,9 +163,9 @@ void ddwaf_log(DDWAF_LOG_LEVEL level, const char* function, const char* file,
                 &message_ngxs, function, file, line);
 }
 
-std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj&,
+std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &,
                                         std::string_view);
-std::string ddwaf_diagnostics_to_str(const dnsec::ddwaf_map_obj& top) {
+std::string ddwaf_diagnostics_to_str(const dnsec::ddwaf_map_obj &top) {
   std::string ret;
   ret += ddwaf_subdiagnostics_to_str(top, "rules"sv);
   ret += "; ";
@@ -178,14 +178,14 @@ std::string ddwaf_diagnostics_to_str(const dnsec::ddwaf_map_obj& top) {
   return ret;
 }
 
-std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj& top,
+std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &top,
                                         std::string_view key) {
   auto maybe_rm = top.get_opt<dnsec::ddwaf_map_obj>(key);
   if (!maybe_rm) {
     return "no diagnostics for " + std::string{key};
   }
 
-  dnsec::ddwaf_map_obj& m = *maybe_rm;
+  dnsec::ddwaf_map_obj &m = *maybe_rm;
   std::size_t loaded_count = m.get_opt<dnsec::ddwaf_arr_obj>("loaded"sv)
                                  .value_or(dnsec::ddwaf_arr_obj{})
                                  .size();
@@ -203,7 +203,7 @@ std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj& top,
   auto errors = m.get_opt<dnsec::ddwaf_map_obj>("errors"sv);
   if (errors) {
     bool first = true;
-    for (auto&& err_kp : *errors) {
+    for (auto &&err_kp : *errors) {
       if (!first) {
         ret += ", ";
       } else {
@@ -213,7 +213,7 @@ std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj& top,
       ret += err_kp.key();  // error message
       ret += " => [";
       bool first = true;
-      for (auto&& v : dnsec::ddwaf_arr_obj{err_kp}) {
+      for (auto &&v : dnsec::ddwaf_arr_obj{err_kp}) {
         if (!first) {
           ret += ", ";
         } else {
@@ -241,21 +241,21 @@ class OwnedDdwafBuilder
   OwnedDdwafBuilder()
       : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
             nullptr} {}
-  explicit OwnedDdwafBuilder(ddwaf_config& config)
+  explicit OwnedDdwafBuilder(ddwaf_config &config)
       : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
             ddwaf_builder_init(&config)} {}
-  OwnedDdwafBuilder(OwnedDdwafBuilder&& oth)
+  OwnedDdwafBuilder(OwnedDdwafBuilder &&oth)
       : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
             std::move(oth)} {}
-  OwnedDdwafBuilder& operator=(OwnedDdwafBuilder&& oth) {
+  OwnedDdwafBuilder &operator=(OwnedDdwafBuilder &&oth) {
     dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>::operator=(
         std::move(oth));
     return *this;
   }
 
   bool add_or_update_config(std::string_view path,
-                            const dnsec::ddwaf_map_obj& ruleset,
-                            dnsec::Library::Diagnostics& diags) {
+                            const dnsec::ddwaf_map_obj &ruleset,
+                            dnsec::Library::Diagnostics &diags) {
     return ddwaf_builder_add_or_update_config(get(), path.data(), path.size(),
                                               &ruleset, &diags.get());
   }
@@ -266,7 +266,7 @@ class OwnedDdwafBuilder
 
   std::uint32_t count_config_paths(std::string_view pattern) const {
     return ddwaf_builder_get_config_paths(
-        const_cast<OwnedDdwafBuilder&>(*this).get(), nullptr, pattern.data(),
+        const_cast<OwnedDdwafBuilder &>(*this).get(), nullptr, pattern.data(),
         pattern.size());
   }
 
@@ -279,20 +279,20 @@ class UpdateableWafInstance {
  public:
   using Diagnostics = dnsec::Library::Diagnostics;
 
-  bool init(dnsec::ddwaf_owned_map default_ruleset, ddwaf_config& config,
-            Diagnostics& diagnostics);
+  bool init(dnsec::ddwaf_owned_map default_ruleset, ddwaf_config &config,
+            Diagnostics &diagnostics);
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle() {
     return std::atomic_load_explicit(&cur_handle_, std::memory_order_acquire);
   }
 
   [[nodiscard]] bool add_or_update_config(std::string_view path,
-                                          const dnsec::ddwaf_map_obj& ruleset,
-                                          Diagnostics& diagnostics);
+                                          const dnsec::ddwaf_map_obj &ruleset,
+                                          Diagnostics &diagnostics);
 
   [[nodiscard]] bool remove_config(std::string_view path);
 
-  [[nodiscard]] bool update(Diagnostics& diagnostics);
+  [[nodiscard]] bool update(Diagnostics &diagnostics);
 
   [[nodiscard]] bool live() { return builder_; }
 
@@ -309,8 +309,8 @@ class UpdateableWafInstance {
 };
 
 [[nodiscard]] bool UpdateableWafInstance::init(
-    dnsec::ddwaf_owned_map default_ruleset, ddwaf_config& config,
-    Diagnostics& diagnostics) {
+    dnsec::ddwaf_owned_map default_ruleset, ddwaf_config &config,
+    Diagnostics &diagnostics) {
   assert(!live());
   OwnedDdwafBuilder builder{config};
   if (!builder) {
@@ -329,8 +329,8 @@ class UpdateableWafInstance {
 }
 
 [[nodiscard]] bool UpdateableWafInstance::add_or_update_config(
-    std::string_view path, const dnsec::ddwaf_map_obj& ruleset,
-    Diagnostics& diagnostics) {
+    std::string_view path, const dnsec::ddwaf_map_obj &ruleset,
+    Diagnostics &diagnostics) {
   std::lock_guard guard{builder_mut_};
 
   if (has_bundled_data() && path.find("/ASM_DD/"sv) != std::string_view::npos) {
@@ -346,7 +346,7 @@ class UpdateableWafInstance {
   return builder_.remove_config(path);
 }
 
-[[nodiscard]] bool UpdateableWafInstance::update(Diagnostics& diags) {
+[[nodiscard]] bool UpdateableWafInstance::update(Diagnostics &diags) {
   std::lock_guard guard{builder_mut_};
 
   if (builder_.count_config_paths("/ASM_DD/"sv) == 0) {
@@ -395,11 +395,11 @@ class FinalizedConfigSettings {
     UNSPECIFIED,
   };
 
-  FinalizedConfigSettings(const datadog_main_conf_t& ngx_conf);
-  FinalizedConfigSettings(const FinalizedConfigSettings&) = delete;
-  FinalizedConfigSettings& operator=(const FinalizedConfigSettings&) = delete;
-  FinalizedConfigSettings(FinalizedConfigSettings&&) = delete;
-  FinalizedConfigSettings& operator=(FinalizedConfigSettings&&) = delete;
+  FinalizedConfigSettings(const datadog_main_conf_t &ngx_conf);
+  FinalizedConfigSettings(const FinalizedConfigSettings &) = delete;
+  FinalizedConfigSettings &operator=(const FinalizedConfigSettings &) = delete;
+  FinalizedConfigSettings(FinalizedConfigSettings &&) = delete;
+  FinalizedConfigSettings &operator=(FinalizedConfigSettings &&) = delete;
   ~FinalizedConfigSettings() = default;
 
   enable_status enable_status() const noexcept { return enable_status_; }
@@ -423,11 +423,11 @@ class FinalizedConfigSettings {
 
   auto waf_timeout() const { return waf_timeout_usec_; }
 
-  const std::string& obfuscation_key_regex() const {
+  const std::string &obfuscation_key_regex() const {
     return obfuscation_key_regex_;
   };
 
-  const std::string& appsec_obfuscation_value_regex() const {
+  const std::string &appsec_obfuscation_value_regex() const {
     return obfuscation_value_regex_;
   };
 
@@ -468,9 +468,9 @@ class FinalizedConfigSettings {
     return {sv};
   }
 
-  static std::optional<std::string_view> get_env(const ev_t& evs,
+  static std::optional<std::string_view> get_env(const ev_t &evs,
                                                  std::string_view name) {
-    for (const environment_variable_t& ev_pair : evs) {
+    for (const environment_variable_t &ev_pair : evs) {
       if (ev_pair.name == name) {
         return {ev_pair.value};
       }
@@ -494,8 +494,8 @@ class FinalizedConfigSettings {
 };
 
 FinalizedConfigSettings::FinalizedConfigSettings(
-    const datadog_main_conf_t& ngx_conf) {
-  auto&& evs = ngx_conf.environment_variables;
+    const datadog_main_conf_t &ngx_conf) {
+  auto &&evs = ngx_conf.environment_variables;
 
   if (ngx_conf.appsec_enabled == NGX_CONF_UNSET) {
     auto maybe_enabled = get_env_bool(evs, "DD_APPSEC_ENABLED"sv);
@@ -589,7 +589,7 @@ FinalizedConfigSettings::FinalizedConfigSettings(
       std::string_view host = host_port.substr(0, colon_pos);
       std::string_view port_str = host_port.substr(colon_pos + 1);
       uint16_t port;
-      auto* port_last = port_str.data() + port_str.size();
+      auto *port_last = port_str.data() + port_str.size();
       auto [ptr, ec] = std::from_chars(port_str.data(), port_last, port);
       if (ec == std::errc{} && ptr == port_last) {
         stats_host_port_ = std::make_pair(host, port);
@@ -636,7 +636,7 @@ FinalizedConfigSettings::FinalizedConfigSettings(
 }
 
 std::optional<bool> FinalizedConfigSettings::get_env_bool(
-    const ev_t& evs, std::string_view name) {
+    const ev_t &evs, std::string_view name) {
   auto maybe_value = get_env(evs, name);
   if (!maybe_value || maybe_value->empty()) {
     return std::nullopt;
@@ -649,7 +649,7 @@ std::optional<bool> FinalizedConfigSettings::get_env_bool(
 }
 
 std::optional<std::string> FinalizedConfigSettings::get_env_str(
-    const ev_t& evs, std::string_view name) {
+    const ev_t &evs, std::string_view name) {
   auto maybe_value = get_env(evs, name);
   if (!maybe_value || maybe_value->empty()) {
     return std::nullopt;
@@ -659,7 +659,7 @@ std::optional<std::string> FinalizedConfigSettings::get_env_str(
 };
 
 std::optional<std::string> FinalizedConfigSettings::get_env_str_maybe_empty(
-    const ev_t& evs, std::string_view name) {
+    const ev_t &evs, std::string_view name) {
   auto maybe_value = get_env(evs, name);
   if (!maybe_value) {
     return std::nullopt;
@@ -669,13 +669,13 @@ std::optional<std::string> FinalizedConfigSettings::get_env_str_maybe_empty(
 };
 
 std::optional<ngx_uint_t> FinalizedConfigSettings::get_env_unsigned(
-    const ev_t& evs, std::string_view name) {
+    const ev_t &evs, std::string_view name) {
   auto maybe_value = get_env(evs, name);
   if (!maybe_value || maybe_value->empty()) {
     return std::nullopt;
   }
 
-  char* end;
+  char *end;
   unsigned long value_int = std::strtoul(maybe_value->data(), &end, 10);
   if (*end != '\0') {
     return std::nullopt;
@@ -705,13 +705,13 @@ std::unique_ptr<UpdateableWafInstance> upd_waf_instance{
     new UpdateableWafInstance{}};
 std::atomic<bool> Library::active_{true};
 std::unique_ptr<FinalizedConfigSettings> Library::config_settings_;
-ngx_shm_zone_t* Library::api_security_shm_zone_ = nullptr;
+ngx_shm_zone_t *Library::api_security_shm_zone_ = nullptr;
 std::unique_ptr<SharedApiSecurityLimiter> Library::shared_api_security_limiter_;
 
 std::optional<ddwaf_owned_map> Library::initialize_security_library(
-    const datadog_main_conf_t& ngx_conf) {
+    const datadog_main_conf_t &ngx_conf) {
   config_settings_ = std::make_unique<FinalizedConfigSettings>(ngx_conf);
-  const FinalizedConfigSettings& conf = *config_settings_;  // just an alias;
+  const FinalizedConfigSettings &conf = *config_settings_;  // just an alias;
 
   if (conf.enable_status() ==
       FinalizedConfigSettings::enable_status::DISABLED) {
@@ -811,8 +811,8 @@ bool Library::active() noexcept {
 }
 
 [[nodiscard]] bool Library::update_waf_config(std::string_view path,
-                                              const ddwaf_map_obj& spec,
-                                              Diagnostics& diagnostics) {
+                                              const ddwaf_map_obj &spec,
+                                              Diagnostics &diagnostics) {
   if (!upd_waf_instance->live()) {
     ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,
                   "Attempt to update non-live WAF config");
@@ -912,7 +912,7 @@ bool Library::api_security_should_sample() noexcept {
                                       : false;
 }
 
-ngx_int_t Library::initialize_api_security_shared_memory(ngx_conf_t* cf) {
+ngx_int_t Library::initialize_api_security_shared_memory(ngx_conf_t *cf) {
   static constexpr std::string_view zone_name =
       "datadog_api_security_limiter"sv;
 

@@ -50,12 +50,12 @@ class ReqSerializer {
   static constexpr std::string_view kRespBody{"server.response.body"};
 
  public:
-  explicit ReqSerializer(dnsec::DdwafMemres& memres) : memres_{memres} {}
+  explicit ReqSerializer(dnsec::DdwafMemres &memres) : memres_{memres} {}
 
-  ddwaf_object* serialize(const ngx_http_request_t& request,
-                          const std::optional<std::string>& client_ip) {
-    dnsec::ddwaf_obj* root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
-    dnsec::ddwaf_map_obj& root_map = root->make_map(6, memres_);
+  ddwaf_object *serialize(const ngx_http_request_t &request,
+                          const std::optional<std::string> &client_ip) {
+    dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
+    dnsec::ddwaf_map_obj &root_map = root->make_map(6, memres_);
 
     set_request_query(request, root_map.at_unchecked(0));
     set_request_uri_raw(request, root_map.at_unchecked(1));
@@ -67,10 +67,10 @@ class ReqSerializer {
     return root;
   }
 
-  ddwaf_object* serialize_end(const ngx_http_request_t& request,
-                              ngx_chain_t* body_chain, std::size_t body_size,
+  ddwaf_object *serialize_end(const ngx_http_request_t &request,
+                              ngx_chain_t *body_chain, std::size_t body_size,
                               bool extract_schema) {
-    dnsec::ddwaf_obj* root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
+    dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
     datadog::nginx::security::ddwaf_obj::nb_entries_t nb_entries = 2;
     if (extract_schema) {
       nb_entries++;
@@ -79,7 +79,7 @@ class ReqSerializer {
     if (has_body) {
       nb_entries++;
     }
-    dnsec::ddwaf_map_obj& root_map = root->make_map(nb_entries, memres_);
+    dnsec::ddwaf_map_obj &root_map = root->make_map(nb_entries, memres_);
 
     decltype(nb_entries) idx = 0;
     set_response_status(request, root_map.at_unchecked(idx++));
@@ -90,9 +90,9 @@ class ReqSerializer {
     }
 
     if (extract_schema) {
-      auto& slot = root_map.at_unchecked(idx++);
+      auto &slot = root_map.at_unchecked(idx++);
       slot.set_key("waf.context.processor"sv);
-      auto& inner_map = slot.make_map(1 /* 1 entry */, memres_);
+      auto &inner_map = slot.make_map(1 /* 1 entry */, memres_);
       inner_map.at_unchecked(0).set_key("extract-schema").make_bool(true);
     }
 
@@ -100,16 +100,16 @@ class ReqSerializer {
   }
 
  private:
-  static void set_map_entry_str(dnsec::ddwaf_obj& slot, std::string_view key,
-                                const ngx_str_t& value) {
+  static void set_map_entry_str(dnsec::ddwaf_obj &slot, std::string_view key,
+                                const ngx_str_t &value) {
     slot.set_key(key);
     slot.make_string(to_string_view(value));
   }
 
-  void set_request_query(const ngx_http_request_t& request,
-                         dnsec::ddwaf_obj& slot) {
+  void set_request_query(const ngx_http_request_t &request,
+                         dnsec::ddwaf_obj &slot) {
     slot.set_key(kQuery);
-    const ngx_str_t& query = request.args;
+    const ngx_str_t &query = request.args;
     if (query.len == 0) {
       slot.make_array(nullptr, 0);
       return;
@@ -121,7 +121,7 @@ class ReqSerializer {
   }
 
   template <typename Iter>
-  void set_value_from_iter(Iter& it, dnsec::ddwaf_obj& slot) {
+  void set_value_from_iter(Iter &it, dnsec::ddwaf_obj &slot) {
     // first, count the number of occurrences for each key
     std::unordered_map<std::string_view, std::size_t> keys_bag;
     for (; !it.ended(); ++it) {
@@ -135,21 +135,22 @@ class ReqSerializer {
     }
 
     // we now know the number of keys; allocate map entries
-    dnsec::ddwaf_obj* entries =
+    dnsec::ddwaf_obj *entries =
         memres_.allocate_objects<dnsec::ddwaf_obj>(keys_bag.size());
     slot.make_map(entries, keys_bag.size());
-    dnsec::ddwaf_obj* next_free_entry = entries;
+    dnsec::ddwaf_obj *next_free_entry = entries;
 
     // fill the map entries
     // map that saves the ddwaf_object for keys that occurr more than once
-    std::unordered_map<std::string_view, dnsec::ddwaf_arr_obj*> indexed_entries;
+    std::unordered_map<std::string_view, dnsec::ddwaf_arr_obj *>
+        indexed_entries;
     for (it.reset(); !it.ended(); ++it) {
       auto [key, value] = *it;
       std::size_t const num_occurr = keys_bag[key];
 
       // common scenario: only 1 occurrence of the key
       if (num_occurr == 1) {
-        dnsec::ddwaf_obj& entry = *next_free_entry++;
+        dnsec::ddwaf_obj &entry = *next_free_entry++;
         entry.set_key(key);
         entry.make_string(value);
         continue;
@@ -158,10 +159,10 @@ class ReqSerializer {
       auto ie = indexed_entries.find(key);
       if (ie == indexed_entries.end()) {
         // first occurrence of this key
-        dnsec::ddwaf_obj& entry = *next_free_entry++;
+        dnsec::ddwaf_obj &entry = *next_free_entry++;
 
         entry.set_key(key);
-        auto& arr_val = entry.make_array(num_occurr, memres_);
+        auto &arr_val = entry.make_array(num_occurr, memres_);
         indexed_entries.insert({key, &arr_val});
 
         if (!it.is_delete()) {
@@ -170,7 +171,7 @@ class ReqSerializer {
         }
       } else {
         // subsequent occurrence of this key
-        auto& arr_val = *ie->second;
+        auto &arr_val = *ie->second;
         if (!it.is_delete()) {
           arr_val.template at_unchecked<dnsec::ddwaf_obj>(arr_val.nbEntries++)
               .make_string(value);
@@ -181,21 +182,21 @@ class ReqSerializer {
     }
   }
 
-  static void set_request_uri_raw(const ngx_http_request_t& request,
-                                  dnsec::ddwaf_obj& slot) {
+  static void set_request_uri_raw(const ngx_http_request_t &request,
+                                  dnsec::ddwaf_obj &slot) {
     set_map_entry_str(slot, kUriRaw, request.unparsed_uri);
   }
 
-  static void set_request_method(const ngx_http_request_t& request,
-                                 dnsec::ddwaf_obj& slot) {
+  static void set_request_method(const ngx_http_request_t &request,
+                                 dnsec::ddwaf_obj &slot) {
     set_map_entry_str(slot, kMethod, request.method_name);
   }
 
   // adapt to the same iterator format as query_string_iter
   template <bool IsRequest>
   struct HeaderKeyValueIter {
-    HeaderKeyValueIter(const ngx_list_t& list, std::string_view exclude,
-                       dnsec::DdwafMemres& memres)
+    HeaderKeyValueIter(const ngx_list_t &list, std::string_view exclude,
+                       dnsec::DdwafMemres &memres)
         : list_{list},
           memres_{memres},
           exclude_{exclude},
@@ -206,13 +207,13 @@ class ReqSerializer {
 
     bool ended() const noexcept { return it_ == end_; }
 
-    HeaderKeyValueIter& operator++() {
+    HeaderKeyValueIter &operator++() {
       while (true) {
         ++it_;
         if (it_ == end_) {
           break;
         }
-        const auto& h = *it_;
+        const auto &h = *it_;
         auto lc_key = safe_lowcase_key(h);
         if (lc_key != exclude_) {
           break;
@@ -223,12 +224,12 @@ class ReqSerializer {
     }
 
     std::string_view cur_key() {
-      const auto& h = *it_;
+      const auto &h = *it_;
       return safe_lowcase_key(h);
     }
 
     std::pair<std::string_view, std::string_view> operator*() {
-      const auto& h = *it_;
+      const auto &h = *it_;
       return {safe_lowcase_key(h), to_string_view(h.value)};
     }
 
@@ -236,12 +237,12 @@ class ReqSerializer {
       if constexpr (IsRequest) {
         return false;
       } else {  // response headers
-        const auto& h = *it_;
+        const auto &h = *it_;
         return h.hash == 0;
       }
     }
 
-    std::string_view safe_lowcase_key(const ngx_table_elt_t& header) {
+    std::string_view safe_lowcase_key(const ngx_table_elt_t &header) {
       if constexpr (IsRequest) {
         return dnsec::lc_key(header);
       }
@@ -253,8 +254,8 @@ class ReqSerializer {
         return it->second;
       }
 
-      auto* lc_out_buffer =
-          reinterpret_cast<u_char*>(memres_.allocate_string(header.key.len));
+      auto *lc_out_buffer =
+          reinterpret_cast<u_char *>(memres_.allocate_string(header.key.len));
       std::transform(header.key.data, header.key.data + header.key.len,
                      lc_out_buffer, [](u_char c) {
                        if (c >= 'A' && c <= 'Z') {
@@ -263,23 +264,23 @@ class ReqSerializer {
                        return c;
                      });
 
-      std::string_view lc_sv{reinterpret_cast<char*>(lc_out_buffer),
+      std::string_view lc_sv{reinterpret_cast<char *>(lc_out_buffer),
                              header.key.len};
       lc_keys_.insert({key, lc_sv});
       return lc_sv;
     }
 
    private:
-    const ngx_list_t& list_;
-    dnsec::DdwafMemres& memres_;
+    const ngx_list_t &list_;
+    dnsec::DdwafMemres &memres_;
     std::string_view exclude_;
     std::unordered_map<std::string_view, std::string_view> lc_keys_;
     dnsec::NginxListIter<ngx_table_elt_t> it_;
     dnsec::NginxListIter<ngx_table_elt_t> end_;
   };
 
-  void set_request_headers_nocookies(const ngx_http_request_t& request,
-                                     dnsec::ddwaf_obj& slot) {
+  void set_request_headers_nocookies(const ngx_http_request_t &request,
+                                     dnsec::ddwaf_obj &slot) {
     static constexpr auto cookie = "cookie"sv;
     slot.set_key(kHeadersNoCookies);
     HeaderKeyValueIter<true> it{request.headers_in.headers, cookie, memres_};
@@ -287,13 +288,13 @@ class ReqSerializer {
   }
 
   template <typename Request = ngx_http_request_t>
-  void set_request_cookie(const Request& request, dnsec::ddwaf_obj& slot) {
+  void set_request_cookie(const Request &request, dnsec::ddwaf_obj &slot) {
     slot.set_key(kCookies);
 
     dnsec::qs_iter_agg iter{};
 
     if constexpr (kHeadersInHasCookieV) {
-      auto* t = request.headers_in.cookie;
+      auto *t = request.headers_in.cookie;
       std::size_t count = 0;
       for (auto tp = t; tp; tp = tp->next) {
         assert(tp->hash != 0);
@@ -308,16 +309,16 @@ class ReqSerializer {
             dnsec::QueryStringIter::trim_mode::do_trim));
       }
     } else {
-      std::vector<const ngx_table_elt_t*> cookie_headers;
+      std::vector<const ngx_table_elt_t *> cookie_headers;
       dnsec::NgnixHeaderIterable it{request.headers_in.headers};
-      for (auto&& h : it) {
+      for (auto &&h : it) {
         if (!dnsec::req_key_equals_ci(h, "cookie"sv)) {
           continue;
         }
         cookie_headers.push_back(&h);
       }
 
-      for (auto&& ch : cookie_headers) {
+      for (auto &&ch : cookie_headers) {
         iter.add(std::make_unique<dnsec::QueryStringIter>(
             to_string_view(ch->value), memres_, ';',
             dnsec::QueryStringIter::trim_mode::do_trim));
@@ -332,8 +333,8 @@ class ReqSerializer {
     set_value_from_iter(iter, slot);
   }
 
-  void set_client_ip(const std::optional<std::string>& cl_ip,
-                     dnsec::ddwaf_obj& slot) {
+  void set_client_ip(const std::optional<std::string> &cl_ip,
+                     dnsec::ddwaf_obj &slot) {
     slot.set_key(kClientIp);
     if (!cl_ip) {
       slot.make_null();
@@ -341,8 +342,8 @@ class ReqSerializer {
     slot.make_string(*cl_ip, memres_);  // copy
   }
 
-  void set_response_status(const ngx_http_request_t& request,
-                           dnsec::ddwaf_obj& slot) {
+  void set_response_status(const ngx_http_request_t &request,
+                           dnsec::ddwaf_obj &slot) {
     slot.set_key(kStatus);
 
     // generally status_line is not set so we can't use it to avoid a string
@@ -372,7 +373,7 @@ class ReqSerializer {
           slot.make_string("0"sv);
           return;
         }
-        char* s = memres_.allocate_string(3);
+        char *s = memres_.allocate_string(3);
         s[2] = status % 10 + '0';
         status /= 10;
         s[1] = status % 10 + '0';
@@ -381,8 +382,8 @@ class ReqSerializer {
     }
   }
 
-  void set_response_headers_no_cookies(const ngx_http_request_t& request,
-                                       dnsec::ddwaf_obj& slot) {
+  void set_response_headers_no_cookies(const ngx_http_request_t &request,
+                                       dnsec::ddwaf_obj &slot) {
     static constexpr auto set_cookie = "set-cookie"sv;
     slot.set_key(kRespHeadersNoCookies);
     HeaderKeyValueIter<false> it{request.headers_out.headers, set_cookie,
@@ -390,31 +391,31 @@ class ReqSerializer {
     set_value_from_iter(it, slot);
   }
 
-  void set_response_body(const ngx_http_request_t& request,
-                         const ngx_chain_t& body_chain, std::size_t body_size,
-                         dnsec::ddwaf_obj& slot) {
+  void set_response_body(const ngx_http_request_t &request,
+                         const ngx_chain_t &body_chain, std::size_t body_size,
+                         dnsec::ddwaf_obj &slot) {
     slot.set_key(kRespBody);
     dnsec::parse_body_resp(slot, request, body_chain, body_size, memres_);
   }
 
-  dnsec::DdwafMemres& memres_;
+  dnsec::DdwafMemres &memres_;
 };
 
 }  // namespace
 
 namespace datadog::nginx::security {
 
-ddwaf_object* collect_request_data(const ngx_http_request_t& request,
-                                   const std::optional<std::string>& client_ip,
-                                   DdwafMemres& memres) {
+ddwaf_object *collect_request_data(const ngx_http_request_t &request,
+                                   const std::optional<std::string> &client_ip,
+                                   DdwafMemres &memres) {
   ReqSerializer rs{memres};
   return rs.serialize(request, client_ip);
 }
 
-ddwaf_object* collect_response_data(const ngx_http_request_t& request,
-                                    ngx_chain_t* body_chain,
+ddwaf_object *collect_response_data(const ngx_http_request_t &request,
+                                    ngx_chain_t *body_chain,
                                     std::size_t body_size, bool extract_schema,
-                                    DdwafMemres& memres) {
+                                    DdwafMemres &memres) {
   ReqSerializer rs{memres};
   return rs.serialize_end(request, body_chain, body_size, extract_schema);
 }

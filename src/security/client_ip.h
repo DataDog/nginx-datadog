@@ -15,12 +15,12 @@ namespace datadog::nginx::security {
 class ClientIp {
  public:
   ClientIp(std::optional<HashedStringView> configured_header,
-           const ngx_http_request_t& request);
+           const ngx_http_request_t &request);
 
   std::optional<std::string> resolve() const;
 
  private:
   std::optional<HashedStringView> configured_header_;  // lc
-  const ngx_http_request_t& request_;
+  const ngx_http_request_t &request_;
 };
 }  // namespace datadog::nginx::security

@@ -16,15 +16,15 @@ namespace datadog {
 namespace nginx {
 
 class NgxHeaderWriter : public datadog::tracing::DictWriter {
-  ngx_http_request_t* request_;
-  ngx_pool_t* pool_;
+  ngx_http_request_t *request_;
+  ngx_pool_t *pool_;
 
  public:
-  explicit NgxHeaderWriter(ngx_http_request_t* request)
+  explicit NgxHeaderWriter(ngx_http_request_t *request)
       : request_(request), pool_(request_->pool) {}
 
   void set(std::string_view key, std::string_view value) override {
-    ngx_table_elt_t* h =
+    ngx_table_elt_t *h =
         common::search_header(request_->headers_in.headers, key);
     if (h != nullptr) {
       h->value = to_ngx_str(pool_, value);

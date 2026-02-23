@@ -20,8 +20,8 @@ std::string decode_percent(std::string_view sv) {
   result.reserve(sv.size());
   std::unique_ptr<unsigned char[]> buf{new unsigned char[sv.size()]};
   enum class state { NORMAL, PERCENT, PERCENT1 } state = state::NORMAL;
-  const unsigned char* r = reinterpret_cast<const unsigned char*>(sv.data());
-  const unsigned char* end = r + sv.size();
+  const unsigned char *r = reinterpret_cast<const unsigned char *>(sv.data());
+  const unsigned char *end = r + sv.size();
   auto w = std::back_inserter(result);
   for (; r < end; r++) {
     switch (state) {
@@ -45,8 +45,8 @@ std::string decode_percent(std::string_view sv) {
         if (std::isxdigit(*r)) {
           unsigned result{};
           // can't fail
-          std::from_chars(reinterpret_cast<const char*>(r - 1),
-                          reinterpret_cast<const char*>(r + 1), result, 16);
+          std::from_chars(reinterpret_cast<const char *>(r - 1),
+                          reinterpret_cast<const char *>(r + 1), result, 16);
           w = static_cast<unsigned char>(result);
         } else {
           w = '%';
@@ -117,7 +117,7 @@ std::string_view QueryStringIter::intern_string(std::string_view sv) {
     return *interned;
   }
 
-  auto* p = memres.allocate_string(sv.length() + 1);
+  auto *p = memres.allocate_string(sv.length() + 1);
   std::memcpy(p, sv.data(), sv.length());
   p[sv.length()] = '\0';
 

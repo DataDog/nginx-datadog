@@ -5,7 +5,7 @@
 namespace datadog::nginx::security {
 namespace impl {
 template <typename D>
-void json_to_obj_impl(DdwafMemres& memres, ddwaf_obj& object, const D& doc,
+void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc,
                       int max_depth) {
   if (max_depth == 0) {
     throw std::runtime_error("Max depth reached while parsing JSON");
@@ -19,23 +19,23 @@ void json_to_obj_impl(DdwafMemres& memres, ddwaf_obj& object, const D& doc,
       object.make_bool(true);
       break;
     case rapidjson::kObjectType: {
-      auto&& obj = doc.GetObject();
-      ddwaf_map_obj& obj_map = object.make_map(obj.MemberCount(), memres);
+      auto &&obj = doc.GetObject();
+      ddwaf_map_obj &obj_map = object.make_map(obj.MemberCount(), memres);
       size_t i = 0;
-      for (auto& kv : obj) {
+      for (auto &kv : obj) {
         std::string_view const key = kv.name.GetString();
-        ddwaf_obj& element = obj_map.at_unchecked(i++);
+        ddwaf_obj &element = obj_map.at_unchecked(i++);
         element.set_key(key, memres);
         json_to_obj_impl(memres, element, kv.value, max_depth - 1);
       }
       break;
     }
     case rapidjson::kArrayType: {
-      auto&& arr = doc.GetArray();
-      ddwaf_arr_obj& obj_arr = object.make_array(arr.Size(), memres);
+      auto &&arr = doc.GetArray();
+      ddwaf_arr_obj &obj_arr = object.make_array(arr.Size(), memres);
       size_t i = 0;
-      for (auto& v : arr) {
-        ddwaf_obj& element = obj_arr.at_unchecked(i++);
+      for (auto &v : arr) {
+        ddwaf_obj &element = obj_arr.at_unchecked(i++);
         json_to_obj_impl(memres, element, v, max_depth - 1);
       }
       break;
@@ -69,14 +69,14 @@ void json_to_obj_impl(DdwafMemres& memres, ddwaf_obj& object, const D& doc,
   }
 }
 
-void deep_copy(DdwafMemres& memres, ddwaf_obj& dst, const ddwaf_obj& src) {
+void deep_copy(DdwafMemres &memres, ddwaf_obj &dst, const ddwaf_obj &src) {
   switch (src.type) {
     case DDWAF_OBJ_MAP: {
       ddwaf_map_obj src_map{src};
-      ddwaf_map_obj& r = dst.make_map(src.nbEntries, memres);
+      ddwaf_map_obj &r = dst.make_map(src.nbEntries, memres);
       size_t i = 0;
-      for (auto&& obj : src_map) {
-        ddwaf_obj& new_dst = r.at_unchecked(i++);
+      for (auto &&obj : src_map) {
+        ddwaf_obj &new_dst = r.at_unchecked(i++);
         new_dst.set_key(obj.key(), memres);
         deep_copy(memres, new_dst, obj);
       }
@@ -84,10 +84,10 @@ void deep_copy(DdwafMemres& memres, ddwaf_obj& dst, const ddwaf_obj& src) {
     }
     case DDWAF_OBJ_ARRAY: {
       ddwaf_arr_obj src_arr{src};
-      ddwaf_arr_obj& r = dst.make_array(src.nbEntries, memres);
+      ddwaf_arr_obj &r = dst.make_array(src.nbEntries, memres);
       size_t i = 0;
-      for (auto&& elem : src_arr) {
-        ddwaf_obj& new_dst = r.at_unchecked(i++);
+      for (auto &&elem : src_arr) {
+        ddwaf_obj &new_dst = r.at_unchecked(i++);
         deep_copy(memres, new_dst, elem);
       }
       break;
@@ -103,7 +103,7 @@ void deep_copy(DdwafMemres& memres, ddwaf_obj& dst, const ddwaf_obj& src) {
 }  // namespace impl
 
 ddwaf_owned_obj<ddwaf_obj> json_to_object(
-    const rapidjson::GenericValue<rapidjson::UTF8<>>& doc, int max_depth) {
+    const rapidjson::GenericValue<rapidjson::UTF8<>> &doc, int max_depth) {
   ddwaf_owned_obj<ddwaf_obj> ret;
   impl::json_to_obj_impl(ret.memres(), ret.get(), doc, max_depth);
   return ret;

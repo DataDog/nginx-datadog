@@ -32,7 +32,7 @@ struct IpAddr {
 
   std::optional<std::string> to_string() const {
     char buf[INET6_ADDRSTRLEN];
-    if (inet_ntop(af, reinterpret_cast<const char*>(&this->u), buf,
+    if (inet_ntop(af, reinterpret_cast<const char *>(&this->u), buf,
                   sizeof(buf)) == nullptr) {
       return std::nullopt;
     }
@@ -58,7 +58,7 @@ std::optional<IpAddr> IpAddr::from_string(std::string_view addr_sv,
                                           int af_hint) {
   IpAddr out;
   std::string input_nulterminated{addr_sv};
-  auto* addr_nult = input_nulterminated.c_str();
+  auto *addr_nult = input_nulterminated.c_str();
 
   if (af_hint == AF_INET || af_hint == AF_UNSPEC) {
     int ret = inet_pton(AF_INET, addr_nult, &out.u.v4);
@@ -82,7 +82,7 @@ std::optional<IpAddr> IpAddr::from_string(std::string_view addr_sv,
 
   // if we got here, we have a valid formal ipv6 address
 
-  uint8_t* s6addr = out.u.v6.s6_addr;
+  uint8_t *s6addr = out.u.v6.s6_addr;
   static constexpr uint8_t ip4_mapped_prefix[12] = {0, 0, 0, 0, 0,    0,
                                                     0, 0, 0, 0, 0xFF, 0xFF};
   if (std::memcmp(s6addr, ip4_mapped_prefix, sizeof(ip4_mapped_prefix)) == 0) {
@@ -208,22 +208,22 @@ struct ExtractResult {
   static inline ExtractResult success_private() { return {true, true}; }
   static inline ExtractResult failure() { return {false}; }
 
-  bool operator==(const ExtractResult& other) const {
+  bool operator==(const ExtractResult &other) const {
     return (success && other.success && is_private == other.is_private) ||
            (!success && !other.success);
   }
 };
 
 struct NgxTableEltNextT : ngx_table_elt_t {
-  NgxTableEltNextT(const ngx_table_elt_t& header) : ngx_table_elt_t{header} {}
+  NgxTableEltNextT(const ngx_table_elt_t &header) : ngx_table_elt_t{header} {}
 
   std::unique_ptr<NgxTableEltNextT> next{};
 };
 
 struct HeaderProcessorDefinition {
  public:
-  using ExtractFunc = ExtractResult (*)(const NgxTableEltNextT& value,
-                                        IpAddr& out);
+  using ExtractFunc = ExtractResult (*)(const NgxTableEltNextT &value,
+                                        IpAddr &out);
 
   constexpr HeaderProcessorDefinition(std::string_view key,
                                       ExtractFunc parse_func)
@@ -259,12 +259,12 @@ static constexpr auto kPriorityHeaderArr =
         {"cf-connecting-ipv6"sv, parse_multiple_maybe_port},
     };
 
-std::optional<ngx_table_elt_t> get_request_header(const ngx_list_t& headers,
+std::optional<ngx_table_elt_t> get_request_header(const ngx_list_t &headers,
                                                   std::string_view header_name,
                                                   ngx_uint_t hash) {
   dnsec::NgnixHeaderIterable it{headers};
   auto maybe_header =
-      std::find_if(it.begin(), it.end(), [header_name, hash](auto&& header) {
+      std::find_if(it.begin(), it.end(), [header_name, hash](auto &&header) {
         return header.hash == hash &&
                dnsec::req_key_equals_ci(header, header_name);
       });
@@ -278,13 +278,13 @@ std::optional<ngx_table_elt_t> get_request_header(const ngx_list_t& headers,
 using HeaderIndex =
     std::unordered_map<std::string_view /*lc*/, NgxTableEltNextT>;
 
-void header_index_insert(HeaderIndex& index, const ngx_table_elt_t& header) {
+void header_index_insert(HeaderIndex &index, const ngx_table_elt_t &header) {
   auto lc_key = dnsec::lc_key(header);
   auto it = index.find(lc_key);
   if (it == index.end()) {
     index.emplace(lc_key, header);
   } else {
-    auto* cur = &it->second;
+    auto *cur = &it->second;
     while (cur->next) {
       cur = cur->next.get();
     }
@@ -292,10 +292,10 @@ void header_index_insert(HeaderIndex& index, const ngx_table_elt_t& header) {
   }
 }
 
-HeaderIndex index_headers(const ngx_list_t& headers) {
+HeaderIndex index_headers(const ngx_list_t &headers) {
   HeaderIndex index;
   dnsec::NgnixHeaderIterable it{headers};
-  for (const ngx_table_elt_t& header : it) {
+  for (const ngx_table_elt_t &header : it) {
     switch (header.hash) {
 #define CASE(header_lc_name)                       \
   case dnsec::ngx_hash_ce(header_lc_name):         \
@@ -323,12 +323,12 @@ HeaderIndex index_headers(const ngx_list_t& headers) {
 }
 
 using ExtractStringViewFunc = ExtractResult (*)(std::string_view value_sv,
-                                                IpAddr&);
+                                                IpAddr &);
 
 template <ExtractStringViewFunc f>
-ExtractResult parse_multiple(const NgxTableEltNextT& value, IpAddr& out) {
+ExtractResult parse_multiple(const NgxTableEltNextT &value, IpAddr &out) {
   IpAddr first_private{};
-  for (const NgxTableEltNextT* h = &value; h; h = h->next.get()) {
+  for (const NgxTableEltNextT *h = &value; h; h = h->next.get()) {
     IpAddr out_cur_round;
     std::string_view header_v{to_string_view(h->value)};
     ExtractResult res = f(header_v, out_cur_round);
@@ -349,22 +349,22 @@ ExtractResult parse_multiple(const NgxTableEltNextT& value, IpAddr& out) {
   return ExtractResult::failure();
 }
 
-ExtractResult parse_multiple_maybe_port(const NgxTableEltNextT& value,
-                                        IpAddr& out) {
+ExtractResult parse_multiple_maybe_port(const NgxTableEltNextT &value,
+                                        IpAddr &out) {
   return parse_multiple<parse_multiple_maybe_port_sv>(value, out);
 }
 
 ExtractResult parse_multiple_maybe_port_sv(std::string_view value_sv,
-                                           IpAddr& out) {
-  const char* value = value_sv.data();
-  const char* end = value + value_sv.length();
+                                           IpAddr &out) {
+  const char *value = value_sv.data();
+  const char *end = value + value_sv.length();
   IpAddr first_private{};
   do {
     for (; value < end && *value == ' '; value++) {
     }
-    const char* comma =
-        reinterpret_cast<const char*>(std::memchr(value, ',', end - value));
-    const char* end_cur = comma ? comma : end;
+    const char *comma =
+        reinterpret_cast<const char *>(std::memchr(value, ',', end - value));
+    const char *end_cur = comma ? comma : end;
     std::string_view cur_str{value, static_cast<std::size_t>(end_cur - value)};
     std::optional<IpAddr> maybe_cur = parse_ip_address_maybe_port_pair(cur_str);
     if (maybe_cur) {
@@ -386,11 +386,11 @@ ExtractResult parse_multiple_maybe_port_sv(std::string_view value_sv,
   return ExtractResult::failure();
 }
 
-ExtractResult parse_forwarded(const NgxTableEltNextT& value, IpAddr& out) {
+ExtractResult parse_forwarded(const NgxTableEltNextT &value, IpAddr &out) {
   return parse_multiple<parse_forwarded_sv>(value, out);
 }
 
-ExtractResult parse_forwarded_sv(std::string_view value_sv, IpAddr& out) {
+ExtractResult parse_forwarded_sv(std::string_view value_sv, IpAddr &out) {
   IpAddr first_private{};
   enum {
     BETWEEN,
@@ -399,9 +399,9 @@ ExtractResult parse_forwarded_sv(std::string_view value_sv, IpAddr& out) {
     VALUE_TOKEN,
     VALUE_QUOTED,
   } state = BETWEEN;
-  const char* r = value_sv.data();
-  const char* end = r + value_sv.size();
-  const char* start = r;  // meaningless assignment to satisfy static analysis
+  const char *r = value_sv.data();
+  const char *end = r + value_sv.size();
+  const char *start = r;  // meaningless assignment to satisfy static analysis
   bool consider_value = false;
 
   // https://datatracker.ietf.org/doc/html/rfc7239#section-4
@@ -437,7 +437,7 @@ ExtractResult parse_forwarded_sv(std::string_view value_sv, IpAddr& out) {
         }
         break;
       case VALUE_TOKEN: {
-        const char* token_end;
+        const char *token_end;
         if (*r == ' ' || *r == ';' || *r == ',') {
           token_end = r;
         } else if (r + 1 == end) {
@@ -528,7 +528,7 @@ std::optional<IpAddr> parse_ip_address_maybe_port_pair(
 namespace datadog::nginx::security {
 
 ClientIp::ClientIp(std::optional<HashedStringView> configured_header,
-                   const ngx_http_request_t& request)
+                   const ngx_http_request_t &request)
     : configured_header_{configured_header}, request_{request} {}
 
 std::optional<std::string> ClientIp::resolve() const {
@@ -559,13 +559,13 @@ std::optional<std::string> ClientIp::resolve() const {
   HeaderIndex header_index = index_headers(request_.headers_in.headers);
   IpAddr cur_private{};
   for (std::size_t i = 0; i < kPriorityHeaderArr.size(); i++) {
-    const HeaderProcessorDefinition& def = kPriorityHeaderArr[i];
+    const HeaderProcessorDefinition &def = kPriorityHeaderArr[i];
     auto maybe_elem = header_index.find(def.lc_key);
     if (maybe_elem == header_index.end()) {
       continue;
     }
 
-    const NgxTableEltNextT& header = maybe_elem->second;
+    const NgxTableEltNextT &header = maybe_elem->second;
     IpAddr out;
     ExtractResult res = def.parse_func(header, out);
     if (res.success) {
@@ -580,13 +580,13 @@ std::optional<std::string> ClientIp::resolve() const {
 
   // No public address found yet. Try remote_addr.
   IpAddr remote_addr{};
-  struct sockaddr* sockaddr = request_.connection->sockaddr;
+  struct sockaddr *sockaddr = request_.connection->sockaddr;
   if (sockaddr->sa_family == AF_INET) {
     remote_addr.af = AF_INET;
-    remote_addr.u.v4 = reinterpret_cast<sockaddr_in*>(sockaddr)->sin_addr;
+    remote_addr.u.v4 = reinterpret_cast<sockaddr_in *>(sockaddr)->sin_addr;
   } else if (sockaddr->sa_family == AF_INET6) {
     remote_addr.af = AF_INET6;
-    remote_addr.u.v6 = reinterpret_cast<sockaddr_in6*>(sockaddr)->sin6_addr;
+    remote_addr.u.v6 = reinterpret_cast<sockaddr_in6 *>(sockaddr)->sin6_addr;
   }
 
   if (!remote_addr.empty()) {

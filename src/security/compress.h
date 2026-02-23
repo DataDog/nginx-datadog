@@ -17,7 +17,7 @@ size_t estimate_compressed_size(size_t in_len) {
 }  // namespace
 
 namespace datadog::nginx::security {
-inline std::optional<std::string> compress(const std::string_view& text) {
+inline std::optional<std::string> compress(const std::string_view &text) {
   std::string ret_string;
   z_stream strm = {};
 
@@ -32,8 +32,8 @@ inline std::optional<std::string> compress(const std::string_view& text) {
     ret_string.resize(size);
 
     // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-    strm.next_in = reinterpret_cast<const Bytef*>(text.data());
-    strm.next_out = reinterpret_cast<Bytef*>(ret_string.data());
+    strm.next_in = reinterpret_cast<const Bytef *>(text.data());
+    strm.next_out = reinterpret_cast<Bytef *>(ret_string.data());
     // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
     strm.avail_in = text.length();
     strm.avail_out = size;

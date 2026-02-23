@@ -9,18 +9,18 @@ static ngx_uint_t argument_number[] = {
     NGX_CONF_NOARGS, NGX_CONF_TAKE1, NGX_CONF_TAKE2, NGX_CONF_TAKE3,
     NGX_CONF_TAKE4,  NGX_CONF_TAKE5, NGX_CONF_TAKE6, NGX_CONF_TAKE7};
 
-ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig& args) noexcept {
-  ngx_conf_t* const cf = args.conf;
+ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig &args) noexcept {
+  ngx_conf_t *const cf = args.conf;
   // `last` used to be a parameter, but we didn't use it.
   const ngx_int_t last = NGX_OK;
 
-  char* rv;
+  char *rv;
   void *conf, **confp;
   ngx_uint_t i, found;
-  ngx_str_t* name;
-  ngx_command_t* cmd;
+  ngx_str_t *name;
+  ngx_command_t *cmd;
 
-  name = static_cast<ngx_str_t*>(cf->args->elts);
+  name = static_cast<ngx_str_t *>(cf->args->elts);
 
   found = 0;
 
@@ -101,13 +101,13 @@ ngx_int_t datadog_conf_handler(const DatadogConfHandlerConfig& args) noexcept {
       conf = NULL;
 
       if (cmd->type & NGX_DIRECT_CONF) {
-        conf = ((void**)cf->ctx)[cf->cycle->modules[i]->index];
+        conf = ((void **)cf->ctx)[cf->cycle->modules[i]->index];
 
       } else if (cmd->type & NGX_MAIN_CONF) {
-        conf = &(((void**)cf->ctx)[cf->cycle->modules[i]->index]);
+        conf = &(((void **)cf->ctx)[cf->cycle->modules[i]->index]);
 
       } else if (cf->ctx) {
-        confp = static_cast<void**>(*(void**)((char*)cf->ctx + cmd->conf));
+        confp = static_cast<void **>(*(void **)((char *)cf->ctx + cmd->conf));
 
         if (confp) {
           conf = confp[cf->cycle->modules[i]->ctx_index];

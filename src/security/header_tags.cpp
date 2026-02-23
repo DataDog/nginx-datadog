@@ -13,8 +13,8 @@ namespace dnsec = datadog::nginx::security;
 using datadog::nginx::to_string_view;
 
 namespace {
-void each_req_header(bool has_attack, const ngx_table_elt_t& h,
-                     dd::Span& span) {
+void each_req_header(bool has_attack, const ngx_table_elt_t &h,
+                     dd::Span &span) {
   switch (h.hash) {
 #define CASE_REQ_HEADER_ATTACK(header)                                         \
   case dnsec::ngx_hash_ce(""sv header):                                        \
@@ -65,7 +65,7 @@ void each_req_header(bool has_attack, const ngx_table_elt_t& h,
   }  // end switch
 }
 
-void each_resp_header(const ngx_table_elt_t& h, dd::Span& span) {
+void each_resp_header(const ngx_table_elt_t &h, dd::Span &span) {
 #define CASE_RESP_HEADER(header)                                 \
   do {                                                           \
     if (h.key.len == (""sv header).size()) {                     \
@@ -87,8 +87,8 @@ void each_resp_header(const ngx_table_elt_t& h, dd::Span& span) {
   CASE_RESP_HEADER("content-language");
 }
 
-void handle_special_resp_headers(const ngx_http_headers_out_t& headers_out,
-                                 dd::Span& span) {
+void handle_special_resp_headers(const ngx_http_headers_out_t &headers_out,
+                                 dd::Span &span) {
   if (headers_out.content_type.len > 0) {
     span.set_tag("http.response.headers.content-type",
                  datadog::nginx::to_string_view(headers_out.content_type));
@@ -112,14 +112,14 @@ void handle_special_resp_headers(const ngx_http_headers_out_t& headers_out,
 
 namespace datadog::nginx::security {
 
-void set_header_tags(bool has_attack, ngx_http_request_t& request,
-                     dd::Span& span) {
+void set_header_tags(bool has_attack, ngx_http_request_t &request,
+                     dd::Span &span) {
   // Limitation: only reports the last value of each header
 
   // Request headers
   {
     dnsec::NgnixHeaderIterable it{request.headers_in.headers};
-    for (auto&& h : it) {
+    for (auto &&h : it) {
       each_req_header(has_attack, h, span);
     }
   }
@@ -127,7 +127,7 @@ void set_header_tags(bool has_attack, ngx_http_request_t& request,
   // Response headers (set unconditionally when appsec is enabled)
   {
     dnsec::NgnixHeaderIterable it{request.headers_out.headers};
-    for (auto&& h : it) {
+    for (auto &&h : it) {
       each_resp_header(h, span);
     }
     handle_special_resp_headers(request.headers_out, span);

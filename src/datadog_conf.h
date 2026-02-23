@@ -21,7 +21,8 @@ extern "C" {
 #include <variant>
 #include <vector>
 
-#define DD_NGX_CONF_COMPLEX_UNSET (ngx_http_complex_value_t*)NGX_CONF_UNSET_PTR;
+#define DD_NGX_CONF_COMPLEX_UNSET \
+  (ngx_http_complex_value_t *)NGX_CONF_UNSET_PTR;
 
 namespace datadog {
 namespace nginx {
@@ -32,8 +33,8 @@ struct conf_directive_source_location_t {
   ngx_str_t directive_name;  // e.g. "proxy_pass"
 };
 
-bool operator==(const conf_directive_source_location_t&,
-                const conf_directive_source_location_t&);
+bool operator==(const conf_directive_source_location_t &,
+                const conf_directive_source_location_t &);
 
 struct environment_variable_t {
   std::string name;
@@ -50,7 +51,7 @@ struct sampling_rule_t {
   // of `*depth` is not known until location configurations are merged into
   // each other, which happens after the `datadog_sample_rate` directive
   // handler that produced this `sampling_rule_t`.
-  int* depth = nullptr;
+  int *depth = nullptr;
   // `rule` targets the sample rate and source location of a particular
   // `datadog_sample_rate` directive.
   dd::TraceSamplerConfig::Rule rule;
@@ -61,7 +62,7 @@ struct datadog_main_conf_t {
   // Whether we discard almost all traces not setting  _dd.p.ts
   ngx_flag_t apm_tracing_enabled{NGX_CONF_UNSET};
 
-  std::unordered_map<std::string, ngx_http_complex_value_t*> tags;
+  std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
   // `are_propagation_styles_locked` is whether the tracer's propagation styles
   // have been set, either by an explicit `datadog_propagation_styles`
   // directive, or implicitly to a default configuration by another directive.
@@ -210,25 +211,25 @@ struct datadog_sample_rate_condition_t {
 struct datadog_loc_conf_t {
   ngx_flag_t enable_tracing = NGX_CONF_UNSET;
   ngx_flag_t enable_locations = NGX_CONF_UNSET;
-  ngx_http_complex_value_t* operation_name_script = DD_NGX_CONF_COMPLEX_UNSET;
-  ngx_http_complex_value_t* loc_operation_name_script =
+  ngx_http_complex_value_t *operation_name_script = DD_NGX_CONF_COMPLEX_UNSET;
+  ngx_http_complex_value_t *loc_operation_name_script =
       DD_NGX_CONF_COMPLEX_UNSET;
-  ngx_http_complex_value_t* resource_name_script = DD_NGX_CONF_COMPLEX_UNSET;
-  ngx_http_complex_value_t* loc_resource_name_script =
+  ngx_http_complex_value_t *resource_name_script = DD_NGX_CONF_COMPLEX_UNSET;
+  ngx_http_complex_value_t *loc_resource_name_script =
       DD_NGX_CONF_COMPLEX_UNSET;
   ngx_flag_t trust_incoming_span = NGX_CONF_UNSET;
   // `service_name` is set by the `datadog_service_name` directive.
-  ngx_http_complex_value_t* service_name = DD_NGX_CONF_COMPLEX_UNSET;
+  ngx_http_complex_value_t *service_name = DD_NGX_CONF_COMPLEX_UNSET;
   // `service_env` is set by the `datadog_environment` directive.
-  ngx_http_complex_value_t* service_env = DD_NGX_CONF_COMPLEX_UNSET;
+  ngx_http_complex_value_t *service_env = DD_NGX_CONF_COMPLEX_UNSET;
   // `service_version` is set by the `datadog_version` directive.
-  ngx_http_complex_value_t* service_version = DD_NGX_CONF_COMPLEX_UNSET;
-  std::unordered_map<std::string, ngx_http_complex_value_t*> tags;
+  ngx_http_complex_value_t *service_version = DD_NGX_CONF_COMPLEX_UNSET;
+  std::unordered_map<std::string, ngx_http_complex_value_t *> tags;
   ngx_flag_t baggage_span_tags_enabled = NGX_CONF_UNSET;
   std::variant<std::vector<std::string>, bool> baggage_span_tags;
   // `parent` is the parent context (e.g. the `server` to this `location`), or
   // `nullptr` if this context has no parent.
-  datadog_loc_conf_t* parent;
+  datadog_loc_conf_t *parent;
   // `sample_rates` contains one entry per `sample_rate` directive in this
   // location. Entries for enclosing contexts can be accessed through `parent`.
   std::vector<datadog_sample_rate_condition_t> sample_rates;
@@ -239,12 +240,12 @@ struct datadog_loc_conf_t {
 
 #ifdef WITH_WAF
   // the thread pool used to run the WAF on
-  ngx_thread_pool_t* waf_pool{nullptr};
+  ngx_thread_pool_t *waf_pool{nullptr};
 #endif
 
 #ifdef WITH_RUM
   ngx_flag_t rum_enable = NGX_CONF_UNSET;
-  Snippet* rum_snippet = nullptr;
+  Snippet *rum_snippet = nullptr;
   std::string rum_application_id_tag;
   std::string rum_remote_config_tag;
 #endif

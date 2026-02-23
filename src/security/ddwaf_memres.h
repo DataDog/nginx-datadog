@@ -21,14 +21,14 @@ class DdwafMemres {
 
  public:
   DdwafMemres() = default;
-  DdwafMemres(const DdwafMemres&) = delete;
-  DdwafMemres& operator=(const DdwafMemres&) = delete;
-  DdwafMemres(DdwafMemres&&) = default;
-  DdwafMemres& operator=(DdwafMemres&&) = default;
+  DdwafMemres(const DdwafMemres &) = delete;
+  DdwafMemres &operator=(const DdwafMemres &) = delete;
+  DdwafMemres(DdwafMemres &&) = default;
+  DdwafMemres &operator=(DdwafMemres &&) = default;
   ~DdwafMemres() = default;
 
   template <typename T = ddwaf_object>
-  T* allocate_objects(std::size_t num_objects) {
+  T *allocate_objects(std::size_t num_objects) {
     // NOLINTNEXTLINE(misc-redundant-expression)
     static_assert(sizeof(T) == sizeof(ddwaf_object) &&
                       alignof(T) == alignof(ddwaf_object),
@@ -45,19 +45,19 @@ class DdwafMemres {
       std::size_t const size = std::max(kMinObjSegSize, num_objects);
       new_objects_segment(size);
     }
-    auto* p = allocs_object_.back().get() + (objects_stored_);
+    auto *p = allocs_object_.back().get() + (objects_stored_);
 
     objects_stored_ += num_objects;
     // keep braces, some code depends on this being zero-initialized:
     return new (p) T[num_objects]{};  // NOLINT(cppcoreguidelines-owning-memory)
   }
 
-  char* allocate_string(size_t len) {
+  char *allocate_string(size_t len) {
     if (strings_stored_ + len >= cur_string_seg_size_) {
       std::size_t const size = std::max(kMinStrSegSize, len);
       new_strings_segment(size);
     }
-    char* p = allocs_string_.back().get() + strings_stored_;
+    char *p = allocs_string_.back().get() + strings_stored_;
 
     strings_stored_ += len;
 
@@ -104,14 +104,14 @@ template <typename DdwafObjType>
 requires std::is_base_of_v<ddwaf_object, DdwafObjType>
 class DdwafObjArrPool {
  public:
-  DdwafObjArrPool(DdwafMemres& memres) : memres_{memres} {}
+  DdwafObjArrPool(DdwafMemres &memres) : memres_{memres} {}
 
-  DdwafObjType* alloc(std::size_t size) {
+  DdwafObjType *alloc(std::size_t size) {
     auto it = free_.find(size);
     if (it != free_.end()) {
-      std::vector<DdwafObjType*>& free_list = it->second;
+      std::vector<DdwafObjType *> &free_list = it->second;
       if (!free_list.empty()) {
-        auto* obj = free_list.back();
+        auto *obj = free_list.back();
         free_list.pop_back();
         return new (obj) DdwafObjType[size]{};
       }
@@ -120,14 +120,14 @@ class DdwafObjArrPool {
     return memres_.allocate_objects<DdwafObjType>(size);
   }
 
-  DdwafObjType* realloc(DdwafObjType* arr, std::size_t cur_size,
+  DdwafObjType *realloc(DdwafObjType *arr, std::size_t cur_size,
                         std::size_t new_size) {
     assert(new_size > cur_size);
-    auto* new_arr = alloc(new_size);
+    auto *new_arr = alloc(new_size);
     if (cur_size > 0) {
       std::copy_n(arr, cur_size, new_arr);
 
-      std::vector<DdwafObjType*>& free_list = free_[cur_size];
+      std::vector<DdwafObjType *> &free_list = free_[cur_size];
       free_list.emplace_back(arr);
     }
 
@@ -135,8 +135,8 @@ class DdwafObjArrPool {
   }
 
  private:
-  DdwafMemres& memres_;
-  std::unordered_map<std::size_t, std::vector<DdwafObjType*>> free_;
+  DdwafMemres &memres_;
+  std::unordered_map<std::size_t, std::vector<DdwafObjType *>> free_;
 };
 
 }  // namespace datadog::nginx::security
