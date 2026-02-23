@@ -23,7 +23,7 @@ std::optional<bool> get_rum_enabled_from_env();
 
 std::string make_rum_json_config(
     int config_version,
-    const std::unordered_map<std::string, std::vector<std::string>> &config);
+    const std::unordered_map<std::string, std::vector<std::string>>& config);
 
 std::optional<int> parse_rum_version(std::string_view config_version);
 

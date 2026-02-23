@@ -1,7 +1,6 @@
-#include <catch2/catch_test_macros.hpp>
-
 #include <rapidjson/document.h>
 
+#include <catch2/catch_test_macros.hpp>
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -21,8 +20,8 @@ struct ScopedEnv {
   std::string name;
   std::optional<std::string> old_value;
 
-  ScopedEnv(const char *env_name, const char *value) : name(env_name) {
-    const char *prev = std::getenv(env_name);
+  ScopedEnv(const char* env_name, const char* value) : name(env_name) {
+    const char* prev = std::getenv(env_name);
     if (prev) {
       old_value = prev;
     }
@@ -37,8 +36,8 @@ struct ScopedEnv {
     }
   }
 
-  ScopedEnv(const ScopedEnv &) = delete;
-  ScopedEnv &operator=(const ScopedEnv &) = delete;
+  ScopedEnv(const ScopedEnv&) = delete;
+  ScopedEnv& operator=(const ScopedEnv&) = delete;
 };
 
 // RAII helper that unsets an environment variable on construction
@@ -47,8 +46,8 @@ struct ScopedUnsetEnv {
   std::string name;
   std::optional<std::string> old_value;
 
-  explicit ScopedUnsetEnv(const char *env_name) : name(env_name) {
-    const char *prev = std::getenv(env_name);
+  explicit ScopedUnsetEnv(const char* env_name) : name(env_name) {
+    const char* prev = std::getenv(env_name);
     if (prev) {
       old_value = prev;
     }
@@ -63,12 +62,12 @@ struct ScopedUnsetEnv {
     }
   }
 
-  ScopedUnsetEnv(const ScopedUnsetEnv &) = delete;
-  ScopedUnsetEnv &operator=(const ScopedUnsetEnv &) = delete;
+  ScopedUnsetEnv(const ScopedUnsetEnv&) = delete;
+  ScopedUnsetEnv& operator=(const ScopedUnsetEnv&) = delete;
 };
 
 // Helper: parse JSON string and return a RapidJSON Document.
-rapidjson::Document parse_json(const std::string &json) {
+rapidjson::Document parse_json(const std::string& json) {
   rapidjson::Document doc;
   doc.Parse(json.c_str());
   REQUIRE(!doc.HasParseError());
@@ -94,8 +93,8 @@ TEST_CASE("parse_rum_version invalid inputs", "[rum][config]") {
   CHECK(rum::parse_rum_version("") == std::nullopt);
   CHECK(rum::parse_rum_version("v") == std::nullopt);
   CHECK(rum::parse_rum_version("5") == std::nullopt);   // no 'v' prefix
-  CHECK(rum::parse_rum_version("V5") == std::nullopt);   // uppercase
-  CHECK(rum::parse_rum_version("va") == std::nullopt);   // non-numeric
+  CHECK(rum::parse_rum_version("V5") == std::nullopt);  // uppercase
+  CHECK(rum::parse_rum_version("va") == std::nullopt);  // non-numeric
   CHECK(rum::parse_rum_version("abc") == std::nullopt);
 }
 
@@ -178,7 +177,7 @@ TEST_CASE("make_rum_json_config with empty config", "[rum][config]") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("get_rum_enabled_from_env truthy values", "[rum][config]") {
-  for (const char *val : {"true", "1", "yes", "on"}) {
+  for (const char* val : {"true", "1", "yes", "on"}) {
     SECTION(std::string("DD_RUM_ENABLED=") + val) {
       ScopedEnv env("DD_RUM_ENABLED", val);
       auto result = rum::get_rum_enabled_from_env();
@@ -189,7 +188,7 @@ TEST_CASE("get_rum_enabled_from_env truthy values", "[rum][config]") {
 }
 
 TEST_CASE("get_rum_enabled_from_env falsy values", "[rum][config]") {
-  for (const char *val : {"false", "0", "no", "off"}) {
+  for (const char* val : {"false", "0", "no", "off"}) {
     SECTION(std::string("DD_RUM_ENABLED=") + val) {
       ScopedEnv env("DD_RUM_ENABLED", val);
       auto result = rum::get_rum_enabled_from_env();

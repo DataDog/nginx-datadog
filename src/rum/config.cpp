@@ -1,5 +1,4 @@
 #include "config.h"
-#include "config_internal.h"
 
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
@@ -10,6 +9,7 @@
 #include <optional>
 #include <string_view>
 
+#include "config_internal.h"
 #include "string_util.h"
 
 using namespace std::string_view_literals;
@@ -38,8 +38,8 @@ std::unordered_map<std::string, std::vector<std::string>>
 get_rum_config_from_env() {
   std::unordered_map<std::string, std::vector<std::string>> config;
   for (std::size_t i = 0; i < rum_env_mappings_size; ++i) {
-    const auto &mapping = rum_env_mappings[i];
-    const char *value = std::getenv(std::string(mapping.env_name).c_str());
+    const auto& mapping = rum_env_mappings[i];
+    const char* value = std::getenv(std::string(mapping.env_name).c_str());
     if (value != nullptr && value[0] != '\0') {
       config[std::string(mapping.config_key)] = {std::string(value)};
     }
@@ -48,7 +48,7 @@ get_rum_config_from_env() {
 }
 
 std::optional<bool> get_rum_enabled_from_env() {
-  const char *value = std::getenv("DD_RUM_ENABLED");
+  const char* value = std::getenv("DD_RUM_ENABLED");
   if (value == nullptr || value[0] == '\0') {
     return std::nullopt;
   }
@@ -64,15 +64,15 @@ std::optional<bool> get_rum_enabled_from_env() {
 
 std::string make_rum_json_config(
     int config_version,
-    const std::unordered_map<std::string, std::vector<std::string>> &config) {
+    const std::unordered_map<std::string, std::vector<std::string>>& config) {
   rapidjson::Document doc;
   doc.SetObject();
 
-  rapidjson::Document::AllocatorType &allocator = doc.GetAllocator();
+  rapidjson::Document::AllocatorType& allocator = doc.GetAllocator();
   doc.AddMember("majorVersion", config_version, allocator);
 
   rapidjson::Value rum(rapidjson::kObjectType);
-  for (const auto &[key, values] : config) {
+  for (const auto& [key, values] : config) {
     if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
       rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                     rapidjson::Value(std::stod(values[0])).Move(), allocator);
@@ -88,7 +88,7 @@ std::string make_rum_json_config(
                       allocator);
       } else {
         rapidjson::Value array(rapidjson::kArrayType);
-        for (const auto &e : values) {
+        for (const auto& e : values) {
           array.PushBack(rapidjson::Value(e.c_str(), allocator).Move(),
                          allocator);
         }
@@ -131,27 +131,27 @@ namespace {
 
 using namespace datadog::nginx::rum::internal;
 
-char *set_config(ngx_conf_t *cf, ngx_command_t *command, void *conf) {
-  auto &rum_config =
-      *static_cast<std::unordered_map<std::string, std::vector<std::string>> *>(
+char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
+  auto& rum_config =
+      *static_cast<std::unordered_map<std::string, std::vector<std::string>>*>(
           conf);
 
   if (cf->args->nelts < 2) {
-    char *err_msg =
-        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    char* err_msg =
+        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf(
-        (u_char *)err_msg, 256,
+        (u_char*)err_msg, 256,
         "invalid number of arguments. Expected at least two arguments.");
     return err_msg;
   }
 
-  ngx_str_t *arg_values = (ngx_str_t *)(cf->args->elts);
+  ngx_str_t* arg_values = (ngx_str_t*)(cf->args->elts);
 
   std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
   if (key.empty()) {
-    char *err_msg =
-        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char *)err_msg, 256, "empty key");
+    char* err_msg =
+        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    ngx_snprintf((u_char*)err_msg, 256, "empty key");
     return err_msg;
   }
 
@@ -170,18 +170,18 @@ namespace datadog::nginx::rum {
 
 using namespace internal;
 
-char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
-                            void *conf) {
-  auto *loc_conf = static_cast<datadog::nginx::datadog_loc_conf_t *>(conf);
+char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
+                            void* conf) {
+  auto* loc_conf = static_cast<datadog::nginx::datadog_loc_conf_t*>(conf);
 
-  auto *values = static_cast<ngx_str_t *>(cf->args->elts);
+  auto* values = static_cast<ngx_str_t*>(cf->args->elts);
 
   auto arg1 = datadog::nginx::to_string_view(values[1]);
   auto config_version = parse_rum_version(arg1);
   if (!config_version) {
-    auto *err_msg =
-        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char *)err_msg, 256,
+    auto* err_msg =
+        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    ngx_snprintf((u_char*)err_msg, 256,
                  "invalid version argument provided. Expected version 'v5' but "
                  "encountered '%s'. Please ensure you are using the correct "
                  "version format 'v5'",
@@ -194,7 +194,7 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
   ngx_conf_t save = *cf;
   cf->handler = set_config;
   cf->handler_conf = &rum_config;
-  char *status = ngx_conf_parse(cf, NULL);
+  char* status = ngx_conf_parse(cf, NULL);
   *cf = save;
 
   if (status != NGX_CONF_OK) {
@@ -203,20 +203,20 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
 
   auto json = make_rum_json_config(*config_version, rum_config);
   if (json.empty()) {
-    auto *err_msg =
-        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    auto* err_msg =
+        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf(
-        (u_char *)err_msg, 256,
+        (u_char*)err_msg, 256,
         "failed to generate the RUM SDK script: missing version field");
     return err_msg;
   }
 
-  Snippet *snippet = snippet_create_from_json(json.c_str());
+  Snippet* snippet = snippet_create_from_json(json.c_str());
 
   if (snippet->error_code) {
-    auto *err_msg =
-        static_cast<char *>(ngx_palloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char *)err_msg, 256,
+    auto* err_msg =
+        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
+    ngx_snprintf((u_char*)err_msg, 256,
                  "failed to generate the RUM SDK script: %s",
                  snippet->error_message);
     return err_msg;
@@ -239,9 +239,9 @@ char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command,
   return NGX_CONF_OK;
 }
 
-char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
-                                   datadog::nginx::datadog_loc_conf_t *parent,
-                                   datadog::nginx::datadog_loc_conf_t *child) {
+char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
+                                   datadog::nginx::datadog_loc_conf_t* parent,
+                                   datadog::nginx::datadog_loc_conf_t* child) {
   bool child_explicit = (child->rum_enable != NGX_CONF_UNSET);
   bool parent_explicit = (parent->rum_enable != NGX_CONF_UNSET);
 
@@ -267,14 +267,13 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
       if (!env_config.empty()) {
         auto json = make_rum_json_config(5, env_config);
         if (!json.empty()) {
-          Snippet *snippet = snippet_create_from_json(json.c_str());
+          Snippet* snippet = snippet_create_from_json(json.c_str());
           if (snippet != nullptr && !snippet->error_code) {
             child->rum_snippet = snippet;
             child->rum_remote_config_tag = "remote_config_used:false";
             if (auto it = env_config.find("applicationId");
                 it != env_config.end() && !it->second.empty()) {
-              child->rum_application_id_tag =
-                  "application_id:" + it->second[0];
+              child->rum_application_id_tag = "application_id:" + it->second[0];
             }
             if (auto it = env_config.find("remoteConfigurationId");
                 it != env_config.end() && !it->second.empty()) {
@@ -288,7 +287,7 @@ char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
           }
         }
       }
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       ngx_log_error(
           NGX_LOG_WARN, cf->log, 0,
           "nginx-datadog: invalid DD_RUM_* environment variable value: %s",
