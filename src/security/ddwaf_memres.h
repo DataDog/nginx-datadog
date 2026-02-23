@@ -101,7 +101,7 @@ class DdwafMemres {
  * sizes of arrays or maps are not known in advance.
  */
 template <typename DdwafObjType>
-  requires std::is_base_of_v<ddwaf_object, DdwafObjType>
+requires std::is_base_of_v<ddwaf_object, DdwafObjType>
 class DdwafObjArrPool {
  public:
   DdwafObjArrPool(DdwafMemres& memres) : memres_{memres} {}
