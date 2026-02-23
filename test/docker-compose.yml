@@ -22,6 +22,8 @@ services:
       DD_RUM_TRACK_RESOURCES: "true"
       DD_RUM_TRACK_LONG_TASKS: "true"
       DD_RUM_TRACK_USER_INTERACTIONS: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     cap_add:
       - SYS_PTRACE
     volumes:

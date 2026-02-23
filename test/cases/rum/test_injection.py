@@ -300,7 +300,7 @@ class TestRUMInjection(case.TestCase):
         Also verify the plugin set `x-datadog-sdk-injection` to signal
         downstream to let it NGINX inject the RUM SDK.
         """
-        service = {"host": "localhost", "port": 8081}
+        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -561,7 +561,7 @@ class TestRUMInjection(case.TestCase):
         Verify that responses with content_length_n == 0 skip injection
         (reason:no_content).
         """
-        service = {"host": "localhost", "port": 8081}
+        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -594,7 +594,7 @@ class TestRUMInjection(case.TestCase):
         Verify that responses with Content-Encoding header skip injection
         (reason:compressed_html). The module only checks header presence.
         """
-        service = {"host": "localhost", "port": 8081}
+        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -641,7 +641,7 @@ class TestRUMInjection(case.TestCase):
         header filter before the body filter discovers no <head>), but the
         RUM script is not present in the body.
         """
-        service = {"host": "localhost", "port": 8081}
+        service = {"host": "0.0.0.0", "port": 8081}
         original_html = """<html>
         <body>
             <p>No head tag here</p>
@@ -683,14 +683,44 @@ class TestRUMInjection(case.TestCase):
 
     def test_csp_header_present_still_injects(self):
         """
-        Verify that when the response includes a Content-Security-Policy header
+        Verify that when the upstream sets a Content-Security-Policy header
         the module still injects the RUM snippet. The CSP header is passed
         through to the client (on_log_request emits a telemetry counter).
         """
-        status, lines = self.load_conf("rum_csp.conf")
-        self.assertEqual(0, status, lines)
+        service = {"host": "0.0.0.0", "port": 8081}
 
-        status, headers, body = self.orch.send_nginx_http_request("/csp")
+        @Request.application
+        def app(request: Request) -> Response:
+            return Response(
+                """<html>
+        <head>
+            <title>CSP Page</title>
+        </head>
+        <body>
+            Hello, CSP!
+        </body>
+        </html>
+        """,
+                200,
+                content_type="text/html",
+                headers={
+                    "Content-Security-Policy":
+                    "default-src 'self'; script-src 'self'"
+                },
+            )
+
+        s = make_server(service["host"], service["port"], app)
+        t = Thread(target=s.serve_forever)
+        t.start()
+
+        try:
+            status, lines = self.load_conf("rum_enabled.conf")
+            self.assertEqual(0, status, lines)
+
+            status, headers, body = self.orch.send_nginx_http_request("/proxy")
+        finally:
+            s.shutdown()
+            t.join()
 
         self.assertEqual(200, status)
         self.assertInjection(headers, body)
