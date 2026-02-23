@@ -396,7 +396,8 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_TRACK_USER_INTERACTIONS": "true",
         }
 
-        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
                                     healthcheck_port=80) as nginx:
             status, headers, body = self.orch.send_nginx_http_request("/")
             self.assertEqual(200, status)
@@ -430,7 +431,8 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_TRACK_USER_INTERACTIONS": "true",
         }
 
-        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
                                     healthcheck_port=80) as nginx:
             status, headers, body = self.orch.send_nginx_http_request("/")
             self.assertEqual(200, status)
@@ -480,7 +482,8 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_REMOTE_CONFIGURATION_ID": "abc-123-remote-cfg",
         }
 
-        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
                                     healthcheck_port=80) as nginx:
             status, headers, body = self.orch.send_nginx_http_request("/")
             self.assertEqual(200, status)
@@ -504,7 +507,8 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_SERVICE": "should-not-inject",
         }
 
-        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
                                     healthcheck_port=80) as nginx:
             status, headers, body = self.orch.send_nginx_http_request("/")
             self.assertEqual(200, status)
@@ -527,7 +531,8 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_SERVICE": "env-service",
         }
 
-        with self.orch.custom_nginx(nginx_conf, extra_env=env,
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
                                     healthcheck_port=80) as nginx:
             status, headers, body = self.orch.send_nginx_http_request(
                 "/disable-rum")
@@ -721,4 +726,3 @@ class TestRUMInjection(case.TestCase):
         self.assertInjection(headers, body)
         headers = self.make_dict_headers(headers)
         assert "content-security-policy" in headers
-

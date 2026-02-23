@@ -44,7 +44,7 @@ void report_memory_stats(std::string_view pid, Send&& send) {
   static struct mallinfo2 (*mallinfo2_fn)(void) = nullptr;
 
   if (!checked) {
-    mallinfo2_fn = (struct mallinfo2(*)(void))dlsym(RTLD_DEFAULT, "mallinfo2");
+    mallinfo2_fn = (struct mallinfo2 (*)(void))dlsym(RTLD_DEFAULT, "mallinfo2");
     checked = true;
   }
 

@@ -31,12 +31,12 @@ enum class LineType { BOUNDARY, BOUNDARY_END, OTHER, END_OF_FILE };
  * fully read (and possibly stored in the append string, if given), until
  * either LF or EOF is found.
  */
-auto bind_consume_line(dnsec::HttpContentType &ct) {
+auto bind_consume_line(dnsec::HttpContentType& ct) {
   std::size_t beg_bound_size = 2 /* -- */ + ct.boundary.size();
   auto bound_buf = std::make_unique<std::uint8_t[]>(beg_bound_size);
 
   return [&ct, bound_buf = std::move(bound_buf), beg_bound_size](
-             dnsec::NgxChainInputStream &is, std::string *append) {
+             dnsec::NgxChainInputStream& is, std::string* append) {
     std::size_t read =
         is.read_until(bound_buf.get(), bound_buf.get() + beg_bound_size, '\n');
     if (read == 0) {
@@ -110,11 +110,11 @@ auto bind_consume_line(dnsec::HttpContentType &ct) {
 }
 
 struct Buf {
-  dnsec::ddwaf_obj *ptr;
+  dnsec::ddwaf_obj* ptr;
   std::size_t len;
   std::size_t cap;
 
-  void extend(dnsec::DdwafObjArrPool<dnsec::ddwaf_obj> &pool) {
+  void extend(dnsec::DdwafObjArrPool<dnsec::ddwaf_obj>& pool) {
     std::size_t new_cap = cap * 2;
     if (new_cap == 0) {
       new_cap = 1;
@@ -123,7 +123,7 @@ struct Buf {
     cap = new_cap;
   }
 
-  dnsec::ddwaf_obj &new_slot(dnsec::DdwafObjArrPool<dnsec::ddwaf_obj> &pool) {
+  dnsec::ddwaf_obj& new_slot(dnsec::DdwafObjArrPool<dnsec::ddwaf_obj>& pool) {
     if (len == cap) {
       extend(pool);
     }
@@ -131,7 +131,7 @@ struct Buf {
   }
 };
 
-void remove_final_crlf(std::string &content) {
+void remove_final_crlf(std::string& content) {
   // support also terminations with plain LF instead of CRLF
   if (content.size() >= 1 && content.back() == '\n') {
     content.pop_back();
@@ -144,9 +144,9 @@ void remove_final_crlf(std::string &content) {
 
 namespace datadog::nginx::security {
 
-bool parse_multipart(ddwaf_obj &slot, const ngx_http_request_t &req,
-                     HttpContentType &ct, const ngx_chain_t &chain,
-                     DdwafMemres &memres) {
+bool parse_multipart(ddwaf_obj& slot, const ngx_http_request_t& req,
+                     HttpContentType& ct, const ngx_chain_t& chain,
+                     DdwafMemres& memres) {
   if (ct.boundary.size() == 0) {
     ngx_log_error(NGX_LOG_NOTICE, req.connection->log, 0,
                   "multipart boundary is invalid: %s", ct.boundary.c_str());
@@ -218,7 +218,7 @@ start_part:
       }
 
       if (cd) {
-        auto &buf = data[cd->name];
+        auto& buf = data[cd->name];
         buf.new_slot(pool).make_string({content.data(), content.size()},
                                        memres);
       }
@@ -235,10 +235,10 @@ start_part:
     return false;
   }
 
-  auto &map = slot.make_map(data.size(), memres);
+  auto& map = slot.make_map(data.size(), memres);
   std::size_t i = 0;
-  for (auto &[key, buf] : data) {
-    auto &map_slot = map.at_unchecked(i++);
+  for (auto& [key, buf] : data) {
+    auto& map_slot = map.at_unchecked(i++);
     map_slot.set_key(key, memres);
     if (buf.len == 1) {
       // if only one element, put the string directly under that key

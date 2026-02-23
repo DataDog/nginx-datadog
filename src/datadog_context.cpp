@@ -20,8 +20,8 @@ namespace nginx {
 namespace {
 
 #ifdef WITH_WAF
-bool is_apm_tracing_enabled(ngx_http_request_t *request) {
-  auto main_conf = static_cast<datadog_main_conf_t *>(
+bool is_apm_tracing_enabled(ngx_http_request_t* request) {
+  auto main_conf = static_cast<datadog_main_conf_t*>(
       ngx_http_get_module_main_conf(request, ngx_http_datadog_module));
   if (main_conf == nullptr) return false;
 
@@ -31,9 +31,9 @@ bool is_apm_tracing_enabled(ngx_http_request_t *request) {
 
 }  // namespace
 
-DatadogContext::DatadogContext(ngx_http_request_t *request,
-                               ngx_http_core_loc_conf_t *core_loc_conf,
-                               datadog_loc_conf_t *loc_conf)
+DatadogContext::DatadogContext(ngx_http_request_t* request,
+                               ngx_http_core_loc_conf_t* core_loc_conf,
+                               datadog_loc_conf_t* loc_conf)
 #ifdef WITH_WAF
     : sec_ctx_{security::Context::maybe_create(
           security::Library::max_saved_output_data(),
@@ -46,7 +46,7 @@ DatadogContext::DatadogContext(ngx_http_request_t *request,
 
 #ifdef WITH_RUM
   if (loc_conf->rum_enable) {
-    auto *trace = find_trace(request);
+    auto* trace = find_trace(request);
     if (trace != nullptr) {
       auto rum_span = trace->active_span().create_child();
       rum_span.set_name("rum_sdk_injection.on_rewrite_handler");
@@ -61,9 +61,9 @@ DatadogContext::DatadogContext(ngx_http_request_t *request,
 #endif
 }
 
-void DatadogContext::on_change_block(ngx_http_request_t *request,
-                                     ngx_http_core_loc_conf_t *core_loc_conf,
-                                     datadog_loc_conf_t *loc_conf) {
+void DatadogContext::on_change_block(ngx_http_request_t* request,
+                                     ngx_http_core_loc_conf_t* core_loc_conf,
+                                     datadog_loc_conf_t* loc_conf) {
   if (loc_conf->enable_tracing) {
     auto trace = find_trace(request);
     if (trace != nullptr) {
@@ -78,19 +78,19 @@ void DatadogContext::on_change_block(ngx_http_request_t *request,
 }
 
 #ifdef WITH_WAF
-bool DatadogContext::on_main_req_access(ngx_http_request_t *request) {
+bool DatadogContext::on_main_req_access(ngx_http_request_t* request) {
   if (!sec_ctx_) {
     return false;
   }
 
   // there should only one trace at this point
-  dd::Span &span = single_trace().active_span();
+  dd::Span& span = single_trace().active_span();
   return sec_ctx_->on_request_start(*request, span);
 }
 #endif
 
-ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
-  auto *loc_conf = static_cast<datadog_loc_conf_t *>(
+ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t* request) {
+  auto* loc_conf = static_cast<datadog_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
   if (loc_conf == nullptr) {
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
@@ -99,7 +99,7 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
   }
 
 #if defined(WITH_RUM) || defined(WITH_WAF)
-  RequestTracing *trace{};
+  RequestTracing* trace{};
 #endif
 #ifdef WITH_RUM
   if (loc_conf->rum_enable) {
@@ -126,7 +126,7 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
 
 #ifdef WITH_WAF
   if (sec_ctx_ && trace) {
-    dd::Span &span = trace->active_span();
+    dd::Span& span = trace->active_span();
     return sec_ctx_->header_filter(*request, span);
   }
 #endif
@@ -135,26 +135,26 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
 }
 
 #ifdef WITH_WAF
-ngx_int_t DatadogContext::request_body_filter(ngx_http_request_t *request,
-                                              ngx_chain_t *chain) {
+ngx_int_t DatadogContext::request_body_filter(ngx_http_request_t* request,
+                                              ngx_chain_t* chain) {
   if (!sec_ctx_) {
     return ngx_http_next_request_body_filter(request, chain);
   }
 
-  auto *trace = find_trace(request);
+  auto* trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
         "request_body_filter: could not find request trace"};
   }
 
-  dd::Span &span = trace->active_span();
+  dd::Span& span = trace->active_span();
   return sec_ctx_->request_body_filter(*request, chain, span);
 }
 #endif
 
-ngx_int_t DatadogContext::on_output_body_filter(ngx_http_request_t *request,
-                                                ngx_chain_t *chain) {
-  auto *loc_conf = static_cast<datadog_loc_conf_t *>(
+ngx_int_t DatadogContext::on_output_body_filter(ngx_http_request_t* request,
+                                                ngx_chain_t* chain) {
+  auto* loc_conf = static_cast<datadog_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
   if (loc_conf == nullptr) {
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
@@ -166,20 +166,20 @@ ngx_int_t DatadogContext::on_output_body_filter(ngx_http_request_t *request,
     return ngx_http_next_output_body_filter(request, chain);
   }
 
-  auto *trace = find_trace(request);
+  auto* trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
         "main_output_body_filter: could not find request trace"};
   }
 
-  dd::Span &span = trace->active_span();
+  dd::Span& span = trace->active_span();
   return sec_ctx_->output_body_filter(*request, chain, span);
 #endif
 
 #ifdef WITH_RUM
   // TODO: If WAF is blocking, no need to inject the RUM SDK.
   if (loc_conf->rum_enable) {
-    auto *trace = find_trace(request);
+    auto* trace = find_trace(request);
     if (trace != nullptr) {
       auto rum_span = trace->active_span().create_child();
       rum_span.set_name("rum_sdk_injection.on_body_filter");
@@ -201,8 +201,8 @@ ngx_int_t DatadogContext::on_output_body_filter(ngx_http_request_t *request,
   return ngx_http_next_output_body_filter(request, chain);
 }
 
-void DatadogContext::on_log_request(ngx_http_request_t *request) {
-  auto *loc_conf = static_cast<datadog_loc_conf_t *>(
+void DatadogContext::on_log_request(ngx_http_request_t* request) {
+  auto* loc_conf = static_cast<datadog_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
   if (loc_conf == nullptr) {
     throw std::runtime_error{"on_log_request failed: could not get loc conf"};
@@ -233,7 +233,7 @@ void DatadogContext::on_log_request(ngx_http_request_t *request) {
 }
 
 ngx_str_t DatadogContext::lookup_span_variable_value(
-    ngx_http_request_t *request, std::string_view key) {
+    ngx_http_request_t* request, std::string_view key) {
   auto trace = find_trace(request);
   if (trace == nullptr) {
     throw std::runtime_error{
@@ -242,33 +242,33 @@ ngx_str_t DatadogContext::lookup_span_variable_value(
   return trace->lookup_span_variable_value(key);
 }
 
-RequestTracing *DatadogContext::find_trace(ngx_http_request_t *request) {
+RequestTracing* DatadogContext::find_trace(ngx_http_request_t* request) {
   const auto found = std::find_if(
       traces_.begin(), traces_.end(),
-      [=](const auto &trace) { return trace.request() == request; });
+      [=](const auto& trace) { return trace.request() == request; });
   if (found != traces_.end()) {
     return &*found;
   }
   return nullptr;
 }
 
-RequestTracing &DatadogContext::single_trace() {
+RequestTracing& DatadogContext::single_trace() {
   if (traces_.size() != 1) {
     throw std::runtime_error{"Expected there to be exactly one trace"};
   }
   return traces_[0];
 }
 
-const RequestTracing *DatadogContext::find_trace(
-    ngx_http_request_t *request) const {
-  return const_cast<DatadogContext *>(this)->find_trace(request);
+const RequestTracing* DatadogContext::find_trace(
+    ngx_http_request_t* request) const {
+  return const_cast<DatadogContext*>(this)->find_trace(request);
 }
 
-static void cleanup_datadog_context(void *data) noexcept {
-  delete static_cast<DatadogContext *>(data);
+static void cleanup_datadog_context(void* data) noexcept {
+  delete static_cast<DatadogContext*>(data);
 }
 
-static ngx_pool_cleanup_t *find_datadog_cleanup(ngx_http_request_t *request) {
+static ngx_pool_cleanup_t* find_datadog_cleanup(ngx_http_request_t* request) {
   for (auto cleanup = request->pool->cleanup; cleanup;
        cleanup = cleanup->next) {
     if (cleanup->handler == cleanup_datadog_context) {
@@ -278,8 +278,8 @@ static ngx_pool_cleanup_t *find_datadog_cleanup(ngx_http_request_t *request) {
   return nullptr;
 }
 
-DatadogContext *get_datadog_context(ngx_http_request_t *request) noexcept {
-  auto context = static_cast<DatadogContext *>(
+DatadogContext* get_datadog_context(ngx_http_request_t* request) noexcept {
+  auto context = static_cast<DatadogContext*>(
       ngx_http_get_module_ctx(request, ngx_http_datadog_module));
   if (context != nullptr || !request->internal) {
     return context;
@@ -291,13 +291,13 @@ DatadogContext *get_datadog_context(ngx_http_request_t *request) noexcept {
   // See set_datadog_context below.
   auto cleanup = find_datadog_cleanup(request);
   if (cleanup != nullptr) {
-    context = static_cast<DatadogContext *>(cleanup->data);
+    context = static_cast<DatadogContext*>(cleanup->data);
   }
 
   // If we found a context, attach with ngx_http_set_ctx so that we don't have
   // to loop through the cleanup handlers again.
   if (context != nullptr) {
-    ngx_http_set_ctx(request, static_cast<void *>(context),
+    ngx_http_set_ctx(request, static_cast<void*>(context),
                      ngx_http_datadog_module);
   }
 
@@ -314,21 +314,21 @@ DatadogContext *get_datadog_context(ngx_http_request_t *request) noexcept {
 // See the discussion in
 //    https://forum.nginx.org/read.php?29,272403,272403#msg-272403
 // or the approach taken by the standard nginx realip module.
-void set_datadog_context(ngx_http_request_t *request, DatadogContext *context) {
+void set_datadog_context(ngx_http_request_t* request, DatadogContext* context) {
   auto cleanup = ngx_pool_cleanup_add(request->pool, 0);
   if (cleanup == nullptr) {
     delete context;
     throw std::runtime_error{"failed to allocate cleanup handler"};
   }
-  cleanup->data = static_cast<void *>(context);
+  cleanup->data = static_cast<void*>(context);
   cleanup->handler = cleanup_datadog_context;
-  ngx_http_set_ctx(request, static_cast<void *>(context),
+  ngx_http_set_ctx(request, static_cast<void*>(context),
                    ngx_http_datadog_module);
 }
 
 // Supports early destruction of the DatadogContext (in case of an
 // unrecoverable error).
-void destroy_datadog_context(ngx_http_request_t *request) noexcept {
+void destroy_datadog_context(ngx_http_request_t* request) noexcept {
   auto cleanup = find_datadog_cleanup(request);
   if (cleanup == nullptr) {
     ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
@@ -336,12 +336,12 @@ void destroy_datadog_context(ngx_http_request_t *request) noexcept {
                   request);
     return;
   }
-  delete static_cast<DatadogContext *>(cleanup->data);
+  delete static_cast<DatadogContext*>(cleanup->data);
   cleanup->data = nullptr;
   ngx_http_set_ctx(request, nullptr, ngx_http_datadog_module);
 }
 
-ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t *request) {
+ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t* request) {
   if (traces_.empty()) {
     return NGX_DECLINED;
   }
@@ -349,8 +349,8 @@ ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t *request) {
   // inject headers in the precontent phase into the request headers
   // These headers will be copied by ngx_http_proxy_create_request on the
   // content phase into the outgoing request headers (probably)
-  RequestTracing &trace = traces_.front();
-  dd::Span &span = trace.active_span();
+  RequestTracing& trace = traces_.front();
+  dd::Span& span = trace.active_span();
   span.set_tag("span.kind", "client");
 
 #ifdef WITH_WAF

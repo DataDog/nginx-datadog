@@ -9,8 +9,8 @@
 namespace datadog::nginx {
 namespace {
 
-auto command_source_location(const ngx_command_t *command,
-                             const ngx_conf_t *conf) {
+auto command_source_location(const ngx_command_t* command,
+                             const ngx_conf_t* conf) {
   return conf_directive_source_location_t{
       .file_name = conf->conf_file->file.name,
       .line = conf->conf_file->line,
@@ -24,8 +24,8 @@ auto command_source_location(const ngx_command_t *command,
 // first (e.g. `proxy_pass`, `grpc_pass`, `fastcgi_pass`).
 // The purpose of locking the styles is to detect when
 // `datadog_propagation_styles` occurs after a header-injecting directive.
-char *lock_propagation_styles(const ngx_command_t *command, ngx_conf_t *conf) {
-  auto main_conf = static_cast<datadog_main_conf_t *>(
+char* lock_propagation_styles(const ngx_command_t* command, ngx_conf_t* conf) {
+  auto main_conf = static_cast<datadog_main_conf_t*>(
       ngx_http_conf_get_module_main_conf(conf, ngx_http_datadog_module));
 
   // The only way that `main_conf` could be `nullptr` is if there's no `http`
@@ -40,33 +40,33 @@ char *lock_propagation_styles(const ngx_command_t *command, ngx_conf_t *conf) {
   main_conf->propagation_styles_source_location =
       command_source_location(command, conf);
 
-  return static_cast<char *>(NGX_CONF_OK);
+  return static_cast<char*>(NGX_CONF_OK);
 }
 
 }  // namespace
 
-char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
-                      void *conf) noexcept {
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  auto values = static_cast<ngx_str_t *>(cf->args->elts);
+char* set_datadog_tag(ngx_conf_t* cf, ngx_command_t* command,
+                      void* conf) noexcept {
+  auto loc_conf = static_cast<datadog_loc_conf_t*>(conf);
+  auto values = static_cast<ngx_str_t*>(cf->args->elts);
   assert(cf->args->nelts >= 2);
 
-  auto *complex_value = common::make_complex_value(cf, values[2]);
+  auto* complex_value = common::make_complex_value(cf, values[2]);
   if (complex_value == nullptr) {
     ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
                        "Could not create complex value from \"%V\" arguments",
                        &values[2]);
-    return static_cast<char *>(NGX_CONF_ERROR);
+    return static_cast<char*>(NGX_CONF_ERROR);
   }
 
   loc_conf->tags.insert_or_assign(to_string(values[1]), complex_value);
   return NGX_CONF_OK;
 }
 
-char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
-                               void *conf) noexcept {
-  auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
-  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
+char* set_datadog_baggage_tags(ngx_conf_t* cf, ngx_command_t* command,
+                               void* conf) noexcept {
+  auto loc_conf = static_cast<datadog_loc_conf_t*>(conf);
+  const auto values = static_cast<ngx_str_t*>(cf->args->elts);
   assert(cf->args->nelts >= 1);
 
   const auto args = values + 1;
@@ -81,7 +81,7 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
                          "Invalid arguments to %V directive.  \"all\" may not"
                          "be followed with any other arguments.",
                          &command->name);
-      return static_cast<char *>(NGX_CONF_ERROR);
+      return static_cast<char*>(NGX_CONF_ERROR);
     }
   } else if (str(args[0]) == "select") {
     if (nargs == 1) {
@@ -89,7 +89,7 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
                          "Invalid arguments to %V directive.  \"select\" must"
                          "be followed with at least one argument.",
                          &command->name);
-      return static_cast<char *>(NGX_CONF_ERROR);
+      return static_cast<char*>(NGX_CONF_ERROR);
     }
   } else {
     ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
@@ -97,7 +97,7 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
                        "must be \"all\" "
                        "or \"select\".",
                        &command->name);
-    return static_cast<char *>(NGX_CONF_ERROR);
+    return static_cast<char*>(NGX_CONF_ERROR);
   }
 
   // If a previous directive usage configured this to use the `all` wildcard,
@@ -108,17 +108,17 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
                        "directive was already configured with "
                        "the setting \"all\".",
                        &command->name);
-    return static_cast<char *>(NGX_CONF_ERROR);
+    return static_cast<char*>(NGX_CONF_ERROR);
   }
 
-  for (const ngx_str_t *arg = args + 1; arg != args + nargs; ++arg) {
+  for (const ngx_str_t* arg = args + 1; arg != args + nargs; ++arg) {
     const auto baggage_key = to_string_view(*arg);
     if (baggage_key.empty()) {
       ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
                          "Invalid argument \"%V\" to %V directive.  Expected a "
                          "non-empty string.",
                          arg, &command->name);
-      return static_cast<char *>(NGX_CONF_ERROR);
+      return static_cast<char*>(NGX_CONF_ERROR);
     }
 
     std::get<std::vector<std::string>>(loc_conf->baggage_span_tags)
@@ -128,14 +128,14 @@ char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
   return NGX_CONF_OK;
 }
 
-char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
-                              void *conf) noexcept {
-  const auto loc_conf = static_cast<datadog_loc_conf_t *>(conf);
+char* set_datadog_sample_rate(ngx_conf_t* cf, ngx_command_t* command,
+                              void* conf) noexcept {
+  const auto loc_conf = static_cast<datadog_loc_conf_t*>(conf);
 
   conf_directive_source_location_t directive =
       command_source_location(command, cf);
 
-  auto values = static_cast<ngx_str_t *>(cf->args->elts);
+  auto values = static_cast<ngx_str_t*>(cf->args->elts);
   // values[0] is the command name, "datadog_sample_rate".
   // The other elements are the arguments: either one or two of them.
   //
@@ -164,12 +164,12 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
           "and 1.0, but the provided argument has unparsed trailing "
           "characters.",
           &values[1], &directive.directive_name);
-      return static_cast<char *>(NGX_CONF_ERROR);
+      return static_cast<char*>(NGX_CONF_ERROR);
     }
     if (!(rate_float >= 0.0 && rate_float <= 1.0)) {
       throw std::out_of_range("");  // error message is in the `catch` handler
     }
-  } catch (const std::invalid_argument &) {
+  } catch (const std::invalid_argument&) {
     ngx_log_error(
         NGX_LOG_ERR, cf->log, 0,
         "Invalid argument \"%V\" to %V directive at %V:%d.  Expected a real "
@@ -177,15 +177,15 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
         "between 0.0 and 1.0, but the provided argument is not a number.",
         &values[1], &directive.directive_name, &directive.file_name,
         directive.line);
-    return static_cast<char *>(NGX_CONF_ERROR);
-  } catch (const std::out_of_range &) {
+    return static_cast<char*>(NGX_CONF_ERROR);
+  } catch (const std::out_of_range&) {
     ngx_conf_log_error(
         NGX_LOG_ERR, cf, 0,
         "Invalid argument \"%V\" to %V directive.  Expected a real "
         "number "
         "between 0.0 and 1.0, but the provided argument is out of range.",
         &values[1], &directive.directive_name);
-    return static_cast<char *>(NGX_CONF_ERROR);
+    return static_cast<char*>(NGX_CONF_ERROR);
   }
 
   // Compile the pattern that evaluates to either "on" or "off" depending on
@@ -197,14 +197,14 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
                        "an expression that "
                        "will evaluate to \"on\" or \"off\".",
                        &condition_pattern, &directive.directive_name);
-    return static_cast<char *>(NGX_CONF_ERROR);
+    return static_cast<char*>(NGX_CONF_ERROR);
   }
 
   // Add to the location configuration a `datadog_sample_rate_condition_t`
   // object corresponding to this `sample_rate` directive. This will allow us
   // to evaluate the condition (script) when a request comes through this
   // location.
-  auto &rates = loc_conf->sample_rates;
+  auto& rates = loc_conf->sample_rates;
   datadog_sample_rate_condition_t rate = {
       .condition = condition_script,
       .directive = directive,
@@ -216,7 +216,7 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
   }
   rates.push_back(rate);  // we use `rate` again below
 
-  auto main_conf = static_cast<datadog_main_conf_t *>(
+  auto main_conf = static_cast<datadog_main_conf_t*>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
   // The only way that `main_conf` could be `nullptr` is if there's no `http`
@@ -233,20 +233,20 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
   rule.rule.tags.emplace(rate.tag_name(), rate.tag_value());
   main_conf->sampling_rules.push_back(std::move(rule));
 
-  return static_cast<char *>(NGX_CONF_OK);
+  return static_cast<char*>(NGX_CONF_OK);
 }
 
-char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
-                                     void *conf) noexcept {
-  const auto main_conf = static_cast<datadog_main_conf_t *>(conf);
+char* set_datadog_propagation_styles(ngx_conf_t* cf, ngx_command_t* command,
+                                     void* conf) noexcept {
+  const auto main_conf = static_cast<datadog_main_conf_t*>(conf);
   // If the propagation styles have already been configured, then either there
   // are two "datadog_propagation_styles" directives, or, more likely, another
   // directive like "proxy_pass" occurred earlier and default-configured the
   // propagation styles.  Print an error instructing the user to place
   // "datadog_propagation_styles" before any such directives.
   if (main_conf->are_propagation_styles_locked) {
-    const auto &location = main_conf->propagation_styles_source_location;
-    const char *qualifier = "";
+    const auto& location = main_conf->propagation_styles_source_location;
+    const char* qualifier = "";
     if (str(location.directive_name) != "datadog_propagation_styles") {
       qualifier = "default-";
     }
@@ -259,18 +259,18 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
                   "proxy-related directives.",
                   qualifier, &location.directive_name, &location.file_name,
                   location.line);
-    return static_cast<char *>(NGX_CONF_ERROR);
+    return static_cast<char*>(NGX_CONF_ERROR);
   }
 
-  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
+  const auto values = static_cast<ngx_str_t*>(cf->args->elts);
   // values[0] is the command name, "datadog_propagation_styles".
   // The other elements are the arguments: the names of the styles.
   //
   //     datadog_propagation_styles <style> [<styles> ...];
   const auto args = values + 1;
   const auto nargs = cf->args->nelts - 1;
-  auto &styles = main_conf->propagation_styles;
-  for (const ngx_str_t *arg = args; arg != args + nargs; ++arg) {
+  auto& styles = main_conf->propagation_styles;
+  for (const ngx_str_t* arg = args; arg != args + nargs; ++arg) {
     auto maybe_style = dd::parse_propagation_style(str(*arg));
     if (!maybe_style) {
       ngx_conf_log_error(
@@ -279,12 +279,12 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
           "\"Datadog\", \"B3\", "
           "and \"tracecontext\".",
           arg);
-      return static_cast<char *>(NGX_CONF_ERROR);
+      return static_cast<char*>(NGX_CONF_ERROR);
     }
     if (std::find(styles.begin(), styles.end(), *maybe_style) != styles.end()) {
       ngx_conf_log_error(NGX_LOG_ERR, cf, 0,
                          "Duplicate propagation style \"%V\".", arg);
-      return static_cast<char *>(NGX_CONF_ERROR);
+      return static_cast<char*>(NGX_CONF_ERROR);
     }
     styles.push_back(*maybe_style);
   }
@@ -292,17 +292,17 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
   return lock_propagation_styles(command, cf);
 }
 
-char *set_datadog_agent_url(ngx_conf_t *cf, ngx_command_t *command,
-                            void *conf) noexcept {
+char* set_datadog_agent_url(ngx_conf_t* cf, ngx_command_t* command,
+                            void* conf) noexcept {
   assert(conf != nullptr);
-  auto &main_conf = *static_cast<datadog_main_conf_t *>(conf);
+  auto& main_conf = *static_cast<datadog_main_conf_t*>(conf);
 
-  const auto values = static_cast<ngx_str_t *>(cf->args->elts);
+  const auto values = static_cast<ngx_str_t*>(cf->args->elts);
 
   // values[0] is the command name, while values[1] is the single argument.
   const auto agent_url = to_string_view(values[1]);
   if (agent_url.empty()) {
-    return static_cast<char *>(NGX_CONF_ERROR);
+    return static_cast<char*>(NGX_CONF_ERROR);
   }
 
   main_conf.agent_url = std::string(agent_url);

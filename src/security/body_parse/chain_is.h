@@ -12,7 +12,7 @@ extern "C" {
 namespace datadog::nginx::security {
 class NgxChainInputStream {
  public:
-  NgxChainInputStream(const ngx_chain_t *chain) : current_{chain} {
+  NgxChainInputStream(const ngx_chain_t* chain) : current_{chain} {
     if (!current_) {
       throw std::invalid_argument{"chain must not be null"};
     }
@@ -20,10 +20,10 @@ class NgxChainInputStream {
     pos_ = current_->buf->pos;
     end_ = current_->buf->last;
   }
-  NgxChainInputStream(const NgxChainInputStream &) = default;
-  NgxChainInputStream &operator=(const NgxChainInputStream &) = default;
-  NgxChainInputStream(NgxChainInputStream &&) = delete;
-  NgxChainInputStream &operator=(NgxChainInputStream &&) = delete;
+  NgxChainInputStream(const NgxChainInputStream&) = default;
+  NgxChainInputStream& operator=(const NgxChainInputStream&) = default;
+  NgxChainInputStream(NgxChainInputStream&&) = delete;
+  NgxChainInputStream& operator=(NgxChainInputStream&&) = delete;
 
   std::uint8_t operator*() {
     if (pos_ == end_) {
@@ -35,7 +35,7 @@ class NgxChainInputStream {
     return *pos_;
   }
 
-  std::size_t operator-(const NgxChainInputStream &other) const {
+  std::size_t operator-(const NgxChainInputStream& other) const {
     return global_pos_ - other.global_pos_;
   }
 
@@ -50,7 +50,7 @@ class NgxChainInputStream {
     return *pos_++;
   }
 
-  std::size_t read(std::uint8_t *buffer, size_t buf_size) {
+  std::size_t read(std::uint8_t* buffer, size_t buf_size) {
     std::size_t read = 0;
     while (read < buf_size) {
       if (pos_ == end_) {
@@ -102,9 +102,9 @@ class NgxChainInputStream {
     return false;
   }
 
-  const ngx_chain_t *current_;
-  u_char *pos_{};
-  u_char *end_{};
+  const ngx_chain_t* current_;
+  u_char* pos_{};
+  u_char* end_{};
   std::size_t global_pos_{};
 };
 }  // namespace datadog::nginx::security

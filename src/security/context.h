@@ -33,20 +33,20 @@ static constexpr uintptr_t kBufferTag = 0xD47AD06;
 // (c->pool) when request pools (r->pool) are required.
 class RequestPool {
  public:
-  explicit RequestPool(ngx_http_request_t &request) noexcept
+  explicit RequestPool(ngx_http_request_t& request) noexcept
       : pool_{request.pool} {}
 
-  RequestPool(const RequestPool &) noexcept = default;
-  RequestPool &operator=(const RequestPool &) noexcept = default;
+  RequestPool(const RequestPool&) noexcept = default;
+  RequestPool& operator=(const RequestPool&) noexcept = default;
 
   // implicit conversion to ngx_pool_t* for use with nginx APIs
-  operator ngx_pool_t *() const noexcept { return pool_; }
+  operator ngx_pool_t*() const noexcept { return pool_; }
 
-  ngx_pool_t &operator*() const noexcept { return *pool_; }
-  ngx_pool_t *operator->() const noexcept { return pool_; }
+  ngx_pool_t& operator*() const noexcept { return *pool_; }
+  ngx_pool_t* operator->() const noexcept { return pool_; }
 
  private:
-  ngx_pool_t *pool_;
+  ngx_pool_t* pool_;
 };
 
 class Context {
@@ -61,46 +61,46 @@ class Context {
       std::optional<std::size_t> max_saved_output_data,
       bool apm_tracing_enabled);
 
-  ngx_int_t request_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
-                                dd::Span &span) noexcept;
+  ngx_int_t request_body_filter(ngx_http_request_t& request, ngx_chain_t* chain,
+                                dd::Span& span) noexcept;
 
-  bool on_request_start(ngx_http_request_t &request, dd::Span &span) noexcept;
+  bool on_request_start(ngx_http_request_t& request, dd::Span& span) noexcept;
 
-  ngx_int_t header_filter(ngx_http_request_t &request, dd::Span &span) noexcept;
+  ngx_int_t header_filter(ngx_http_request_t& request, dd::Span& span) noexcept;
 
-  ngx_int_t output_body_filter(ngx_http_request_t &request, ngx_chain_t *chain,
-                               dd::Span &span) noexcept;
+  ngx_int_t output_body_filter(ngx_http_request_t& request, ngx_chain_t* chain,
+                               dd::Span& span) noexcept;
 
-  void on_main_log_request(ngx_http_request_t &request,
-                           dd::Span &span) noexcept;
+  void on_main_log_request(ngx_http_request_t& request,
+                           dd::Span& span) noexcept;
 
   // runs on a separate thread; returns whether it blocked
-  std::optional<BlockSpecification> run_waf_start(ngx_http_request_t &request,
-                                                  dd::Span &span);
+  std::optional<BlockSpecification> run_waf_start(ngx_http_request_t& request,
+                                                  dd::Span& span);
 
   std::optional<BlockSpecification> run_waf_req_post(
-      ngx_http_request_t &request, dd::Span &span);
+      ngx_http_request_t& request, dd::Span& span);
 
-  void waf_req_post_done(ngx_http_request_t &request, bool blocked);
+  void waf_req_post_done(ngx_http_request_t& request, bool blocked);
 
-  void waf_final_done(ngx_http_request_t &request, bool blocked);
+  void waf_final_done(ngx_http_request_t& request, bool blocked);
 
-  std::optional<BlockSpecification> run_waf_end(ngx_http_request_t &request,
-                                                dd::Span &span);
+  std::optional<BlockSpecification> run_waf_end(ngx_http_request_t& request,
+                                                dd::Span& span);
 
   bool keep_span() const noexcept;
 
  private:
-  bool do_on_request_start(ngx_http_request_t &request, dd::Span &span);
-  ngx_int_t do_request_body_filter(ngx_http_request_t &request,
-                                   ngx_chain_t *chain, dd::Span &span);
-  ngx_int_t do_header_filter(ngx_http_request_t &request, dd::Span &span);
-  ngx_int_t do_output_body_filter(ngx_http_request_t &request,
-                                  ngx_chain_t *chain, dd::Span &span);
-  void do_on_main_log_request(ngx_http_request_t &request, dd::Span &span);
+  bool do_on_request_start(ngx_http_request_t& request, dd::Span& span);
+  ngx_int_t do_request_body_filter(ngx_http_request_t& request,
+                                   ngx_chain_t* chain, dd::Span& span);
+  ngx_int_t do_header_filter(ngx_http_request_t& request, dd::Span& span);
+  ngx_int_t do_output_body_filter(ngx_http_request_t& request,
+                                  ngx_chain_t* chain, dd::Span& span);
+  void do_on_main_log_request(ngx_http_request_t& request, dd::Span& span);
 
-  void report_matches(ngx_http_request_t &request, dd::Span &span);
-  void report_client_ip(dd::Span &span) const;
+  void report_matches(ngx_http_request_t& request, dd::Span& span);
+  void report_client_ip(dd::Span& span) const;
 
   // clang-format off
   /*
@@ -262,7 +262,7 @@ class Context {
     // - AFTER_RUN_WAF_END (WAF finished)
   };
 
-  static ngx_str_t *to_ngx_str(stage st) {
+  static ngx_str_t* to_ngx_str(stage st) {
     switch (st) {
       case stage::DISABLED:
         static ngx_str_t disabled = ngx_string("DISABLED");
@@ -342,31 +342,31 @@ class Context {
   bool apm_tracing_enabled_;
 
   struct FilterCtx {
-    ngx_chain_t *out;  // the buffered request or response body
-    ngx_chain_t **out_latest{&out};
+    ngx_chain_t* out;  // the buffered request or response body
+    ngx_chain_t** out_latest{&out};
     std::size_t out_total;
     std::size_t copied_total;
     bool found_last;
 
     void clear(RequestPool pool) noexcept;
-    void replace_out(ngx_chain_t *new_out) noexcept;
+    void replace_out(ngx_chain_t* new_out) noexcept;
   };
   FilterCtx filter_ctx_{};         // for request body
   FilterCtx header_filter_ctx_{};  // for the header data
   FilterCtx out_filter_ctx_{};     // for response body
   bool header_only_{false};        // HEAD requests
 
-  static ngx_int_t buffer_chain(FilterCtx &filter_ctx, RequestPool pool,
-                                ngx_chain_t const *in, bool consume) noexcept;
+  static ngx_int_t buffer_chain(FilterCtx& filter_ctx, RequestPool pool,
+                                ngx_chain_t const* in, bool consume) noexcept;
 
   ngx_http_event_handler_pt prev_req_write_evt_handler_;
-  static void drain_buffered_data_write_handler(ngx_http_request_t *r) noexcept;
+  static void drain_buffered_data_write_handler(ngx_http_request_t* r) noexcept;
 
  public:
-  ngx_int_t buffer_header_output(RequestPool pool, ngx_chain_t *chain) noexcept;
-  ngx_int_t send_buffered_header(ngx_http_request_t &request) noexcept;
+  ngx_int_t buffer_header_output(RequestPool pool, ngx_chain_t* chain) noexcept;
+  ngx_int_t send_buffered_header(ngx_http_request_t& request) noexcept;
 
-  void prepare_drain_buffered_header(ngx_http_request_t &request) noexcept;
+  void prepare_drain_buffered_header(ngx_http_request_t& request) noexcept;
 };
 
 }  // namespace datadog::nginx::security

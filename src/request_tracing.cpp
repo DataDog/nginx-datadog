@@ -26,43 +26,43 @@ namespace datadog {
 namespace nginx {
 
 static std::string get_loc_operation_name(
-    ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
-    const datadog_loc_conf_t *loc_conf) {
+    ngx_http_request_t* request, const ngx_http_core_loc_conf_t* core_loc_conf,
+    const datadog_loc_conf_t* loc_conf) {
   auto v =
       common::eval_complex_value(loc_conf->loc_operation_name_script, request);
   return v.value_or(to_string(core_loc_conf->name));
 }
 
 static std::string get_request_operation_name(
-    ngx_http_request_t *request, const ngx_http_core_loc_conf_t *core_loc_conf,
-    const datadog_loc_conf_t *loc_conf) {
+    ngx_http_request_t* request, const ngx_http_core_loc_conf_t* core_loc_conf,
+    const datadog_loc_conf_t* loc_conf) {
   auto v = common::eval_complex_value(loc_conf->operation_name_script, request);
   return v.value_or(to_string(core_loc_conf->name));
 }
 
-static std::string get_loc_resource_name(ngx_http_request_t *request,
-                                         const datadog_loc_conf_t *loc_conf) {
+static std::string get_loc_resource_name(ngx_http_request_t* request,
+                                         const datadog_loc_conf_t* loc_conf) {
   auto v =
       common::eval_complex_value(loc_conf->loc_resource_name_script, request);
   return v.value_or("[invalid_resource_name_pattern]");
 }
 
 static std::string get_request_resource_name(
-    ngx_http_request_t *request, const datadog_loc_conf_t *loc_conf) {
+    ngx_http_request_t* request, const datadog_loc_conf_t* loc_conf) {
   auto v = common::eval_complex_value(loc_conf->resource_name_script, request);
   return v.value_or("[invalid_resource_name_pattern]");
 }
 
 static void add_script_tags(
-    const std::unordered_map<std::string, ngx_http_complex_value_t *> &tags,
-    ngx_http_request_t *request, dd::Span &span) {
-  for (const auto &[key, complex_value] : tags) {
+    const std::unordered_map<std::string, ngx_http_complex_value_t*>& tags,
+    ngx_http_request_t* request, dd::Span& span) {
+  for (const auto& [key, complex_value] : tags) {
     auto value = common::eval_complex_value(complex_value, request);
     if (value) span.set_tag(key, std::move(*value));
   }
 }
 
-static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
+static void add_status_tags(const ngx_http_request_t* request, dd::Span& span) {
   // Check for errors.
   auto status = request->headers_out.status;
   auto status_line = to_string(request->headers_out.status_line);
@@ -80,13 +80,13 @@ static void add_status_tags(const ngx_http_request_t *request, dd::Span &span) {
 //
 // Precondition: The local conf has the directive
 // `datadog_baggage_tags_enabled` set.
-void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage &baggage,
-                           dd::Span &span) {
+void add_baggage_span_tags(datadog_loc_conf_t* conf, tracing::Baggage& baggage,
+                           dd::Span& span) {
   if (baggage.empty()) return;
 
   if (std::holds_alternative<std::vector<std::string>>(
           conf->baggage_span_tags)) {
-    for (const auto &tag_name :
+    for (const auto& tag_name :
          std::get<std::vector<std::string>>(conf->baggage_span_tags)) {
       if (baggage.contains(tag_name)) {
         span.set_tag(std::string("baggage.") + tag_name,
@@ -101,8 +101,8 @@ void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage &baggage,
   }
 }
 
-static void add_upstream_name(const ngx_http_request_t *request,
-                              dd::Span &span) {
+static void add_upstream_name(const ngx_http_request_t* request,
+                              dd::Span& span) {
   if (!request->upstream || !request->upstream->upstream ||
       !request->upstream->upstream->host.data)
     return;
@@ -149,10 +149,10 @@ static dd::TimePoint estimate_past_time_point(
 // `datadog_sample_rate` directive. A sampling rule previously configured in the
 // tracer will then match on the tag value and apply the sample rate from the
 // `datadog_sample_rate` directive.
-void set_sample_rate_tag(ngx_http_request_t *request, datadog_loc_conf_t *conf,
-                         dd::Span &span) {
+void set_sample_rate_tag(ngx_http_request_t* request, datadog_loc_conf_t* conf,
+                         dd::Span& span) {
   do {
-    for (const datadog_sample_rate_condition_t &rate : conf->sample_rates) {
+    for (const datadog_sample_rate_condition_t& rate : conf->sample_rates) {
       const ngx_str_t expression = rate.condition.run(request);
       if (str(expression) == "on") {
         span.set_tag(rate.tag_name(), rate.tag_value());
@@ -173,11 +173,11 @@ void set_sample_rate_tag(ngx_http_request_t *request, datadog_loc_conf_t *conf,
   } while (conf);
 }
 
-RequestTracing::RequestTracing(ngx_http_request_t *request,
-                               ngx_http_core_loc_conf_t *core_loc_conf,
-                               datadog_loc_conf_t *loc_conf, dd::Span *parent)
+RequestTracing::RequestTracing(ngx_http_request_t* request,
+                               ngx_http_core_loc_conf_t* core_loc_conf,
+                               datadog_loc_conf_t* loc_conf, dd::Span* parent)
     : request_{request},
-      main_conf_{static_cast<datadog_main_conf_t *>(
+      main_conf_{static_cast<datadog_main_conf_t*>(
           ngx_http_get_module_main_conf(request_, ngx_http_datadog_module))},
       core_loc_conf_{core_loc_conf},
       loc_conf_{loc_conf} {
@@ -186,7 +186,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   // and so no `RequestTracing` objects are ever instantiated.
   assert(main_conf_);
 
-  auto *tracer = global_tracer();
+  auto* tracer = global_tracer();
   if (!tracer) throw std::runtime_error{"no global tracer set"};
 
   ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
@@ -228,7 +228,7 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   if (!parent && loc_conf_->trust_incoming_span) {
     NgxHeaderReader reader{&request->headers_in.headers};
     auto maybe_span = tracer->extract_span(reader, config);
-    if (auto *error = maybe_span.if_error()) {
+    if (auto* error = maybe_span.if_error()) {
       if (error->code != dd::Error::NO_SPAN_TO_EXTRACT) {
         ngx_log_error(
             NGX_LOG_ERR, request->connection->log, 0,
@@ -274,8 +274,8 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
-void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
-                                     datadog_loc_conf_t *loc_conf) {
+void RequestTracing::on_change_block(ngx_http_core_loc_conf_t* core_loc_conf,
+                                     datadog_loc_conf_t* loc_conf) {
   on_exit_block(std::chrono::steady_clock::now());
   core_loc_conf_ = core_loc_conf;
   loc_conf_ = loc_conf;
@@ -303,7 +303,7 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   set_sample_rate_tag(request_, loc_conf_, *request_span_);
 }
 
-dd::Span &RequestTracing::active_span() {
+dd::Span& RequestTracing::active_span() {
   if (loc_conf_->enable_locations) {
     return *span_;
   } else {

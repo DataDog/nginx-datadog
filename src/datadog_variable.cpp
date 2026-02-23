@@ -20,8 +20,8 @@ namespace {
 
 // Return whether the specified `request` is a subrequest for which tracing
 // ("logging") is disabled.
-bool is_untraced_subrequest(ngx_http_request_t *request) {
-  auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
+bool is_untraced_subrequest(ngx_http_request_t* request) {
+  auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_core_module));
 
   return request->parent != nullptr && !core_loc_conf->log_subrequest;
@@ -34,8 +34,8 @@ bool is_untraced_subrequest(ngx_http_request_t *request) {
 // if valid, will resolve to some property on the active span, i.e.
 // `datadog_trace_id` resolves to a string containing the trace ID.  Return
 // `NGX_OK` on success or another value if an error occurs.
-static ngx_int_t expand_span_variable(ngx_http_request_t *request,
-                                      ngx_http_variable_value_t *variable_value,
+static ngx_int_t expand_span_variable(ngx_http_request_t* request,
+                                      ngx_http_variable_value_t* variable_value,
                                       uintptr_t data) noexcept try {
   auto context = get_datadog_context(request);
   // Context can be null if tracing is disabled.
@@ -59,7 +59,7 @@ static ngx_int_t expand_span_variable(ngx_http_request_t *request,
     variable_value->data = span_variable_value.data;
   };
 
-  auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t *>(data));
+  auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
   if (variable_name.starts_with("datadog_")) {
     auto suffix =
         slice(variable_name, TracingLibrary::span_variables().prefix.size());
@@ -71,7 +71,7 @@ static ngx_int_t expand_span_variable(ngx_http_request_t *request,
   }
 
   return NGX_OK;
-} catch (const std::exception &e) {
+} catch (const std::exception& e) {
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "failed to expand %V"
                 " for request %p: %s",
@@ -89,9 +89,9 @@ static ngx_int_t expand_span_variable(ngx_http_request_t *request,
 // `TracingLibrary::environment_variable_names`.  Return `NGX_OK` on success or
 // another value if an error occurs.
 static ngx_int_t expand_environment_variable(
-    ngx_http_request_t *request, ngx_http_variable_value_t *variable_value,
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t data) noexcept {
-  auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t *>(data));
+  auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t*>(data));
   auto prefix_length =
       TracingLibrary::environment_variable_name_prefix().size();
   auto suffix = slice(variable_name, prefix_length);
@@ -101,7 +101,7 @@ static ngx_int_t expand_environment_variable(
                  to_upper);
 
   const auto allow_list = TracingLibrary::environment_variable_names();
-  const char *env_value = nullptr;
+  const char* env_value = nullptr;
   if (std::find(allow_list.begin(), allow_list.end(), env_var_name) !=
       allow_list.end()) {
     env_value = std::getenv(env_var_name.c_str());
@@ -133,13 +133,13 @@ static ngx_int_t expand_environment_variable(
 // evaluates to a JSON representation of the tracer configuration.  Return
 // `NGX_OK` on success or another value if an error occurs.
 static ngx_int_t expand_configuration_variable(
-    ngx_http_request_t *request, ngx_http_variable_value_t *variable_value,
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t /*data*/) noexcept {
   variable_value->valid = true;
   variable_value->no_cacheable = true;
   variable_value->not_found = false;
 
-  const dd::Tracer *tracer = global_tracer();
+  const dd::Tracer* tracer = global_tracer();
   if (tracer == nullptr) {
     // No tracer, no config. Evaluate to "-" (hyphen).
     const ngx_str_t not_found_str = ngx_string("-");
@@ -160,21 +160,21 @@ static ngx_int_t expand_configuration_variable(
     variable_value->data = json_str.data;
   }
 
-  auto &alloc = doc.GetAllocator();
+  auto& alloc = doc.GetAllocator();
 
   // override
-  const auto &loc_conf = *static_cast<datadog::nginx::datadog_loc_conf_t *>(
+  const auto& loc_conf = *static_cast<datadog::nginx::datadog_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_datadog_module));
 
   auto append_to_doc = [&](std::string_view key,
-                           ngx_http_complex_value_t *value) {
+                           ngx_http_complex_value_t* value) {
     if (value == nullptr) return;
 
     ngx_str_t res;
     if (ngx_http_complex_value(request, value, &res) == NGX_OK &&
         res.len != 0) {
       doc.AddMember(rapidjson::Value(key.data(), key.size(), alloc),
-                    rapidjson::Value((char *)res.data, res.len, alloc), alloc);
+                    rapidjson::Value((char*)res.data, res.len, alloc), alloc);
     }
   };
 
@@ -225,9 +225,9 @@ static ngx_int_t expand_configuration_variable(
 //
 // Return `NGX_OK` on success or another value if an error occurs.
 static ngx_int_t expand_location_variable(
-    ngx_http_request_t *request, ngx_http_variable_value_t *variable_value,
+    ngx_http_request_t* request, ngx_http_variable_value_t* variable_value,
     uintptr_t /*data*/) noexcept {
-  const auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t *>(
+  const auto core_loc_conf = static_cast<ngx_http_core_loc_conf_t*>(
       ngx_http_get_module_loc_conf(request, ngx_http_core_module));
 
   if (core_loc_conf == nullptr) {
@@ -250,9 +250,9 @@ static ngx_int_t expand_location_variable(
   return NGX_OK;
 }
 
-ngx_int_t add_variables(ngx_conf_t *cf) noexcept {
+ngx_int_t add_variables(ngx_conf_t* cf) noexcept {
   ngx_str_t prefix;
-  ngx_http_variable_t *variable;
+  ngx_http_variable_t* variable;
 
   // Register the variable name prefix for span variables.
   prefix = to_ngx_str(TracingLibrary::span_variables().prefix);

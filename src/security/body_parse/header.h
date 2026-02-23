@@ -22,7 +22,7 @@ struct MimeContentDisposition {
   std::string name;
 
   static std::optional<MimeContentDisposition> for_stream(
-      NgxChainInputStream &is);
+      NgxChainInputStream& is);
 };
 
 }  // namespace datadog::nginx::security

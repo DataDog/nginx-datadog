@@ -4,9 +4,9 @@
 
 namespace datadog::common {
 
-ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key) {
-  ngx_list_part_t *part = &headers.part;
-  auto *h = static_cast<ngx_table_elt_t *>(part->elts);
+ngx_table_elt_t* search_header(ngx_list_t& headers, std::string_view key) {
+  ngx_list_part_t* part = &headers.part;
+  auto* h = static_cast<ngx_table_elt_t*>(part->elts);
 
   for (std::size_t i = 0;; i++) {
     if (i >= part->nelts) {
@@ -15,12 +15,12 @@ ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key) {
       }
 
       part = part->next;
-      h = static_cast<ngx_table_elt_t *>(part->elts);
+      h = static_cast<ngx_table_elt_t*>(part->elts);
       i = 0;
     }
 
     if (key.size() != h[i].key.len ||
-        ngx_strncasecmp((u_char *)key.data(), h[i].key.data, key.size()) != 0) {
+        ngx_strncasecmp((u_char*)key.data(), h[i].key.data, key.size()) != 0) {
       continue;
     }
 
@@ -30,14 +30,14 @@ ngx_table_elt_t *search_header(ngx_list_t &headers, std::string_view key) {
   return nullptr;
 }
 
-bool add_header(ngx_pool_t &pool, ngx_list_t &headers, std::string_view key,
+bool add_header(ngx_pool_t& pool, ngx_list_t& headers, std::string_view key,
                 std::string_view value) {
   if (headers.last == nullptr) {
     // Certainly a bad request (4xx). No need to add HTTP headers.
     return false;
   }
 
-  ngx_table_elt_t *h = static_cast<ngx_table_elt_t *>(ngx_list_push(&headers));
+  ngx_table_elt_t* h = static_cast<ngx_table_elt_t*>(ngx_list_push(&headers));
   if (h == nullptr) {
     return false;
   }
@@ -48,7 +48,7 @@ bool add_header(ngx_pool_t &pool, ngx_list_t &headers, std::string_view key,
   // Instead of allocating twice the same key, `h->key` and `h->lowcase_key`
   // use the same data.
   h->key.len = key_size;
-  h->key.data = (u_char *)ngx_pnalloc(&pool, sizeof(char) * key_size);
+  h->key.data = (u_char*)ngx_pnalloc(&pool, sizeof(char) * key_size);
   for (std::size_t i = 0; i < key_size; ++i) {
     h->key.data[i] = nginx::to_lower(key[i]);
   }
@@ -63,14 +63,14 @@ bool add_header(ngx_pool_t &pool, ngx_list_t &headers, std::string_view key,
   return true;
 }
 
-bool remove_header(ngx_list_t &headers, std::string_view key) {
+bool remove_header(ngx_list_t& headers, std::string_view key) {
   auto key_lc = std::unique_ptr<u_char[]>{new u_char[key.size()]};
   std::transform(key.begin(), key.end(), key_lc.get(),
                  datadog::nginx::to_lower);
   ngx_uint_t key_hash = ngx_hash_key(key_lc.get(), key.size());
 
-  ngx_list_part_t *part = &headers.part;
-  ngx_table_elt_t *h = static_cast<ngx_table_elt_t *>(part->elts);
+  ngx_list_part_t* part = &headers.part;
+  ngx_table_elt_t* h = static_cast<ngx_table_elt_t*>(part->elts);
   for (std::size_t i = 0;; i++) {
     if (i >= part->nelts) {
       if (part->next == nullptr) {
@@ -78,7 +78,7 @@ bool remove_header(ngx_list_t &headers, std::string_view key) {
       }
 
       part = part->next;
-      h = static_cast<ngx_table_elt_t *>(part->elts);
+      h = static_cast<ngx_table_elt_t*>(part->elts);
       i = 0;
     }
 

@@ -208,8 +208,8 @@ ngx_int_t InjectionHandler::on_body_filter(
 }
 
 ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t* r) {
-  if (auto csp =
-          common::search_header(r->headers_out.headers, "content-security-policy");
+  if (auto csp = common::search_header(r->headers_out.headers,
+                                       "content-security-policy");
       csp != nullptr) {
     datadog::telemetry::counter::increment(
         telemetry::injection_failed,

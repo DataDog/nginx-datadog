@@ -37,17 +37,17 @@ class ParsedConfigKey {
   explicit ParsedConfigKey(std::string key) : key_{std::move(key)} {
     parse_config_key();
   }
-  ParsedConfigKey(const ParsedConfigKey &oth) : ParsedConfigKey(oth.key_) {
+  ParsedConfigKey(const ParsedConfigKey& oth) : ParsedConfigKey(oth.key_) {
     parse_config_key();
   }
-  ParsedConfigKey &operator=(const ParsedConfigKey &oth) {
+  ParsedConfigKey& operator=(const ParsedConfigKey& oth) {
     if (&oth != this) {
       key_ = oth.key_;
       parse_config_key();
     }
     return *this;
   }
-  ParsedConfigKey(ParsedConfigKey &&oth) noexcept
+  ParsedConfigKey(ParsedConfigKey&& oth) noexcept
       : key_{std::move(oth.key_)},
         source_{oth.source()},
         org_id_{oth.org_id_},
@@ -60,7 +60,7 @@ class ParsedConfigKey {
     oth.config_id_ = {};
     oth.name_ = {};
   }
-  ParsedConfigKey &operator=(ParsedConfigKey &&oth) noexcept {
+  ParsedConfigKey& operator=(ParsedConfigKey&& oth) noexcept {
     if (&oth != this) {
       key_ = std::move(oth.key_);
       source_ = oth.source_;
@@ -78,12 +78,12 @@ class ParsedConfigKey {
   }
   ~ParsedConfigKey() = default;
 
-  bool operator==(const ParsedConfigKey &other) const {
+  bool operator==(const ParsedConfigKey& other) const {
     return key_ == other.key_;
   }
 
   struct Hash {
-    std::size_t operator()(const ParsedConfigKey &k) const {
+    std::size_t operator()(const ParsedConfigKey& k) const {
       return std::hash<std::string>()(k.key_);
     }
   };
@@ -112,8 +112,8 @@ class CurrentAppSecConfig {
   bool failed_{};
 
  public:
-  void set_config(const ParsedConfigKey &key,
-                  const dnsec::ddwaf_map_obj &new_config) {
+  void set_config(const ParsedConfigKey& key,
+                  const dnsec::ddwaf_map_obj& new_config) {
     dnsec::Library::Diagnostics diag{{}};
     bool res =
         dnsec::Library::update_waf_config(key.full_key(), new_config, diag);
@@ -128,7 +128,7 @@ class CurrentAppSecConfig {
     }
   }
 
-  void remove_config(const ParsedConfigKey &key) {
+  void remove_config(const ParsedConfigKey& key) {
     bool res = dnsec::Library::remove_waf_config(key.full_key());
     if (!res) {
       failed_ = true;
@@ -154,7 +154,7 @@ class CurrentAppSecConfig {
 
 class JsonParsedConfig {
  public:
-  JsonParsedConfig(const std::string &content) {
+  JsonParsedConfig(const std::string& content) {
     json_.Parse(content.c_str());
     if (json_.HasParseError()) {
       throw std::runtime_error{
@@ -171,7 +171,7 @@ class JsonParsedConfig {
 template <typename Self>
 class ProductListener : public rc::Listener {
  protected:
-  ProductListener(dn::NgxLogger &logger) : logger_{logger} {}
+  ProductListener(dn::NgxLogger& logger) : logger_{logger} {}
 
   rc::Products get_products() /* const */ override final {
     rc::Products prods{};
@@ -190,30 +190,30 @@ class ProductListener : public rc::Listener {
   }
 
   dd::Optional<std::string> on_update(
-      const Configuration &config) override final {
+      const Configuration& config) override final {
     try {
-      static_cast<Self *>(this)->on_update_impl(ParsedConfigKey{config.path},
-                                                config.content);
-      logger_.log_debug([&key = config.path](std::ostream &oss) {
+      static_cast<Self*>(this)->on_update_impl(ParsedConfigKey{config.path},
+                                               config.content);
+      logger_.log_debug([&key = config.path](std::ostream& oss) {
         oss << "successfully applied config: " << key;
       });
       return {};
-    } catch (const std::exception &e) {
-      logger_.log_error([&key = config.path, &e](std::ostream &oss) {
+    } catch (const std::exception& e) {
+      logger_.log_error([&key = config.path, &e](std::ostream& oss) {
         oss << "failed to update config: " << key << ": " << e.what();
       });
       return e.what();
     }
   };
 
-  void on_revert(const Configuration &config) override final {
+  void on_revert(const Configuration& config) override final {
     try {
-      static_cast<Self *>(this)->on_revert_impl(ParsedConfigKey{config.path});
-      logger_.log_debug([&key = config.path](std::ostream &oss) {
+      static_cast<Self*>(this)->on_revert_impl(ParsedConfigKey{config.path});
+      logger_.log_debug([&key = config.path](std::ostream& oss) {
         oss << "successfully reverted config: " << key;
       });
-    } catch (const std::exception &e) {
-      logger_.log_error([&key = config.path, &e](std::ostream &oss) {
+    } catch (const std::exception& e) {
+      logger_.log_error([&key = config.path, &e](std::ostream& oss) {
         oss << "failed to revert config: " << key << ": " << e.what();
       });
     }
@@ -222,7 +222,7 @@ class ProductListener : public rc::Listener {
   void on_post_process() override {}
 
  protected:
-  dn::NgxLogger &logger_;
+  dn::NgxLogger& logger_;
 };
 
 class AsmFeaturesListener : public ProductListener<AsmFeaturesListener> {
@@ -245,9 +245,9 @@ class AsmFeaturesListener : public ProductListener<AsmFeaturesListener> {
   static constexpr inline auto kProducts = {Product::ASM_FEATURES};
   static constexpr inline auto kCapabilities = {Capability::ASM_ACTIVATION};
 
-  AsmFeaturesListener(dn::NgxLogger &logger) : ProductListener{logger} {}
+  AsmFeaturesListener(dn::NgxLogger& logger) : ProductListener{logger} {}
 
-  void on_update_impl(const ParsedConfigKey &key, const std::string &content) {
+  void on_update_impl(const ParsedConfigKey& key, const std::string& content) {
     if (key.config_id() != "asm_features_activation"sv) {
       return;
     }
@@ -262,7 +262,7 @@ class AsmFeaturesListener : public ProductListener<AsmFeaturesListener> {
     dnsec::Library::set_active(new_state);
   };
 
-  void on_revert_impl(const ParsedConfigKey &key) {
+  void on_revert_impl(const ParsedConfigKey& key) {
     return on_update_impl(key, std::string{"{}"});
   };
 };
@@ -286,10 +286,10 @@ class AsmConfigListener : public ProductListener<AsmConfigListener> {
       static_cast<Capability>(static_cast<std::uint64_t>(1)
                               << 43) /* ASM_DD_TRACE_TAGGING_RULES */};
 
-  AsmConfigListener(CurrentAppSecConfig &cur_appsec_cfg, dn::NgxLogger &logger)
+  AsmConfigListener(CurrentAppSecConfig& cur_appsec_cfg, dn::NgxLogger& logger)
       : ProductListener{logger}, cur_appsec_cfg_{cur_appsec_cfg} {}
 
-  void on_update_impl(const ParsedConfigKey &key, const std::string &content) {
+  void on_update_impl(const ParsedConfigKey& key, const std::string& content) {
     rapidjson::Document doc;
     rapidjson::ParseResult result = doc.Parse(content.c_str(), content.size());
     if (!result) {
@@ -303,12 +303,12 @@ class AsmConfigListener : public ProductListener<AsmConfigListener> {
     cur_appsec_cfg_.set_config(key, new_data.get());
   }
 
-  void on_revert_impl(const ParsedConfigKey &key) {
+  void on_revert_impl(const ParsedConfigKey& key) {
     cur_appsec_cfg_.remove_config(key);
   }
 
  private:
-  CurrentAppSecConfig &cur_appsec_cfg_;
+  CurrentAppSecConfig& cur_appsec_cfg_;
 };
 
 template <Product... Ps>
@@ -321,11 +321,11 @@ class ConfigurationEndListener : public rc::Listener {
 
   rc::Capabilities get_capabilities() override { return {}; }
 
-  dd::Optional<std::string> on_update(const Configuration &) override {
+  dd::Optional<std::string> on_update(const Configuration&) override {
     return {};
   };
 
-  void on_revert(const Configuration &config) override {}
+  void on_revert(const Configuration& config) override {}
 
   void on_post_process() override { func_(); }
 
@@ -347,10 +347,10 @@ class AppSecConfigService {
         logger_{std::move(logger)} {}
 
  public:
-  AppSecConfigService(const AppSecConfigService &) = delete;
-  AppSecConfigService &operator=(const AppSecConfigService &) = delete;
-  AppSecConfigService(AppSecConfigService &&) = delete;
-  AppSecConfigService &operator=(AppSecConfigService &&) = delete;
+  AppSecConfigService(const AppSecConfigService&) = delete;
+  AppSecConfigService& operator=(const AppSecConfigService&) = delete;
+  AppSecConfigService(AppSecConfigService&&) = delete;
+  AppSecConfigService& operator=(AppSecConfigService&&) = delete;
   ~AppSecConfigService() = default;
 
   static void initialize(dnsec::ddwaf_owned_map default_config,
@@ -364,14 +364,14 @@ class AppSecConfigService {
 
   static bool has_instance() { return static_cast<bool>(instance_); }
 
-  static AppSecConfigService &instance() {
+  static AppSecConfigService& instance() {
     if (!instance_) {
       throw std::logic_error{"AppSecConfigService not initialized"};
     }
     return *instance_;
   }
 
-  void subscribe_to_remote_config(datadog::tracing::DatadogAgentConfig &ddac,
+  void subscribe_to_remote_config(datadog::tracing::DatadogAgentConfig& ddac,
                                   bool accept_cfg_update,
                                   bool is_subscribe_activation) {
     if (is_subscribe_activation) {
@@ -410,13 +410,13 @@ class AppSecConfigService {
   }
 
  private:
-  void subscribe_activation(datadog::tracing::DatadogAgentConfig &ddac) {
+  void subscribe_activation(datadog::tracing::DatadogAgentConfig& ddac) {
     // ASM_FEATURES
     ddac.remote_configuration_listeners.emplace_back(
         new AsmFeaturesListener(*logger_));
   }
 
-  void subscribe_rules_and_data(datadog::tracing::DatadogAgentConfig &ddac) {
+  void subscribe_rules_and_data(datadog::tracing::DatadogAgentConfig& ddac) {
     // ASM, ASM_DD, ASM_DATA
     ddac.remote_configuration_listeners.emplace_back(
         new AsmConfigListener(current_config_, *logger_));
@@ -424,7 +424,7 @@ class AppSecConfigService {
 };
 
 template <typename SubMatch>
-StringView submatch_to_sv(const SubMatch &sub_match) {
+StringView submatch_to_sv(const SubMatch& sub_match) {
   return StringView{&*sub_match.first,
                     static_cast<std::size_t>(sub_match.length())};
 }
@@ -468,7 +468,7 @@ void register_default_config(
   AppSecConfigService::initialize(std::move(default_config), std::move(logger));
 }
 
-void register_with_remote_cfg(datadog::tracing::DatadogAgentConfig &ddac,
+void register_with_remote_cfg(datadog::tracing::DatadogAgentConfig& ddac,
                               bool accept_cfg_update,
                               bool subscribe_activation) {
   if (!AppSecConfigService::has_instance()) {

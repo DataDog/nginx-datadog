@@ -22,22 +22,22 @@ struct QueryStringIter {
   enum class trim_mode { no_trim, do_trim } trim;
   std::string_view qs;
   std::size_t pos{0};
-  DdwafMemres &memres;
+  DdwafMemres& memres;
   std::unordered_set<std::string_view> interned_strings;
   unsigned char separator;
 
-  QueryStringIter(std::string_view qs, DdwafMemres &memres,
+  QueryStringIter(std::string_view qs, DdwafMemres& memres,
                   unsigned char separator, trim_mode trim)
       : trim{trim}, qs{qs}, memres{memres}, separator{separator} {}
 
-  QueryStringIter(const ngx_str_t &qs, DdwafMemres &memres,
+  QueryStringIter(const ngx_str_t& qs, DdwafMemres& memres,
                   unsigned char separator, trim_mode trim)
       : QueryStringIter{datadog::nginx::to_string_view(qs), memres, separator,
                         trim} {}
 
   void reset() noexcept { pos = 0; }
 
-  bool operator!=(const QueryStringIter &other) const noexcept {
+  bool operator!=(const QueryStringIter& other) const noexcept {
     return pos != other.pos;
   }
 
@@ -65,7 +65,7 @@ struct QueryStringIter {
 
   bool is_delete() const { return false; }
 
-  QueryStringIter &operator++() {
+  QueryStringIter& operator++() {
     auto sep_pos = rest().find(separator);
     if (sep_pos == std::string_view::npos) {
       pos = qs.length();
@@ -135,7 +135,7 @@ struct qs_iter_agg {
     return *(*iters[cur]);
   }
 
-  qs_iter_agg &operator++() {
+  qs_iter_agg& operator++() {
     iters[cur]->operator++();
     while (cur < iters.size() && iters[cur]->ended()) {
       cur++;

@@ -33,17 +33,17 @@ constexpr ngx_uint_t anywhere =
     anywhere_but_main | NGX_HTTP_MAIN_CONF;  // the toplevel configuration, e.g.
                                              // where modules are loaded
 
-char *set_datadog_tag(ngx_conf_t *cf, ngx_command_t *command,
-                      void *conf) noexcept;
+char* set_datadog_tag(ngx_conf_t* cf, ngx_command_t* command,
+                      void* conf) noexcept;
 
-char *set_datadog_baggage_tags(ngx_conf_t *cf, ngx_command_t *command,
-                               void *conf) noexcept;
+char* set_datadog_baggage_tags(ngx_conf_t* cf, ngx_command_t* command,
+                               void* conf) noexcept;
 
-char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
-                              void *conf) noexcept;
+char* set_datadog_sample_rate(ngx_conf_t* cf, ngx_command_t* command,
+                              void* conf) noexcept;
 
-char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
-                                     void *conf) noexcept;
+char* set_datadog_propagation_styles(ngx_conf_t* cf, ngx_command_t* command,
+                                     void* conf) noexcept;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"

@@ -131,7 +131,7 @@ ngx_module_t ngx_http_datadog_module = {
     NGX_MODULE_V1_PADDING};
 // clang-format on
 
-static const char *phases_to_cstr(ngx_http_phases phase) {
+static const char* phases_to_cstr(ngx_http_phases phase) {
   switch (phase) {
     case NGX_HTTP_POST_READ_PHASE:
       return "NGX_HTTP_POST_READ_PHASE";
@@ -160,10 +160,10 @@ static const char *phases_to_cstr(ngx_http_phases phase) {
 }
 
 template <typename F>
-static int set_handler(ngx_log_t *log,
-                       ngx_http_core_main_conf_t *core_main_conf,
+static int set_handler(ngx_log_t* log,
+                       ngx_http_core_main_conf_t* core_main_conf,
                        ngx_http_phases phase, F callback) {
-  auto handler = static_cast<ngx_http_handler_pt *>(
+  auto handler = static_cast<ngx_http_handler_pt*>(
       ngx_array_push(&core_main_conf->phases[phase].handlers));
   if (handler == nullptr) return NGX_ERROR;
   *handler = callback;
@@ -190,7 +190,7 @@ static int set_handler(ngx_log_t *log,
 // `nginx.c` within the nginx source code.
 
 static ngx_int_t datadog_master_process_post_config(
-    ngx_cycle_t *cycle) noexcept {
+    ngx_cycle_t* cycle) noexcept {
   ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog status: enabled");
   ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog version: %s (%s)",
                 datadog_semver_nginx_mod, datadog_build_id_nginx_mod);
@@ -208,7 +208,7 @@ static ngx_int_t datadog_master_process_post_config(
   // configuration.  This means that the nginx configuration did not use the
   // `datadog` directive, and did not use any overridden directives, such as
   // `proxy_pass`.
-  auto *const main_conf = static_cast<datadog_main_conf_t *>(
+  auto* const main_conf = static_cast<datadog_main_conf_t*>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
 
   if (main_conf == nullptr) {
@@ -227,25 +227,25 @@ static ngx_int_t datadog_master_process_post_config(
 
   // Forward tracer-specific environment variables to worker processes.
   auto push_to_main_conf = [main_conf](std::string env_var_name) {
-    if (const char *value = std::getenv(env_var_name.c_str())) {
+    if (const char* value = std::getenv(env_var_name.c_str())) {
       main_conf->environment_variables.push_back(
           environment_variable_t{.name = env_var_name, .value = value});
     }
   };
-  for (const std::string_view &env_var_name :
+  for (const std::string_view& env_var_name :
        TracingLibrary::environment_variable_names()) {
     push_to_main_conf(std::string{env_var_name});
   }
 
 #ifdef WITH_WAF
-  for (const std::string_view &env_var_name :
+  for (const std::string_view& env_var_name :
        security::Library::environment_variable_names()) {
     push_to_main_conf(std::string{env_var_name});
   }
 #endif
 
 #ifdef WITH_RUM
-  for (const auto &name : rum::environment_variable_names()) {
+  for (const auto& name : rum::environment_variable_names()) {
     push_to_main_conf(std::string{name});
   }
 #endif
@@ -253,16 +253,16 @@ static ngx_int_t datadog_master_process_post_config(
   return NGX_OK;
 }
 
-static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
+static ngx_int_t datadog_module_init(ngx_conf_t* cf) noexcept {
   ngx_http_next_header_filter = ngx_http_top_header_filter;
   ngx_http_top_header_filter = on_header_filter;
 
   ngx_http_next_output_body_filter = ngx_http_top_body_filter;
   ngx_http_top_body_filter = on_output_body_filter;
 
-  auto core_main_config = static_cast<ngx_http_core_main_conf_t *>(
+  auto core_main_config = static_cast<ngx_http_core_main_conf_t*>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module));
-  auto main_conf = static_cast<datadog_main_conf_t *>(
+  auto main_conf = static_cast<datadog_main_conf_t*>(
       ngx_http_conf_get_module_main_conf(cf, ngx_http_datadog_module));
 
   if (main_conf == nullptr) {
@@ -296,9 +296,9 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   // Add default span tags.
   const auto tags = TracingLibrary::default_tags();
   if (!tags.empty()) {
-    for (const auto &[key, value] : tags) {
+    for (const auto& [key, value] : tags) {
       auto ngx_value = to_ngx_str(cf->pool, value);
-      auto *complex_value = datadog::common::make_complex_value(cf, ngx_value);
+      auto* complex_value = datadog::common::make_complex_value(cf, ngx_value);
       if (complex_value == nullptr) {
         return NGX_ERROR;
       }
@@ -320,8 +320,8 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
   return NGX_OK;
 }
 
-static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
-  auto main_conf = static_cast<datadog_main_conf_t *>(
+static ngx_int_t datadog_init_worker(ngx_cycle_t* cycle) noexcept try {
+  auto main_conf = static_cast<datadog_main_conf_t*>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
   if (!main_conf) {
     return NGX_OK;
@@ -330,7 +330,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
   std::shared_ptr<datadog::nginx::NgxLogger> logger =
       std::make_shared<NgxLogger>();
 
-  for (const auto &entry : main_conf->environment_variables) {
+  for (const auto& entry : main_conf->environment_variables) {
     const bool overwrite = false;
     ::setenv(entry.name.c_str(), entry.value.c_str(), overwrite);
   }
@@ -342,7 +342,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
     if (initial_waf_cfg) {
       security::register_default_config(std::move(*initial_waf_cfg), logger);
     }
-  } catch (const std::exception &e) {
+  } catch (const std::exception& e) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Initialising security library failed: %s", e.what());
     return NGX_ERROR;
@@ -350,7 +350,7 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 #endif
 
   auto maybe_tracer = TracingLibrary::make_tracer(*main_conf, logger);
-  if (auto *error = maybe_tracer.if_error()) {
+  if (auto* error = maybe_tracer.if_error()) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
                   "Failed to construct tracer: [error code %d] %s",
                   int(error->code), error->message.c_str());
@@ -359,13 +359,13 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 
   reset_global_tracer(std::move(*maybe_tracer));
   return NGX_OK;
-} catch (const std::exception &e) {
+} catch (const std::exception& e) {
   ngx_log_error(NGX_LOG_ERR, cycle->log, 0, "failed to initialize tracer: %s",
                 e.what());
   return NGX_ERROR;
 }
 
-static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
+static void datadog_exit_worker(ngx_cycle_t* cycle) noexcept {
   // If the `dd::Tracer` singleton has been set (in `datadog_init_worker`),
   // destroy it.
   reset_global_tracer();
@@ -376,15 +376,15 @@ static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
 // invoked. We do this in a memory pool cleanup handler.
 // Return zero on success, or return a nonzero value if an error occurs.
 template <typename Config>
-static int register_destructor(ngx_pool_t *pool, Config *config) {
-  ngx_pool_cleanup_t *cleanup = ngx_pool_cleanup_add(pool, 0);
+static int register_destructor(ngx_pool_t* pool, Config* config) {
+  ngx_pool_cleanup_t* cleanup = ngx_pool_cleanup_add(pool, 0);
   if (cleanup == nullptr) {
     return 1;
   }
 
   cleanup->data = config;
-  cleanup->handler = static_cast<void (*)(void *)>([](void *data) {
-    auto config = static_cast<Config *>(data);
+  cleanup->handler = static_cast<void (*)(void*)>([](void* data) {
+    auto config = static_cast<Config*>(data);
     // `pool` is responsible for freeing the memory at `config`, but we want
     // to clean up any `std::string`, etc., not managed by `pool`. So, we call
     // the destructor here without `delete`, because the memory will later be
@@ -398,8 +398,8 @@ static int register_destructor(ngx_pool_t *pool, Config *config) {
 //------------------------------------------------------------------------------
 // create_datadog_main_conf
 //------------------------------------------------------------------------------
-static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
-  void *memory = ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t));
+static void* create_datadog_main_conf(ngx_conf_t* conf) noexcept {
+  void* memory = ngx_pcalloc(conf->pool, sizeof(datadog_main_conf_t));
   if (memory == nullptr) {
     return nullptr;  // error
   }
@@ -414,8 +414,8 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
 //------------------------------------------------------------------------------
 // create_datadog_loc_conf
 //------------------------------------------------------------------------------
-static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
-  void *memory = ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t));
+static void* create_datadog_loc_conf(ngx_conf_t* conf) noexcept {
+  void* memory = ngx_pcalloc(conf->pool, sizeof(datadog_loc_conf_t));
   if (memory == nullptr) {
     return nullptr;  // error
   }
@@ -431,12 +431,12 @@ static void *create_datadog_loc_conf(ngx_conf_t *conf) noexcept {
 //------------------------------------------------------------------------------
 // merge_datadog_loc_conf
 //------------------------------------------------------------------------------
-static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
-                                    void *child) noexcept {
+static char* merge_datadog_loc_conf(ngx_conf_t* cf, void* parent,
+                                    void* child) noexcept {
   using namespace datadog::common;
 
-  auto prev = static_cast<datadog_loc_conf_t *>(parent);
-  auto conf = static_cast<datadog_loc_conf_t *>(child);
+  auto prev = static_cast<datadog_loc_conf_t*>(parent);
+  auto conf = static_cast<datadog_loc_conf_t*>(child);
 
   conf->parent = prev;
   conf->depth = prev->depth + 1;

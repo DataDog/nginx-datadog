@@ -1,10 +1,10 @@
 #pragma once
 
-#include "datadog_conf.h"
-#include "datadog_directive.h"
-
 #include <string_view>
 #include <vector>
+
+#include "datadog_conf.h"
+#include "datadog_directive.h"
 
 extern "C" {
 #include <nginx.h>

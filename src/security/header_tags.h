@@ -6,6 +6,6 @@ extern "C" {
 }
 
 namespace datadog::nginx::security {
-void set_header_tags(bool has_attack, ngx_http_request_t &request,
-                     ::datadog::tracing::Span &span);
+void set_header_tags(bool has_attack, ngx_http_request_t& request,
+                     ::datadog::tracing::Span& span);
 }

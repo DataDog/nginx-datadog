@@ -38,8 +38,8 @@ struct BlockResponse {
       : status{status}, ct{ct}, location{location} {}
 
   static BlockResponse resolve_content_type(
-      const dnsec::BlockSpecification &spec,
-      const ngx_http_request_t &req) noexcept {
+      const dnsec::BlockSpecification& spec,
+      const ngx_http_request_t& req) noexcept {
     enum ContentType ct;
 
     switch (spec.ct) {
@@ -96,7 +96,7 @@ struct BlockResponse {
     std::size_t pos;
     std::size_t pos_end{};
 
-    explicit AcceptEntryIter(const ngx_str_t &header, std::size_t pos = 0)
+    explicit AcceptEntryIter(const ngx_str_t& header, std::size_t pos = 0)
         : header{header}, pos{pos} {
       find_end();
     }
@@ -105,12 +105,12 @@ struct BlockResponse {
       return AcceptEntryIter{ngx_str_t{0, nullptr}, 0};
     }
 
-    bool operator!=(const AcceptEntryIter &other) const {
+    bool operator!=(const AcceptEntryIter& other) const {
       return pos != other.pos || header.data != other.header.data ||
              header.len != other.header.len;
     }
 
-    AcceptEntryIter &operator++() noexcept {
+    AcceptEntryIter& operator++() noexcept {
       if (pos_end == header.len) {
         *this = end();
         return *this;
@@ -145,7 +145,7 @@ struct BlockResponse {
       if (q_pos != std::string_view::npos &&
           (q_pos == 0 || sv.at(q_pos - 1) == ' ')) {
         sv = sv.substr(q_pos + 2);
-        char *end;
+        char* end;
         entry.qvalue = std::strtod(sv.data(), &end);
         if (end == sv.data() || entry.qvalue == HUGE_VAL || entry.qvalue <= 0 ||
             entry.qvalue > 1) {
@@ -169,13 +169,13 @@ struct BlockResponse {
 
     std::string_view rest_sv() const {
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      return std::string_view{reinterpret_cast<char *>(header.data + pos),
+      return std::string_view{reinterpret_cast<char*>(header.data + pos),
                               header.len - pos};
     }
 
     std::string_view part_sv() const {
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-      return std::string_view{reinterpret_cast<char *>(header.data + pos),
+      return std::string_view{reinterpret_cast<char*>(header.data + pos),
                               pos_end - pos};
     }
 
@@ -190,7 +190,7 @@ struct BlockResponse {
     }
   };
 
-  static enum ContentType determine_ct(const ngx_http_request_t &req) {
+  static enum ContentType determine_ct(const ngx_http_request_t& req) {
     if (req.headers_in.accept == nullptr) {
       return ContentType::JSON;
     }
@@ -307,9 +307,9 @@ void BlockingService::initialize(std::optional<std::string_view> templ_html,
 }
 
 ngx_int_t BlockingService::block(BlockSpecification spec,
-                                 ngx_http_request_t &req) {
+                                 ngx_http_request_t& req) {
   BlockResponse const resp = BlockResponse::resolve_content_type(spec, req);
-  ngx_str_t *templ{};
+  ngx_str_t* templ{};
   if (resp.ct == BlockResponse::ContentType::HTML) {
     templ = &templ_html_;
   } else if (resp.ct == BlockResponse::ContentType::JSON) {
@@ -371,7 +371,7 @@ ngx_int_t BlockingService::block(BlockSpecification spec,
     return ngx_http_output_filter(&req, NULL);
   }
 
-  ngx_buf_t *b = static_cast<decltype(b)>(ngx_calloc_buf(req.pool));
+  ngx_buf_t* b = static_cast<decltype(b)>(ngx_calloc_buf(req.pool));
   if (b == nullptr) {
     return NGX_ERROR;
   }
@@ -421,11 +421,11 @@ std::string BlockingService::load_template(std::string_view path) {
   return s.str();
 }
 
-void BlockingService::push_header(ngx_http_request_t &req,
+void BlockingService::push_header(ngx_http_request_t& req,
                                   std::string_view name,  // NOLINT
                                   std::string_view value) {
-  ngx_table_elt_t *header =
-      static_cast<ngx_table_elt_t *>(ngx_list_push(&req.headers_out.headers));
+  ngx_table_elt_t* header =
+      static_cast<ngx_table_elt_t*>(ngx_list_push(&req.headers_out.headers));
   if (!header) {
     return;
   }

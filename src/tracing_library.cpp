@@ -47,7 +47,7 @@ inline constexpr std::string_view integration_name_from_flavor(
 }
 
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
-    const datadog_main_conf_t &nginx_conf, std::shared_ptr<dd::Logger> logger) {
+    const datadog_main_conf_t& nginx_conf, std::shared_ptr<dd::Logger> logger) {
   dd::TracerConfig config;
   config.logger = std::move(logger);
   config.agent.event_scheduler = std::make_shared<NgxEventScheduler>();
@@ -77,7 +77,7 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
     // we don't have it, in config
     // if we also don't have in the environment it defaults to whether appsec
     // is enabled
-    const char *env_renaming =
+    const char* env_renaming =
         std::getenv("DD_TRACE_RESOURCE_RENAMING_ENABLED");
     if (!env_renaming || !env_renaming[0]) {
       config.resource_renaming_enabled = {nginx_conf.appsec_enabled == 1};
@@ -104,11 +104,11 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   // order in which we try the rules doesn't change the outcome.
   // Deeper directives are more likely to match a given request, though, and
   // so this can be thought of as an optimization.
-  const auto by_depth_descending = [](const auto &left, const auto &right) {
+  const auto by_depth_descending = [](const auto& left, const auto& right) {
     return *left.depth > *right.depth;
   };
   std::stable_sort(rules.begin(), rules.end(), by_depth_descending);
-  for (sampling_rule_t &rule : rules) {
+  for (sampling_rule_t& rule : rules) {
     config.trace_sampler.rules.push_back(std::move(rule.rule));
   }
 
@@ -187,17 +187,17 @@ class SpanContextJSONWriter : public dd::DictWriter {
     std::transform(key.begin(), key.end(), std::back_inserter(normalized_key),
                    header_transform_char);
 
-    rapidjson::Document::AllocatorType &allocator =
+    rapidjson::Document::AllocatorType& allocator =
         output_object_.GetAllocator();
     output_object_.AddMember(
         rapidjson::Value(normalized_key.c_str(), allocator).Move(),
         rapidjson::Value(value.data(), allocator).Move(), allocator);
   }
 
-  rapidjson::Document &json() { return output_object_; }
+  rapidjson::Document& json() { return output_object_; }
 };
 
-std::string span_property(std::string_view key, const dd::Span &span) {
+std::string span_property(std::string_view key, const dd::Span& span) {
   const auto not_found = "-";
 
   if (key == "trace_id_hex" || key == "trace_id") {
@@ -216,7 +216,7 @@ std::string span_property(std::string_view key, const dd::Span &span) {
     SpanContextJSONWriter writer;
     span.inject(writer);
 
-    auto &json_doc = writer.json();
+    auto& json_doc = writer.json();
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> buffer_writer(buffer);

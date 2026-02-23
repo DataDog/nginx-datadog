@@ -12,8 +12,8 @@ extern "C" {
 namespace datadog::nginx::security {
 
 #ifdef WITH_WAF
-char *waf_thread_pool_name(ngx_conf_t *cf, ngx_command_t *command,
-                           void *conf) noexcept;
+char* waf_thread_pool_name(ngx_conf_t* cf, ngx_command_t* command,
+                           void* conf) noexcept;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
