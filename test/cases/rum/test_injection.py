@@ -683,44 +683,14 @@ class TestRUMInjection(case.TestCase):
 
     def test_csp_header_present_still_injects(self):
         """
-        Verify that when the upstream sets a Content-Security-Policy header
+        Verify that when the response includes a Content-Security-Policy header
         the module still injects the RUM snippet. The CSP header is passed
         through to the client (on_log_request emits a telemetry counter).
         """
-        service = {"host": "localhost", "port": 8081}
+        status, lines = self.load_conf("rum_csp.conf")
+        self.assertEqual(0, status, lines)
 
-        @Request.application
-        def app(request: Request) -> Response:
-            return Response(
-                """<html>
-        <head>
-            <title>CSP Page</title>
-        </head>
-        <body>
-            Hello, CSP!
-        </body>
-        </html>
-        """,
-                200,
-                content_type="text/html",
-                headers={
-                    "Content-Security-Policy":
-                    "default-src 'self'; script-src 'self'"
-                },
-            )
-
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
-            status, lines = self.load_conf("rum_enabled.conf")
-            self.assertEqual(0, status, lines)
-
-            status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        finally:
-            s.shutdown()
-            t.join()
+        status, headers, body = self.orch.send_nginx_http_request("/csp")
 
         self.assertEqual(200, status)
         self.assertInjection(headers, body)
