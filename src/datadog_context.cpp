@@ -342,6 +342,8 @@ void destroy_datadog_context(ngx_http_request_t *request) noexcept {
 }
 
 ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t *request) {
+  // When tracing is disabled (e.g. `datadog_tracing off`), no traces are
+  // created. Skip header injection to avoid accessing an empty container.
   if (traces_.empty()) {
     return NGX_DECLINED;
   }
