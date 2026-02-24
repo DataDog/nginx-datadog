@@ -112,12 +112,10 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
       if (status == NGX_ERROR) {
         rum_span.set_error(true);
       }
-      return status;
     } else {
       // Tracing is disabled (`datadog_tracing off`), so no trace/span is
       // available. Proceed with RUM injection without instrumentation.
-      return rum_ctx_.on_header_filter(request, loc_conf,
-                                       ngx_http_next_header_filter);
+      rum_ctx_.on_header_filter(request, loc_conf, ngx_http_next_header_filter);
     }
   }
 #elif WITH_WAF

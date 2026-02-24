@@ -144,7 +144,7 @@ ngx_int_t InjectionHandler::on_header_filter(
   // thus after the file has been read by `ngx_http_copy_filter_module`.
   r->filter_need_in_memory = 1;
 
-  return next_header_filter(r);
+  return NGX_OK;
 }
 
 ngx_int_t InjectionHandler::on_body_filter(
