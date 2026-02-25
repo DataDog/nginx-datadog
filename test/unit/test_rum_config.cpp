@@ -161,6 +161,22 @@ TEST_CASE("make_rum_json_config with multi-value array", "[rum][config]") {
   CHECK(std::string(arr[2].GetString()) == "val3");
 }
 
+TEST_CASE("make_rum_json_config with invalid double falls back to string",
+          "[rum][config]") {
+  std::unordered_map<std::string, std::vector<std::string>> config = {
+      {"sessionSampleRate", {"not-a-number"}},
+  };
+
+  auto json = rum::make_rum_json_config(5, config);
+  auto doc = parse_json(json);
+
+  // Invalid double values are passed as strings instead of crashing.
+  REQUIRE(doc["rum"].HasMember("sessionSampleRate"));
+  CHECK(doc["rum"]["sessionSampleRate"].IsString());
+  CHECK(std::string(doc["rum"]["sessionSampleRate"].GetString()) ==
+        "not-a-number");
+}
+
 TEST_CASE("make_rum_json_config with empty config", "[rum][config]") {
   std::unordered_map<std::string, std::vector<std::string>> config;
 

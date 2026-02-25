@@ -20,7 +20,7 @@ char* on_datadog_rum_json_config(ngx_conf_t* cf, ngx_command_t* command,
                                  void* conf);
 
 // Handler for `datadog_rum_config` block directive.
-// Parse the RUM configuration defined if the block.
+// Parse the RUM configuration defined in the block.
 char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command, void* conf);
 
 // Merge RUM location configurations.

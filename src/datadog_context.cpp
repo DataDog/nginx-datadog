@@ -113,8 +113,9 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
         rum_span.set_error(true);
       }
     } else {
-      // Tracing is disabled (`datadog_tracing off`), so no trace/span is
-      // available. Proceed with RUM injection without instrumentation.
+      // No trace/span found for this request (e.g. tracing is disabled via
+      // `datadog_tracing off`, or this is an untracked subrequest).
+      // Proceed with RUM injection without instrumentation.
       rum_ctx_.on_header_filter(request, loc_conf, ngx_http_next_header_filter);
     }
   }
@@ -343,7 +344,8 @@ void destroy_datadog_context(ngx_http_request_t *request) noexcept {
 
 ngx_int_t DatadogContext::on_precontent_phase(ngx_http_request_t *request) {
   // When tracing is disabled (e.g. `datadog_tracing off`), no traces are
-  // created. Skip header injection to avoid accessing an empty container.
+  // created. Skip header injection to avoid undefined behavior from
+  // calling traces_.front() on an empty vector.
   if (traces_.empty()) {
     return NGX_DECLINED;
   }

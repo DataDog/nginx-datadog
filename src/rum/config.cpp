@@ -74,8 +74,17 @@ std::string make_rum_json_config(
   rapidjson::Value rum(rapidjson::kObjectType);
   for (const auto& [key, values] : config) {
     if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
-      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                    rapidjson::Value(std::stod(values[0])).Move(), allocator);
+      char* endp;
+      double val = std::strtod(values[0].c_str(), &endp);
+      if (endp == values[0].c_str()) {
+        // Not a valid number — pass as string and let the Rust SDK validate.
+        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                      rapidjson::Value(values[0].c_str(), allocator).Move(),
+                      allocator);
+      } else {
+        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                      rapidjson::Value(val).Move(), allocator);
+      }
     } else if (key == "trackResources" || key == "trackLongTasks" ||
                key == "trackUserInteractions") {
       auto b = (values[0] == "true" ? true : false);
@@ -219,6 +228,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
     ngx_snprintf((u_char*)err_msg, 256,
                  "failed to generate the RUM SDK script: %s",
                  snippet->error_message);
+    snippet_cleanup(snippet);
     return err_msg;
   }
 
@@ -284,6 +294,9 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
                           "nginx-datadog: failed to create RUM snippet from "
                           "environment variables: %s",
                           snippet ? snippet->error_message : "null snippet");
+            if (snippet != nullptr) {
+              snippet_cleanup(snippet);
+            }
           }
         }
       }
