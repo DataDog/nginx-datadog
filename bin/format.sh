@@ -1,6 +1,10 @@
 #!/bin/sh
 # Format the codebase to follow this project's style.
 
+if [ -L .clang-format ] && ! [ -e .clang-format ]; then
+    >&2 echo '.clang-format is a broken symlink. Initialize the dd-trace-cpp submodule: git submodule update --init dd-trace-cpp'
+    exit 1
+fi
 if ! [ -e .clang-format ]; then
     >&2 echo '.clang-format file is missing. Run "make format".'
     exit 1
