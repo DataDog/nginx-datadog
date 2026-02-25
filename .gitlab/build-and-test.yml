@@ -40,6 +40,10 @@ format:
     - convert-formatter-image
   image: registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID
   tags: ["arch:amd64"]
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+  before_script:
+    - git config --global url."https://${CI_SERVER_HOST}/DataDog/".insteadOf "https://github.com/DataDog/"
   script:
     - make lint
 
