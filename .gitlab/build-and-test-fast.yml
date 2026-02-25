@@ -46,7 +46,7 @@ shellcheck:
   script:
     - find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
-build:
+build-nginx-fast:
   extends:
     - .build-and-test-fast
     - .build-nginx
@@ -54,10 +54,27 @@ build:
     matrix:
       - ARCH: ["amd64", "arm64"]
         # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
-        NGINX_VERSION: ["1.24.0", "1.25.5", "1.28.1", "1.28.2", "1.29.5"]
+        NGINX_VERSION:
+          - "1.24.0"
+          - "1.25.5"
+          - "1.26.3"
+          - "1.27.5"
+          - "1.28.2"
+          - "1.29.5"
         WAF: ["ON", "OFF"]
 
-build-openresty:
+build-ingress-nginx-fast:
+  extends:
+    - .build-and-test-fast
+    - .build-ingress-nginx
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        INGRESS_NGINX_VERSION:
+          - "1.13.7"
+          - "1.14.3"
+
+build-openresty-fast:
   extends:
     - .build-and-test-fast
     - .build-openresty
@@ -67,21 +84,11 @@ build-openresty:
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
 
-build-ingress-nginx:
-  extends:
-    - .build-and-test-fast
-    - .build-ingress-nginx
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
-
-test:
+test-nginx-fast:
   extends:
     - .build-and-test-fast
     - .test-nginx
-  needs:
-    - build
+  needs: [build-nginx-fast]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -93,8 +100,12 @@ test:
         NGINX_VERSION: ["1.25.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.28.1", "nginx:1.28.1-alpine"]
-        NGINX_VERSION: ["1.28.1"]
+        BASE_IMAGE: ["nginx:1.26.3", "nginx:1.26.3-alpine"]
+        NGINX_VERSION: ["1.26.3"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.5", "nginx:1.27.5-alpine"]
+        NGINX_VERSION: ["1.27.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.28.2", "nginx:1.28.2-alpine"]
@@ -109,28 +120,28 @@ test:
         NGINX_VERSION: ["1.24.0"]
         WAF: ["ON", "OFF"]
 
-test-openresty:
+test-ingress-nginx-fast:
+  extends:
+    - .build-and-test-fast
+    - .test-ingress-nginx
+  needs: [build-ingress-nginx-fast]
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        INGRESS_NGINX_VERSION:
+          - "1.13.7"
+          - "1.14.3"
+
+test-openresty-fast:
   extends:
     - .build-and-test-fast
     - .test-openresty
-  needs:
-    - build-openresty
+  needs: [build-openresty-fast]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
-
-test-ingress-nginx:
-  extends:
-    - .build-and-test-fast
-    - .test-ingress-nginx
-  needs:
-    - build-ingress-nginx
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64"]
-        INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
 
 coverage:
   extends:
