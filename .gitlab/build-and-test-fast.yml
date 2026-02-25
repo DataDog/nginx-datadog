@@ -1,24 +1,15 @@
-.build-and-test:
-  stage: build-and-test
+include:
+  - local: ".gitlab/common.yml"
+
+.build-and-test-fast:
+  stage: build-and-test-fast
   rules:
     - if: $CI_COMMIT_TAG
       when: never
     - when: always
 
-.build:
-  extends: .build-and-test
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    MAKE_JOB_COUNT: "8"
-
-.test:
-  extends: .build-and-test
-  image: registry.ddbuild.io/ci/nginx-datadog/test
-
-
 build-formatter-image:
-  extends: .build-and-test
+  extends: .build-and-test-fast
   image: registry.ddbuild.io/images/docker:27.3.1
   tags: ["docker-in-docker:amd64"]
   script:
@@ -26,7 +17,7 @@ build-formatter-image:
     - make build-push-formatter
 
 convert-formatter-image:
-  extends: .build-and-test
+  extends: .build-and-test-fast
   needs:
     - build-formatter-image
   image: registry.ddbuild.io/images/nydus:v2.3.8-dd
@@ -35,7 +26,7 @@ convert-formatter-image:
     - nydus-convert registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID
 
 format:
-  extends: .build-and-test
+  extends: .build-and-test-fast
   needs:
     - convert-formatter-image
   image: registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID
@@ -49,66 +40,46 @@ format:
     - make lint
 
 shellcheck:
-  extends: .build-and-test
+  extends: .build-and-test-fast
   image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   tags: ["arch:amd64"]
   script:
     - find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
 build:
-  extends: .build
+  extends:
+    - .build-and-test-fast
+    - .build-nginx
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
         NGINX_VERSION: ["1.24.0", "1.25.5", "1.28.1", "1.28.2", "1.29.5"]
         WAF: ["ON", "OFF"]
-  tags: ["arch:$ARCH"]
-  variables:
-    RUM: "OFF"
-  script:
-    - make build-musl-aux
-    - mkdir -p artifacts/$ARCH/$NGINX_VERSION/$WAF
-    - cp .musl-build/ngx_http_datadog_module.so* artifacts/$ARCH/$NGINX_VERSION/$WAF/
-  artifacts:
-    paths:
-      - artifacts/$ARCH/$NGINX_VERSION/$WAF/
 
 build-openresty:
-  extends: .build
+  extends:
+    - .build-and-test-fast
+    - .build-openresty
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
-  tags: ["arch:$ARCH"]
-  script:
-    - make build-openresty
-    - mkdir -p artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF
-    - cp .openresty-build/ngx_http_datadog_module.so* artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
-  artifacts:
-    paths:
-      - artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/
 
 build-ingress-nginx:
-  extends: .build
+  extends:
+    - .build-and-test-fast
+    - .build-ingress-nginx
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
-  tags: ["arch:$ARCH"]
-  variables:
-    WAF: "ON"
-  script:
-    - make build-ingress-nginx
-    - mkdir -p artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION
-    - cp .musl-build/ngx_http_datadog_module.so* artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
-  artifacts:
-    paths:
-      - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
 
 test:
-  extends: .test
+  extends:
+    - .build-and-test-fast
+    - .test-nginx
   needs:
     - build
   parallel:
@@ -137,15 +108,11 @@ test:
         BASE_IMAGE: ["amazonlinux:2023.3.20240219.0"]
         NGINX_VERSION: ["1.24.0"]
         WAF: ["ON", "OFF"]
-  tags: ["docker-in-docker:$ARCH"]
-  script:
-    - python3 test/bin/run.py --image $BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
-  artifacts:
-    paths:
-      - test/logs/test.log
 
 test-openresty:
-  extends: .test
+  extends:
+    - .build-and-test-fast
+    - .test-openresty
   needs:
     - build-openresty
   parallel:
@@ -153,32 +120,22 @@ test-openresty:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
-  tags: ["docker-in-docker:$ARCH"]
-  script:
-    - python3 test/bin/run.py --image openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
-  artifacts:
-    paths:
-      - test/logs/test.log
 
 test-ingress-nginx:
-  extends: .test
+  extends:
+    - .build-and-test-fast
+    - .test-ingress-nginx
   needs:
     - build-ingress-nginx
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
         INGRESS_NGINX_VERSION: ["1.13.7", "1.14.3"]
-  tags: ["docker-in-docker:$ARCH"]
-  variables:
-    NGINX_FLAVOR: ingress-nginx
-  script:
-    - python3 test/bin/run.py --image registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
-  artifacts:
-    paths:
-      - test/logs/test.log
 
 coverage:
-  extends: .build
+  extends:
+    - .build-and-test-fast
+    - .build
   variables:
     ARCH: "amd64"
     BASE_IMAGE: "nginx:1.26.0"
