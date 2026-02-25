@@ -1,0 +1,87 @@
+# Docker-based code formatting targets
+# This file is included by the main Makefile
+
+# Detect if we're already running inside Docker or CI
+IN_DOCKER := $(if $(IN_DOCKER),$(IN_DOCKER),false)
+IN_DOCKER := $(shell if [ "$(IN_DOCKER)" = "true" ] || \
+				[ -f /.dockerenv ] || \
+				grep -q docker /proc/1/cgroup 2>/dev/null || \
+				[ "$$KUBERNETES_SERVICE_PORT_HTTPS" ] || \
+				[ "$$GITLAB_CI" ]; then echo "true"; \
+				else echo "false"; fi)
+
+# Platform detection
+DOCKER_PLATFORM ?= linux/$(shell uname -m | sed "s/x86_64/amd64/g" | sed "s/aarch64/arm64/g")
+
+# Docker image name for formatter
+ifdef GITLAB_CI
+	FORMATTER_IMAGE ?= registry.ddbuild.io/ci/nginx-datadog/formatter:$(CI_PIPELINE_ID)
+else
+	FORMATTER_IMAGE ?= nginx-datadog-formatter
+endif
+
+# Docker run configuration
+DOCKER_WORKDIR    := -v $(CURDIR):/workspace -w /workspace
+DOCKER_EXTRA_OPTS :=
+
+# On Linux, map user/group to avoid permission issues
+ifeq ($(shell uname -s),Linux)
+  DOCKER_USER_OPTS := --user "$(shell id -u):$(shell id -g)"
+else
+  DOCKER_USER_OPTS :=
+endif
+
+# Conditional Docker execution - skip if already in Docker/CI
+ifeq ($(IN_DOCKER),true)
+  DOCKER_RUN :=
+else
+  DOCKER_RUN := docker run --rm --platform $(DOCKER_PLATFORM) $(DOCKER_USER_OPTS) $(DOCKER_WORKDIR) $(DOCKER_EXTRA_OPTS) $(FORMATTER_IMAGE)
+endif
+
+# Default format and lint targets use Docker
+.PHONY: format
+format: format-docker-auto
+
+.PHONY: lint
+lint: lint-docker-auto
+
+# Build the formatter Docker image
+.PHONY: build-formatter-image
+build-formatter-image:
+	docker build --platform $(DOCKER_PLATFORM) -t $(FORMATTER_IMAGE) -f Dockerfile.formatter .
+
+# Format code (runs locally when IN_DOCKER=true, otherwise via Docker)
+.PHONY: format-docker
+format-docker: .clang-format
+	$(DOCKER_RUN) bin/format.sh
+
+# Lint code (runs locally when IN_DOCKER=true, otherwise via Docker)
+.PHONY: lint-docker
+lint-docker: .clang-format
+	$(DOCKER_RUN) bin/lint.sh
+
+# Check if formatter image exists, build if needed
+.PHONY: ensure-formatter-image
+ensure-formatter-image:
+ifeq ($(IN_DOCKER),false)
+	@if ! docker image inspect $(FORMATTER_IMAGE) > /dev/null 2>&1; then \
+		echo "Formatter image not found, building..."; \
+		$(MAKE) build-formatter-image; \
+	fi
+else
+	@echo "Skipping: already in Docker/CI"
+endif
+
+# Format with automatic image build
+.PHONY: format-docker-auto
+format-docker-auto: ensure-formatter-image format-docker
+
+# Lint with automatic image build
+.PHONY: lint-docker-auto
+lint-docker-auto: ensure-formatter-image lint-docker
+
+# Build and push formatter image to registry (CI only).
+.PHONY: build-push-formatter
+build-push-formatter:
+	docker build --progress=plain --platform $(DOCKER_PLATFORM) -t $(FORMATTER_IMAGE) -f Dockerfile.formatter .
+	docker push $(FORMATTER_IMAGE)

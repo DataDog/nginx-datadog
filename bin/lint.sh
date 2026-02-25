@@ -2,6 +2,10 @@
 # Print any discrepancies between the formatting of the code and the expected
 # style.
 
+if [ -L .clang-format ] && ! [ -e .clang-format ]; then
+    >&2 echo '.clang-format is a broken symlink. Initialize the dd-trace-cpp submodule: git submodule update --init dd-trace-cpp'
+    exit 1
+fi
 if ! [ -e .clang-format ]; then
     >&2 echo '.clang-format file is missing. Run "make lint".'
     exit 1

@@ -8,13 +8,35 @@ include:
       when: never
     - when: always
 
-format:
+build-formatter-image:
   extends: .build-and-test-fast
-  image: registry.ddbuild.io/ci/nginx-datadog/dd-trace-cpp-ci
+  image: registry.ddbuild.io/images/docker:27.3.1
+  tags: ["docker-in-docker:amd64"]
+  script:
+    - apt-get install -y --no-install-recommends make
+    - make build-push-formatter
+
+convert-formatter-image:
+  extends: .build-and-test-fast
+  needs:
+    - build-formatter-image
+  image: registry.ddbuild.io/images/nydus:v2.3.8-dd
   tags: ["arch:amd64"]
   script:
-    - pip install -r requirements.txt
-    - update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
+    - nydus-convert registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID
+
+format:
+  extends: .build-and-test-fast
+  needs:
+    - convert-formatter-image
+  image: registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID
+  tags: ["arch:amd64"]
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_CONFIG_COUNT: "1"
+    GIT_CONFIG_KEY_0: "url.https://gitlab.ddbuild.io/DataDog/.insteadOf"
+    GIT_CONFIG_VALUE_0: "https://github.com/DataDog/"
+  script:
     - make lint
 
 shellcheck:
