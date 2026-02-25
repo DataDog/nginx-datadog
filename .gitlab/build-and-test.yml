@@ -42,8 +42,9 @@ format:
   tags: ["arch:amd64"]
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
-  before_script:
-    - git config --global url."https://${CI_SERVER_HOST}/DataDog/".insteadOf "https://github.com/DataDog/"
+    GIT_CONFIG_COUNT: "1"
+    GIT_CONFIG_KEY_0: "url.https://${CI_SERVER_HOST}/DataDog/.insteadOf"
+    GIT_CONFIG_VALUE_0: "https://github.com/DataDog/"
   script:
     - make lint
 
