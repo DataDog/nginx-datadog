@@ -224,9 +224,10 @@ class TestApiSecurityAttributes(case.TestCase):
                 "metadata": {
                     "category": f"category_{i % 5}",
                     "tags": [f"tag_{j}" for j in range(10)],
-                    "properties":
-                    {f"prop_{k}": f"value_{k}"
-                     for k in range(20)}
+                    "properties": {
+                        f"prop_{k}": f"value_{k}"
+                        for k in range(20)
+                    }
                 }
             } for i in range(10)]
         }
