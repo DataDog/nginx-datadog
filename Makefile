@@ -20,6 +20,9 @@ endif
 
 NGINX_SRC_DIR ?= $(PWD)/nginx
 
+# Include Docker-based formatter targets
+-include Makefile.docker
+
 ifneq ($(PCRE2_PATH),)
 	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
 endif
@@ -83,12 +86,12 @@ dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 
 .clang-format: dd-trace-cpp/.clang-format
 
-.PHONY: format
-format: .clang-format
+.PHONY: format-local
+format-local: .clang-format
 	bin/format.sh
 
-.PHONY: lint
-lint: .clang-format
+.PHONY: lint-local
+lint-local: .clang-format
 	bin/lint.sh
 
 .PHONY: circleci-config

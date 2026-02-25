@@ -21,8 +21,8 @@ namespace nginx {
 struct directive {
   /// Function pointer on the function that will be called when the directive
   /// will be processed.
-  using setter_func = auto(*)(ngx_conf_t* cf, ngx_command_t* cmd, void* conf)
-                          -> char*;
+  using setter_func = auto(*)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+                          -> char *;
 
   /// Name of the directive.
   std::string_view name;
@@ -39,7 +39,7 @@ struct directive {
   /// Offset for storing the directive's value in a configuration structure.
   ngx_uint_t offset;
   /// Additional post-processing data.
-  void* post;
+  void *post;
 
   ngx_command_t to_ngx_command() const {
     return ngx_command_t{to_ngx_str(name), type, callback, conf, offset, post};
@@ -48,7 +48,7 @@ struct directive {
 
 template <std::size_t N1, std::size_t... Ns>
 constexpr auto merge_directives(const directive (&arr1)[N1],
-                                const directive (&... arrs)[Ns]) {
+                                const directive (&...arrs)[Ns]) {
   constexpr std::size_t total = N1 + (Ns + ...);
 
   std::array<ngx_command_t, total> result{};
@@ -69,7 +69,7 @@ constexpr auto merge_directives(const directive (&arr1)[N1],
 }
 
 template <typename... T>
-constexpr auto generate_directives(const T&... directives) {
+constexpr auto generate_directives(const T &...directives) {
   return merge_directives(directives...);
 }
 
@@ -79,33 +79,33 @@ constexpr auto generate_directives(const T&... directives) {
 #define ALIAS_COMMAND(SRC_DIRECTIVE, TARGET_DIRECTIVE, TYPE)              \
   {                                                                       \
     TARGET_DIRECTIVE, TYPE, alias_directive, NGX_HTTP_LOC_CONF_OFFSET, 0, \
-        (void*)SRC_DIRECTIVE                                              \
+        (void *)SRC_DIRECTIVE                                             \
   }
 
 #define WARN_DEPRECATED_COMMAND(NAME, TYPE, MSG)                      \
   {                                                                   \
     NAME, TYPE, warn_deprecated_command, NGX_HTTP_LOC_CONF_OFFSET, 0, \
-        (void*)MSG                                                    \
+        (void *)MSG                                                   \
   }
 
 #define ERROR_DEPRECATED_COMMAND(NAME, TYPE, MSG)                    \
   {                                                                  \
     NAME, TYPE, err_deprecated_command, NGX_HTTP_LOC_CONF_OFFSET, 0, \
-        (void*)MSG                                                   \
+        (void *)MSG                                                  \
   }
 
-char* silently_ignore_command(ngx_conf_t*, ngx_command_t*, void*);
+char *silently_ignore_command(ngx_conf_t *, ngx_command_t *, void *);
 
-char* alias_directive(ngx_conf_t* cf, ngx_command_t* command,
-                      void* conf) noexcept;
+char *alias_directive(ngx_conf_t *cf, ngx_command_t *command,
+                      void *conf) noexcept;
 
-char* set_datadog_agent_url(ngx_conf_t*, ngx_command_t*, void* conf) noexcept;
+char *set_datadog_agent_url(ngx_conf_t *, ngx_command_t *, void *conf) noexcept;
 
-char* warn_deprecated_command(ngx_conf_t* cf, ngx_command_t* command,
-                              void* conf) noexcept;
+char *warn_deprecated_command(ngx_conf_t *cf, ngx_command_t *command,
+                              void *conf) noexcept;
 
-char* err_deprecated_command(ngx_conf_t* cf, ngx_command_t* command,
-                             void*) noexcept;
+char *err_deprecated_command(ngx_conf_t *cf, ngx_command_t *command,
+                             void *) noexcept;
 
 }  // namespace nginx
 }  // namespace datadog
