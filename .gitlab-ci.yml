@@ -2,11 +2,13 @@ stages:
   - build-and-test-fast
   - build-all
   - test-all
+  - mirror-images
   - benchmarks
 
 include:
   - local: ".gitlab/build-and-test-all.yml"
   - local: ".gitlab/build-and-test-fast.yml"
+  - local: ".gitlab/mirror.yml"
 
 macrobenchmarks:
   stage: benchmarks

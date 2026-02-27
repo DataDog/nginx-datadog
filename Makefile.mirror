@@ -1,0 +1,64 @@
+# Makefile.mirror — mirror public test images into the internal registry using crane
+#
+# Usage:
+#   make -f Makefile.mirror              # show help
+#   make -f Makefile.mirror list         # dry-run: show source → destination pairs
+#   make -f Makefile.mirror all          # mirror all images (add -jN for parallelism)
+#   make -f Makefile.mirror nginx-1.27.5 # mirror a single image by its target name
+
+DEST_REGISTRY := registry.ddbuild.io/ci/nginx-datadog/tests/images
+IMAGE_LIST    := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))used_images.list)
+CRANE         ?= crane
+
+# Strip comment lines and blank lines; skip images already on internal registries
+# (registry.ddbuild.io: already at destination; ECR: private, not public mirrors).
+IMAGES := $(shell \
+    grep -v '^\s*\#' '$(IMAGE_LIST)' \
+    | grep -v '^\s*$$' \
+    | grep -Ev '^(registry\.ddbuild\.io|486234852809\.dkr\.ecr)')
+
+# Produce a Make-safe target name from an image reference.
+# "image:tag" → "image-tag"  (colons are not valid in Make target names)
+target_name = $(subst :,-,$(1))
+
+# Expand one .PHONY copy target per image.
+define copy_rule
+.PHONY: $(call target_name,$(1))
+$(call target_name,$(1)):
+	$(CRANE) copy --platform all "$(1)" "$(DEST_REGISTRY)/$(1)"
+	@printf '  ✓  %s\n' "$(1)"
+endef
+
+$(foreach img,$(IMAGES),$(eval $(call copy_rule,$(img))))
+
+# ---------------------------------------------------------------------------
+
+.DEFAULT_GOAL := help
+
+.PHONY: help
+help:
+	@printf 'Targets:\n'
+	@printf '  all               Mirror all %d images (use -jN for parallelism)\n' $(words $(IMAGES))
+	@printf '  list              Dry-run: show source → destination pairs\n'
+
+	@printf '  <image-target>    Mirror one image; tab-complete to browse all images\n'
+	@printf '\nExamples:\n'
+	@printf '  make -f Makefile.mirror -j8 all\n'
+	@printf '  make -f Makefile.mirror nginx-1.27.5\n'
+	@printf '  make -f Makefile.mirror nginx-1.27.5-alpine\n'
+	@printf '\nVariables:\n'
+	@printf '  CRANE         crane binary or full path  [%s]\n' '$(CRANE)'
+	@printf '  DEST_REGISTRY destination registry       [%s]\n' '$(DEST_REGISTRY)'
+	@printf '  IMAGE_LIST    path to the image list     [%s]\n' '$(IMAGE_LIST)'
+
+.PHONY: all
+all: $(foreach img,$(IMAGES),$(call target_name,$(img)))
+
+.PHONY: list
+list:
+	@printf '%-70s  %s\n' 'SOURCE' 'DESTINATION'
+	@printf '%-70s  %s\n' '------' '-----------'
+	@for image in $(IMAGES); do \
+	    printf '%-70s  %s/%s\n' "$$image" '$(DEST_REGISTRY)' "$$image"; \
+	done
+

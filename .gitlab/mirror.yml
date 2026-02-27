@@ -1,0 +1,13 @@
+mirror-images:
+  stage: mirror-images
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  tags: ["arch:amd64"]
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
+      when: always
+    - when: manual
+  script:
+    - command -v crane >/dev/null 2>&1 ||
+        curl -fsSL https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz
+        | tar xz -C /usr/local/bin crane
+    - make -f Makefile.mirror -j16 all
