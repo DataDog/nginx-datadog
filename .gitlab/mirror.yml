@@ -1,11 +1,8 @@
 mirror-images:
   stage: mirror-images
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  image: registry.ddbuild.io/compute-toolbox:v1.5.0
   tags: ["arch:amd64"]
   rules:
     - when: always
   script:
-    - command -v crane >/dev/null 2>&1 ||
-        curl -fsSL https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz
-        | tar xz -C /usr/local/bin crane
     - make -f Makefile.mirror -j16 all
