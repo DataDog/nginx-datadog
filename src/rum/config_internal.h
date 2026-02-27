@@ -8,6 +8,11 @@
 
 namespace datadog::nginx::rum::internal {
 
+// Parse a string as a boolean. Returns true for "true", "1", "yes", "on"
+// and false for "false", "0", "no", "off" (case-insensitive).
+// Returns nullopt for unrecognized values.
+std::optional<bool> parse_bool(std::string_view value);
+
 struct env_mapping {
   std::string_view env_name;
   std::string_view config_key;

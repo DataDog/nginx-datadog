@@ -4,6 +4,7 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 
+#include <algorithm>
 #include <charconv>
 #include <cstdlib>
 #include <optional>
@@ -34,6 +35,19 @@ const env_mapping rum_env_mappings[] = {
 const std::size_t rum_env_mappings_size =
     sizeof(rum_env_mappings) / sizeof(rum_env_mappings[0]);
 
+std::optional<bool> parse_bool(std::string_view value) {
+  std::string lower(value);
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return std::tolower(c); });
+  if (lower == "true" || lower == "1" || lower == "yes" || lower == "on") {
+    return true;
+  }
+  if (lower == "false" || lower == "0" || lower == "no" || lower == "off") {
+    return false;
+  }
+  return std::nullopt;
+}
+
 std::unordered_map<std::string, std::vector<std::string>>
 get_rum_config_from_env() {
   std::unordered_map<std::string, std::vector<std::string>> config;
@@ -52,14 +66,7 @@ std::optional<bool> get_rum_enabled_from_env() {
   if (value == nullptr || value[0] == '\0') {
     return std::nullopt;
   }
-  std::string_view sv(value);
-  if (sv == "true" || sv == "1" || sv == "yes" || sv == "on") {
-    return true;
-  }
-  if (sv == "false" || sv == "0" || sv == "no" || sv == "off") {
-    return false;
-  }
-  return std::nullopt;
+  return parse_bool(value);
 }
 
 std::string make_rum_json_config(
@@ -73,6 +80,7 @@ std::string make_rum_json_config(
 
   rapidjson::Value rum(rapidjson::kObjectType);
   for (const auto& [key, values] : config) {
+    if (values.empty()) continue;
     if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
       char* endp;
       double val = std::strtod(values[0].c_str(), &endp);
@@ -87,7 +95,7 @@ std::string make_rum_json_config(
       }
     } else if (key == "trackResources" || key == "trackLongTasks" ||
                key == "trackUserInteractions") {
-      auto b = (values[0] == "true" ? true : false);
+      bool b = parse_bool(values[0]).value_or(false);
       rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                     rapidjson::Value(b).Move(), allocator);
     } else {
@@ -147,7 +155,7 @@ char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
 
   if (cf->args->nelts < 2) {
     char* err_msg =
-        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
+        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf(
         (u_char*)err_msg, 256,
         "invalid number of arguments. Expected at least two arguments.");
@@ -159,7 +167,7 @@ char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
   std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
   if (key.empty()) {
     char* err_msg =
-        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
+        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf((u_char*)err_msg, 256, "empty key");
     return err_msg;
   }
@@ -189,7 +197,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   auto config_version = parse_rum_version(arg1);
   if (!config_version) {
     auto* err_msg =
-        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
+        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf((u_char*)err_msg, 256,
                  "invalid version argument provided. Expected version 'v5' but "
                  "encountered '%s'. Please ensure you are using the correct "
@@ -213,7 +221,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   auto json = make_rum_json_config(*config_version, rum_config);
   if (json.empty()) {
     auto* err_msg =
-        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
+        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf(
         (u_char*)err_msg, 256,
         "failed to generate the RUM SDK script: missing version field");
@@ -222,13 +230,15 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
 
   Snippet* snippet = snippet_create_from_json(json.c_str());
 
-  if (snippet->error_code) {
+  if (snippet == nullptr || snippet->error_code) {
     auto* err_msg =
-        static_cast<char*>(ngx_palloc(cf->pool, sizeof(char) * 256));
+        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
     ngx_snprintf((u_char*)err_msg, 256,
                  "failed to generate the RUM SDK script: %s",
-                 snippet->error_message);
-    snippet_cleanup(snippet);
+                 snippet ? snippet->error_message : "null snippet");
+    if (snippet != nullptr) {
+      snippet_cleanup(snippet);
+    }
     return err_msg;
   }
 

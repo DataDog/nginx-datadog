@@ -99,6 +99,40 @@ TEST_CASE("parse_rum_version invalid inputs", "[rum][config]") {
 }
 
 // ---------------------------------------------------------------------------
+// parse_bool
+// ---------------------------------------------------------------------------
+
+TEST_CASE("parse_bool truthy values", "[rum][config]") {
+  for (const char* val : {"true", "TRUE", "True", "1", "yes", "YES", "on",
+                          "ON", "On"}) {
+    SECTION(val) {
+      auto result = rum::parse_bool(val);
+      REQUIRE(result.has_value());
+      CHECK(*result == true);
+    }
+  }
+}
+
+TEST_CASE("parse_bool falsy values", "[rum][config]") {
+  for (const char* val : {"false", "FALSE", "False", "0", "no", "NO", "off",
+                          "OFF", "Off"}) {
+    SECTION(val) {
+      auto result = rum::parse_bool(val);
+      REQUIRE(result.has_value());
+      CHECK(*result == false);
+    }
+  }
+}
+
+TEST_CASE("parse_bool unrecognized values return nullopt", "[rum][config]") {
+  for (const char* val : {"maybe", "2", "enabled", ""}) {
+    SECTION(std::string("'") + val + "'") {
+      CHECK(rum::parse_bool(val) == std::nullopt);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // make_rum_json_config
 // ---------------------------------------------------------------------------
 
@@ -143,6 +177,51 @@ TEST_CASE("make_rum_json_config with bool fields", "[rum][config]") {
   CHECK(doc["rum"]["trackResources"].GetBool() == true);
   CHECK(doc["rum"]["trackLongTasks"].GetBool() == false);
   CHECK(doc["rum"]["trackUserInteractions"].GetBool() == true);
+}
+
+TEST_CASE("make_rum_json_config bool fields accept truthy variants",
+          "[rum][config]") {
+  for (const char* truthy : {"true", "TRUE", "True", "1", "yes", "YES",
+                              "on", "ON"}) {
+    SECTION(std::string("trackResources=") + truthy) {
+      std::unordered_map<std::string, std::vector<std::string>> config = {
+          {"trackResources", {truthy}},
+      };
+      auto json = rum::make_rum_json_config(5, config);
+      auto doc = parse_json(json);
+      CHECK(doc["rum"]["trackResources"].GetBool() == true);
+    }
+  }
+
+  for (const char* falsy : {"false", "FALSE", "0", "no", "off",
+                             "anything_else"}) {
+    SECTION(std::string("trackResources=") + falsy) {
+      std::unordered_map<std::string, std::vector<std::string>> config = {
+          {"trackResources", {falsy}},
+      };
+      auto json = rum::make_rum_json_config(5, config);
+      auto doc = parse_json(json);
+      CHECK(doc["rum"]["trackResources"].GetBool() == false);
+    }
+  }
+}
+
+TEST_CASE("make_rum_json_config skips entries with empty values vector",
+          "[rum][config]") {
+  std::unordered_map<std::string, std::vector<std::string>> config = {
+      {"applicationId", {"app-123"}},
+      {"sessionSampleRate", {}},
+      {"trackResources", {}},
+      {"customField", {}},
+  };
+
+  auto json = rum::make_rum_json_config(5, config);
+  auto doc = parse_json(json);
+
+  CHECK(std::string(doc["rum"]["applicationId"].GetString()) == "app-123");
+  CHECK(!doc["rum"].HasMember("sessionSampleRate"));
+  CHECK(!doc["rum"].HasMember("trackResources"));
+  CHECK(!doc["rum"].HasMember("customField"));
 }
 
 TEST_CASE("make_rum_json_config with multi-value array", "[rum][config]") {
@@ -193,7 +272,7 @@ TEST_CASE("make_rum_json_config with empty config", "[rum][config]") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("get_rum_enabled_from_env truthy values", "[rum][config]") {
-  for (const char* val : {"true", "1", "yes", "on"}) {
+  for (const char* val : {"true", "TRUE", "True", "1", "yes", "on"}) {
     SECTION(std::string("DD_RUM_ENABLED=") + val) {
       ScopedEnv env("DD_RUM_ENABLED", val);
       auto result = rum::get_rum_enabled_from_env();
@@ -204,7 +283,7 @@ TEST_CASE("get_rum_enabled_from_env truthy values", "[rum][config]") {
 }
 
 TEST_CASE("get_rum_enabled_from_env falsy values", "[rum][config]") {
-  for (const char* val : {"false", "0", "no", "off"}) {
+  for (const char* val : {"false", "FALSE", "False", "0", "no", "off"}) {
     SECTION(std::string("DD_RUM_ENABLED=") + val) {
       ScopedEnv env("DD_RUM_ENABLED", val);
       auto result = rum::get_rum_enabled_from_env();
