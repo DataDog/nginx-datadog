@@ -816,9 +816,9 @@ exit "$rcode"
 
     def reload_nginx_with_empty_config(self):
         """Replace the nginx config with one that has no server blocks
-        (releasing any listened ports) and reload without waiting for old
-        workers to terminate.  Old workers may linger while they finish
-        draining connections, but the new workers won't bind any ports.
+        (releasing any listened ports) and reload, waiting for old workers
+        to terminate.  A worker_shutdown_timeout of 2s ensures old workers
+        exit promptly even if they have active connections.
         """
         # worker_shutdown_timeout forces old workers to exit after 2s,
         # even if they have active connections (e.g. keep-alive to trace agent).

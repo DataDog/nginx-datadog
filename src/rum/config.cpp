@@ -322,14 +322,31 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
   if (!child_explicit && !parent_explicit) {
     auto env_enabled = get_rum_enabled_from_env();
     if (env_enabled.has_value()) {
-      child->rum_enable = *env_enabled ? 1 : 0;
-    } else if (child->rum_snippet != nullptr) {
-      // Auto-enable if a valid snippet exists (from env vars or inherited).
-      child->rum_enable = 1;
+      if (*env_enabled && child->rum_snippet == nullptr) {
+        ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                      "nginx-datadog: DD_RUM_ENABLED is true but no valid RUM "
+                      "snippet is available; RUM injection will be disabled");
+        child->rum_enable = 0;
+      } else {
+        child->rum_enable = *env_enabled ? 1 : 0;
+      }
+    } else {
+      const char* raw = std::getenv("DD_RUM_ENABLED");
+      if (raw != nullptr && raw[0] != '\0') {
+        // DD_RUM_ENABLED is set but has an unrecognized value — don't
+        // auto-enable, warn the user.
+        ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                      "nginx-datadog: unrecognized DD_RUM_ENABLED value '%s'; "
+                      "expected true/false/1/0/yes/no/on/off",
+                      raw);
+      } else if (child->rum_snippet != nullptr) {
+        // Auto-enable if a valid snippet exists (from env vars or inherited).
+        child->rum_enable = 1;
+      }
     }
   }
 
-  return NGX_OK;
+  return NGX_CONF_OK;
 }
 
 std::vector<std::string_view> environment_variable_names() {

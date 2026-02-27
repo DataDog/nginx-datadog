@@ -108,31 +108,22 @@ if(NGINX_DATADOG_RUM_ENABLED)
   add_subdirectory(deps)
 
   # Determine the inject-browser-sdk version for the build identifier
-  set(INJECT_BROWSER_SDK_PREBUILT_DIR "${CMAKE_SOURCE_DIR}/deps/inject-browser-sdk-prebuilt" CACHE PATH
-      "Path to pre-built inject-browser-sdk artifacts")
-
-  if(EXISTS "${INJECT_BROWSER_SDK_PREBUILT_DIR}/libinjectbrowsersdk.a")
-    set(RUM_SDK_INJECTOR_VERSION "prebuilt")
-    message(STATUS "Using pre-built inject-browser-sdk artifacts (version unknown)")
+  find_file(_inject_sdk_cargo_toml "Cargo.toml"
+    PATHS
+      "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk"
+      "${injectbrowsersdk_SOURCE_DIR}"
+    NO_DEFAULT_PATH)
+  if(_inject_sdk_cargo_toml)
+    execute_process(
+      COMMAND cargo pkgid --package inject-browser-sdk --manifest-path "${_inject_sdk_cargo_toml}"
+      OUTPUT_VARIABLE RUM_SDK_INJECTOR_PKGID
+    )
+    string(REGEX REPLACE ".*@(.*)" "\\1" RUM_SDK_INJECTOR_VERSION ${RUM_SDK_INJECTOR_PKGID})
+    string(STRIP "${RUM_SDK_INJECTOR_VERSION}" RUM_SDK_INJECTOR_VERSION)
+    unset(RUM_SDK_INJECTOR_PKGID)
+    unset(_inject_sdk_cargo_toml CACHE)
   else()
-    # FetchContent or local source — find Cargo.toml in either location
-    find_file(_inject_sdk_cargo_toml "Cargo.toml"
-      PATHS
-        "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk"
-        "${injectbrowsersdk_SOURCE_DIR}"
-      NO_DEFAULT_PATH)
-    if(_inject_sdk_cargo_toml)
-      execute_process(
-        COMMAND cargo pkgid --package inject-browser-sdk --manifest-path "${_inject_sdk_cargo_toml}"
-        OUTPUT_VARIABLE RUM_SDK_INJECTOR_PKGID
-      )
-      string(REGEX REPLACE ".*@(.*)" "\\1" RUM_SDK_INJECTOR_VERSION ${RUM_SDK_INJECTOR_PKGID})
-      string(STRIP "${RUM_SDK_INJECTOR_VERSION}" RUM_SDK_INJECTOR_VERSION)
-      unset(RUM_SDK_INJECTOR_PKGID)
-      unset(_inject_sdk_cargo_toml CACHE)
-    else()
-      set(RUM_SDK_INJECTOR_VERSION "unknown")
-    endif()
+    set(RUM_SDK_INJECTOR_VERSION "unknown")
   endif()
 endif()
 

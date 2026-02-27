@@ -505,9 +505,9 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
 #endif
 
 #ifdef WITH_RUM
-  char* rum_status =
+  char *rum_status =
       datadog::nginx::rum::datadog_rum_merge_loc_config(cf, prev, conf);
-  if (rum_status != NGX_OK) {
+  if (rum_status != NGX_CONF_OK) {
     return rum_status;
   }
 #endif
