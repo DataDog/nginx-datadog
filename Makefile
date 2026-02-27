@@ -11,6 +11,7 @@ RUM ?= OFF
 WAF ?= OFF
 
 ARCH ?= $(shell arch)
+# Normalize architecture names (macOS uses arm64, Linux tools use aarch64)
 ifeq ($(ARCH),amd64)
 	ARCH := x86_64
 endif

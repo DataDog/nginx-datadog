@@ -244,6 +244,12 @@ static ngx_int_t datadog_master_process_post_config(
   }
 #endif
 
+#ifdef WITH_RUM
+  for (const auto &name : rum::environment_variable_names()) {
+    push_to_main_conf(std::string{name});
+  }
+#endif
+
   return NGX_OK;
 }
 
@@ -499,7 +505,11 @@ static char *merge_datadog_loc_conf(ngx_conf_t *cf, void *parent,
 #endif
 
 #ifdef WITH_RUM
-  datadog::nginx::rum::datadog_rum_merge_loc_config(cf, prev, conf);
+  char *rum_status =
+      datadog::nginx::rum::datadog_rum_merge_loc_config(cf, prev, conf);
+  if (rum_status != NGX_CONF_OK) {
+    return rum_status;
+  }
 #endif
 
   return NGX_CONF_OK;
