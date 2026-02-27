@@ -296,3 +296,40 @@ test-openresty-all:
           - "1.27.1.1"
           - "1.27.1.2"
         WAF: ["ON", "OFF"]
+
+build-nginx-rum-all:
+  extends:
+    - .build-all
+    - .build-nginx-rum
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        NGINX_VERSION:
+          - "1.24.0"
+          - "1.26.3"
+          - "1.28.2"
+          - "1.29.5"
+        WAF: ["OFF"]
+
+test-nginx-rum-all:
+  extends:
+    - .test-all
+    - .test-nginx-rum
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.24.0"]
+        NGINX_VERSION: ["1.24.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.26.3"]
+        NGINX_VERSION: ["1.26.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.2"]
+        NGINX_VERSION: ["1.28.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.5"]
+        NGINX_VERSION: ["1.29.5"]
+        WAF: ["OFF"]

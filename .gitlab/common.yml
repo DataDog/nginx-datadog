@@ -51,6 +51,29 @@
     paths:
       - test/logs/test.log
 
+.build-nginx-rum:
+  extends: .build
+  variables:
+    RUM: "ON"
+  script:
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
+    - make build-musl-aux
+    - mkdir -p artifacts-rum/$ARCH/$NGINX_VERSION/$WAF
+    - cp .musl-build/ngx_http_datadog_module.so* artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
+  artifacts:
+    paths:
+      - artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
+
+.test-nginx-rum:
+  extends: .test
+  variables:
+    RUM: "ON"
+  script:
+    - python3 test/bin/run.py --image $BASE_IMAGE --module-path artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+  artifacts:
+    paths:
+      - test/logs/test.log
+
 .test-ingress-nginx:
   extends: .test
   variables:
