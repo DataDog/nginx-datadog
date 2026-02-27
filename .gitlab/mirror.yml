@@ -1,0 +1,8 @@
+mirror-images:
+  stage: mirror-images
+  image: registry.ddbuild.io/compute-toolbox:v1.5.0
+  tags: ["arch:amd64"]
+  rules:
+    - when: always
+  script:
+    - make -f Makefile.mirror -j16 all
