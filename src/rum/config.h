@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string_view>
+#include <vector>
+
 #include "datadog_conf.h"
 #include "datadog_directive.h"
 
@@ -13,17 +16,21 @@ extern "C" {
 namespace datadog::nginx::rum {
 // Handler for `datadog_rum_json_config` directive.
 // Load a JSON RUM configuration file.
-char *on_datadog_rum_json_config(ngx_conf_t *cf, ngx_command_t *command,
-                                 void *conf);
+char* on_datadog_rum_json_config(ngx_conf_t* cf, ngx_command_t* command,
+                                 void* conf);
 
 // Handler for `datadog_rum_config` block directive.
-// Parse the RUM configuration defined if the block.
-char *on_datadog_rum_config(ngx_conf_t *cf, ngx_command_t *command, void *conf);
+// Parse the RUM configuration defined in the block.
+char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command, void* conf);
 
 // Merge RUM location configurations.
-char *datadog_rum_merge_loc_config(ngx_conf_t *cf,
-                                   datadog::nginx::datadog_loc_conf_t *parent,
-                                   datadog::nginx::datadog_loc_conf_t *child);
+char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
+                                   datadog::nginx::datadog_loc_conf_t* parent,
+                                   datadog::nginx::datadog_loc_conf_t* child);
+
+// Return the names of DD_RUM_* environment variables that should be forwarded
+// to worker processes.
+std::vector<std::string_view> environment_variable_names();
 
 constexpr datadog::nginx::directive rum_directives[] = {
     {

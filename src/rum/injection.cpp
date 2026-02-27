@@ -19,7 +19,7 @@ namespace nginx {
 namespace rum {
 namespace {
 
-bool is_html_content(ngx_str_t *content_type) {
+bool is_html_content(ngx_str_t* content_type) {
   assert(content_type != nullptr);
   std::string_view content_type_sv = to_string_view(*content_type);
   return content_type_sv.find("text/html") != content_type_sv.npos;
@@ -36,7 +36,7 @@ InjectionHandler::~InjectionHandler() {
   }
 }
 
-ngx_int_t InjectionHandler::on_rewrite_handler(ngx_http_request_t *r) {
+ngx_int_t InjectionHandler::on_rewrite_handler(ngx_http_request_t* r) {
   if (!common::add_header(*r->pool, r->headers_in.headers,
                           "x-datadog-rum-injection-pending", "1")) {
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
@@ -49,8 +49,8 @@ ngx_int_t InjectionHandler::on_rewrite_handler(ngx_http_request_t *r) {
 }
 
 ngx_int_t InjectionHandler::on_header_filter(
-    ngx_http_request_t *r, datadog_loc_conf_t *cfg,
-    ngx_http_output_header_filter_pt &next_header_filter) {
+    ngx_http_request_t* r, datadog_loc_conf_t* cfg,
+    ngx_http_output_header_filter_pt& next_header_filter) {
   assert(cfg->rum_snippet != nullptr);
 
   if (!cfg->rum_enable) {
@@ -125,8 +125,8 @@ ngx_int_t InjectionHandler::on_header_filter(
 
   // Set header now because it will be too late after
   // TODO(@dmehala): write common function to insert HTTP Header
-  auto *h =
-      static_cast<ngx_table_elt_t *>(ngx_list_push(&r->headers_out.headers));
+  auto* h =
+      static_cast<ngx_table_elt_t*>(ngx_list_push(&r->headers_out.headers));
   if (h == nullptr) {
     state_ = state::error;
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
@@ -148,22 +148,22 @@ ngx_int_t InjectionHandler::on_header_filter(
 }
 
 ngx_int_t InjectionHandler::on_body_filter(
-    ngx_http_request_t *r, datadog_loc_conf_t *cfg, ngx_chain_t *in,
-    ngx_http_output_body_filter_pt &next_body_filter) {
+    ngx_http_request_t* r, datadog_loc_conf_t* cfg, ngx_chain_t* in,
+    ngx_http_output_body_filter_pt& next_body_filter) {
   if (!cfg->rum_enable || in == nullptr || state_ != state::searching) {
     return next_body_filter(r, in);
   }
 
-  ngx_chain_t *output_chain;
-  ngx_chain_t *previous_chain = nullptr;
-  ngx_chain_t **current_chain = &output_chain;
+  ngx_chain_t* output_chain;
+  ngx_chain_t* previous_chain = nullptr;
+  ngx_chain_t** current_chain = &output_chain;
 
-  for (ngx_chain_t *cl = in; cl; cl = cl->next) {
+  for (ngx_chain_t* cl = in; cl; cl = cl->next) {
     uint32_t buffer_size = cl->buf->last - cl->buf->pos;
-    auto result = injector_write(
-        injector_, static_cast<uint8_t *>(cl->buf->pos), buffer_size);
+    auto result = injector_write(injector_, static_cast<uint8_t*>(cl->buf->pos),
+                                 buffer_size);
 
-    ngx_chain_t *injected_cl =
+    ngx_chain_t* injected_cl =
         inject(r->pool, cl, std::span(result.slices, result.slices_length));
 
     previous_chain = cl;
@@ -187,7 +187,7 @@ ngx_int_t InjectionHandler::on_body_filter(
   if (previous_chain->buf->last_buf && output_padding_) {
     state_ = state::failed;
     auto result = injector_end(injector_);
-    ngx_chain_t *injected_cl =
+    ngx_chain_t* injected_cl =
         inject(r->pool, previous_chain,
                std::span(result.slices, result.slices_length));
 
@@ -207,7 +207,7 @@ ngx_int_t InjectionHandler::on_body_filter(
   return output(r, output_chain, next_body_filter);
 }
 
-ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t *r) {
+ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t* r) {
   if (auto csp = common::search_header(r->headers_out.headers,
                                        "content-security-policy");
       csp != nullptr) {
@@ -222,14 +222,14 @@ ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t *r) {
 // NOTE(@dmehala): this function is not necessary for now, however,
 // it will when we will reuse buffer.
 ngx_int_t InjectionHandler::output(
-    ngx_http_request_t *r, ngx_chain_t *out,
-    ngx_http_output_body_filter_pt &next_body_filter) {
+    ngx_http_request_t* r, ngx_chain_t* out,
+    ngx_http_output_body_filter_pt& next_body_filter) {
   return next_body_filter(r, out);
 }
 
 // NOTE(@dmehala): Ideally for v2 the buffer should be reused to avoid
 // unnecessary allocation.
-ngx_chain_t *InjectionHandler::inject(ngx_pool_t *pool, ngx_chain_t *in,
+ngx_chain_t* InjectionHandler::inject(ngx_pool_t* pool, ngx_chain_t* in,
                                       std::span<const BytesSlice> slices) {
   assert(pool != nullptr);
   assert(in != nullptr);
@@ -242,7 +242,7 @@ ngx_chain_t *InjectionHandler::inject(ngx_pool_t *pool, ngx_chain_t *in,
     needed += slices[i].length;
   }
 
-  ngx_chain_t *cl = ngx_alloc_chain_link(pool);
+  ngx_chain_t* cl = ngx_alloc_chain_link(pool);
   if (cl == nullptr) {
     // NOTE(@dmehala): This might explain why we couldn't inject the SDK.
     // It should stop looking for an injection point and report the injection
@@ -252,11 +252,11 @@ ngx_chain_t *InjectionHandler::inject(ngx_pool_t *pool, ngx_chain_t *in,
     return in;
   }
 
-  ngx_buf_t *buf = (ngx_buf_t *)ngx_calloc_buf(pool);
+  ngx_buf_t* buf = (ngx_buf_t*)ngx_calloc_buf(pool);
 
   buf->tag = (ngx_buf_tag_t)&ngx_http_datadog_module;
   buf->memory = 1;
-  buf->start = (u_char *)ngx_pnalloc(pool, needed);
+  buf->start = (u_char*)ngx_pnalloc(pool, needed);
   buf->end = buf->start + needed;
   buf->pos = buf->start;
   buf->last = buf->pos;
