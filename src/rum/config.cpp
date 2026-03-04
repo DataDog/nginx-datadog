@@ -74,9 +74,17 @@ std::string make_rum_json_config(
       }
     } else if (key == "trackResources" || key == "trackLongTasks" ||
                key == "trackUserInteractions") {
-      bool b = parse_bool(values[0]).value_or(false);
-      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                    rapidjson::Value(b).Move(), allocator);
+      auto parsed = parse_bool(values[0]);
+      if (parsed.has_value()) {
+        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                      rapidjson::Value(*parsed).Move(), allocator);
+      } else {
+        // Not a recognized boolean — pass as string and let the RUM SDK
+        // validate.
+        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                      rapidjson::Value(values[0].c_str(), allocator).Move(),
+                      allocator);
+      }
     } else {
       if (values.size() == 1) {
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
@@ -130,6 +138,9 @@ constexpr std::size_t err_buf_size = 256;
 template <typename... Args>
 char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
   auto* buf = static_cast<char*>(ngx_pcalloc(cf->pool, err_buf_size));
+  if (buf == nullptr) {
+    return const_cast<char*>("nginx-datadog: memory allocation failed");
+  }
   ngx_snprintf(static_cast<u_char*>(buf), err_buf_size, fmt, args...);
   return buf;
 }
@@ -143,8 +154,7 @@ char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
 
   if (cf->args->nelts < 2) {
     return conf_err(
-        cf,
-        "invalid number of arguments. Expected at least two arguments.");
+        cf, "invalid number of arguments. Expected at least two arguments.");
   }
 
   ngx_str_t* arg_values = static_cast<ngx_str_t*>(cf->args->elts);
@@ -237,7 +247,13 @@ void try_build_snippet_from_env(ngx_conf_t* cf,
     if (env_config.empty()) return;
 
     auto json = make_rum_json_config(default_rum_config_version, env_config);
-    if (json.empty()) return;
+    if (json.empty()) {
+      ngx_log_error(
+          NGX_LOG_WARN, cf->log, 0,
+          "nginx-datadog: DD_RUM_* environment variables were set but "
+          "JSON config generation produced an empty result");
+      return;
+    }
 
     auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
         snippet_create_from_json(json.c_str()), snippet_cleanup);
@@ -259,40 +275,45 @@ void try_build_snippet_from_env(ngx_conf_t* cf,
         it != env_config.end() && !it->second.empty()) {
       loc_conf->rum_remote_config_tag = "remote_config_used:true";
     }
+  } catch (const std::bad_alloc&) {
+    throw;
   } catch (const std::exception& exception) {
-    ngx_log_error(
-        NGX_LOG_WARN, cf->log, 0,
-        "nginx-datadog: invalid DD_RUM_* environment variable value: %s",
-        exception.what());
+    ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                  "nginx-datadog: failed to build RUM snippet from environment "
+                  "variables: %s",
+                  exception.what());
   }
 }
 
 void resolve_rum_enable_from_env(ngx_conf_t* cf,
                                  datadog::nginx::datadog_loc_conf_t* loc_conf) {
-  auto env_enabled = get_rum_enabled_from_env();
-  if (env_enabled.has_value()) {
-    if (*env_enabled && loc_conf->rum_snippet == nullptr) {
-      ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                    "nginx-datadog: DD_RUM_ENABLED is true but no valid RUM "
-                    "snippet is available; RUM injection will be disabled");
-      loc_conf->rum_enable = 0;
-    } else {
-      loc_conf->rum_enable = static_cast<ngx_flag_t>(*env_enabled);
+  const char* raw = std::getenv("DD_RUM_ENABLED");
+  if (raw == nullptr || raw[0] == '\0') {
+    // Not set — auto-enable if a valid snippet exists (from env vars or
+    // inherited). This avoids requiring users to set DD_RUM_ENABLED explicitly
+    // when DD_RUM_* config vars are already provided.
+    if (loc_conf->rum_snippet != nullptr) {
+      loc_conf->rum_enable = 1;
     }
     return;
   }
 
-  const char* raw = std::getenv("DD_RUM_ENABLED");
-  if (raw != nullptr && raw[0] != '\0') {
-    // DD_RUM_ENABLED is set but has an unrecognized value — don't
-    // auto-enable, warn the user.
+  auto parsed = parse_bool(raw);
+  if (!parsed.has_value()) {
     ngx_log_error(NGX_LOG_WARN, cf->log, 0,
                   "nginx-datadog: unrecognized DD_RUM_ENABLED value '%s'; "
                   "expected true/false/1/0/yes/no/on/off",
                   raw);
-  } else if (loc_conf->rum_snippet != nullptr) {
-    // Auto-enable if a valid snippet exists (from env vars or inherited).
-    loc_conf->rum_enable = 1;
+    return;
+  }
+
+  if (*parsed && loc_conf->rum_snippet == nullptr) {
+    ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                  "nginx-datadog: DD_RUM_ENABLED is true but no valid RUM "
+                  "snippet is available; RUM injection will be disabled");
+    loc_conf->rum_enable = 0;
+  } else {
+    loc_conf->rum_enable = static_cast<ngx_flag_t>(*parsed);
   }
 }
 
