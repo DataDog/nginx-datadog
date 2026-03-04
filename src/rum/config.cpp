@@ -258,7 +258,7 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
     try {
       auto env_config = get_rum_config_from_env();
       if (!env_config.empty()) {
-        auto json = make_rum_json_config(5, env_config);
+        auto json = make_rum_json_config(default_rum_config_version, env_config);
         if (!json.empty()) {
           Snippet* snippet = snippet_create_from_json(json.c_str());
           if (snippet != nullptr && !snippet->error_code) {

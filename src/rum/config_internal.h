@@ -9,6 +9,8 @@
 
 namespace datadog::nginx::rum::internal {
 
+inline constexpr int default_rum_config_version = 5;
+
 // Parse a string as a boolean. Returns true for "true", "1", "yes", "on"
 // and false for "false", "0", "no", "off" (case-insensitive).
 // Returns nullopt for unrecognized values.
