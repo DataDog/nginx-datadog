@@ -204,18 +204,15 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
         cf, "failed to generate the RUM SDK script: missing version field");
   }
 
-  Snippet* snippet = snippet_create_from_json(json.c_str());
+  auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
+      snippet_create_from_json(json.c_str()), snippet_cleanup);
 
   if (snippet == nullptr || snippet->error_code) {
-    char* err_msg = conf_err(cf, "failed to generate the RUM SDK script: %s",
-                             snippet ? snippet->error_message : "null snippet");
-    if (snippet != nullptr) {
-      snippet_cleanup(snippet);
-    }
-    return err_msg;
+    return conf_err(cf, "failed to generate the RUM SDK script: %s",
+                    snippet ? snippet->error_message : "null snippet");
   }
 
-  loc_conf->rum_snippet = snippet;
+  loc_conf->rum_snippet = snippet.release();
 
   loc_conf->rum_remote_config_tag = "remote_config_used:false";
 
@@ -260,9 +257,10 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
       if (!env_config.empty()) {
         auto json = make_rum_json_config(default_rum_config_version, env_config);
         if (!json.empty()) {
-          Snippet* snippet = snippet_create_from_json(json.c_str());
+          auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
+              snippet_create_from_json(json.c_str()), snippet_cleanup);
           if (snippet != nullptr && !snippet->error_code) {
-            child->rum_snippet = snippet;
+            child->rum_snippet = snippet.release();
             child->rum_remote_config_tag = "remote_config_used:false";
             if (auto it = env_config.find("applicationId");
                 it != env_config.end() && !it->second.empty()) {
@@ -277,17 +275,14 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
                           "nginx-datadog: failed to create RUM snippet from "
                           "environment variables: %s",
                           snippet ? snippet->error_message : "null snippet");
-            if (snippet != nullptr) {
-              snippet_cleanup(snippet);
-            }
           }
         }
       }
-    } catch (const std::exception& e) {
+    } catch (const std::exception& exception) {
       ngx_log_error(
           NGX_LOG_WARN, cf->log, 0,
           "nginx-datadog: invalid DD_RUM_* environment variable value: %s",
-          e.what());
+          exception.what());
     }
   }
 
