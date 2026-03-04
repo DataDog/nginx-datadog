@@ -178,12 +178,13 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   auto arg1 = datadog::nginx::to_string_view(values[1]);
   auto config_version = parse_rum_version(arg1);
   if (!config_version) {
+    std::string arg1_str(arg1);
     return conf_err(
         cf,
         "invalid version argument provided. Expected version 'v5' but "
         "encountered '%s'. Please ensure you are using the correct "
         "version format 'v5'",
-        arg1);
+        arg1_str.c_str());
   }
 
   auto rum_config = get_rum_config_from_env();
