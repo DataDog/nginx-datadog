@@ -317,9 +317,9 @@ TEST_CASE("get_rum_enabled_from_env unrecognized value returns nullopt",
 TEST_CASE("get_rum_config_from_env reads set variables", "[rum][config]") {
   // Unset all RUM env vars first to get a clean slate.
   std::vector<std::unique_ptr<ScopedUnsetEnv>> unsets;
-  for (std::size_t i = 0; i < rum::rum_env_mappings.size(); ++i) {
+  for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
     unsets.push_back(std::make_unique<ScopedUnsetEnv>(
-        std::string(rum::rum_env_mappings[i].env_name).c_str()));
+        std::string(env_name).c_str()));
   }
 
   ScopedEnv app_id("DD_RUM_APPLICATION_ID", "my-app");
@@ -336,9 +336,9 @@ TEST_CASE("get_rum_config_from_env reads set variables", "[rum][config]") {
 TEST_CASE("get_rum_config_from_env skips unset variables", "[rum][config]") {
   // Unset all RUM env vars.
   std::vector<std::unique_ptr<ScopedUnsetEnv>> unsets;
-  for (std::size_t i = 0; i < rum::rum_env_mappings.size(); ++i) {
+  for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
     unsets.push_back(std::make_unique<ScopedUnsetEnv>(
-        std::string(rum::rum_env_mappings[i].env_name).c_str()));
+        std::string(env_name).c_str()));
   }
 
   auto config = rum::get_rum_config_from_env();
@@ -348,9 +348,9 @@ TEST_CASE("get_rum_config_from_env skips unset variables", "[rum][config]") {
 TEST_CASE("get_rum_config_from_env skips empty values", "[rum][config]") {
   // Unset all RUM env vars first.
   std::vector<std::unique_ptr<ScopedUnsetEnv>> unsets;
-  for (std::size_t i = 0; i < rum::rum_env_mappings.size(); ++i) {
+  for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
     unsets.push_back(std::make_unique<ScopedUnsetEnv>(
-        std::string(rum::rum_env_mappings[i].env_name).c_str()));
+        std::string(env_name).c_str()));
   }
 
   ScopedEnv empty_val("DD_RUM_APPLICATION_ID", "");

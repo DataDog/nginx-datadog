@@ -31,11 +31,10 @@ std::optional<bool> parse_bool(std::string_view value) {
 std::unordered_map<std::string, std::vector<std::string>>
 get_rum_config_from_env() {
   std::unordered_map<std::string, std::vector<std::string>> config;
-  for (std::size_t i = 0; i < rum_env_mappings.size(); ++i) {
-    const auto& mapping = rum_env_mappings[i];
-    const char* value = std::getenv(std::string(mapping.env_name).c_str());
+  for (const auto& [env_name, config_key] : rum_env_mappings) {
+    const char* value = std::getenv(env_name.data());
     if (value != nullptr && value[0] != '\0') {
-      config[std::string(mapping.config_key)] = {std::string(value)};
+      config[std::string(config_key)] = {std::string(value)};
     }
   }
   return config;
@@ -333,8 +332,8 @@ std::vector<std::string_view> environment_variable_names() {
   std::vector<std::string_view> names;
   names.reserve(rum_env_mappings.size() + 1);
   names.push_back("DD_RUM_ENABLED"sv);
-  for (std::size_t i = 0; i < rum_env_mappings.size(); ++i) {
-    names.push_back(rum_env_mappings[i].env_name);
+  for (const auto& [env_name, config_key] : rum_env_mappings) {
+    names.push_back(env_name);
   }
   return names;
 }
