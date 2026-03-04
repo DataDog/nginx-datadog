@@ -30,7 +30,7 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
 
 // Return the names of DD_RUM_* environment variables that should be forwarded
 // to worker processes.
-std::vector<std::string_view> environment_variable_names();
+std::vector<std::string_view> get_environment_variable_names();
 
 constexpr datadog::nginx::directive rum_directives[] = {
     {

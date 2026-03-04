@@ -276,7 +276,7 @@ void resolve_rum_enable_from_env(ngx_conf_t* cf,
                     "snippet is available; RUM injection will be disabled");
       loc_conf->rum_enable = 0;
     } else {
-      loc_conf->rum_enable = *env_enabled ? 1 : 0;
+      loc_conf->rum_enable = static_cast<ngx_flag_t>(*env_enabled);
     }
     return;
   }
@@ -329,7 +329,7 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
   return NGX_CONF_OK;
 }
 
-std::vector<std::string_view> environment_variable_names() {
+std::vector<std::string_view> get_environment_variable_names() {
   std::vector<std::string_view> names;
   names.reserve(rum_env_mappings.size() + 1);
   names.push_back("DD_RUM_ENABLED"sv);
