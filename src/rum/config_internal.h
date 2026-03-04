@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -18,8 +19,20 @@ struct env_mapping {
   std::string_view config_key;
 };
 
-extern const env_mapping rum_env_mappings[];
-extern const std::size_t rum_env_mappings_size;
+inline constexpr auto rum_env_mappings = std::to_array<env_mapping>({
+    {"DD_RUM_APPLICATION_ID", "applicationId"},
+    {"DD_RUM_CLIENT_TOKEN", "clientToken"},
+    {"DD_RUM_SITE", "site"},
+    {"DD_RUM_SERVICE", "service"},
+    {"DD_RUM_ENVIRONMENT", "env"},
+    {"DD_RUM_MAJOR_VERSION", "version"},
+    {"DD_RUM_SESSION_SAMPLE_RATE", "sessionSampleRate"},
+    {"DD_RUM_SESSION_REPLAY_SAMPLE_RATE", "sessionReplaySampleRate"},
+    {"DD_RUM_TRACK_RESOURCES", "trackResources"},
+    {"DD_RUM_TRACK_LONG_TASKS", "trackLongTasks"},
+    {"DD_RUM_TRACK_USER_INTERACTIONS", "trackUserInteractions"},
+    {"DD_RUM_REMOTE_CONFIGURATION_ID", "remoteConfigurationId"},
+});
 
 std::unordered_map<std::string, std::vector<std::string>>
 get_rum_config_from_env();

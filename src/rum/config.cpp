@@ -13,27 +13,7 @@
 #include "config_internal.h"
 #include "string_util.h"
 
-using namespace std::string_view_literals;
-
 namespace datadog::nginx::rum::internal {
-
-const env_mapping rum_env_mappings[] = {
-    {"DD_RUM_APPLICATION_ID"sv, "applicationId"sv},
-    {"DD_RUM_CLIENT_TOKEN"sv, "clientToken"sv},
-    {"DD_RUM_SITE"sv, "site"sv},
-    {"DD_RUM_SERVICE"sv, "service"sv},
-    {"DD_RUM_ENV"sv, "env"sv},
-    {"DD_RUM_VERSION"sv, "version"sv},
-    {"DD_RUM_SESSION_SAMPLE_RATE"sv, "sessionSampleRate"sv},
-    {"DD_RUM_SESSION_REPLAY_SAMPLE_RATE"sv, "sessionReplaySampleRate"sv},
-    {"DD_RUM_TRACK_RESOURCES"sv, "trackResources"sv},
-    {"DD_RUM_TRACK_LONG_TASKS"sv, "trackLongTasks"sv},
-    {"DD_RUM_TRACK_USER_INTERACTIONS"sv, "trackUserInteractions"sv},
-    {"DD_RUM_REMOTE_CONFIGURATION_ID"sv, "remoteConfigurationId"sv},
-};
-
-const std::size_t rum_env_mappings_size =
-    sizeof(rum_env_mappings) / sizeof(rum_env_mappings[0]);
 
 std::optional<bool> parse_bool(std::string_view value) {
   std::string lower(value);
@@ -51,7 +31,7 @@ std::optional<bool> parse_bool(std::string_view value) {
 std::unordered_map<std::string, std::vector<std::string>>
 get_rum_config_from_env() {
   std::unordered_map<std::string, std::vector<std::string>> config;
-  for (std::size_t i = 0; i < rum_env_mappings_size; ++i) {
+  for (std::size_t i = 0; i < rum_env_mappings.size(); ++i) {
     const auto& mapping = rum_env_mappings[i];
     const char* value = std::getenv(std::string(mapping.env_name).c_str());
     if (value != nullptr && value[0] != '\0') {
@@ -351,9 +331,9 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
 
 std::vector<std::string_view> environment_variable_names() {
   std::vector<std::string_view> names;
-  names.reserve(rum_env_mappings_size + 1);
+  names.reserve(rum_env_mappings.size() + 1);
   names.push_back("DD_RUM_ENABLED"sv);
-  for (std::size_t i = 0; i < rum_env_mappings_size; ++i) {
+  for (std::size_t i = 0; i < rum_env_mappings.size(); ++i) {
     names.push_back(rum_env_mappings[i].env_name);
   }
   return names;
