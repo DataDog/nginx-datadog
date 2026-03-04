@@ -64,7 +64,7 @@ std::string make_rum_json_config(
       char* endp;
       double val = std::strtod(values[0].c_str(), &endp);
       if (endp == values[0].c_str()) {
-        // Not a valid number — pass as string and let the Rust SDK validate.
+        // Not a valid number — pass as string and let the RUM SDK validate.
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                       rapidjson::Value(values[0].c_str(), allocator).Move(),
                       allocator);
@@ -125,6 +125,15 @@ std::optional<int> parse_rum_version(std::string_view config_version) {
 
 namespace {
 
+constexpr std::size_t err_buf_size = 256;
+
+template <typename... Args>
+char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
+  auto* buf = static_cast<char*>(ngx_pcalloc(cf->pool, err_buf_size));
+  ngx_snprintf(static_cast<u_char*>(buf), err_buf_size, fmt, args...);
+  return buf;
+}
+
 using namespace datadog::nginx::rum::internal;
 
 char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
@@ -133,22 +142,16 @@ char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
           conf);
 
   if (cf->args->nelts < 2) {
-    char* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf(
-        (u_char*)err_msg, 256,
+    return conf_err(
+        cf,
         "invalid number of arguments. Expected at least two arguments.");
-    return err_msg;
   }
 
-  ngx_str_t* arg_values = (ngx_str_t*)(cf->args->elts);
+  ngx_str_t* arg_values = static_cast<ngx_str_t*>(cf->args->elts);
 
   std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
   if (key.empty()) {
-    char* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char*)err_msg, 256, "empty key");
-    return err_msg;
+    return conf_err(cf, "empty key");
   }
 
   std::vector<std::string> values;
@@ -175,14 +178,12 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   auto arg1 = datadog::nginx::to_string_view(values[1]);
   auto config_version = parse_rum_version(arg1);
   if (!config_version) {
-    auto* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char*)err_msg, 256,
-                 "invalid version argument provided. Expected version 'v5' but "
-                 "encountered '%s'. Please ensure you are using the correct "
-                 "version format 'v5'",
-                 arg1);
-    return err_msg;
+    return conf_err(
+        cf,
+        "invalid version argument provided. Expected version 'v5' but "
+        "encountered '%s'. Please ensure you are using the correct "
+        "version format 'v5'",
+        arg1);
   }
 
   auto rum_config = get_rum_config_from_env();
@@ -199,22 +200,15 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
 
   auto json = make_rum_json_config(*config_version, rum_config);
   if (json.empty()) {
-    auto* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf(
-        (u_char*)err_msg, 256,
-        "failed to generate the RUM SDK script: missing version field");
-    return err_msg;
+    return conf_err(
+        cf, "failed to generate the RUM SDK script: missing version field");
   }
 
   Snippet* snippet = snippet_create_from_json(json.c_str());
 
   if (snippet == nullptr || snippet->error_code) {
-    auto* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char*)err_msg, 256,
-                 "failed to generate the RUM SDK script: %s",
-                 snippet ? snippet->error_message : "null snippet");
+    char* err_msg = conf_err(cf, "failed to generate the RUM SDK script: %s",
+                             snippet ? snippet->error_message : "null snippet");
     if (snippet != nullptr) {
       snippet_cleanup(snippet);
     }
