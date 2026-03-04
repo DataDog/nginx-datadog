@@ -229,6 +229,43 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   return NGX_CONF_OK;
 }
 
+void try_build_snippet_from_env(ngx_conf_t* cf,
+                                datadog::nginx::datadog_loc_conf_t* loc_conf) {
+  try {
+    auto env_config = get_rum_config_from_env();
+    if (env_config.empty()) return;
+
+    auto json = make_rum_json_config(default_rum_config_version, env_config);
+    if (json.empty()) return;
+
+    auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
+        snippet_create_from_json(json.c_str()), snippet_cleanup);
+    if (snippet == nullptr || snippet->error_code) {
+      ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                    "nginx-datadog: failed to create RUM snippet from "
+                    "environment variables: %s",
+                    snippet ? snippet->error_message : "null snippet");
+      return;
+    }
+
+    loc_conf->rum_snippet = snippet.release();
+    loc_conf->rum_remote_config_tag = "remote_config_used:false";
+    if (auto it = env_config.find("applicationId");
+        it != env_config.end() && !it->second.empty()) {
+      loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
+    }
+    if (auto it = env_config.find("remoteConfigurationId");
+        it != env_config.end() && !it->second.empty()) {
+      loc_conf->rum_remote_config_tag = "remote_config_used:true";
+    }
+  } catch (const std::exception& exception) {
+    ngx_log_error(
+        NGX_LOG_WARN, cf->log, 0,
+        "nginx-datadog: invalid DD_RUM_* environment variable value: %s",
+        exception.what());
+  }
+}
+
 char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
                                    datadog::nginx::datadog_loc_conf_t* parent,
                                    datadog::nginx::datadog_loc_conf_t* child) {
@@ -252,38 +289,7 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
   // If no snippet was inherited from the directive, try building one from env
   // vars.
   if (child->rum_snippet == nullptr) {
-    try {
-      auto env_config = get_rum_config_from_env();
-      if (!env_config.empty()) {
-        auto json = make_rum_json_config(default_rum_config_version, env_config);
-        if (!json.empty()) {
-          auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-              snippet_create_from_json(json.c_str()), snippet_cleanup);
-          if (snippet != nullptr && !snippet->error_code) {
-            child->rum_snippet = snippet.release();
-            child->rum_remote_config_tag = "remote_config_used:false";
-            if (auto it = env_config.find("applicationId");
-                it != env_config.end() && !it->second.empty()) {
-              child->rum_application_id_tag = "application_id:" + it->second[0];
-            }
-            if (auto it = env_config.find("remoteConfigurationId");
-                it != env_config.end() && !it->second.empty()) {
-              child->rum_remote_config_tag = "remote_config_used:true";
-            }
-          } else {
-            ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                          "nginx-datadog: failed to create RUM snippet from "
-                          "environment variables: %s",
-                          snippet ? snippet->error_message : "null snippet");
-          }
-        }
-      }
-    } catch (const std::exception& exception) {
-      ngx_log_error(
-          NGX_LOG_WARN, cf->log, 0,
-          "nginx-datadog: invalid DD_RUM_* environment variable value: %s",
-          exception.what());
-    }
+    try_build_snippet_from_env(cf, child);
   }
 
   // Determine rum_enable when neither child nor parent set it explicitly.
