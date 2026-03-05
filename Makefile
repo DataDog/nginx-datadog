@@ -3,7 +3,6 @@
 BUILD_DIR ?= .build
 BUILD_TESTING ?= ON
 BUILD_TYPE ?= RelWithDebInfo
-CIRCLE_CFG ?= .circleci/config.yml
 COVERAGE ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
@@ -35,9 +34,9 @@ ifeq ($(DOCKER_PLATFORM),linux/aarch64)
 	DOCKER_PLATFORM := linux/arm64
 endif
 
-# On CircleCI, we build locally the nginx_musl_toolchain Docker image, before using it in some
-#   targets via $(TOOLCHAIN_DEPENDENCY).
 # On GitLab, we get the nginx_musl_toolchain Docker image from registry.ddbuild.io.
+# Locally, we build the nginx_musl_toolchain Docker image, before using it in some
+#   targets via $(TOOLCHAIN_DEPENDENCY).
 BUILD_IMAGE := nginx_musl_toolchain
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
 CI_BUILD_IMAGE := $(CI_REGISTRY)/$(BUILD_IMAGE)
@@ -90,13 +89,6 @@ format: .clang-format
 .PHONY: lint
 lint: .clang-format
 	bin/lint.sh
-
-.PHONY: circleci-config
-circleci-config:
-	@echo "Compiling circleci config"
-	circleci config pack .circleci/src > $(CIRCLE_CFG)
-	@echo "Validating circleci config"
-	circleci config validate $(CIRCLE_CFG)
 
 
 # ----- Build

@@ -1,6 +1,6 @@
 # Dockerfile for registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
 
-FROM alpine:3.20.3 AS sysroot
+FROM registry.ddbuild.io/images/mirror/library/alpine:3.20.3 AS sysroot
 
 ARG LLVM_VERSION=17.0.6
 ARG ARCH
