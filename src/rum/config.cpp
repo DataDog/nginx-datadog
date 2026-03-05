@@ -10,6 +10,8 @@
 #include <optional>
 #include <string_view>
 
+using namespace std::string_view_literals;
+
 #include "config_internal.h"
 #include "string_util.h"
 
@@ -141,7 +143,7 @@ char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
   if (buf == nullptr) {
     return const_cast<char*>("nginx-datadog: memory allocation failed");
   }
-  ngx_snprintf(static_cast<u_char*>(buf), err_buf_size, fmt, args...);
+  ngx_snprintf(reinterpret_cast<u_char*>(buf), err_buf_size, fmt, args...);
   return buf;
 }
 
