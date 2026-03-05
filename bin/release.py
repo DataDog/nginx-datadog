@@ -98,8 +98,10 @@ def resolve_gitlab_token(cli_token=None):
     if glab_exe:
         try:
             result = subprocess.run(
-                [glab_exe, "config", "get", "token", "--host",
-                 "gitlab.ddbuild.io"],
+                [
+                    glab_exe, "config", "get", "token", "--host",
+                    "gitlab.ddbuild.io"
+                ],
                 capture_output=True,
                 text=True,
             )
@@ -408,8 +410,7 @@ if __name__ == "__main__":
         "--pipeline-id",
         type=str,
         required=True,
-        help=
-        "ID of the GitLab CI pipeline. Find it in the pipeline URL: "
+        help="ID of the GitLab CI pipeline. Find it in the pipeline URL: "
         "https://gitlab.ddbuild.io/DataDog/nginx-datadog/-/pipelines/<PIPELINE_ID>",
     )
 
