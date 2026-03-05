@@ -118,8 +118,8 @@ services:
   # `grpcurl`.  This way, the test runner's network doesn't need access to the
   # network created by docker compose.  The test runner interacts with the
   # docker compose services via `docker compose` and `docker` commands only.
-  # This became necessary when these tests were integrated into CircleCI --
-  # CircleCI's container-based remote-docker docker compose setup does not
+  # This became necessary when these tests were integrated into CI --
+  # some container-based remote-docker docker compose setups do not
   # allow a host port binding.
   client:
     image: nginx-datadog-test-services-client

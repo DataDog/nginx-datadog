@@ -1,5 +1,5 @@
 # Build init container for ingress-nginx
-FROM alpine:latest
+FROM registry.ddbuild.io/images/mirror/alpine:latest
 
 ARG MODULE_PATH
 

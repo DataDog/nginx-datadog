@@ -130,7 +130,7 @@ def to_service_name(container_name):
     #
     # When I run docker compose locally on my machine, the parts of the
     # container name are separated by underscore ("_"), while when I run
-    # docker compose in CircleCI, hyphen ("-") is used.  Go with whichever is
+    # docker compose in CI, hyphen ("-") is used.  Go with whichever is
     # being used.
     if "_" in container_name and "-" in container_name:
         raise Exception(
@@ -411,7 +411,7 @@ def curl(url, headers, stderr=None, method="GET", body=None, http_version=1):
 
 def add_services_in_nginx_etc_hosts(services):
     """When we added build/test support on ARM64 by using the ARM64 execution
-    environment in CircleCI, we started seeing intermittent delays in DNS
+    environment in CI, we started seeing intermittent delays in DNS
     lookups, always about five seconds.
 
     This function uses `getent` to look up the IP address of each `docker
