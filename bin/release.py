@@ -1,19 +1,31 @@
 #!/usr/bin/env python3
 """
 This script automates the release process for the nginx-datadog module and
-ingress-nginx init container..
+ingress-nginx init container.
+
+It fetches build artifacts from a GitLab CI pipeline (triggered by a version
+tag) and publishes them.
 
 Usage:
 ======
 To release nginx-datadog modules:
-./release.py --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID> nginx-module
+./release.py --version-tag v1.3.1 --pipeline-id <PIPELINE_ID> nginx-module
 
 To release ingress-nginx docker init containers:
-./release.py --ci-token <CI_TOKEN> --version-tag v1.3.1 --workflow-id <CI_RELEASE_WORKFLOW_ID> ingres-nginx
+./release.py --version-tag v1.3.1 --pipeline-id <PIPELINE_ID> ingress-nginx
+
+Authentication:
+===============
+The script resolves a GitLab API token in this order:
+  1. --ci-token command line argument
+  2. CI_JOB_TOKEN environment variable (in GitLab CI)
+  3. GITLAB_TOKEN environment variable
+  4. Token from glab CLI config (for local development)
 """
 
 import re
 import argparse
+import io
 import itertools
 import json
 import os
@@ -25,23 +37,16 @@ import tempfile
 import urllib.request
 import tarfile
 import typing
+import zipfile
 
 from pathlib import Path
 from collections import defaultdict
 from ingress_nginx import build_init_container, create_multiarch_images
 
-
-class VerboseDict(dict):
-    """This makes debugging a little easier."""
-
-    def __getitem__(self, key):
-        try:
-            return super().__getitem__(key)
-        except KeyError as error:
-            # In addition to the missing key, print the object itself.
-            message = f"{repr(key)} is not in {self}"
-            error.args = (message, )
-            raise error
+GITLAB_HOST = "https://gitlab.ddbuild.io"
+GITLAB_API = f"{GITLAB_HOST}/api/v4"
+GITLAB_PROJECT = "DataDog/nginx-datadog"
+GITLAB_PROJECT_ENCODED = "DataDog%2Fnginx-datadog"
 
 
 class MissingDependency(Exception):
@@ -74,81 +79,123 @@ def get_git():
     return exe_path
 
 
+def resolve_gitlab_token(cli_token=None):
+    """Resolve a GitLab API token from multiple sources."""
+    if cli_token:
+        return cli_token
+
+    # GitLab CI job token
+    token = os.environ.get("CI_JOB_TOKEN")
+    if token:
+        return token
+
+    token = os.environ.get("GITLAB_TOKEN")
+    if token:
+        return token
+
+    # Try extracting from glab CLI config
+    glab_exe = shutil.which("glab")
+    if glab_exe:
+        try:
+            result = subprocess.run(
+                [glab_exe, "config", "get", "token", "--host",
+                 "gitlab.ddbuild.io"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except Exception:
+            pass
+
+    raise MissingDependency(
+        "No GitLab API token found. Provide one via --ci-token, "
+        "CI_JOB_TOKEN, GITLAB_TOKEN, or by logging in with "
+        "'glab auth login --hostname gitlab.ddbuild.io'.")
+
+
 def run(command, *args, **kwargs):
     command = [str(arg) for arg in command]
     print("+", shlex.join(command), file=sys.stderr)
     return subprocess.run(command, *args, **kwargs)
 
 
-def send_ci_request(path, payload=None, method=None):
-    headers = {"Circle-Token": ci_api_token}
-    if payload is not None:
-        headers["Content-Type"] = "application/json; charset=utf-8"
-        payload = json.dumps(payload).encode("utf8")
+def gitlab_api_request(path, token):
+    """Make an authenticated GET request to the GitLab API."""
+    if os.environ.get("CI_JOB_TOKEN") and token == os.environ.get(
+            "CI_JOB_TOKEN"):
+        headers = {"JOB-TOKEN": token}
+    else:
+        headers = {"PRIVATE-TOKEN": token}
 
-    API_URL = "https://circleci.com/api/v2"
-    url = f"{API_URL}{path}"
-    request = urllib.request.Request(url,
-                                     data=payload,
-                                     headers=headers,
-                                     method=method)
-    print("+", request.get_method(), request.full_url, request.data or "")
+    url = f"{GITLAB_API}{path}"
+    request = urllib.request.Request(url, headers=headers)
+    print("+", request.get_method(), url, file=sys.stderr)
 
     try:
         response = urllib.request.urlopen(request)
-        status = response.status
     except urllib.error.HTTPError as error:
-        response = error
-        status = error.code
+        body = error.read().decode("utf-8", errors="replace")
+        raise Exception(
+            f"GitLab API error {error.code} for {url}: {body}") from error
 
-    try:
-        response_body = json.load(response, object_hook=VerboseDict)
-    except Exception as error:
-        print(
-            f"Unable to parse response body from response with status {status}."
-        )
-        raise
-
-    if status < 200 or status > 299:
-        raise Exception(f"HTTP error response {status}: {response_body}")
-
-    return status, response_body
+    return response
 
 
-def send_ci_request_paged(path, payload=None, method=None):
-    items = []
-    query = ""
+def gitlab_api_json(path, token):
+    """Make a GitLab API request and return parsed JSON."""
+    response = gitlab_api_request(path, token)
+    return json.load(response)
+
+
+def get_pipeline_jobs(pipeline_id, token):
+    """Retrieve all jobs for a GitLab pipeline, handling pagination."""
+    jobs = []
+    page = 1
     while True:
-        _, response = send_ci_request(f"{path}{query}",
-                                      payload=payload,
-                                      method=method)
-        items += response["items"]
-
-        next_page = response.get("next_page_token")
-        if next_page is None:
+        page_jobs = gitlab_api_json(
+            f"/projects/{GITLAB_PROJECT_ENCODED}/pipelines/{pipeline_id}/jobs?per_page=100&page={page}",
+            token,
+        )
+        if not page_jobs:
             break
-        query = f"?page-token={next_page}"
+        jobs.extend(page_jobs)
+        page += 1
 
-    return items
-
-
-def get_workflow_jobs(workflow_id: str):
-    jobs = send_ci_request_paged(f"/workflow/{workflow_id}/job")
-
-    # Make sure all jobs run successfully
+    # Verify all jobs succeeded (skip manual/skipped jobs that weren't triggered)
     for job in jobs:
-        if job["status"] != "success":
-            print("Found unsuccessful jobs")
-            return None
+        if job["status"] in ("success", "manual", "skipped", "created"):
+            continue
+        print(
+            f"WARNING: Job '{job['name']}' (id={job['id']}) has status '{job['status']}'"
+        )
+        return None
 
     return jobs
 
 
-def download_file(url, destination):
-    print(f"Downloading {url} to {destination}")
-    response = urllib.request.urlopen(url)
+def download_job_artifact_file(job_id, artifact_path, destination, token):
+    """Download a single file from a job's artifacts."""
+    path = f"/projects/{GITLAB_PROJECT_ENCODED}/jobs/{job_id}/artifacts/{artifact_path}"
+    response = gitlab_api_request(path, token)
     with open(destination, "wb") as output:
         shutil.copyfileobj(response, output)
+    print(f"Downloaded {artifact_path} from job {job_id} to {destination}")
+
+
+def download_job_artifacts_zip(job_id, token):
+    """Download the full artifacts archive for a job and return as ZipFile."""
+    path = f"/projects/{GITLAB_PROJECT_ENCODED}/jobs/{job_id}/artifacts"
+    response = gitlab_api_request(path, token)
+    data = response.read()
+    return zipfile.ZipFile(io.BytesIO(data))
+
+
+def extract_artifact_from_zip(zip_file, artifact_path, destination):
+    """Extract a specific file from a job artifacts zip."""
+    with zip_file.open(artifact_path) as src, open(destination, "wb") as dst:
+        shutil.copyfileobj(src, dst)
+    print(f"Extracted {artifact_path} to {destination}")
 
 
 def package(files, out):
@@ -160,7 +207,6 @@ def package(files, out):
             if not f.is_file():
                 print(f"{f} is not a valid file and will be skipped")
                 continue
-
             tar.add(f, arcname=os.path.basename(f))
 
 
@@ -169,35 +215,32 @@ def sign_package(package_path: str) -> None:
     run(command, check=True)
 
 
-def prepare_release_artifact(work_dir, build_job_number, flavor, version, arch,
-                             waf):
+def prepare_release_artifact(work_dir, job_id, artifact_base_path, flavor,
+                             version, arch, waf, token):
     flavor_prefix = f"{flavor}-" if flavor else ""
     waf_suffix = "-appsec" if waf else ""
-    artifacts = send_ci_request_paged(
-        f"/project/gh/DataDog/nginx-datadog/{build_job_number}/artifacts")
-    module_url = None
-    module_url_dbg = None
-    for artifact in artifacts:
-        name = artifact["path"]
-        if name == "ngx_http_datadog_module.so":
-            module_url = artifact["url"]
-        elif name == "ngx_http_datadog_module.so.debug":
-            module_url_dbg = artifact["url"]
 
-    if module_url is None:
-        raise Exception(
-            f"Job number {build_job_number} doesn't have an 'ngx_http_datadog_module.so' build artifact."
-        )
-    if module_url_dbg is None:
-        raise Exception(
-            f"Job number {build_job_number} doesn't have an 'ngx_http_datadog_module.so.debug' build artifact."
-        )
+    zip_file = download_job_artifacts_zip(job_id, token)
 
     module_path = work_dir / "ngx_http_datadog_module.so"
-    download_file(module_url, module_path)
-
     module_debug_path = work_dir / "ngx_http_datadog_module.so.debug"
-    download_file(module_url_dbg, module_debug_path)
+
+    so_artifact = f"{artifact_base_path}/ngx_http_datadog_module.so"
+    dbg_artifact = f"{artifact_base_path}/ngx_http_datadog_module.so.debug"
+
+    zip_contents = zip_file.namelist()
+
+    if so_artifact not in zip_contents:
+        raise Exception(
+            f"Job {job_id} artifacts don't contain '{so_artifact}'. "
+            f"Available: {zip_contents}")
+    if dbg_artifact not in zip_contents:
+        raise Exception(
+            f"Job {job_id} artifacts don't contain '{dbg_artifact}'. "
+            f"Available: {zip_contents}")
+
+    extract_artifact_from_zip(zip_file, so_artifact, module_path)
+    extract_artifact_from_zip(zip_file, dbg_artifact, module_debug_path)
 
     # Package and sign .so
     tarball_path = (
@@ -216,61 +259,70 @@ def prepare_release_artifact(work_dir, build_job_number, flavor, version, arch,
     sign_package(debug_tarball_path)
 
 
+# GitLab matrix job name patterns:
+#   build-nginx-all: [amd64, 1.28.1, ON]
+#   build-openresty-all: [amd64, 1.27.1.2, ON]
+#   build-ingress-nginx-all: [amd64, 1.14.3]
+
+NGINX_BUILD_RE = re.compile(
+    r"build-nginx-(?:all|fast): \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
+OPENRESTY_BUILD_RE = re.compile(
+    r"build-openresty-(?:all|fast): \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
+INGRESS_BUILD_RE = re.compile(
+    r"build-ingress-nginx-(?:all|fast): \[(amd64|arm64), ([\d.]+)\]")
+
+
 def release_ingress_nginx(args: typing.Any) -> int:
     """
-    This subcommand function retrieves the modules from the CI workflow, builds the ingress-nginx init container,
+    This subcommand function retrieves the modules from the CI pipeline, builds the ingress-nginx init container,
     and publishes it to a Docker registry.
 
     Requirements:
         - You must be logged into the Docker registry to push the built container image.
     """
-    jobs = get_workflow_jobs(args.workflow_id)
+    jobs = get_pipeline_jobs(args.pipeline_id, gitlab_token)
     if not jobs:
         return 1
 
     collected_images = defaultdict(list)
 
     for job in jobs:
-        if job["name"].startswith("build ingress-nginx"):
-            match = re.match(r"build ingress-nginx-([\d.]+) on (amd64|arm64)",
-                             job["name"])
-            if match is None:
-                raise Exception(f'Job name does not match regex "{re}": {job}')
-            version, arch = match.groups()
-            version = f"v{version}"
+        match = INGRESS_BUILD_RE.match(job["name"])
+        if not match:
+            continue
 
-            image_version = f"{version}-dd.{args.version_tag}"
+        arch, version = match.groups()
+        version = f"v{version}"
+        image_version = f"{version}-dd.{args.version_tag}"
 
-            artifacts = send_ci_request_paged(
-                f"/project/gh/DataDog/nginx-datadog/{job['job_number']}/artifacts"
-            )
-            module_url = None
-            for artifact in artifacts:
-                name = artifact["path"]
-                if name == "ngx_http_datadog_module.so":
-                    module_url = artifact["url"]
+        # Download the module from the job artifacts
+        artifact_path = f"artifacts-ingress/{arch}/{version.lstrip('v')}"
 
-            if module_url is None:
+        with tempfile.TemporaryDirectory() as work_dir_str:
+            work_dir = Path(work_dir_str)
+            zip_file = download_job_artifacts_zip(job["id"], gitlab_token)
+
+            so_artifact = f"{artifact_path}/ngx_http_datadog_module.so"
+            if so_artifact not in zip_file.namelist():
                 raise Exception(
-                    f"Job number {job['job_number']} doesn't have an \"ngx_http_datadog_module.so\" build artifact."
-                )
+                    f"Job {job['id']} ({job['name']}) doesn't have "
+                    f"'{so_artifact}' in artifacts.")
 
-            with tempfile.TemporaryDirectory() as work_dir:
-                module_path = Path(work_dir) / "ngx_http_datadog_module.so"
-                download_file(module_url, module_path)
+            module_path = work_dir / "ngx_http_datadog_module.so"
+            extract_artifact_from_zip(zip_file, so_artifact, module_path)
 
-                args.push = True
-                args.platform = f"linux/{arch}"
-                args.image_name = f"{args.registry}:{image_version}-{arch}"
-                args.module_path = work_dir
-                build_init_container(args)
+            args.push = True
+            args.platform = f"linux/{arch}"
+            args.image_name = f"{args.registry}:{image_version}-{arch}"
+            args.module_path = str(work_dir)
+            build_init_container(args)
 
-                image_no_arch = f"{args.registry}:{image_version}"
+            image_no_arch = f"{args.registry}:{image_version}"
 
-                collected_images[image_no_arch].append(args.image_name)
-                collected_images[f"{args.registry}:{version}"].append(
-                    args.image_name)
-                print(collected_images)
+            collected_images[image_no_arch].append(args.image_name)
+            collected_images[f"{args.registry}:{version}"].append(
+                args.image_name)
+            print(collected_images)
 
     create_multiarch_images(collected_images)
 
@@ -279,13 +331,13 @@ def release_ingress_nginx(args: typing.Any) -> int:
 
 def release_module(args) -> int:
     """
-    This subcommand function downloads NGINX module artifacts from the release workflow
+    This subcommand function downloads NGINX module artifacts from the release pipeline
     and publishes them to a GitHub release.
 
     Requirements:
         - You must be logged into the GitHub CLI (gh) to authenticate and interact with the GitHub API.
     """
-    jobs = get_workflow_jobs(args.workflow_id)
+    jobs = get_pipeline_jobs(args.pipeline_id, gitlab_token)
     if not jobs:
         return 1
 
@@ -294,20 +346,25 @@ def release_module(args) -> int:
         print("Working directory is", work_dir)
 
         for job in jobs:
-            match = re.match(
-                r"build( openresty)? ([\d.]+) on (amd64|arm64) WAF (ON|OFF)",
-                job["name"],
-            )
-
-            if not match:
+            # Match nginx builds
+            match = NGINX_BUILD_RE.match(job["name"])
+            if match:
+                arch, nginx_version, waf = match.groups()
+                artifact_base = f"artifacts/{arch}/{nginx_version}/{waf}"
+                prepare_release_artifact(work_dir, job["id"], artifact_base,
+                                         None, nginx_version, arch,
+                                         waf == "ON", gitlab_token)
                 continue
 
-            flavor, nginx_version, arch, waf = match.groups()
-            if flavor:
-                flavor = flavor.strip()
-
-            prepare_release_artifact(work_dir, job["job_number"], flavor,
-                                     nginx_version, arch, waf == "ON")
+            # Match openresty builds
+            match = OPENRESTY_BUILD_RE.match(job["name"])
+            if match:
+                arch, resty_version, waf = match.groups()
+                artifact_base = f"artifacts-openresty/{arch}/{resty_version}/{waf}"
+                prepare_release_artifact(work_dir, job["id"], artifact_base,
+                                         "openresty", resty_version, arch,
+                                         waf == "ON", gitlab_token)
+                continue
 
         pubkey_file = os.path.join(work_dir, "pubkey.gpg")
         run([gpg_exe, "--output", pubkey_file, "--armor", "--export"],
@@ -344,13 +401,16 @@ if __name__ == "__main__":
         description="Build and publish a release of nginx-datadog.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--version-tag", )
-    parser.add_argument("--ci-token", help="Circle CI Token", required=True)
+    parser.add_argument("--version-tag")
+    parser.add_argument("--ci-token",
+                        help="GitLab API token (auto-detected if not set)")
     parser.add_argument(
-        "workflow_id",
+        "--pipeline-id",
         type=str,
+        required=True,
         help=
-        "ID of the release workflow. Find in job url. Example: https://app.circleci.com/pipelines/github/DataDog/nginx-datadog/542/workflows/<WORKFLOW_ID>",
+        "ID of the GitLab CI pipeline. Find it in the pipeline URL: "
+        "https://gitlab.ddbuild.io/DataDog/nginx-datadog/-/pipelines/<PIPELINE_ID>",
     )
 
     subparsers = parser.add_subparsers()
@@ -372,8 +432,8 @@ if __name__ == "__main__":
     )
     options = parser.parse_args()
 
-    ci_api_token = options.ci_token
     try:
+        gitlab_token = resolve_gitlab_token(options.ci_token)
         gh_exe = get_gh()
         gpg_exe = get_gpg()
         git_exe = get_git()
@@ -382,7 +442,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print({
-        "token": ci_api_token,
+        "gitlab_host": GITLAB_HOST,
         "gh": gh_exe,
         "gpg": gpg_exe,
         "git": git_exe,
