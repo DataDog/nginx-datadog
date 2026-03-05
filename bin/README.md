@@ -18,6 +18,9 @@ This directory contains programs (scripts) used by the build mostly.
 - [nginx\_release\_downloads.sh](nginx_release_downloads.sh) downloads and
   parses `nginx.org/download` to produce a list of nginx versions together with
   a link to the gzipped tarball of the corresponding source release.
-- [release.py](release.py) Downloads nginx module artifacts from a GitLab CI
-  pipeline, compresses and signs them, and then publishes a draft prerelease
-  to GitHub.
+- [release.py](release.py) Tags the current HEAD for release, kicks off a
+  build/test pipeline on CircleCI, downloads the resulting nginx modules,
+  compresses and signs them, and then publishes a draft prerelease to GitHub.
+- [generate\_jobs\_yaml.rb](generate_jobs_yaml.rb) prints a snippet of YAML
+  that is meant to be added to a "workflow" in CircleCI's
+  [config.yml](../.circleci/config.yml).  It saves a lot of typing.
