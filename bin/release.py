@@ -3,7 +3,7 @@
 This script automates the release process for the nginx-datadog module and
 ingress-nginx init container.
 
-It fetches build artifacts from a GitLab CI pipeline (triggered by a version
+It fetches built artifacts from a GitLab CI pipeline (triggered by a version
 tag) and publishes them.
 
 Usage:
@@ -25,6 +25,7 @@ The script resolves a GitLab API token in this order:
 
 import re
 import argparse
+import http.client
 import io
 import itertools
 import json
@@ -41,12 +42,17 @@ import zipfile
 
 from pathlib import Path
 from collections import defaultdict
+from typing import Any, Final
+from urllib.parse import quote
 from ingress_nginx import build_init_container, create_multiarch_images
 
 GITLAB_HOST = "https://gitlab.ddbuild.io"
 GITLAB_API = f"{GITLAB_HOST}/api/v4"
 GITLAB_PROJECT = "DataDog/nginx-datadog"
-GITLAB_PROJECT_ENCODED = "DataDog%2Fnginx-datadog"
+GITLAB_PROJECT_ENCODED = quote(GITLAB_PROJECT, safe="")
+
+MODULE_NAME: Final[str] = "ngx_http_datadog_module.so"
+MODULE_DEBUG_NAME: Final[str] = MODULE_NAME + ".debug"
 
 
 class MissingDependency(Exception):
@@ -79,23 +85,20 @@ def get_git():
     return exe_path
 
 
-def resolve_gitlab_token(cli_token=None):
+def resolve_gitlab_token(cli_token: str = None) -> str:
     """Resolve a GitLab API token from multiple sources."""
     if cli_token:
         return cli_token
 
     # GitLab CI job token
-    token = os.environ.get("CI_JOB_TOKEN")
-    if token:
+    if token := os.environ.get("CI_JOB_TOKEN"):
         return token
 
-    token = os.environ.get("GITLAB_TOKEN")
-    if token:
+    if token := os.environ.get("GITLAB_TOKEN"):
         return token
 
     # Try extracting from glab CLI config
-    glab_exe = shutil.which("glab")
-    if glab_exe:
+    if glab_exe := shutil.which("glab"):
         try:
             result = subprocess.run(
                 [
@@ -122,7 +125,7 @@ def run(command, *args, **kwargs):
     return subprocess.run(command, *args, **kwargs)
 
 
-def gitlab_api_request(path, token):
+def gitlab_api_request(path: str, token: str) -> http.client.HTTPResponse:
     """Make an authenticated GET request to the GitLab API."""
     if os.environ.get("CI_JOB_TOKEN") and token == os.environ.get(
             "CI_JOB_TOKEN"):
@@ -144,13 +147,13 @@ def gitlab_api_request(path, token):
     return response
 
 
-def gitlab_api_json(path, token):
+def gitlab_api_json(path: str, token: str) -> dict[str, Any]:
     """Make a GitLab API request and return parsed JSON."""
     response = gitlab_api_request(path, token)
     return json.load(response)
 
 
-def get_pipeline_jobs(pipeline_id, token):
+def get_pipeline_jobs(pipeline_id: str, token: str) -> list[dict[str, Any]]:
     """Retrieve all jobs for a GitLab pipeline, handling pagination."""
     jobs = []
     page = 1
@@ -176,16 +179,7 @@ def get_pipeline_jobs(pipeline_id, token):
     return jobs
 
 
-def download_job_artifact_file(job_id, artifact_path, destination, token):
-    """Download a single file from a job's artifacts."""
-    path = f"/projects/{GITLAB_PROJECT_ENCODED}/jobs/{job_id}/artifacts/{artifact_path}"
-    response = gitlab_api_request(path, token)
-    with open(destination, "wb") as output:
-        shutil.copyfileobj(response, output)
-    print(f"Downloaded {artifact_path} from job {job_id} to {destination}")
-
-
-def download_job_artifacts_zip(job_id, token):
+def download_job_artifacts_zip(job_id: int, token: str) -> zipfile.ZipFile:
     """Download the full artifacts archive for a job and return as ZipFile."""
     path = f"/projects/{GITLAB_PROJECT_ENCODED}/jobs/{job_id}/artifacts"
     response = gitlab_api_request(path, token)
@@ -193,7 +187,8 @@ def download_job_artifacts_zip(job_id, token):
     return zipfile.ZipFile(io.BytesIO(data))
 
 
-def extract_artifact_from_zip(zip_file, artifact_path, destination):
+def extract_artifact_from_zip(zip_file: zipfile.ZipFile, artifact_path: str,
+                              destination: Path) -> None:
     """Extract a specific file from a job artifacts zip."""
     with zip_file.open(artifact_path) as src, open(destination, "wb") as dst:
         shutil.copyfileobj(src, dst)
@@ -217,29 +212,28 @@ def sign_package(package_path: str) -> None:
     run(command, check=True)
 
 
-def prepare_release_artifact(work_dir, job_id, artifact_base_path, flavor,
-                             version, arch, waf, token):
+def prepare_release_artifact(work_dir: Path, job_id: int,
+                             artifact_base_path: str, flavor: str,
+                             version: str, arch: str, waf: bool,
+                             token: str) -> None:
     flavor_prefix = f"{flavor}-" if flavor else ""
     waf_suffix = "-appsec" if waf else ""
 
     zip_file = download_job_artifacts_zip(job_id, token)
 
-    module_path = work_dir / "ngx_http_datadog_module.so"
-    module_debug_path = work_dir / "ngx_http_datadog_module.so.debug"
+    module_path = work_dir / MODULE_NAME
+    module_debug_path = work_dir / MODULE_DEBUG_NAME
 
-    so_artifact = f"{artifact_base_path}/ngx_http_datadog_module.so"
-    dbg_artifact = f"{artifact_base_path}/ngx_http_datadog_module.so.debug"
+    so_artifact = f"{artifact_base_path}/{MODULE_NAME}"
+    dbg_artifact = f"{artifact_base_path}/{MODULE_DEBUG_NAME}"
 
     zip_contents = zip_file.namelist()
 
-    if so_artifact not in zip_contents:
-        raise Exception(
-            f"Job {job_id} artifacts don't contain '{so_artifact}'. "
-            f"Available: {zip_contents}")
-    if dbg_artifact not in zip_contents:
-        raise Exception(
-            f"Job {job_id} artifacts don't contain '{dbg_artifact}'. "
-            f"Available: {zip_contents}")
+    for artifact in (so_artifact, dbg_artifact):
+        if artifact not in zip_contents:
+            raise Exception(
+                f"Job {job_id} artifacts don't contain '{artifact}'. "
+                f"Available: {zip_contents}")
 
     extract_artifact_from_zip(zip_file, so_artifact, module_path)
     extract_artifact_from_zip(zip_file, dbg_artifact, module_debug_path)
@@ -266,12 +260,12 @@ def prepare_release_artifact(work_dir, job_id, artifact_base_path, flavor,
 #   build-openresty-all: [amd64, 1.27.1.2, ON]
 #   build-ingress-nginx-all: [amd64, 1.14.3]
 
-NGINX_BUILD_RE = re.compile(
-    r"build-nginx-(?:all|fast): \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
-OPENRESTY_BUILD_RE = re.compile(
-    r"build-openresty-(?:all|fast): \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
-INGRESS_BUILD_RE = re.compile(
-    r"build-ingress-nginx-(?:all|fast): \[(amd64|arm64), ([\d.]+)\]")
+NGINX_BUILD_RE: re.Pattern[str] = re.compile(
+    r"build-nginx-all: \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
+OPENRESTY_BUILD_RE: re.Pattern[str] = re.compile(
+    r"build-openresty-all: \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
+INGRESS_BUILD_RE: re.Pattern[str] = re.compile(
+    r"build-ingress-nginx-all: \[(amd64|arm64), ([\d.]+)\]")
 
 
 def release_ingress_nginx(args: typing.Any) -> int:
@@ -304,13 +298,13 @@ def release_ingress_nginx(args: typing.Any) -> int:
             work_dir = Path(work_dir_str)
             zip_file = download_job_artifacts_zip(job["id"], gitlab_token)
 
-            so_artifact = f"{artifact_path}/ngx_http_datadog_module.so"
+            so_artifact = f"{artifact_path}/{MODULE_NAME}"
             if so_artifact not in zip_file.namelist():
                 raise Exception(
                     f"Job {job['id']} ({job['name']}) doesn't have "
                     f"'{so_artifact}' in artifacts.")
 
-            module_path = work_dir / "ngx_http_datadog_module.so"
+            module_path = work_dir / MODULE_NAME
             extract_artifact_from_zip(zip_file, so_artifact, module_path)
 
             args.push = True
