@@ -59,7 +59,7 @@ build-push-musl-toolchain:
 
 .PHONY: build-local-musl-toolchain
 build-local-musl-toolchain:
-	docker build --progress=plain --platform $(DOCKER_PLATFORM) --build-arg ARCH=$(ARCH) $(if $(BASE_IMAGE), --build-arg BASE_IMAGE=$(BASE_IMAGE),) -t $(BUILD_IMAGE) build_env
+	docker build --progress=plain --platform $(DOCKER_PLATFORM) --build-arg ARCH=$(ARCH) $(if $(filter environment command,$(origin MIRROR_REGISTRY)),--build-arg MIRROR_REGISTRY=$(MIRROR_REGISTRY),) -t $(BUILD_IMAGE) build_env
 
 .PHONY: build-push-test-image
 build-push-test-image:

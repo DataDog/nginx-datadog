@@ -1,4 +1,4 @@
-FROM alpine/curl-http3
+FROM registry.ddbuild.io/ci/nginx-datadog/tests/images/alpine/curl-http3
 
 COPY install-tools.sh /tmp/install-tools.sh
 USER 0

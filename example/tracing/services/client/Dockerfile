@@ -1,4 +1,4 @@
-from alpine:3.19
+from registry.ddbuild.io/ci/nginx-datadog/tests/images/alpine:3.19
 
 copy install-tools.sh /tmp/install-tools.sh
 run chmod +x /tmp/install-tools.sh && /tmp/install-tools.sh

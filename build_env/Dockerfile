@@ -1,7 +1,8 @@
 # Dockerfile for registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
 
-ARG BASE_IMAGE=registry.ddbuild.io/images/mirror/library/alpine:3.20.3
-FROM ${BASE_IMAGE} AS sysroot
+ARG MIRROR_REGISTRY=registry.ddbuild.io/ci/nginx-datadog/tests/images/
+FROM ${MIRROR_REGISTRY}ghcr.io/astral-sh/uv:0.9.28 AS uv
+FROM ${MIRROR_REGISTRY}alpine:3.20.3 AS sysroot
 
 ARG LLVM_VERSION=17.0.6
 ARG ARCH
@@ -85,7 +86,7 @@ RUN cargo install --locked cbindgen --version 0.26.0 && \
 RUN apk add --no-cache shellcheck
 
 # UV and Python packages for tests
-COPY --from=ghcr.io/astral-sh/uv:0.9.28 /uv /usr/local/bin/uv
+COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml .
 RUN uv sync
 ENV PATH="/.venv/bin:$PATH"
