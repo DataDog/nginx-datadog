@@ -42,7 +42,9 @@ jobs:
     needs:
     - build
     uses:  DataDog/system-tests/.github/workflows/system-tests.yml@main
-    secrets: inherit
+    secrets:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      TEST_OPTIMIZATION_API_KEY: ${{ secrets.DD_API_KEY }}
     permissions:
       contents: read
       packages: write
@@ -50,10 +52,11 @@ jobs:
       library: cpp_nginx
       binaries_artifact: binaries
       desired_execution_time: 600  # 10 minutes
-      scenarios_groups: appsec
+      scenarios_groups: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && 'tracer_release' || 'appsec' }}
       scenarios: DEFAULT
       excluded_scenarios: INTEGRATIONS  # no test activated, and long warm-up
       skip_empty_scenarios: true
+      push_to_test_optimization: true
 
   # Ensure the main job is run to completion
   check:
