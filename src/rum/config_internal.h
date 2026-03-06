@@ -36,14 +36,14 @@ inline constexpr auto rum_env_mappings = std::to_array<env_mapping>({
     {"DD_RUM_REMOTE_CONFIGURATION_ID", "remoteConfigurationId"},
 });
 
-std::unordered_map<std::string, std::vector<std::string>>
-get_rum_config_from_env();
+using rum_config_map = std::unordered_map<std::string, std::vector<std::string>>;
+
+rum_config_map get_rum_config_from_env();
 
 std::optional<bool> get_rum_enabled_from_env();
 
-std::string make_rum_json_config(
-    int config_version,
-    const std::unordered_map<std::string, std::vector<std::string>>& config);
+std::string make_rum_json_config(int config_version,
+                                 const rum_config_map& config);
 
 std::optional<int> parse_rum_version(std::string_view config_version);
 

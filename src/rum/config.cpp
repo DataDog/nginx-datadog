@@ -30,9 +30,9 @@ std::optional<bool> parse_bool(std::string_view value) {
   return std::nullopt;
 }
 
-std::unordered_map<std::string, std::vector<std::string>>
+rum_config_map
 get_rum_config_from_env() {
-  std::unordered_map<std::string, std::vector<std::string>> config;
+  rum_config_map config;
   for (const auto& [env_name, config_key] : rum_env_mappings) {
     const char* value = std::getenv(env_name.data());
     if (value != nullptr && value[0] != '\0') {
@@ -52,7 +52,7 @@ std::optional<bool> get_rum_enabled_from_env() {
 
 std::string make_rum_json_config(
     int config_version,
-    const std::unordered_map<std::string, std::vector<std::string>>& config) {
+    const rum_config_map& config) {
   rapidjson::Document doc;
   doc.SetObject();
 
@@ -64,11 +64,11 @@ std::string make_rum_json_config(
     if (values.empty()) continue;
     if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
       char* endp;
-      double val = std::strtod(values[0].c_str(), &endp);
-      if (endp == values[0].c_str()) {
+      double val = std::strtod(values.front().c_str(), &endp);
+      if (endp == values.front().c_str()) {
         // Not a valid number — pass as string and let the RUM SDK validate.
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(values[0].c_str(), allocator).Move(),
+                      rapidjson::Value(values.front().c_str(), allocator).Move(),
                       allocator);
       } else {
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
@@ -76,7 +76,7 @@ std::string make_rum_json_config(
       }
     } else if (key == "trackResources" || key == "trackLongTasks" ||
                key == "trackUserInteractions") {
-      auto parsed = parse_bool(values[0]);
+      auto parsed = parse_bool(values.front());
       if (parsed.has_value()) {
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                       rapidjson::Value(*parsed).Move(), allocator);
@@ -84,13 +84,13 @@ std::string make_rum_json_config(
         // Not a recognized boolean — pass as string and let the RUM SDK
         // validate.
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(values[0].c_str(), allocator).Move(),
+                      rapidjson::Value(values.front().c_str(), allocator).Move(),
                       allocator);
       }
     } else {
       if (values.size() == 1) {
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(values[0].c_str(), allocator).Move(),
+                      rapidjson::Value(values.front().c_str(), allocator).Move(),
                       allocator);
       } else {
         rapidjson::Value array(rapidjson::kArrayType);
@@ -148,9 +148,8 @@ char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
 
 using namespace datadog::nginx::rum::internal;
 
-void apply_rum_config_tags(
-    datadog::nginx::datadog_loc_conf_t* loc_conf,
-    const std::unordered_map<std::string, std::vector<std::string>>& config) {
+void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
+                           const rum_config_map& config) {
   loc_conf->rum_remote_config_tag = "remote_config_used:false";
   if (auto it = config.find("applicationId");
       it != config.end() && !it->second.empty()) {
@@ -164,7 +163,7 @@ void apply_rum_config_tags(
 
 char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
   auto& rum_config =
-      *static_cast<std::unordered_map<std::string, std::vector<std::string>>*>(
+      *static_cast<rum_config_map*>(
           conf);
 
   if (cf->args->nelts < 2) {
@@ -174,7 +173,7 @@ char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
 
   ngx_str_t* arg_values = static_cast<ngx_str_t*>(cf->args->elts);
 
-  std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
+  std::string_view key = datadog::nginx::to_string_view(arg_values.front());
   if (key.empty()) {
     return conf_err(cf, "empty key");
   }
@@ -206,9 +205,8 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
     std::string arg1_str(arg1);
     return conf_err(
         cf,
-        "invalid version argument provided. Expected version 'v5' but "
-        "encountered '%s'. Please ensure you are using the correct "
-        "version format 'v5'",
+        "invalid version argument provided. Expected version in format "
+        "'vN' (e.g. 'v5') but encountered '%s'.",
         arg1_str.c_str());
   }
 
