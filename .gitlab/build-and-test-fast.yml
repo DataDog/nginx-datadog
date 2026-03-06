@@ -13,8 +13,8 @@ build-formatter-image:
   image: registry.ddbuild.io/images/docker:27.3.1
   tags: ["docker-in-docker:amd64"]
   script:
-    - apt-get install -y --no-install-recommends make
-    - make build-push-formatter
+    - apt-get update && apt-get install -y --no-install-recommends make
+    - make build-push-formatter-image
 
 convert-formatter-image:
   extends: .build-and-test-fast
@@ -25,7 +25,7 @@ convert-formatter-image:
   script:
     - nydus-convert registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID registry.ddbuild.io/ci/nginx-datadog/formatter:$CI_PIPELINE_ID
 
-format:
+format-and-lint:
   extends: .build-and-test-fast
   needs:
     - convert-formatter-image
@@ -37,6 +37,7 @@ format:
     GIT_CONFIG_KEY_0: "url.https://gitlab.ddbuild.io/DataDog/.insteadOf"
     GIT_CONFIG_VALUE_0: "https://github.com/DataDog/"
   script:
+    - make format
     - make lint
 
 shellcheck:

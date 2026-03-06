@@ -86,13 +86,7 @@ dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 
 .clang-format: dd-trace-cpp/.clang-format
 
-.PHONY: format-local
-format-local: .clang-format
-	bin/format.sh
-
-.PHONY: lint-local
-lint-local: .clang-format
-	bin/lint.sh
+# format and lint targets are provided by Makefile.docker
 
 .PHONY: circleci-config
 circleci-config:
