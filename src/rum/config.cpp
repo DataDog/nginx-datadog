@@ -173,7 +173,7 @@ char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
 
   ngx_str_t* arg_values = static_cast<ngx_str_t*>(cf->args->elts);
 
-  std::string_view key = datadog::nginx::to_string_view(arg_values.front());
+  std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
   if (key.empty()) {
     return conf_err(cf, "empty key");
   }
