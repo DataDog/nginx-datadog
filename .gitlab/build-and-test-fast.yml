@@ -22,7 +22,7 @@ shellcheck:
   image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   tags: ["arch:amd64"]
   script:
-    - find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
+    - find bin/ test/ example/ -type f -executable -not -name '*.py' | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
 build-nginx-fast:
   extends:
@@ -86,31 +86,31 @@ test-nginx-fast:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.24.0", "nginx:1.24.0-alpine"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.24.0", "registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.24.0-alpine"]
         NGINX_VERSION: ["1.24.0"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.25.5", "nginx:1.25.5-alpine"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.25.5", "registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.25.5-alpine"]
         NGINX_VERSION: ["1.25.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.26.3", "nginx:1.26.3-alpine"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.26.3", "registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.26.3-alpine"]
         NGINX_VERSION: ["1.26.3"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.27.5", "nginx:1.27.5-alpine"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.27.5", "registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.27.5-alpine"]
         NGINX_VERSION: ["1.27.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.28.2", "nginx:1.28.2-alpine"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.28.2", "registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.28.2-alpine"]
         NGINX_VERSION: ["1.28.2"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.29.5", "nginx:1.29.5-alpine"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.29.5", "registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.29.5-alpine"]
         NGINX_VERSION: ["1.29.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["amazonlinux:2023.3.20240219.0"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/amazonlinux:2023.3.20240219.0"]
         NGINX_VERSION: ["1.24.0"]
         WAF: ["ON", "OFF"]
 
@@ -145,27 +145,27 @@ test-nginx-rum-fast:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.24.0"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.24.0"]
         NGINX_VERSION: ["1.24.0"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.25.5"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.25.5"]
         NGINX_VERSION: ["1.25.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.26.3"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.26.3"]
         NGINX_VERSION: ["1.26.3"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.27.5"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.27.5"]
         NGINX_VERSION: ["1.27.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.28.2"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.28.2"]
         NGINX_VERSION: ["1.28.2"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.29.5"]
+        BASE_IMAGE: ["registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.29.5"]
         NGINX_VERSION: ["1.29.5"]
         WAF: ["OFF"]
 
@@ -175,7 +175,7 @@ coverage:
     - .build
   variables:
     ARCH: "amd64"
-    BASE_IMAGE: "nginx:1.26.0"
+    BASE_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.26.0"
     NGINX_VERSION: "1.26.0"
     WAF: "ON"
   tags: ["docker-in-docker:$ARCH"]
