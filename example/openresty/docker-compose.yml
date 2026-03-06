@@ -27,7 +27,7 @@ services:
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_CONTAINER_EXCLUDE=name:datadog-agent
       - DD_LOG_LEVEL=ERROR
-    image: 'datadog/agent'
+    image: 'registry.ddbuild.io/ci/nginx-datadog/tests/images/datadog/agent'
 
   # `client` is a container that exists solely so that the host can
   # `docker compose exec` into it to run command line tools such as `curl` and
