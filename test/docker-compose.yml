@@ -11,6 +11,19 @@ services:
         - BASE_IMAGE
     environment:
       DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS: 1
+      DD_RUM_APPLICATION_ID: "<ENV_APPLICATION_ID>"
+      DD_RUM_CLIENT_TOKEN: "<ENV_CLIENT_TOKEN>"
+      DD_RUM_SITE: "<ENV_SITE>"
+      DD_RUM_SERVICE: "env-service"
+      DD_RUM_ENV: "env-production"
+      DD_RUM_VERSION: "2.0.0"
+      DD_RUM_SESSION_SAMPLE_RATE: "100"
+      DD_RUM_SESSION_REPLAY_SAMPLE_RATE: "100"
+      DD_RUM_TRACK_RESOURCES: "true"
+      DD_RUM_TRACK_LONG_TASKS: "true"
+      DD_RUM_TRACK_USER_INTERACTIONS: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     cap_add:
       - SYS_PTRACE
     volumes:

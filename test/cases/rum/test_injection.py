@@ -26,7 +26,7 @@ EXPECTED_BIG_CHONK = """<!DOCTYPE html>
   n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
 })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js','DD_RUM')
 window.DD_RUM.onReady(function() {
-  window.DD_RUM.init({"applicationId":"<DATADOG_APPLICATION_ID>","clientToken":"<DATADOG_CLIENT_TOKEN>","env":"production","service":"my-web-application","sessionReplaySampleRate":100.0,"sessionSampleRate":100.0,"site":"<DATADOG_SITE>","trackLongTasks":true,"trackResources":true,"trackUserInteractions":true,"version":"1.0.0"});
+  window.DD_RUM.init({"applicationId":"<DATADOG_APPLICATION_ID>","clientToken":"<DATADOG_CLIENT_TOKEN>","site":"datadoghq.com","service":"my-web-application","env":"production","version":"1.0.0","trackUserInteractions":true,"trackResources":true,"sessionSampleRate":100.0,"sessionReplaySampleRate":100.0,"trackLongTasks":true});
 });
 </script>
 </head>
@@ -300,7 +300,7 @@ class TestRUMInjection(case.TestCase):
         Also verify the plugin set `x-datadog-sdk-injection` to signal
         downstream to let it NGINX inject the RUM SDK.
         """
-        service = {"host": "localhost", "port": 8081}
+        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -324,14 +324,15 @@ class TestRUMInjection(case.TestCase):
         t = Thread(target=s.serve_forever)
         t.start()
 
-        status, lines = self.load_conf("rum_enabled.conf")
-        self.assertEqual(0, status, lines)
+        try:
+            status, lines = self.load_conf("rum_enabled.conf")
+            self.assertEqual(0, status, lines)
 
-        status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        injection_header = q.get(block=True, timeout=2)
-
-        s.shutdown()
-        t.join()
+            status, headers, body = self.orch.send_nginx_http_request("/proxy")
+            injection_header = q.get(block=True, timeout=2)
+        finally:
+            s.shutdown()
+            t.join()
 
         self.assertEqual(status, 200)
         self.assertInjection(headers, body)
@@ -372,6 +373,356 @@ class TestRUMInjection(case.TestCase):
         assert headers.get("x-datadog-rum-injected") == None
         assert "datadog-rum.js" not in body
 
+    def test_env_only_config(self):
+        """
+        Verify RUM injection works when configuration comes entirely from
+        DD_RUM_* environment variables, with no datadog_rum_config directive
+        in the nginx config.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        nginx_conf = conf_path.read_text()
 
-# TODO: no injection point found should only add spaces
-# TODO: when `x-datadog-sdk-injected = 1` no injection else inject
+        env = {
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.com",
+            "DD_RUM_SERVICE": "env-only-service",
+            "DD_RUM_ENV": "env-test",
+            "DD_RUM_VERSION": "3.0.0",
+            "DD_RUM_SESSION_SAMPLE_RATE": "100",
+            "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "50",
+            "DD_RUM_TRACK_RESOURCES": "true",
+            "DD_RUM_TRACK_LONG_TASKS": "true",
+            "DD_RUM_TRACK_USER_INTERACTIONS": "true",
+        }
+
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
+
+            assert '"applicationId":"<ENV_APP_ID>"' in body
+            assert '"clientToken":"<ENV_TOKEN>"' in body
+            assert '"service":"env-only-service"' in body
+            assert '"env":"env-test"' in body
+            assert '"version":"3.0.0"' in body
+
+    def test_partial_env_config(self):
+        """
+        Verify that nginx config fields override corresponding DD_RUM_* env
+        vars (per-field merging). The datadog_rum_config block sets service
+        and env; the remaining fields come from env vars.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_partial_env.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.eu",
+            "DD_RUM_SERVICE": "env-service-should-be-overridden",
+            "DD_RUM_ENV": "env-production-should-be-overridden",
+            "DD_RUM_SESSION_SAMPLE_RATE": "100",
+            "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "100",
+            "DD_RUM_TRACK_RESOURCES": "true",
+            "DD_RUM_TRACK_LONG_TASKS": "true",
+            "DD_RUM_TRACK_USER_INTERACTIONS": "true",
+        }
+
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
+
+            # nginx config values take precedence
+            assert '"service":"nginx-partial-env"' in body
+            assert '"env":"staging"' in body
+
+            # env var values used for fields not in nginx config
+            assert '"applicationId":"<ENV_APP_ID>"' in body
+            assert '"clientToken":"<ENV_TOKEN>"' in body
+            assert '"site":"datadoghq.eu"' in body
+
+    def test_nginx_config_takes_full_precedence(self):
+        """
+        Verify that when a full datadog_rum_config block is present, it
+        completely overrides all DD_RUM_* env vars for the fields it sets.
+        The existing rum_enabled.conf test still works unchanged.
+        """
+        status, lines = self.load_conf("rum_enabled.conf")
+        self.assertEqual(0, status, lines)
+
+        status, headers, body = self.orch.send_nginx_http_request("/")
+        self.assertEqual(200, status)
+        self.assertInjection(headers, body)
+
+        # Values from rum_enabled.conf should be present, not from
+        # DD_RUM_* env vars set in docker-compose.yml
+        assert '"service":"my-web-application"' in body
+        assert '"env":"production"' in body
+        assert '"applicationId":"<DATADOG_APPLICATION_ID>"' in body
+
+    def test_env_remote_configuration_id(self):
+        """
+        Verify that DD_RUM_REMOTE_CONFIGURATION_ID is passed through to the
+        RUM SDK init call as remoteConfigurationId.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.com",
+            "DD_RUM_SERVICE": "env-service",
+            "DD_RUM_REMOTE_CONFIGURATION_ID": "abc-123-remote-cfg",
+        }
+
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
+
+            assert '"remoteConfigurationId":"abc-123-remote-cfg"' in body
+
+    def test_env_disabled_overrides_env_config(self):
+        """
+        Verify DD_RUM_ENABLED=false disables RUM even when DD_RUM_* config
+        env vars are present.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_ENABLED": "false",
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.com",
+            "DD_RUM_SERVICE": "should-not-inject",
+        }
+
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            headers = self.make_dict_headers(headers)
+            assert headers.get("x-datadog-rum-injected") is None
+            assert "datadog-rum.js" not in body
+
+    def test_env_disabled_location_override(self):
+        """
+        Verify that datadog_rum off in a location still disables injection
+        even when env vars provide a complete RUM config.
+        """
+        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        nginx_conf = conf_path.read_text()
+
+        env = {
+            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_SITE": "datadoghq.com",
+            "DD_RUM_SERVICE": "env-service",
+        }
+
+        with self.orch.custom_nginx(nginx_conf,
+                                    extra_env=env,
+                                    healthcheck_port=80) as nginx:
+            status, headers, body = self.orch.send_nginx_http_request(
+                "/disable-rum")
+            self.assertEqual(200, status)
+            headers = self.make_dict_headers(headers)
+            assert headers.get("x-datadog-rum-injected") is None
+            assert "datadog-rum.js" not in body
+
+    def test_skip_injection_when_already_injected(self):
+        """
+        Verify that when the request carries the x-datadog-rum-injected: 1
+        header the module skips injection (reason:already_injected).
+        """
+        status, lines = self.load_conf("rum_enabled.conf")
+        self.assertEqual(0, status, lines)
+
+        status, headers, body = self.orch.send_nginx_http_request(
+            "/", headers={"x-datadog-rum-injected": "1"})
+        self.assertEqual(200, status)
+        headers = self.make_dict_headers(headers)
+        assert headers.get("x-datadog-rum-injected") is None
+        assert "datadog-rum.js" not in body
+
+    def test_skip_injection_on_empty_response(self):
+        """
+        Verify that responses with content_length_n == 0 skip injection
+        (reason:no_content).
+        """
+        service = {"host": "0.0.0.0", "port": 8081}
+
+        @Request.application
+        def app(request: Request) -> Response:
+            return Response(
+                "",
+                200,
+                content_type="text/html",
+            )
+
+        s = make_server(service["host"], service["port"], app)
+        t = Thread(target=s.serve_forever)
+        t.start()
+
+        try:
+            status, lines = self.load_conf("rum_enabled.conf")
+            self.assertEqual(0, status, lines)
+
+            status, headers, body = self.orch.send_nginx_http_request("/proxy")
+        finally:
+            s.shutdown()
+            t.join()
+
+        self.assertEqual(200, status)
+        headers = self.make_dict_headers(headers)
+        assert headers.get("x-datadog-rum-injected") is None
+        assert "datadog-rum.js" not in body
+
+    def test_skip_injection_on_compressed_response(self):
+        """
+        Verify that responses with Content-Encoding header skip injection
+        (reason:compressed_html). The module only checks header presence.
+        """
+        service = {"host": "0.0.0.0", "port": 8081}
+
+        @Request.application
+        def app(request: Request) -> Response:
+            return Response(
+                """<html>
+        <head>
+            <title>Compressed</title>
+        </head>
+        <body>
+            Hello, compressed!
+        </body>
+        </html>
+        """,
+                200,
+                content_type="text/html",
+                headers={"Content-Encoding": "gzip"},
+            )
+
+        s = make_server(service["host"], service["port"], app)
+        t = Thread(target=s.serve_forever)
+        t.start()
+
+        try:
+            status, lines = self.load_conf("rum_enabled.conf")
+            self.assertEqual(0, status, lines)
+
+            status, headers, body = self.orch.send_nginx_http_request("/proxy")
+        finally:
+            s.shutdown()
+            t.join()
+
+        self.assertEqual(200, status)
+        headers = self.make_dict_headers(headers)
+        assert headers.get("x-datadog-rum-injected") is None
+        assert "datadog-rum.js" not in body
+
+    def test_missing_head_tag_pads_instead_of_injecting(self):
+        """
+        Verify that when the HTML has no <head> tag the module pads the
+        response with spaces instead of injecting the RUM snippet
+        (reason:missing_header_tag).
+
+        The x-datadog-rum-injected: 1 response header IS set (added in the
+        header filter before the body filter discovers no <head>), but the
+        RUM script is not present in the body.
+        """
+        service = {"host": "0.0.0.0", "port": 8081}
+        original_html = """<html>
+        <body>
+            <p>No head tag here</p>
+        </body>
+        </html>
+        """
+
+        @Request.application
+        def app(request: Request) -> Response:
+            return Response(
+                original_html,
+                200,
+                content_type="text/html",
+            )
+
+        s = make_server(service["host"], service["port"], app)
+        t = Thread(target=s.serve_forever)
+        t.start()
+
+        try:
+            status, lines = self.load_conf("rum_enabled.conf")
+            self.assertEqual(0, status, lines)
+
+            status, headers, body = self.orch.send_nginx_http_request("/proxy")
+        finally:
+            s.shutdown()
+            t.join()
+
+        self.assertEqual(200, status)
+        headers = self.make_dict_headers(headers)
+        # Header is set in the header filter before the body filter runs
+        assert headers.get("x-datadog-rum-injected") == "1"
+        # But no actual injection happened
+        assert "datadog-rum.js" not in body
+        # Original content is preserved
+        assert "No head tag here" in body
+        # Padding spaces were added to fill the content-length delta
+        assert len(body) > len(original_html)
+
+    def test_csp_header_present_still_injects(self):
+        """
+        Verify that when the upstream sets a Content-Security-Policy header
+        the module still injects the RUM snippet. The CSP header is passed
+        through to the client (on_log_request emits a telemetry counter).
+        """
+        service = {"host": "0.0.0.0", "port": 8081}
+
+        @Request.application
+        def app(request: Request) -> Response:
+            return Response(
+                """<html>
+        <head>
+            <title>CSP Page</title>
+        </head>
+        <body>
+            Hello, CSP!
+        </body>
+        </html>
+        """,
+                200,
+                content_type="text/html",
+                headers={
+                    "Content-Security-Policy":
+                    "default-src 'self'; script-src 'self'"
+                },
+            )
+
+        s = make_server(service["host"], service["port"], app)
+        t = Thread(target=s.serve_forever)
+        t.start()
+
+        try:
+            status, lines = self.load_conf("rum_enabled.conf")
+            self.assertEqual(0, status, lines)
+
+            status, headers, body = self.orch.send_nginx_http_request("/proxy")
+        finally:
+            s.shutdown()
+            t.join()
+
+        self.assertEqual(200, status)
+        self.assertInjection(headers, body)
+        headers = self.make_dict_headers(headers)
+        assert "content-security-policy" in headers

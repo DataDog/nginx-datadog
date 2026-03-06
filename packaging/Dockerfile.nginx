@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1
+# Dockerfile for building nginx-datadog module for standard nginx
+#
+# Requires a build context named "toolchain" pointing to the musl toolchain image.
+# This is provided by docker-bake.hcl which either builds it from build_env/
+# or uses an external image.
+
+ARG ARCH=x86_64
+
+FROM toolchain AS builder
+
+ARG ARCH
+ARG NGINX_VERSION
+ARG WAF=OFF
+ARG RUM=OFF
+ARG BUILD_TYPE=RelWithDebInfo
+ARG MAKE_JOB_COUNT=8
+
+# Install git for CMake FetchContent (needed to fetch inject-browser-sdk when RUM=ON)
+RUN apk add --no-cache git
+
+WORKDIR /build
+
+# Copy only what's needed for the build
+COPY CMakeLists.txt ./
+COPY cmake/ ./cmake/
+COPY src/ ./src/
+COPY dd-trace-cpp/ ./dd-trace-cpp/
+COPY libddwaf/ ./libddwaf/
+COPY module/ ./module/
+COPY deps/ ./deps/
+COPY nginx_module.ld nginx_module.ld-prime ./
+
+# CMake will fetch and build inject-browser-sdk via FetchContent when RUM=ON
+
+# Run cmake configure and build
+# BUILD_TESTING=OFF avoids requiring test/unit directory
+RUN cmake -B .build \
+    -DCMAKE_TOOLCHAIN_FILE=/sysroot/${ARCH}-none-linux-musl/Toolchain.cmake \
+    -DNGINX_PATCH_AWAY_LIBC=ON \
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+    -DNGINX_VERSION="${NGINX_VERSION}" \
+    -DNGINX_DATADOG_ASM_ENABLED="${WAF}" \
+    -DNGINX_DATADOG_RUM_ENABLED="${RUM}" \
+    -DBUILD_TESTING=OFF \
+    . \
+    && cmake --build .build -j ${MAKE_JOB_COUNT} --target ngx_http_datadog_module
+
+# Export only the .so files
+FROM scratch AS export
+COPY --from=builder /build/.build/ngx_http_datadog_module.so /
+COPY --from=builder /build/.build/ngx_http_datadog_module.so.debug /
