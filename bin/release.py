@@ -110,8 +110,8 @@ def resolve_gitlab_token(cli_token: str | None = None) -> str:
             )
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
-        except Exception:
-            pass
+        except (subprocess.SubprocessError, OSError) as exc:
+            print(f"WARNING: glab found at {glab_exe} but token extraction failed: {exc}", file=sys.stderr)
 
     raise MissingDependency(
         "No GitLab API token found. Provide one via --ci-token, "
@@ -167,7 +167,7 @@ def get_pipeline_jobs(pipeline_id: str, token: str) -> list[dict[str, Any]] | No
         jobs.extend(page_jobs)
         page += 1
 
-    # Verify all jobs succeeded (skip manual/skipped jobs that weren't triggered)
+    # Verify all jobs succeeded (skip jobs that haven't been triggered or aren't relevant)
     for job in jobs:
         if job["status"] in ("success", "manual", "skipped", "created"):
             continue
@@ -202,8 +202,9 @@ def package(files, out):
     with tarfile.open(out, "w:gz") as tar:
         for f in files:
             if not f.is_file():
-                print(f"{f} is not a valid file and will be skipped")
-                continue
+                raise FileNotFoundError(
+                    f"Cannot package '{f}': file does not exist. "
+                    f"This indicates a problem with artifact extraction.")
             tar.add(f, arcname=os.path.basename(f))
 
 
@@ -277,7 +278,11 @@ def release_ingress_nginx(args: typing.Any) -> int:
         - You must be logged into the Docker registry to push the built container image.
     """
     jobs = get_pipeline_jobs(args.pipeline_id, gitlab_token)
+    if jobs is None:
+        print("ERROR: Pipeline contains unsuccessful jobs. Aborting release.", file=sys.stderr)
+        return 1
     if not jobs:
+        print(f"ERROR: No jobs found for pipeline {args.pipeline_id}.", file=sys.stderr)
         return 1
 
     collected_images = defaultdict(list)
@@ -318,7 +323,14 @@ def release_ingress_nginx(args: typing.Any) -> int:
             collected_images[image_no_arch].append(args.image_name)
             collected_images[f"{args.registry}:{version}"].append(
                 args.image_name)
-            print(collected_images)
+
+    if not collected_images:
+        print(
+            f"ERROR: No ingress-nginx build jobs matched in pipeline {args.pipeline_id}. "
+            f"Job names: {[j['name'] for j in jobs]}",
+            file=sys.stderr,
+        )
+        return 1
 
     create_multiarch_images(collected_images)
 
@@ -334,7 +346,11 @@ def release_module(args) -> int:
         - You must be logged into the GitHub CLI (gh) to authenticate and interact with the GitHub API.
     """
     jobs = get_pipeline_jobs(args.pipeline_id, gitlab_token)
+    if jobs is None:
+        print("ERROR: Pipeline contains unsuccessful jobs. Aborting release.", file=sys.stderr)
+        return 1
     if not jobs:
+        print(f"ERROR: No jobs found for pipeline {args.pipeline_id}.", file=sys.stderr)
         return 1
 
     with tempfile.TemporaryDirectory() as work_dir_str:
@@ -362,14 +378,21 @@ def release_module(args) -> int:
                                          waf == "ON", gitlab_token)
                 continue
 
+        release_tarballs = list(Path(work_dir).glob("*.tgz"))
+        if not release_tarballs:
+            print(
+                f"ERROR: No build artifacts matched in pipeline {args.pipeline_id}. "
+                f"Job names: {[j['name'] for j in jobs]}",
+                file=sys.stderr,
+            )
+            return 1
+
         pubkey_file = os.path.join(work_dir, "pubkey.gpg")
         run([gpg_exe, "--output", pubkey_file, "--armor", "--export"],
             check=True)
 
-        # We've tgz'd and signed all of our release modules.
-        # Now let's send them to GitHub in a release via `gh release create`.
         release_files = itertools.chain(
-            Path(work_dir).glob("*.tgz"),
+            release_tarballs,
             Path(work_dir).glob("*.tgz.asc"),
             (pubkey_file, ),
         )
@@ -378,7 +401,7 @@ def release_module(args) -> int:
             gh_exe,
             "release",
             "create",
-            options.version_tag,
+            args.version_tag,
             "--prerelease",
             "--draft",
             "--generate-notes",
