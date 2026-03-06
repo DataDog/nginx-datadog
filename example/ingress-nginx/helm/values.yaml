@@ -20,3 +20,6 @@ controller:
       valueFrom:
         fieldRef:
           fieldPath: status.hostIP
+    # add this env var to enable the App and API Security product
+    - name: DD_APPSEC_ENABLED
+      value: true
