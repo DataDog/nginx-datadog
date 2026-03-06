@@ -94,11 +94,10 @@ std::string make_rum_json_config(
                       allocator);
       } else {
         rapidjson::Value array(rapidjson::kArrayType);
-        for (const auto& e : values) {
-          array.PushBack(rapidjson::Value(e.c_str(), allocator).Move(),
+        for (const auto& entry : values) {
+          array.PushBack(rapidjson::Value(entry.c_str(), allocator).Move(),
                          allocator);
         }
-
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                       array.Move(), allocator);
       }
@@ -148,6 +147,20 @@ char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
 }
 
 using namespace datadog::nginx::rum::internal;
+
+void apply_rum_config_tags(
+    datadog::nginx::datadog_loc_conf_t* loc_conf,
+    const std::unordered_map<std::string, std::vector<std::string>>& config) {
+  loc_conf->rum_remote_config_tag = "remote_config_used:false";
+  if (auto it = config.find("applicationId");
+      it != config.end() && !it->second.empty()) {
+    loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
+  }
+  if (auto it = config.find("remoteConfigurationId");
+      it != config.end() && !it->second.empty()) {
+    loc_conf->rum_remote_config_tag = "remote_config_used:true";
+  }
+}
 
 char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
   auto& rum_config =
@@ -226,18 +239,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   }
 
   loc_conf->rum_snippet = snippet.release();
-
-  loc_conf->rum_remote_config_tag = "remote_config_used:false";
-
-  if (auto it = rum_config.find("applicationId");
-      it != rum_config.end() && !it->second.empty()) {
-    loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
-  }
-
-  if (auto it = rum_config.find("remoteConfigurationId");
-      it != rum_config.end() && !it->second.empty()) {
-    loc_conf->rum_remote_config_tag = "remote_config_used:true";
-  }
+  apply_rum_config_tags(loc_conf, rum_config);
 
   return NGX_CONF_OK;
 }
@@ -268,15 +270,7 @@ void try_build_snippet_from_env(ngx_conf_t* cf,
     }
 
     loc_conf->rum_snippet = snippet.release();
-    loc_conf->rum_remote_config_tag = "remote_config_used:false";
-    if (auto it = env_config.find("applicationId");
-        it != env_config.end() && !it->second.empty()) {
-      loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
-    }
-    if (auto it = env_config.find("remoteConfigurationId");
-        it != env_config.end() && !it->second.empty()) {
-      loc_conf->rum_remote_config_tag = "remote_config_used:true";
-    }
+    apply_rum_config_tags(loc_conf, env_config);
   } catch (const std::bad_alloc&) {
     throw;
   } catch (const std::exception& exception) {
