@@ -85,7 +85,7 @@ def get_git():
     return exe_path
 
 
-def resolve_gitlab_token(cli_token: str = None) -> str:
+def resolve_gitlab_token(cli_token: str | None = None) -> str:
     """Resolve a GitLab API token from multiple sources."""
     if cli_token:
         return cli_token
@@ -147,15 +147,15 @@ def gitlab_api_request(path: str, token: str) -> http.client.HTTPResponse:
     return response
 
 
-def gitlab_api_json(path: str, token: str) -> dict[str, Any]:
+def gitlab_api_json(path: str, token: str) -> Any:
     """Make a GitLab API request and return parsed JSON."""
     response = gitlab_api_request(path, token)
     return json.load(response)
 
 
-def get_pipeline_jobs(pipeline_id: str, token: str) -> list[dict[str, Any]]:
+def get_pipeline_jobs(pipeline_id: str, token: str) -> list[dict[str, Any]] | None:
     """Retrieve all jobs for a GitLab pipeline, handling pagination."""
-    jobs = []
+    jobs: list[dict[str, Any]] = []
     page = 1
     while True:
         page_jobs = gitlab_api_json(
@@ -207,13 +207,13 @@ def package(files, out):
             tar.add(f, arcname=os.path.basename(f))
 
 
-def sign_package(package_path: str) -> None:
+def sign_package(package_path: str | Path) -> None:
     command = [gpg_exe, "--armor", "--detach-sign", package_path]
     run(command, check=True)
 
 
 def prepare_release_artifact(work_dir: Path, job_id: int,
-                             artifact_base_path: str, flavor: str,
+                             artifact_base_path: str, flavor: str | None,
                              version: str, arch: str, waf: bool,
                              token: str) -> None:
     flavor_prefix = f"{flavor}-" if flavor else ""
@@ -337,8 +337,8 @@ def release_module(args) -> int:
     if not jobs:
         return 1
 
-    with tempfile.TemporaryDirectory() as work_dir:
-        work_dir = Path(work_dir)
+    with tempfile.TemporaryDirectory() as work_dir_str:
+        work_dir = Path(work_dir_str)
         print("Working directory is", work_dir)
 
         for job in jobs:
