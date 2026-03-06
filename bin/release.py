@@ -147,7 +147,7 @@ def gitlab_api_request(path: str, token: str) -> http.client.HTTPResponse:
     return response
 
 
-def gitlab_api_json(path: str, token: str) -> dict[str, Any]:
+def gitlab_api_json(path: str, token: str) -> Any:
     """Make a GitLab API request and return parsed JSON."""
     response = gitlab_api_request(path, token)
     return json.load(response)
@@ -158,11 +158,10 @@ def get_pipeline_jobs(pipeline_id: str, token: str) -> list[dict[str, Any]] | No
     jobs: list[dict[str, Any]] = []
     page = 1
     while True:
-        response = gitlab_api_request(
+        page_jobs = gitlab_api_json(
             f"/projects/{GITLAB_PROJECT_ENCODED}/pipelines/{pipeline_id}/jobs?per_page=100&page={page}",
             token,
         )
-        page_jobs: list[dict[str, Any]] = json.load(response)
         if not page_jobs:
             break
         jobs.extend(page_jobs)
