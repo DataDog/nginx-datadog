@@ -39,7 +39,7 @@ def wait_until(predicate_func, timeout_seconds):
         now = time.monotonic()
         if now - before >= timeout_seconds:
             raise Exception(
-                f"{timeout_seconds} seconds timeout exceeded while waiting for nginx workers to stop.  {now - before} seconds elapsed."
+                f"{timeout_seconds} seconds timeout exceeded while waiting for condition.  {now - before} seconds elapsed."
             )
         time.sleep(0.5)
 
@@ -130,7 +130,7 @@ def to_service_name(container_name):
     #
     # When I run docker compose locally on my machine, the parts of the
     # container name are separated by underscore ("_"), while when I run
-    # docker compose in CircleCI, hyphen ("-") is used.  Go with whichever is
+    # docker compose in CI, hyphen ("-") is used.  Go with whichever is
     # being used.
     if "_" in container_name and "-" in container_name:
         raise Exception(
@@ -411,7 +411,7 @@ def curl(url, headers, stderr=None, method="GET", body=None, http_version=1):
 
 def add_services_in_nginx_etc_hosts(services):
     """When we added build/test support on ARM64 by using the ARM64 execution
-    environment in CircleCI, we started seeing intermittent delays in DNS
+    environment in CI, we started seeing intermittent delays in DNS
     lookups, always about five seconds.
 
     This function uses `getent` to look up the IP address of each `docker
@@ -814,6 +814,34 @@ exit "$rcode"
         )
         return result.returncode, result.stdout.split("\n")
 
+    def reload_nginx_with_empty_config(self):
+        """Replace the nginx config with one that has no server blocks
+        (releasing any listened ports) and reload, waiting for old workers
+        to terminate.  A worker_shutdown_timeout of 2s ensures old workers
+        exit promptly even if they have active connections.
+        """
+        # worker_shutdown_timeout forces old workers to exit after 2s,
+        # even if they have active connections (e.g. keep-alive to trace agent).
+        empty_conf = "worker_shutdown_timeout 2s;\nevents { worker_connections 1024; }\nhttp {}\n"
+        script = f"""
+>{nginx_conf_path} cat <<'END_CONF'
+error_log stderr notice;
+{empty_conf}
+END_CONF
+"""
+        command = docker_compose_command("exec", "-T", "--", "nginx",
+                                         "/bin/sh")
+        subprocess.run(
+            command,
+            input=script,
+            stdout=self.verbose,
+            stderr=self.verbose,
+            env=child_env(),
+            check=True,
+            encoding="utf8",
+        )
+        self.reload_nginx(wait_for_workers_to_terminate=True)
+
     def reload_nginx(self, wait_for_workers_to_terminate=True):
         """Send a "reload" signal to nginx.
 
@@ -950,6 +978,12 @@ END_CONF
         """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
+
+        # Reload the main nginx with a config that has no server blocks so it
+        # releases any ports (e.g. 80) that the custom nginx may need to bind.
+        # We must wait for old workers to fully terminate because they still
+        # hold the listening socket from the previous config.
+        self.reload_nginx_with_empty_config()
 
         # Make a temporary directory.
         command = docker_compose_command("exec", "-T", "--", "nginx", "mktemp",
