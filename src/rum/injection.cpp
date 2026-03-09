@@ -37,7 +37,7 @@ InjectionHandler::~InjectionHandler() {
 }
 
 ngx_int_t InjectionHandler::on_rewrite_handler(ngx_http_request_t* r) {
-  if (!common::add_header(r->pool, r->headers_in.headers,
+  if (!common::add_header(*r->pool, r->headers_in.headers,
                           "x-datadog-rum-injection-pending", "1")) {
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
                   "RUM SDK injection failed: unable to add "
@@ -208,8 +208,8 @@ ngx_int_t InjectionHandler::on_body_filter(
 }
 
 ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t* r) {
-  if (auto csp =
-          search_header(r->headers_out.headers, "content-security-policy");
+  if (auto csp = common::search_header(r->headers_out.headers,
+                                       "content-security-policy");
       csp != nullptr) {
     datadog::telemetry::counter::increment(
         telemetry::injection_failed,
