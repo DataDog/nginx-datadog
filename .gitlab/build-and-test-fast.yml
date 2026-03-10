@@ -37,9 +37,7 @@ format-and-lint:
     GIT_CONFIG_KEY_0: "url.https://gitlab.ddbuild.io/DataDog/.insteadOf"
     GIT_CONFIG_VALUE_0: "https://github.com/DataDog/"
   script:
-    - make format
     - make lint
-
 shellcheck:
   extends: .build-and-test-fast
   image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
