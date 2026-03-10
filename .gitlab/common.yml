@@ -17,6 +17,19 @@
     paths:
       - artifacts/$ARCH/$NGINX_VERSION/$WAF/
 
+.build-nginx-rum:
+  extends: .build
+  variables:
+    RUM: "ON"
+  script:
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
+    - make build-musl-aux
+    - mkdir -p artifacts-rum/$ARCH/$NGINX_VERSION/$WAF
+    - cp .musl-build/ngx_http_datadog_module.so* artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
+  artifacts:
+    paths:
+      - artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
+
 .build-openresty:
   extends: .build
   script:
@@ -50,19 +63,6 @@
   artifacts:
     paths:
       - test/logs/test.log
-
-.build-nginx-rum:
-  extends: .build
-  variables:
-    RUM: "ON"
-  script:
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
-    - make build-musl-aux
-    - mkdir -p artifacts-rum/$ARCH/$NGINX_VERSION/$WAF
-    - cp .musl-build/ngx_http_datadog_module.so* artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
-  artifacts:
-    paths:
-      - artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
 
 .test-nginx-rum:
   extends: .test

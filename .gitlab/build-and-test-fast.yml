@@ -62,6 +62,22 @@ build-openresty-fast:
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
 
+build-nginx-rum-fast:
+  extends:
+    - .build-and-test-fast
+    - .build-nginx-rum
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+        NGINX_VERSION:
+          - "1.24.0"
+          - "1.25.5"
+          - "1.26.3"
+          - "1.27.5"
+          - "1.28.2"
+          - "1.29.5"
+        WAF: ["OFF"]
+
 test-nginx-fast:
   extends:
     - .build-and-test-fast
@@ -121,22 +137,6 @@ test-openresty-fast:
         RESTY_VERSION: ["1.27.1.2"]
         WAF: ["ON", "OFF"]
 
-build-nginx-rum-fast:
-  extends:
-    - .build-and-test-fast
-    - .build-nginx-rum
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64"]
-        NGINX_VERSION:
-          - "1.24.0"
-          - "1.25.5"
-          - "1.26.3"
-          - "1.27.5"
-          - "1.28.2"
-          - "1.29.5"
-        WAF: ["OFF"]
-
 test-nginx-rum-fast:
   extends:
     - .build-and-test-fast
@@ -145,27 +145,27 @@ test-nginx-rum-fast:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.24.0", "nginx:1.24.0-alpine"]
+        BASE_IMAGE: ["nginx:1.24.0"]
         NGINX_VERSION: ["1.24.0"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.25.5", "nginx:1.25.5-alpine"]
+        BASE_IMAGE: ["nginx:1.25.5"]
         NGINX_VERSION: ["1.25.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.26.3", "nginx:1.26.3-alpine"]
+        BASE_IMAGE: ["nginx:1.26.3"]
         NGINX_VERSION: ["1.26.3"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.27.5", "nginx:1.27.5-alpine"]
+        BASE_IMAGE: ["nginx:1.27.5"]
         NGINX_VERSION: ["1.27.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.28.2", "nginx:1.28.2-alpine"]
+        BASE_IMAGE: ["nginx:1.28.2"]
         NGINX_VERSION: ["1.28.2"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.29.5", "nginx:1.29.5-alpine"]
+        BASE_IMAGE: ["nginx:1.29.5"]
         NGINX_VERSION: ["1.29.5"]
         WAF: ["OFF"]
 

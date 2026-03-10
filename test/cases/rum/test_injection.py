@@ -260,11 +260,11 @@ class TestRUMInjection(case.TestCase):
            - HTML RUM SDK scripts.
         """
         headers = self.make_dict_headers(headers)
-        assert headers["content-length"] != "0"
-        assert headers["x-datadog-rum-injected"] == "1"
-        assert headers.get("transfer-encoding", "") != "chunked"
+        self.assertNotEqual(headers["content-length"], "0")
+        self.assertEqual(headers["x-datadog-rum-injected"], "1")
+        self.assertNotEqual(headers.get("transfer-encoding", ""), "chunked")
 
-        assert "datadog-rum.js" in body
+        self.assertIn("datadog-rum.js", body)
 
     def test_injection(self):
         status, lines = self.load_conf("rum_enabled.conf")
@@ -369,9 +369,9 @@ class TestRUMInjection(case.TestCase):
         status, headers, body = self.orch.send_nginx_http_request(
             "/disable-rum")
         headers = self.make_dict_headers(headers)
-        assert status == 200
-        assert headers.get("x-datadog-rum-injected") == None
-        assert "datadog-rum.js" not in body
+        self.assertEqual(status, 200)
+        self.assertIsNone(headers.get("x-datadog-rum-injected"))
+        self.assertNotIn("datadog-rum.js", body)
 
     def test_env_only_config(self):
         """
@@ -387,8 +387,9 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
             "DD_RUM_SERVICE": "env-only-service",
-            "DD_RUM_ENV": "env-test",
-            "DD_RUM_VERSION": "3.0.0",
+            "DD_RUM_ENVIRONMENT": "env-test",
+            "DD_RUM_MAJOR_VERSION": "3.0.0",
+
             "DD_RUM_SESSION_SAMPLE_RATE": "100",
             "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "50",
             "DD_RUM_TRACK_RESOURCES": "true",
@@ -403,11 +404,12 @@ class TestRUMInjection(case.TestCase):
             self.assertEqual(200, status)
             self.assertInjection(headers, body)
 
-            assert '"applicationId":"<ENV_APP_ID>"' in body
-            assert '"clientToken":"<ENV_TOKEN>"' in body
-            assert '"service":"env-only-service"' in body
-            assert '"env":"env-test"' in body
-            assert '"version":"3.0.0"' in body
+            self.assertIn('"applicationId":"<ENV_APP_ID>"', body)
+            self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
+            self.assertIn('"service":"env-only-service"', body)
+            self.assertIn('"env":"env-test"', body)
+            self.assertIn('"version":"3.0.0"', body)
+
 
     def test_partial_env_config(self):
         """
@@ -423,7 +425,8 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
             "DD_RUM_SITE": "datadoghq.eu",
             "DD_RUM_SERVICE": "env-service-should-be-overridden",
-            "DD_RUM_ENV": "env-production-should-be-overridden",
+            "DD_RUM_ENVIRONMENT": "env-production-should-be-overridden",
+
             "DD_RUM_SESSION_SAMPLE_RATE": "100",
             "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "100",
             "DD_RUM_TRACK_RESOURCES": "true",
@@ -439,13 +442,14 @@ class TestRUMInjection(case.TestCase):
             self.assertInjection(headers, body)
 
             # nginx config values take precedence
-            assert '"service":"nginx-partial-env"' in body
-            assert '"env":"staging"' in body
+            self.assertIn('"service":"nginx-partial-env"', body)
+            self.assertIn('"env":"staging"', body)
 
             # env var values used for fields not in nginx config
-            assert '"applicationId":"<ENV_APP_ID>"' in body
-            assert '"clientToken":"<ENV_TOKEN>"' in body
-            assert '"site":"datadoghq.eu"' in body
+            self.assertIn('"applicationId":"<ENV_APP_ID>"', body)
+            self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
+            self.assertIn('"site":"datadoghq.eu"', body)
+
 
     def test_nginx_config_takes_full_precedence(self):
         """
@@ -462,9 +466,10 @@ class TestRUMInjection(case.TestCase):
 
         # Values from rum_enabled.conf should be present, not from
         # DD_RUM_* env vars set in docker-compose.yml
-        assert '"service":"my-web-application"' in body
-        assert '"env":"production"' in body
-        assert '"applicationId":"<DATADOG_APPLICATION_ID>"' in body
+        self.assertIn('"service":"my-web-application"', body)
+        self.assertIn('"env":"production"', body)
+        self.assertIn('"applicationId":"<DATADOG_APPLICATION_ID>"', body)
+
 
     def test_env_remote_configuration_id(self):
         """
@@ -489,7 +494,8 @@ class TestRUMInjection(case.TestCase):
             self.assertEqual(200, status)
             self.assertInjection(headers, body)
 
-            assert '"remoteConfigurationId":"abc-123-remote-cfg"' in body
+            self.assertIn('"remoteConfigurationId":"abc-123-remote-cfg"', body)
+
 
     def test_env_disabled_overrides_env_config(self):
         """
@@ -513,8 +519,9 @@ class TestRUMInjection(case.TestCase):
             status, headers, body = self.orch.send_nginx_http_request("/")
             self.assertEqual(200, status)
             headers = self.make_dict_headers(headers)
-            assert headers.get("x-datadog-rum-injected") is None
-            assert "datadog-rum.js" not in body
+            self.assertIsNone(headers.get("x-datadog-rum-injected"))
+            self.assertNotIn("datadog-rum.js", body)
+
 
     def test_env_disabled_location_override(self):
         """
@@ -538,8 +545,9 @@ class TestRUMInjection(case.TestCase):
                 "/disable-rum")
             self.assertEqual(200, status)
             headers = self.make_dict_headers(headers)
-            assert headers.get("x-datadog-rum-injected") is None
-            assert "datadog-rum.js" not in body
+            self.assertIsNone(headers.get("x-datadog-rum-injected"))
+            self.assertNotIn("datadog-rum.js", body)
+
 
     def test_skip_injection_when_already_injected(self):
         """
@@ -553,8 +561,9 @@ class TestRUMInjection(case.TestCase):
             "/", headers={"x-datadog-rum-injected": "1"})
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
-        assert headers.get("x-datadog-rum-injected") is None
-        assert "datadog-rum.js" not in body
+        self.assertIsNone(headers.get("x-datadog-rum-injected"))
+        self.assertNotIn("datadog-rum.js", body)
+
 
     def test_skip_injection_on_empty_response(self):
         """
@@ -586,8 +595,9 @@ class TestRUMInjection(case.TestCase):
 
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
-        assert headers.get("x-datadog-rum-injected") is None
-        assert "datadog-rum.js" not in body
+        self.assertIsNone(headers.get("x-datadog-rum-injected"))
+        self.assertNotIn("datadog-rum.js", body)
+
 
     def test_skip_injection_on_compressed_response(self):
         """
@@ -628,8 +638,9 @@ class TestRUMInjection(case.TestCase):
 
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
-        assert headers.get("x-datadog-rum-injected") is None
-        assert "datadog-rum.js" not in body
+        self.assertIsNone(headers.get("x-datadog-rum-injected"))
+        self.assertNotIn("datadog-rum.js", body)
+
 
     def test_missing_head_tag_pads_instead_of_injecting(self):
         """
@@ -673,13 +684,14 @@ class TestRUMInjection(case.TestCase):
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
         # Header is set in the header filter before the body filter runs
-        assert headers.get("x-datadog-rum-injected") == "1"
+        self.assertEqual(headers.get("x-datadog-rum-injected"), "1")
         # But no actual injection happened
-        assert "datadog-rum.js" not in body
+        self.assertNotIn("datadog-rum.js", body)
         # Original content is preserved
-        assert "No head tag here" in body
+        self.assertIn("No head tag here", body)
         # Padding spaces were added to fill the content-length delta
-        assert len(body) > len(original_html)
+        self.assertGreater(len(body), len(original_html))
+
 
     def test_csp_header_present_still_injects(self):
         """
@@ -725,4 +737,5 @@ class TestRUMInjection(case.TestCase):
         self.assertEqual(200, status)
         self.assertInjection(headers, body)
         headers = self.make_dict_headers(headers)
-        assert "content-security-policy" in headers
+        self.assertIn("content-security-policy", headers)
+

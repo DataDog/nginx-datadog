@@ -10,30 +10,12 @@
 #include <optional>
 #include <string_view>
 
+using namespace std::string_view_literals;
+
 #include "config_internal.h"
 #include "string_util.h"
 
-using namespace std::string_view_literals;
-
 namespace datadog::nginx::rum::internal {
-
-const env_mapping rum_env_mappings[] = {
-    {"DD_RUM_APPLICATION_ID"sv, "applicationId"sv},
-    {"DD_RUM_CLIENT_TOKEN"sv, "clientToken"sv},
-    {"DD_RUM_SITE"sv, "site"sv},
-    {"DD_RUM_SERVICE"sv, "service"sv},
-    {"DD_RUM_ENV"sv, "env"sv},
-    {"DD_RUM_VERSION"sv, "version"sv},
-    {"DD_RUM_SESSION_SAMPLE_RATE"sv, "sessionSampleRate"sv},
-    {"DD_RUM_SESSION_REPLAY_SAMPLE_RATE"sv, "sessionReplaySampleRate"sv},
-    {"DD_RUM_TRACK_RESOURCES"sv, "trackResources"sv},
-    {"DD_RUM_TRACK_LONG_TASKS"sv, "trackLongTasks"sv},
-    {"DD_RUM_TRACK_USER_INTERACTIONS"sv, "trackUserInteractions"sv},
-    {"DD_RUM_REMOTE_CONFIGURATION_ID"sv, "remoteConfigurationId"sv},
-};
-
-const std::size_t rum_env_mappings_size =
-    sizeof(rum_env_mappings) / sizeof(rum_env_mappings[0]);
 
 std::optional<bool> parse_bool(std::string_view value) {
   std::string lower(value);
@@ -48,14 +30,12 @@ std::optional<bool> parse_bool(std::string_view value) {
   return std::nullopt;
 }
 
-std::unordered_map<std::string, std::vector<std::string>>
-get_rum_config_from_env() {
-  std::unordered_map<std::string, std::vector<std::string>> config;
-  for (std::size_t i = 0; i < rum_env_mappings_size; ++i) {
-    const auto& mapping = rum_env_mappings[i];
-    const char* value = std::getenv(std::string(mapping.env_name).c_str());
+rum_config_map get_rum_config_from_env() {
+  rum_config_map config;
+  for (const auto& [env_name, config_key] : rum_env_mappings) {
+    const char* value = std::getenv(env_name.data());
     if (value != nullptr && value[0] != '\0') {
-      config[std::string(mapping.config_key)] = {std::string(value)};
+      config[std::string(config_key)] = {std::string(value)};
     }
   }
   return config;
@@ -69,9 +49,8 @@ std::optional<bool> get_rum_enabled_from_env() {
   return parse_bool(value);
 }
 
-std::string make_rum_json_config(
-    int config_version,
-    const std::unordered_map<std::string, std::vector<std::string>>& config) {
+std::string make_rum_json_config(int config_version,
+                                 const rum_config_map& config) {
   rapidjson::Document doc;
   doc.SetObject();
 
@@ -83,33 +62,43 @@ std::string make_rum_json_config(
     if (values.empty()) continue;
     if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
       char* endp;
-      double val = std::strtod(values[0].c_str(), &endp);
-      if (endp == values[0].c_str()) {
-        // Not a valid number — pass as string and let the Rust SDK validate.
-        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(values[0].c_str(), allocator).Move(),
-                      allocator);
+      double val = std::strtod(values.front().c_str(), &endp);
+      if (endp == values.front().c_str()) {
+        // Not a valid number — pass as string and let the RUM SDK validate.
+        rum.AddMember(
+            rapidjson::Value(key.c_str(), allocator).Move(),
+            rapidjson::Value(values.front().c_str(), allocator).Move(),
+            allocator);
       } else {
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                       rapidjson::Value(val).Move(), allocator);
       }
     } else if (key == "trackResources" || key == "trackLongTasks" ||
                key == "trackUserInteractions") {
-      bool b = parse_bool(values[0]).value_or(false);
-      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                    rapidjson::Value(b).Move(), allocator);
+      auto parsed = parse_bool(values.front());
+      if (parsed.has_value()) {
+        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
+                      rapidjson::Value(*parsed).Move(), allocator);
+      } else {
+        // Not a recognized boolean — pass as string and let the RUM SDK
+        // validate.
+        rum.AddMember(
+            rapidjson::Value(key.c_str(), allocator).Move(),
+            rapidjson::Value(values.front().c_str(), allocator).Move(),
+            allocator);
+      }
     } else {
       if (values.size() == 1) {
-        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(values[0].c_str(), allocator).Move(),
-                      allocator);
+        rum.AddMember(
+            rapidjson::Value(key.c_str(), allocator).Move(),
+            rapidjson::Value(values.front().c_str(), allocator).Move(),
+            allocator);
       } else {
         rapidjson::Value array(rapidjson::kArrayType);
-        for (const auto& e : values) {
-          array.PushBack(rapidjson::Value(e.c_str(), allocator).Move(),
+        for (const auto& entry : values) {
+          array.PushBack(rapidjson::Value(entry.c_str(), allocator).Move(),
                          allocator);
         }
-
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                       array.Move(), allocator);
       }
@@ -146,30 +135,46 @@ std::optional<int> parse_rum_version(std::string_view config_version) {
 
 namespace {
 
+constexpr std::size_t err_buf_size = 256;
+
+template <typename... Args>
+char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
+  auto* buf = static_cast<char*>(ngx_pcalloc(cf->pool, err_buf_size));
+  if (buf == nullptr) {
+    return const_cast<char*>("nginx-datadog: memory allocation failed");
+  }
+  ngx_snprintf(reinterpret_cast<u_char*>(buf), err_buf_size, fmt, args...);
+  return buf;
+}
+
 using namespace datadog::nginx::rum::internal;
 
+void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
+                           const rum_config_map& config) {
+  loc_conf->rum_remote_config_tag = "remote_config_used:false";
+  if (auto it = config.find("applicationId");
+      it != config.end() && !it->second.empty()) {
+    loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
+  }
+  if (auto it = config.find("remoteConfigurationId");
+      it != config.end() && !it->second.empty()) {
+    loc_conf->rum_remote_config_tag = "remote_config_used:true";
+  }
+}
+
 char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
-  auto& rum_config =
-      *static_cast<std::unordered_map<std::string, std::vector<std::string>>*>(
-          conf);
+  auto& rum_config = *static_cast<rum_config_map*>(conf);
 
   if (cf->args->nelts < 2) {
-    char* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf(
-        (u_char*)err_msg, 256,
-        "invalid number of arguments. Expected at least two arguments.");
-    return err_msg;
+    return conf_err(
+        cf, "invalid number of arguments. Expected at least two arguments.");
   }
 
-  ngx_str_t* arg_values = (ngx_str_t*)(cf->args->elts);
+  ngx_str_t* arg_values = static_cast<ngx_str_t*>(cf->args->elts);
 
   std::string_view key = datadog::nginx::to_string_view(arg_values[0]);
   if (key.empty()) {
-    char* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char*)err_msg, 256, "empty key");
-    return err_msg;
+    return conf_err(cf, "empty key");
   }
 
   std::vector<std::string> values;
@@ -196,14 +201,12 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   auto arg1 = datadog::nginx::to_string_view(values[1]);
   auto config_version = parse_rum_version(arg1);
   if (!config_version) {
-    auto* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char*)err_msg, 256,
-                 "invalid version argument provided. Expected version 'v5' but "
-                 "encountered '%s'. Please ensure you are using the correct "
-                 "version format 'v5'",
-                 arg1);
-    return err_msg;
+    std::string arg1_str(arg1);
+    return conf_err(
+        cf,
+        "invalid version argument provided. Expected version in format "
+        "'vN' (e.g. 'v5') but encountered '%s'.",
+        arg1_str.c_str());
   }
 
   auto rum_config = get_rum_config_from_env();
@@ -220,43 +223,91 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
 
   auto json = make_rum_json_config(*config_version, rum_config);
   if (json.empty()) {
-    auto* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf(
-        (u_char*)err_msg, 256,
-        "failed to generate the RUM SDK script: missing version field");
-    return err_msg;
+    return conf_err(
+        cf, "failed to generate the RUM SDK script: missing version field");
   }
 
-  Snippet* snippet = snippet_create_from_json(json.c_str());
+  auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
+      snippet_create_from_json(json.c_str()), snippet_cleanup);
 
   if (snippet == nullptr || snippet->error_code) {
-    auto* err_msg =
-        static_cast<char*>(ngx_pcalloc(cf->pool, sizeof(char) * 256));
-    ngx_snprintf((u_char*)err_msg, 256,
-                 "failed to generate the RUM SDK script: %s",
-                 snippet ? snippet->error_message : "null snippet");
-    if (snippet != nullptr) {
-      snippet_cleanup(snippet);
-    }
-    return err_msg;
+    return conf_err(cf, "failed to generate the RUM SDK script: %s",
+                    snippet ? snippet->error_message : "null snippet");
   }
 
-  loc_conf->rum_snippet = snippet;
-
-  loc_conf->rum_remote_config_tag = "remote_config_used:false";
-
-  if (auto it = rum_config.find("applicationId");
-      it != rum_config.end() && !it->second.empty()) {
-    loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
-  }
-
-  if (auto it = rum_config.find("remoteConfigurationId");
-      it != rum_config.end() && !it->second.empty()) {
-    loc_conf->rum_remote_config_tag = "remote_config_used:true";
-  }
+  loc_conf->rum_snippet = snippet.release();
+  apply_rum_config_tags(loc_conf, rum_config);
 
   return NGX_CONF_OK;
+}
+
+void try_build_snippet_from_env(ngx_conf_t* cf,
+                                datadog::nginx::datadog_loc_conf_t* loc_conf) {
+  try {
+    auto env_config = get_rum_config_from_env();
+    if (env_config.empty()) return;
+
+    auto json = make_rum_json_config(default_rum_config_version, env_config);
+    if (json.empty()) {
+      ngx_log_error(
+          NGX_LOG_WARN, cf->log, 0,
+          "nginx-datadog: DD_RUM_* environment variables were set but "
+          "JSON config generation produced an empty result");
+      return;
+    }
+
+    auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
+        snippet_create_from_json(json.c_str()), snippet_cleanup);
+    if (snippet == nullptr || snippet->error_code) {
+      ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                    "nginx-datadog: failed to create RUM snippet from "
+                    "environment variables: %s",
+                    snippet ? snippet->error_message : "null snippet");
+      return;
+    }
+
+    loc_conf->rum_snippet = snippet.release();
+    apply_rum_config_tags(loc_conf, env_config);
+  } catch (const std::bad_alloc&) {
+    throw;
+  } catch (const std::exception& exception) {
+    ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                  "nginx-datadog: failed to build RUM snippet from environment "
+                  "variables: %s",
+                  exception.what());
+  }
+}
+
+void resolve_rum_enable_from_env(ngx_conf_t* cf,
+                                 datadog::nginx::datadog_loc_conf_t* loc_conf) {
+  const char* raw = std::getenv("DD_RUM_ENABLED");
+  if (raw == nullptr || raw[0] == '\0') {
+    // Not set — auto-enable if a valid snippet exists (from env vars or
+    // inherited). This avoids requiring users to set DD_RUM_ENABLED explicitly
+    // when DD_RUM_* config vars are already provided.
+    if (loc_conf->rum_snippet != nullptr) {
+      loc_conf->rum_enable = 1;
+    }
+    return;
+  }
+
+  auto parsed = parse_bool(raw);
+  if (!parsed.has_value()) {
+    ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                  "nginx-datadog: unrecognized DD_RUM_ENABLED value '%s'; "
+                  "expected true/false/1/0/yes/no/on/off",
+                  raw);
+    return;
+  }
+
+  if (*parsed && loc_conf->rum_snippet == nullptr) {
+    ngx_log_error(NGX_LOG_WARN, cf->log, 0,
+                  "nginx-datadog: DD_RUM_ENABLED is true but no valid RUM "
+                  "snippet is available; RUM injection will be disabled");
+    loc_conf->rum_enable = 0;
+  } else {
+    loc_conf->rum_enable = static_cast<ngx_flag_t>(*parsed);
+  }
 }
 
 char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
@@ -282,79 +333,23 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
   // If no snippet was inherited from the directive, try building one from env
   // vars.
   if (child->rum_snippet == nullptr) {
-    try {
-      auto env_config = get_rum_config_from_env();
-      if (!env_config.empty()) {
-        auto json = make_rum_json_config(5, env_config);
-        if (!json.empty()) {
-          Snippet* snippet = snippet_create_from_json(json.c_str());
-          if (snippet != nullptr && !snippet->error_code) {
-            child->rum_snippet = snippet;
-            child->rum_remote_config_tag = "remote_config_used:false";
-            if (auto it = env_config.find("applicationId");
-                it != env_config.end() && !it->second.empty()) {
-              child->rum_application_id_tag = "application_id:" + it->second[0];
-            }
-            if (auto it = env_config.find("remoteConfigurationId");
-                it != env_config.end() && !it->second.empty()) {
-              child->rum_remote_config_tag = "remote_config_used:true";
-            }
-          } else {
-            ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                          "nginx-datadog: failed to create RUM snippet from "
-                          "environment variables: %s",
-                          snippet ? snippet->error_message : "null snippet");
-            if (snippet != nullptr) {
-              snippet_cleanup(snippet);
-            }
-          }
-        }
-      }
-    } catch (const std::exception& e) {
-      ngx_log_error(
-          NGX_LOG_WARN, cf->log, 0,
-          "nginx-datadog: invalid DD_RUM_* environment variable value: %s",
-          e.what());
-    }
+    try_build_snippet_from_env(cf, child);
   }
 
   // Determine rum_enable when neither child nor parent set it explicitly.
   if (!child_explicit && !parent_explicit) {
-    auto env_enabled = get_rum_enabled_from_env();
-    if (env_enabled.has_value()) {
-      if (*env_enabled && child->rum_snippet == nullptr) {
-        ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                      "nginx-datadog: DD_RUM_ENABLED is true but no valid RUM "
-                      "snippet is available; RUM injection will be disabled");
-        child->rum_enable = 0;
-      } else {
-        child->rum_enable = *env_enabled ? 1 : 0;
-      }
-    } else {
-      const char* raw = std::getenv("DD_RUM_ENABLED");
-      if (raw != nullptr && raw[0] != '\0') {
-        // DD_RUM_ENABLED is set but has an unrecognized value — don't
-        // auto-enable, warn the user.
-        ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                      "nginx-datadog: unrecognized DD_RUM_ENABLED value '%s'; "
-                      "expected true/false/1/0/yes/no/on/off",
-                      raw);
-      } else if (child->rum_snippet != nullptr) {
-        // Auto-enable if a valid snippet exists (from env vars or inherited).
-        child->rum_enable = 1;
-      }
-    }
+    resolve_rum_enable_from_env(cf, child);
   }
 
   return NGX_CONF_OK;
 }
 
-std::vector<std::string_view> environment_variable_names() {
+std::vector<std::string_view> get_environment_variable_names() {
   std::vector<std::string_view> names;
-  names.reserve(rum_env_mappings_size + 1);
+  names.reserve(rum_env_mappings.size() + 1);
   names.push_back("DD_RUM_ENABLED"sv);
-  for (std::size_t i = 0; i < rum_env_mappings_size; ++i) {
-    names.push_back(rum_env_mappings[i].env_name);
+  for (const auto& [env_name, config_key] : rum_env_mappings) {
+    names.push_back(env_name);
   }
   return names;
 }
