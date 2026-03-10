@@ -7,6 +7,7 @@ RUN mkdir /opt/app
 WORKDIR /opt/app
 
 RUN apk update && apk add nodejs npm
+RUN npm config set fetch-retries 5
 RUN npm install dd-trace node-fastcgi
 
 COPY ./fastcgi.js /opt/app/fastcgi.js

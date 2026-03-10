@@ -30,8 +30,7 @@ std::optional<bool> parse_bool(std::string_view value) {
   return std::nullopt;
 }
 
-rum_config_map
-get_rum_config_from_env() {
+rum_config_map get_rum_config_from_env() {
   rum_config_map config;
   for (const auto& [env_name, config_key] : rum_env_mappings) {
     const char* value = std::getenv(env_name.data());
@@ -50,9 +49,8 @@ std::optional<bool> get_rum_enabled_from_env() {
   return parse_bool(value);
 }
 
-std::string make_rum_json_config(
-    int config_version,
-    const rum_config_map& config) {
+std::string make_rum_json_config(int config_version,
+                                 const rum_config_map& config) {
   rapidjson::Document doc;
   doc.SetObject();
 
@@ -67,9 +65,10 @@ std::string make_rum_json_config(
       double val = std::strtod(values.front().c_str(), &endp);
       if (endp == values.front().c_str()) {
         // Not a valid number — pass as string and let the RUM SDK validate.
-        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(values.front().c_str(), allocator).Move(),
-                      allocator);
+        rum.AddMember(
+            rapidjson::Value(key.c_str(), allocator).Move(),
+            rapidjson::Value(values.front().c_str(), allocator).Move(),
+            allocator);
       } else {
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                       rapidjson::Value(val).Move(), allocator);
@@ -83,15 +82,17 @@ std::string make_rum_json_config(
       } else {
         // Not a recognized boolean — pass as string and let the RUM SDK
         // validate.
-        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(values.front().c_str(), allocator).Move(),
-                      allocator);
+        rum.AddMember(
+            rapidjson::Value(key.c_str(), allocator).Move(),
+            rapidjson::Value(values.front().c_str(), allocator).Move(),
+            allocator);
       }
     } else {
       if (values.size() == 1) {
-        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(values.front().c_str(), allocator).Move(),
-                      allocator);
+        rum.AddMember(
+            rapidjson::Value(key.c_str(), allocator).Move(),
+            rapidjson::Value(values.front().c_str(), allocator).Move(),
+            allocator);
       } else {
         rapidjson::Value array(rapidjson::kArrayType);
         for (const auto& entry : values) {
@@ -162,9 +163,7 @@ void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
 }
 
 char* set_config(ngx_conf_t* cf, ngx_command_t* command, void* conf) {
-  auto& rum_config =
-      *static_cast<rum_config_map*>(
-          conf);
+  auto& rum_config = *static_cast<rum_config_map*>(conf);
 
   if (cf->args->nelts < 2) {
     return conf_err(
