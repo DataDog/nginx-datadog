@@ -11,6 +11,7 @@ available on PATH will be used.
 """
 
 import functools
+
 print = functools.partial(print, flush=True)
 
 import argparse
@@ -443,7 +444,9 @@ def cmd_mirror(args: argparse.Namespace) -> int:
     )
 
     # Phase 1: check which images need copying
-    print(f"Phase 1: checking which images need copying ({args.jobs} workers)...")
+    print(
+        f"Phase 1: checking which images need copying ({args.jobs} workers)..."
+    )
 
     def _check(source: str, info: dict):
         target = info["target"]
@@ -475,7 +478,9 @@ def cmd_mirror(args: argparse.Namespace) -> int:
                 continue
             if present:
                 already_present += 1
-                print(f"  = [{checked}/{len(images)}] {source} (already mirrored)")
+                print(
+                    f"  = [{checked}/{len(images)}] {source} (already mirrored)"
+                )
             else:
                 to_copy.append((source, info))
                 print(f"  + [{checked}/{len(images)}] {source} (needs copy)")
