@@ -46,10 +46,10 @@ from typing import Any, Final
 from urllib.parse import quote
 from ingress_nginx import build_init_container, create_multiarch_images
 
-GITLAB_HOST: Final[str]  = "https://gitlab.ddbuild.io"
-GITLAB_API: Final[str]  = f"{GITLAB_HOST}/api/v4"
-GITLAB_PROJECT: Final[str]  = "DataDog/nginx-datadog"
-GITLAB_PROJECT_ENCODED: Final[str]  = quote(GITLAB_PROJECT, safe="")
+GITLAB_HOST: Final[str] = "https://gitlab.ddbuild.io"
+GITLAB_API: Final[str] = f"{GITLAB_HOST}/api/v4"
+GITLAB_PROJECT: Final[str] = "DataDog/nginx-datadog"
+GITLAB_PROJECT_ENCODED: Final[str] = quote(GITLAB_PROJECT, safe="")
 
 MODULE_NAME: Final[str] = "ngx_http_datadog_module.so"
 MODULE_DEBUG_NAME: Final[str] = MODULE_NAME + ".debug"
@@ -103,7 +103,9 @@ def resolve_gitlab_token(cli_token: str | None = None) -> str:
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
         except (subprocess.SubprocessError, OSError) as exc:
-            print(f"WARNING: glab found at {glab_exe} but token extraction failed: {exc}", file=sys.stderr)
+            print(
+                f"WARNING: glab found at {glab_exe} but token extraction failed: {exc}",
+                file=sys.stderr)
 
     raise MissingDependency(
         "No GitLab API token found. Provide one via --ci-token, "
@@ -145,7 +147,8 @@ def gitlab_api_json(path: str, token: str) -> Any:
     return json.load(response)
 
 
-def get_pipeline_jobs(pipeline_id: str, token: str) -> list[dict[str, Any]] | None:
+def get_pipeline_jobs(pipeline_id: str,
+                      token: str) -> list[dict[str, Any]] | None:
     """Retrieve all jobs for a GitLab pipeline, handling pagination."""
     jobs: list[dict[str, Any]] = []
     page = 1
@@ -271,10 +274,12 @@ def release_ingress_nginx(args: typing.Any) -> int:
     """
     jobs = get_pipeline_jobs(args.pipeline_id, gitlab_token)
     if jobs is None:
-        print("ERROR: Pipeline contains unsuccessful jobs. Aborting release.", file=sys.stderr)
+        print("ERROR: Pipeline contains unsuccessful jobs. Aborting release.",
+              file=sys.stderr)
         return 1
     if not jobs:
-        print(f"ERROR: No jobs found for pipeline {args.pipeline_id}.", file=sys.stderr)
+        print(f"ERROR: No jobs found for pipeline {args.pipeline_id}.",
+              file=sys.stderr)
         return 1
 
     collected_images = defaultdict(list)
@@ -339,10 +344,12 @@ def release_module(args) -> int:
     """
     jobs = get_pipeline_jobs(args.pipeline_id, gitlab_token)
     if jobs is None:
-        print("ERROR: Pipeline contains unsuccessful jobs. Aborting release.", file=sys.stderr)
+        print("ERROR: Pipeline contains unsuccessful jobs. Aborting release.",
+              file=sys.stderr)
         return 1
     if not jobs:
-        print(f"ERROR: No jobs found for pipeline {args.pipeline_id}.", file=sys.stderr)
+        print(f"ERROR: No jobs found for pipeline {args.pipeline_id}.",
+              file=sys.stderr)
         return 1
 
     with tempfile.TemporaryDirectory() as work_dir_str:
@@ -412,7 +419,10 @@ if __name__ == "__main__":
         description="Build and publish a release of nginx-datadog.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--version-tag", required=True, help="Tag of the version to release (example: 'v1.2.3')")
+    parser.add_argument(
+        "--version-tag",
+        required=True,
+        help="Tag of the version to release (example: 'v1.2.3')")
     parser.add_argument("--ci-token",
                         help="GitLab API token (auto-detected if not set)")
     parser.add_argument(
