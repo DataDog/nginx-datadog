@@ -79,7 +79,7 @@
   variables:
     NGINX_FLAVOR: ingress-nginx
   script:
-    - python3 test/bin/run.py --image registry.ddbuild.io/ci/nginx-datadog/tests/images/registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
+    - python3 test/bin/run.py --image registry.ddbuild.io/ci/nginx-datadog/mirror/registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -87,7 +87,7 @@
 .test-openresty:
   extends: .test
   script:
-    - python3 test/bin/run.py --image registry.ddbuild.io/ci/nginx-datadog/tests/images/openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - python3 test/bin/run.py --image registry.ddbuild.io/ci/nginx-datadog/mirror/openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log

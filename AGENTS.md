@@ -13,5 +13,5 @@ uv run bin/mirror_images.py lint                       # check for public refs
 ```
 
 - Config: `mirror_images.yaml` / `mirror_images.lock.yaml`
-- Mirror prefix: `registry.ddbuild.io/ci/nginx-datadog/tests/images/`
+- Mirror prefix: `registry.ddbuild.io/ci/nginx-datadog/mirror/`
 - `build_env/Dockerfile` uses `MIRROR_REGISTRY` ARG (set to `""` in GHA to use public registries)

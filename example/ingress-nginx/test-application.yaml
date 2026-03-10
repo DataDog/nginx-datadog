@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: echo-server
-        image: registry.ddbuild.io/ci/nginx-datadog/tests/images/ealen/echo-server:latest
+        image: registry.ddbuild.io/ci/nginx-datadog/mirror/ealen/echo-server:latest
         ports:
         - containerPort: 80
 ---

@@ -7,7 +7,7 @@ controller:
     - name: nginx-datadog
       image:
         registry: docker.io
-        image: registry.ddbuild.io/ci/nginx-datadog/tests/images/datadog/ingress-nginx-injection
+        image: registry.ddbuild.io/ci/nginx-datadog/mirror/datadog/ingress-nginx-injection
         # The first part of the tag, 'v1.14.1', is the version of the ingress-nginx controller.
         # The second part of the tag, '-dd.v1.11.0', which is optional, is the version of the
         # Datadog Nginx module.

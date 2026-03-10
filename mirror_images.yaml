@@ -7,14 +7,14 @@
 # - nginx:1.27.5:
 #     target: "registry.ddbuild.io/ci/nginx-datadog/custom/nginx:1.27.5"
 #
-# Default destination registry: registry.ddbuild.io/ci/nginx-datadog/tests/images
+# Default destination registry: registry.ddbuild.io/ci/nginx-datadog/mirror
 
 - "alpine/curl-http3"
 - "alpine:3.19"
 - "alpine:3.20.3"
 - "amazonlinux:2023.3.20240219.0"
 - datadog/agent:
-    target: "registry.ddbuild.io/ci/nginx-datadog/tests/images/datadog/agent"
+    target: "registry.ddbuild.io/ci/nginx-datadog/mirror/datadog/agent"
 - "ealen/echo-server:latest"
 - "ghcr.io/astral-sh/uv:0.9.28"
 - "ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0"

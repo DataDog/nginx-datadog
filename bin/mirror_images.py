@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import yaml
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-DEST_REGISTRY = "registry.ddbuild.io/ci/nginx-datadog/tests/images"
+DEST_REGISTRY = "registry.ddbuild.io/ci/nginx-datadog/mirror"
 MIRROR_YAML = os.path.join(PROJECT_DIR, "mirror_images.yaml")
 LOCK_YAML = os.path.join(PROJECT_DIR, "mirror_images.lock.yaml")
 
