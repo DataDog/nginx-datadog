@@ -83,10 +83,7 @@ services:
   # the service ("uwsgi") and the request's headers.  This way, tests can see
   # which trace context, if any, was propagated to the reverse proxied server.
   uwsgi:
-    image: nginx-datadog-test-services-uwsgi
-    build:
-      context: ./services/uwsgi
-      dockerfile: ./Dockerfile
+    image: registry.ddbuild.io/ci/nginx-datadog/uwsgi
     stop_signal: SIGQUIT
     environment:
       - DD_ENV=prod
