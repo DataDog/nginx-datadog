@@ -387,6 +387,7 @@ target "ssi-package-assemble" {
   }
 
   tags   = ["ssi-sources:${arch}"]
+  output = ["type=local,dest=${OUTPUT_DIR}/ssi-sources/${arch}"]
   target = "export"
 }
 

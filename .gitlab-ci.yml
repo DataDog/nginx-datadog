@@ -1,13 +1,26 @@
-stages:
-  - build-and-test-fast
-  - build-all
-  - test-all
-  - benchmarks
-
 include:
   - local: ".gitlab/build-and-test-all.yml"
   - local: ".gitlab/build-and-test-fast.yml"
   - local: ".gitlab/ssi-package.yml"
+  - local: ".gitlab/one-pipeline.locked.yml"
+
+variables:
+  OCI_PACKAGE_NAME: datadog-nginx-ssi
+  AGENT_REPO_PRODUCT_NAME: nginx_datadog
+  LIB_INJECTION_NAME: dd-lib-nginx-init
+  REPO_NOTIFICATION_CHANNEL: "#injection-platform"
+
+stages:
+  - build-and-test-fast
+  - build-all
+  - test-all
+  - build
+  - shared-pipeline
+  - benchmarks
+
+package-oci:
+  needs:
+    - ssi-build
 
 macrobenchmarks:
   stage: benchmarks
