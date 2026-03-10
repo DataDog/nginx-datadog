@@ -1,4 +1,4 @@
-FROM alpine:3.19
+FROM registry.ddbuild.io/images/mirror/alpine:3.19
 
 # Note: WORKDIR must already be set  before installing npm.
 # If WORKDIR is not set, then npm will be installed at the container root, which
@@ -7,6 +7,7 @@ RUN mkdir /opt/app
 WORKDIR /opt/app
 
 RUN apk update && apk add nodejs npm
+RUN npm config set fetch-retries 5
 RUN npm install dd-trace
 
 COPY ./http.js /opt/app/http.js

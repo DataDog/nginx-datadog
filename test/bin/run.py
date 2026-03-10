@@ -13,6 +13,7 @@ import shutil
 import argparse
 import sys
 import os
+import time
 
 DRY_RUN = False
 PROJECT_DIR = os.path.dirname(
@@ -23,6 +24,33 @@ def run_cmd(cmd: str, *args, **kwargs) -> None:
     print(cmd)
     if not DRY_RUN:
         subprocess.run(cmd, shell=True, check=True, *args, **kwargs)
+
+
+def run_cmd_with_retries(cmd: str, retries: int = 3, **kwargs) -> None:
+    start = time.monotonic()
+    try:
+        for attempt in range(1, retries + 1):
+            try:
+                run_cmd(cmd, **kwargs)
+                return
+            except subprocess.CalledProcessError:
+                if attempt == retries:
+                    raise
+                elapsed = time.monotonic() - start
+                print(f"\n{'!' * 60}")
+                print(f"  RETRY: Attempt {attempt}/{retries} failed after {elapsed:.1f}s")
+                print(f"{'!' * 60}\n")
+    except subprocess.CalledProcessError:
+        elapsed = time.monotonic() - start
+        print(f"\n{'!' * 60}")
+        print(f"  BUILD FAILED after {retries} attempts ({elapsed:.1f}s total)")
+        print(f"{'!' * 60}\n")
+        raise
+    finally:
+        elapsed = time.monotonic() - start
+        print(f"\n{'=' * 60}")
+        print(f"  Build step finished in {elapsed:.1f}s")
+        print(f"{'=' * 60}\n")
 
 
 def validate_file(arg):
@@ -53,7 +81,7 @@ def main() -> int:
     shutil.copy(src=args.module_path,
                 dst=os.path.join(PROJECT_DIR, "test", "services", "nginx"))
 
-    run_cmd(
+    run_cmd_with_retries(
         f"docker compose build --build-arg BASE_IMAGE={args.image} --parallel --progress=plain",
         cwd=os.path.join(PROJECT_DIR, "test"),
     )

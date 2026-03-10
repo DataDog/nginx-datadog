@@ -1,4 +1,4 @@
-FROM alpine:3.19
+FROM registry.ddbuild.io/images/mirror/alpine:3.19
 
 RUN mkdir /opt/app
 WORKDIR /opt/app

@@ -1,5 +1,9 @@
+variables:
+  CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
+  TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/tests/images"
+
 .build:
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  image: $CI_REGISTRY/nginx_musl_toolchain
   tags: ["arch:$ARCH"]
   variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -16,6 +20,19 @@
   artifacts:
     paths:
       - artifacts/$ARCH/$NGINX_VERSION/$WAF/
+
+.build-nginx-rum:
+  extends: .build
+  variables:
+    RUM: "ON"
+  script:
+    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
+    - make build-musl-aux
+    - mkdir -p artifacts-rum/$ARCH/$NGINX_VERSION/$WAF
+    - cp .musl-build/ngx_http_datadog_module.so* artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
+  artifacts:
+    paths:
+      - artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
 
 .build-openresty:
   extends: .build
@@ -40,13 +57,23 @@
       - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
 
 .test:
-  image: registry.ddbuild.io/ci/nginx-datadog/test
+  image: $CI_REGISTRY/test
   tags: ["docker-in-docker:$ARCH"]
 
 .test-nginx:
   extends: .test
   script:
-    - python3 test/bin/run.py --image $BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+  artifacts:
+    paths:
+      - test/logs/test.log
+
+.test-nginx-rum:
+  extends: .test
+  variables:
+    RUM: "ON"
+  script:
+    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -56,7 +83,7 @@
   variables:
     NGINX_FLAVOR: ingress-nginx
   script:
-    - python3 test/bin/run.py --image registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
+    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -64,7 +91,7 @@
 .test-openresty:
   extends: .test
   script:
-    - python3 test/bin/run.py --image openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log

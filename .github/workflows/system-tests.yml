@@ -19,6 +19,7 @@ jobs:
       #   - https://github.com/DataDog/system-tests/blob/main/utils/scripts/load-binary.sh
       NGINX_VERSION: 1.29.5
       WAF: ON
+      MIRROR_REGISTRY: ""
     steps:
       - name: checkout
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
