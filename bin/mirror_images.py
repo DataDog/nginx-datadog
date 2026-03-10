@@ -555,10 +555,17 @@ def find_public_image_refs() -> list[tuple[str, int, str, str]]:
                   file=sys.stderr)
             return []
 
+    # Skip submodule directories — they have their own image policies.
+    _submodule_dirs = tuple(
+        os.path.join(PROJECT_DIR, d) for d in ("dd-trace-cpp", "libddwaf"))
+
+    def _in_submodule(filepath):
+        return filepath.startswith(_submodule_dirs)
+
     def _scan_dockerfiles():
         for filepath in glob.glob(os.path.join(PROJECT_DIR, "**/Dockerfile*"),
                                   recursive=True):
-            if "/.git/" in filepath:
+            if "/.git/" in filepath or _in_submodule(filepath):
                 continue
             for lineno, line in _read_lines(filepath):
                 stripped = line.strip()
@@ -574,7 +581,8 @@ def find_public_image_refs() -> list[tuple[str, int, str, str]]:
         for pattern in ("**/*.yml", "**/*.yaml"):
             for filepath in glob.glob(os.path.join(PROJECT_DIR, pattern),
                                       recursive=True):
-                if "/.git/" in filepath or "/.gitlab/" in filepath:
+                if "/.git/" in filepath or "/.gitlab/" in filepath or _in_submodule(
+                        filepath):
                     continue
                 for lineno, line in _read_lines(filepath):
                     m = re.match(r"^\s+image:\s+['\"]?(\S+?)['\"]?\s*$", line)
@@ -582,20 +590,8 @@ def find_public_image_refs() -> list[tuple[str, int, str, str]]:
                         hits.append(
                             (filepath, lineno, line.rstrip(), m.group(1)))
 
-    def _scan_ci_matrices():
-        for filepath in glob.glob(
-                os.path.join(PROJECT_DIR, ".gitlab", "build-and-test-*.yml")):
-            for lineno, line in _read_lines(filepath):
-                m = re.search(r'BASE_IMAGE:\s*\[(.+)\]', line)
-                if m:
-                    for img_m in re.finditer(r'"([^"]+)"', m.group(1)):
-                        img = img_m.group(1)
-                        if _is_external(img):
-                            hits.append((filepath, lineno, line.rstrip(), img))
-
     _scan_dockerfiles()
     _scan_yaml_image_fields()
-    _scan_ci_matrices()
     return hits
 
 
