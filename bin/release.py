@@ -46,10 +46,10 @@ from typing import Any, Final
 from urllib.parse import quote
 from ingress_nginx import build_init_container, create_multiarch_images
 
-GITLAB_HOST = "https://gitlab.ddbuild.io"
-GITLAB_API = f"{GITLAB_HOST}/api/v4"
-GITLAB_PROJECT = "DataDog/nginx-datadog"
-GITLAB_PROJECT_ENCODED = quote(GITLAB_PROJECT, safe="")
+GITLAB_HOST: Final[str]  = "https://gitlab.ddbuild.io"
+GITLAB_API: Final[str]  = f"{GITLAB_HOST}/api/v4"
+GITLAB_PROJECT: Final[str]  = "DataDog/nginx-datadog"
+GITLAB_PROJECT_ENCODED: Final[str]  = quote(GITLAB_PROJECT, safe="")
 
 MODULE_NAME: Final[str] = "ngx_http_datadog_module.so"
 MODULE_DEBUG_NAME: Final[str] = MODULE_NAME + ".debug"
@@ -74,14 +74,6 @@ def get_gpg():
         raise MissingDependency(
             'The "gpg" command must be available and configured to be able to create detached signatures of release artifacts.'
         )
-    return exe_path
-
-
-def get_git():
-    exe_path = shutil.which("git")
-    if exe_path is None:
-        raise MissingDependency(
-            'The "git" command must be available to tag the release commit.')
     return exe_path
 
 
@@ -420,7 +412,7 @@ if __name__ == "__main__":
         description="Build and publish a release of nginx-datadog.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--version-tag")
+    parser.add_argument("--version-tag", required=True, help="Tag of the version to release (example: 'v1.2.3')")
     parser.add_argument("--ci-token",
                         help="GitLab API token (auto-detected if not set)")
     parser.add_argument(
@@ -454,7 +446,6 @@ if __name__ == "__main__":
         gitlab_token = resolve_gitlab_token(options.ci_token)
         gh_exe = get_gh()
         gpg_exe = get_gpg()
-        git_exe = get_git()
     except (MissingDependency, ValueError) as error:
         print(str(error), file=sys.stderr)
         sys.exit(1)
@@ -463,7 +454,6 @@ if __name__ == "__main__":
         "gitlab_host": GITLAB_HOST,
         "gh": gh_exe,
         "gpg": gpg_exe,
-        "git": git_exe,
     })
 
     sys.exit(options.func(options))
