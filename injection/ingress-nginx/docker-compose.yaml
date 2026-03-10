@@ -13,7 +13,7 @@ services:
 
   # testagent is used to collect data from the library to validate.
   testagent:
-    image: registry.ddbuild.io/ci/nginx-datadog/tests/images/ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
+    image: registry.ddbuild.io/ci/nginx-datadog/mirror/ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0
     ports:
       - "8126:8126"
 
@@ -22,7 +22,7 @@ services:
     depends_on:
       - lib_inject
       - testagent
-    image: registry.ddbuild.io/ci/nginx-datadog/tests/images/nginx:1.25.3
+    image: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.25.3
     environment:
       - DD_TRACE_AGENT_URL=http://testagent:8126
       - DD_AGENT_HOST=testagent

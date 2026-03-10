@@ -38,12 +38,15 @@ def run_cmd_with_retries(cmd: str, retries: int = 3, **kwargs) -> None:
                     raise
                 elapsed = time.monotonic() - start
                 print(f"\n{'!' * 60}")
-                print(f"  RETRY: Attempt {attempt}/{retries} failed after {elapsed:.1f}s")
+                print(
+                    f"  RETRY: Attempt {attempt}/{retries} failed after {elapsed:.1f}s"
+                )
                 print(f"{'!' * 60}\n")
     except subprocess.CalledProcessError:
         elapsed = time.monotonic() - start
         print(f"\n{'!' * 60}")
-        print(f"  BUILD FAILED after {retries} attempts ({elapsed:.1f}s total)")
+        print(
+            f"  BUILD FAILED after {retries} attempts ({elapsed:.1f}s total)")
         print(f"{'!' * 60}\n")
         raise
     finally:

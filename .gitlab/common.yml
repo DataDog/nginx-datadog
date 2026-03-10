@@ -1,6 +1,6 @@
 variables:
   CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
-  TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/tests/images"
+  TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
 
 .build:
   image: $CI_REGISTRY/nginx_musl_toolchain
