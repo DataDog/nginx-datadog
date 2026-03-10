@@ -10,6 +10,9 @@ operations instead of Python registry libraries. Whichever tool is
 available on PATH will be used.
 """
 
+import functools
+print = functools.partial(print, flush=True)
+
 import argparse
 import fnmatch
 import glob
@@ -440,16 +443,21 @@ def cmd_mirror(args: argparse.Namespace) -> int:
     )
 
     # Phase 1: check which images need copying
+    print(f"Phase 1: checking which images need copying ({args.jobs} workers)...")
+
     def _check(source: str, info: dict):
         target = info["target"]
         digest = info["digest"]
         # Check if digest already exists at target by referencing target@digest
         target_repo = target.rsplit(":", 1)[0] if ":" in target else target
-        present = check_digest_exists(f"{target_repo}@{digest}", digest_tool)
+        ref = f"{target_repo}@{digest}"
+        print(f"  ? {source} -> {target}")
+        present = check_digest_exists(ref, digest_tool)
         return source, info, present
 
     to_copy = []
     already_present = 0
+    checked = 0
 
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         futures = {
@@ -458,6 +466,7 @@ def cmd_mirror(args: argparse.Namespace) -> int:
         }
         for future in as_completed(futures):
             src = futures[future]
+            checked += 1
             try:
                 source, info, present = future.result()
             except Exception as exc:
@@ -466,9 +475,10 @@ def cmd_mirror(args: argparse.Namespace) -> int:
                 continue
             if present:
                 already_present += 1
-                print(f"  =  {source} (already mirrored)")
+                print(f"  = [{checked}/{len(images)}] {source} (already mirrored)")
             else:
                 to_copy.append((source, info))
+                print(f"  + [{checked}/{len(images)}] {source} (needs copy)")
 
     if not to_copy:
         print(f"\nAll {len(images)} images are up to date.")
@@ -479,12 +489,15 @@ def cmd_mirror(args: argparse.Namespace) -> int:
     )
 
     # Phase 2: copy missing images
+    print(f"\nPhase 2: copying {len(to_copy)} images using {copy_tool}...")
     errors = []
-    for source, info in sorted(to_copy):
+    for i, (source, info) in enumerate(sorted(to_copy), 1):
         digest = info["digest"]
         target = info["target"]
         source_ref = f"{parse_image_ref(source).rsplit(':', 1)[0]}@{digest}"
-        print(f"  -> {source} ({digest[:19]}...)")
+        print(f"  -> [{i}/{len(to_copy)}] {source} ({digest[:19]}...)")
+        print(f"     src:  {source_ref}")
+        print(f"     dest: {target}")
         if args.dry_run:
             print(f"     [dry-run] {copy_tool} copy {source_ref} {target}")
             continue
