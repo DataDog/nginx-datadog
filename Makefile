@@ -41,14 +41,19 @@ BUILD_IMAGE := nginx_musl_toolchain
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
 CI_BUILD_IMAGE := $(CI_REGISTRY)/$(BUILD_IMAGE)
 CI_TEST_IMAGE := $(CI_REGISTRY)/test
+UWSGI_TEST_IMAGE := $(CI_REGISTRY)/uwsgi
 ifdef GITLAB_CI
 	TOOLCHAIN_DEPENDENCY :=
+	TEST_DEPENDENCY :=
 else
 	TOOLCHAIN_DEPENDENCY := build-local-musl-toolchain
+	TEST_DEPENDENCY := build-local-uwsgi-test-image
 endif
 
-# build-push-musl-toolchain and build-push-test-image must be run, once, from a
-#   developer machine, to put in registry.ddbuild.io the needed Docker images.
+# build-push-images-for-C must be run, once, from a developer machine, to put in registry.ddbuild.io the needed Docker images.
+.PHONY: build-push-images-for-CI
+build-push-images-for-CI: build-push-musl-toolchain build-push-test-image build-push-uwsgi-test-image
+
 .PHONY: build-push-musl-toolchain
 build-push-musl-toolchain:
 	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(CI_BUILD_IMAGE):latest-amd64 build_env
@@ -68,6 +73,18 @@ build-push-test-image:
 	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(CI_TEST_IMAGE):latest-arm64 test
 	docker push $(CI_TEST_IMAGE):latest-arm64
 	docker buildx imagetools create -t $(CI_TEST_IMAGE):latest $(CI_TEST_IMAGE):latest-amd64 $(CI_TEST_IMAGE):latest-arm64
+
+.PHONY: build-local-uwsgi-test-image
+build-local-uwsgi-test-image:
+	docker build --progress=plain --platform $(DOCKER_PLATFORM) -t $(UWSGI_TEST_IMAGE):latest test/services/uwsgi
+
+.PHONY: build-push-uwsgi-test-image
+build-push-uwsgi-test-image:
+	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(UWSGI_TEST_IMAGE):latest-amd64 test/services/uwsgi
+	docker push $(UWSGI_TEST_IMAGE):latest-amd64
+	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(UWSGI_TEST_IMAGE):latest-arm64 test/services/uwsgi
+	docker push $(UWSGI_TEST_IMAGE):latest-arm64
+	docker buildx imagetools create -t $(UWSGI_TEST_IMAGE):latest $(UWSGI_TEST_IMAGE):latest-amd64 $(UWSGI_TEST_IMAGE):latest-arm64
 
 
 # ----- Sources Dependencies, Format and Lint
@@ -221,7 +238,7 @@ build-musl-aux-ingress:
 build-and-test: build-musl test
 
 .PHONY: test
-test:
+test: $(TEST_DEPENDENCY)
 	python3 test/bin/run.py --image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine} \
 		--module-path .musl-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
@@ -230,7 +247,7 @@ test:
 build-and-test-openresty: build-openresty test-openresty
 
 .PHONY: test-openresty
-test-openresty:
+test-openresty: $(TEST_DEPENDENCY)
 	RESTY_TEST=ON python3 test/bin/run.py --image ${BASE_IMAGE} \
 		--module-path .openresty-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
