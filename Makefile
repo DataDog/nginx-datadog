@@ -222,7 +222,7 @@ build-and-test: build-musl test
 
 .PHONY: test
 test:
-	python3 test/bin/run.py --image ${BASE_IMAGE} \
+	python3 test/bin/run.py --image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine} \
 		--module-path .musl-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
 
