@@ -50,8 +50,9 @@ build-ingress-nginx-fast:
     matrix:
       - ARCH: ["amd64", "arm64"]
         INGRESS_NGINX_VERSION:
-          - "1.13.7"
-          - "1.14.3"
+          - "1.13.8"
+          - "1.14.4"
+          - "1.15.0"
 
 build-openresty-fast:
   extends:
@@ -128,8 +129,9 @@ test-ingress-nginx-fast:
     matrix:
       - ARCH: ["amd64", "arm64"]
         INGRESS_NGINX_VERSION:
-          - "1.13.7"
-          - "1.14.3"
+          - "1.13.8"
+          - "1.14.4"
+          - "1.15.0"
 
 test-openresty-fast:
   extends:
