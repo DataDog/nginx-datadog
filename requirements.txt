@@ -1,3 +1,2 @@
-# This file will no more be needed once CircleCI is gone.
-werkzeug==3.1.5
+werkzeug==3.1.6
 yapf==0.43.0

@@ -3,7 +3,6 @@
 BUILD_DIR ?= .build
 BUILD_TESTING ?= ON
 BUILD_TYPE ?= RelWithDebInfo
-CIRCLE_CFG ?= .circleci/config.yml
 COVERAGE ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
@@ -35,40 +34,54 @@ ifeq ($(DOCKER_PLATFORM),linux/aarch64)
 	DOCKER_PLATFORM := linux/arm64
 endif
 
-# On CircleCI, we build locally the nginx_musl_toolchain Docker image, before using it in some
-#   targets via $(TOOLCHAIN_DEPENDENCY).
-# On GitLab, we get the nginx_musl_toolchain Docker image from registry.ddbuild.io.
 BUILD_IMAGE := nginx_musl_toolchain
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
 CI_BUILD_IMAGE := $(CI_REGISTRY)/$(BUILD_IMAGE)
 CI_TEST_IMAGE := $(CI_REGISTRY)/test
+UWSGI_TEST_IMAGE := $(CI_REGISTRY)/uwsgi
+
+# On GitLab, we get the Docker images from registry.ddbuild.io.
+# Locally, we build them before using them in some targets via $(TOOLCHAIN_DEPENDENCY) and $(TEST_DEPENDENCY).
 ifdef GITLAB_CI
 	TOOLCHAIN_DEPENDENCY :=
+	TEST_DEPENDENCY :=
 else
 	TOOLCHAIN_DEPENDENCY := build-local-musl-toolchain
+	TEST_DEPENDENCY := build-local-uwsgi-test-image
 endif
-
-# build-push-musl-toolchain and build-push-test-image must be run, once, from a
-#   developer machine, to put in registry.ddbuild.io the needed Docker images.
-.PHONY: build-push-musl-toolchain
-build-push-musl-toolchain:
-	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(CI_BUILD_IMAGE):latest-amd64 build_env
-	docker push $(CI_BUILD_IMAGE):latest-amd64
-	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(CI_BUILD_IMAGE):latest-arm64 build_env
-	docker push $(CI_BUILD_IMAGE):latest-arm64
-	docker buildx imagetools create -t $(CI_BUILD_IMAGE):latest $(CI_BUILD_IMAGE):latest-amd64 $(CI_BUILD_IMAGE):latest-arm64
 
 .PHONY: build-local-musl-toolchain
 build-local-musl-toolchain:
-	docker build --progress=plain --platform $(DOCKER_PLATFORM) --build-arg ARCH=$(ARCH) -t $(BUILD_IMAGE) build_env
+	docker build --progress=plain --platform $(DOCKER_PLATFORM) --build-arg ARCH=$(ARCH) $(if $(BASE_IMAGE), --build-arg BASE_IMAGE=$(BASE_IMAGE),) -t $(BUILD_IMAGE) build_env
+
+.PHONY: build-local-uwsgi-test-image
+build-local-uwsgi-test-image:
+	docker build --progress=plain --platform $(DOCKER_PLATFORM) -t $(UWSGI_TEST_IMAGE):latest test/services/uwsgi
+
+# build-push-images-for-CI must be run, once, from a developer machine, to put in registry.ddbuild.io the needed Docker images.
+.PHONY: build-push-images-for-CI
+build-push-images-for-CI: build-push-musl-toolchain build-push-test-image build-push-uwsgi-test-image
+
+.PHONY: build-push-musl-toolchain
+build-push-musl-toolchain:
+	$(call build-push-multiarch,$(CI_BUILD_IMAGE),build_env)
 
 .PHONY: build-push-test-image
 build-push-test-image:
-	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(CI_TEST_IMAGE):latest-amd64 test
-	docker push $(CI_TEST_IMAGE):latest-amd64
-	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(CI_TEST_IMAGE):latest-arm64 test
-	docker push $(CI_TEST_IMAGE):latest-arm64
-	docker buildx imagetools create -t $(CI_TEST_IMAGE):latest $(CI_TEST_IMAGE):latest-amd64 $(CI_TEST_IMAGE):latest-arm64
+	$(call build-push-multiarch,$(CI_TEST_IMAGE),test)
+
+.PHONY: build-push-uwsgi-test-image
+build-push-uwsgi-test-image:
+	$(call build-push-multiarch,$(UWSGI_TEST_IMAGE),test/services/uwsgi)
+
+# $(1): image name, $(2): build context
+define build-push-multiarch
+	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(1):latest-amd64 $(2)
+	docker push $(1):latest-amd64
+	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(1):latest-arm64 $(2)
+	docker push $(1):latest-arm64
+	docker buildx imagetools create -t $(1):latest $(1):latest-amd64 $(1):latest-arm64
+endef
 
 
 # ----- Sources Dependencies, Format and Lint
@@ -90,13 +103,6 @@ format: .clang-format
 .PHONY: lint
 lint: .clang-format
 	bin/lint.sh
-
-.PHONY: circleci-config
-circleci-config:
-	@echo "Compiling circleci config"
-	circleci config pack .circleci/src > $(CIRCLE_CFG)
-	@echo "Validating circleci config"
-	circleci config validate $(CIRCLE_CFG)
 
 
 # ----- Build
@@ -229,8 +235,8 @@ build-musl-aux-ingress:
 build-and-test: build-musl test
 
 .PHONY: test
-test:
-	python3 test/bin/run.py --image ${BASE_IMAGE} \
+test: $(TEST_DEPENDENCY)
+	python3 test/bin/run.py --image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine} \
 		--module-path .musl-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
 
@@ -238,7 +244,7 @@ test:
 build-and-test-openresty: build-openresty test-openresty
 
 .PHONY: test-openresty
-test-openresty:
+test-openresty: $(TEST_DEPENDENCY)
 	RESTY_TEST=ON python3 test/bin/run.py --image ${BASE_IMAGE} \
 		--module-path .openresty-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
