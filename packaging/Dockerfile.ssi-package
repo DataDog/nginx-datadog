@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+# Dockerfile for creating SSI OCI packages using datadog-package tool
+#
+# Uses pre-built datadog-package tool from registry to create OCI packages.
+
+FROM registry.ddbuild.io/ci/datadog-packages/artifact@sha256:6e746724c68841b49456f69675f8cd45812097b332d6ca94133ce79729e32211 AS datadog-packager
+
+# Packaging stage - creates per-arch packages
+FROM alpine:3.20 AS packager
+COPY --from=datadog-packager /datadog-package /usr/local/bin/
+
+WORKDIR /work
+
+ARG PACKAGE_NAME
+ARG VERSION
+ARG TARGETOS
+ARG TARGETARCH
+
+# Copy sources from the sources context
+COPY --from=sources . ./sources/
+
+RUN datadog-package create \
+      --version="${VERSION}" \
+      --package="${PACKAGE_NAME}" \
+      --arch="${TARGETARCH}" \
+      --os="${TARGETOS}" \
+      ./sources
+
+FROM scratch AS package-export
+COPY --from=packager /work/*.tar /
+
+# Merge stage - merges all arch packages
+FROM alpine:3.20 AS merger
+COPY --from=datadog-packager /datadog-package /usr/local/bin/
+
+WORKDIR /work
+COPY --from=packages . ./
+RUN datadog-package merge *.tar
+
+FROM scratch AS merge-export
+COPY --from=merger /work/merged.tar /

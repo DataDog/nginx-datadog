@@ -63,10 +63,30 @@ build-nginx-rum-all:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION:
           - "1.24.0"
+          - "1.25.0"
+          - "1.25.1"
+          - "1.25.2"
+          - "1.25.3"
+          - "1.25.4"
           - "1.25.5"
+          - "1.26.0"
+          - "1.26.1"
+          - "1.26.2"
           - "1.26.3"
+          - "1.27.0"
+          - "1.27.1"
+          - "1.27.2"
+          - "1.27.3"
+          - "1.27.4"
           - "1.27.5"
+          - "1.28.0"
+          - "1.28.1"
           - "1.28.2"
+          - "1.29.0"
+          - "1.29.1"
+          - "1.29.2"
+          - "1.29.3"
+          - "1.29.4"
           - "1.29.5"
         WAF: ["OFF"]
 
@@ -264,20 +284,100 @@ test-nginx-rum-all:
         NGINX_VERSION: ["1.24.0"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.0"]
+        NGINX_VERSION: ["1.25.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.1"]
+        NGINX_VERSION: ["1.25.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.2"]
+        NGINX_VERSION: ["1.25.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.3"]
+        NGINX_VERSION: ["1.25.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.4"]
+        NGINX_VERSION: ["1.25.4"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.25.5"]
         NGINX_VERSION: ["1.25.5"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.26.0"]
+        NGINX_VERSION: ["1.26.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.26.1"]
+        NGINX_VERSION: ["1.26.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.26.2"]
+        NGINX_VERSION: ["1.26.2"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.26.3"]
         NGINX_VERSION: ["1.26.3"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.0"]
+        NGINX_VERSION: ["1.27.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.1"]
+        NGINX_VERSION: ["1.27.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.2"]
+        NGINX_VERSION: ["1.27.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.3"]
+        NGINX_VERSION: ["1.27.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.4"]
+        NGINX_VERSION: ["1.27.4"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.27.5"]
         NGINX_VERSION: ["1.27.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.0"]
+        NGINX_VERSION: ["1.28.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.1"]
+        NGINX_VERSION: ["1.28.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.28.2"]
         NGINX_VERSION: ["1.28.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.0"]
+        NGINX_VERSION: ["1.29.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.1"]
+        NGINX_VERSION: ["1.29.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.2"]
+        NGINX_VERSION: ["1.29.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.3"]
+        NGINX_VERSION: ["1.29.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.4"]
+        NGINX_VERSION: ["1.29.4"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.29.5"]
