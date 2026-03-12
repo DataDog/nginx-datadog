@@ -595,49 +595,164 @@ def find_public_image_refs() -> list[tuple[str, int, str, str]]:
     return hits
 
 
+def _collect_gitlab_ci_files(entry: str) -> list[str]:
+    """Starting from a GitLab CI YAML file, follow local includes and return all file paths."""
+    collected = []
+    visited = set()
+    queue = [entry]
+    while queue:
+        path = queue.pop(0)
+        abspath = os.path.join(PROJECT_DIR, path) if not os.path.isabs(path) else path
+        if abspath in visited or not os.path.isfile(abspath):
+            continue
+        visited.add(abspath)
+        collected.append(abspath)
+        try:
+            with open(abspath) as f:
+                data = yaml.safe_load(f)
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        includes = data.get("include", [])
+        if isinstance(includes, dict):
+            includes = [includes]
+        if not isinstance(includes, list):
+            continue
+        for inc in includes:
+            if isinstance(inc, str):
+                queue.append(os.path.join(PROJECT_DIR, inc))
+            elif isinstance(inc, dict) and "local" in inc:
+                queue.append(os.path.join(PROJECT_DIR, inc["local"]))
+    return collected
+
+
+# Templates that map matrix variable names to image name patterns.
+# {value} is replaced with the matrix variable value.
+_GITLAB_MATRIX_IMAGE_TEMPLATES: dict[str, list[str]] = {
+    "BASE_IMAGE": ["{value}"],
+    "INGRESS_NGINX_VERSION": [
+        "registry.k8s.io/ingress-nginx/controller:v{value}"
+    ],
+    "RESTY_VERSION": ["openresty/openresty:{value}-alpine"],
+}
+
+
+def find_gitlab_ci_images() -> list[tuple[str, str]]:
+    """Extract public image references from GitLab CI matrix variables.
+
+    Returns a list of (source_file_relpath, image_ref) tuples.
+    """
+    ci_entry = os.path.join(PROJECT_DIR, ".gitlab-ci.yml")
+    if not os.path.isfile(ci_entry):
+        return []
+
+    results = []
+    for filepath in _collect_gitlab_ci_files(ci_entry):
+        try:
+            with open(filepath) as f:
+                data = yaml.safe_load(f)
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+
+        relpath = os.path.relpath(filepath, PROJECT_DIR)
+        for job_name, job in data.items():
+            if not isinstance(job, dict):
+                continue
+            parallel = job.get("parallel")
+            if not isinstance(parallel, dict):
+                continue
+            matrix = parallel.get("matrix")
+            if not isinstance(matrix, list):
+                continue
+            for combo in matrix:
+                if not isinstance(combo, dict):
+                    continue
+                for var_name, templates in _GITLAB_MATRIX_IMAGE_TEMPLATES.items():
+                    values = combo.get(var_name, [])
+                    if isinstance(values, str):
+                        values = [values]
+                    if not isinstance(values, list):
+                        continue
+                    for val in values:
+                        for tmpl in templates:
+                            img = tmpl.format(value=val)
+                            results.append((relpath, img))
+
+    return results
+
+
 def cmd_lint(args: argparse.Namespace) -> int:
     """Check that all images are referenced from registry.ddbuild.io."""
     declared = parse_mirror_yaml(args.mirror_yaml)
+    rc = 0
 
+    # --- Check 1: public image references in Dockerfiles and YAML ---
     public_refs = find_public_image_refs()
 
-    if not public_refs:
-        print("All image references use registry.ddbuild.io.")
-        return 0
+    if public_refs:
+        by_image: dict[str, list[tuple[str, int, str]]] = {}
+        for filepath, lineno, line, img in public_refs:
+            by_image.setdefault(img, []).append((filepath, lineno, line))
 
-    by_image: dict[str, list[tuple[str, int, str]]] = {}
-    for filepath, lineno, line, img in public_refs:
-        by_image.setdefault(img, []).append((filepath, lineno, line))
+        undeclared = []
+        print(
+            "Public image references found (should use registry.ddbuild.io mirror):\n"
+        )
+        for img in sorted(by_image):
+            target = declared.get(img)
+            if target:
+                replacement = target
+            else:
+                replacement = f"{DEST_REGISTRY}/{img}"
+                undeclared.append(img)
 
-    undeclared = []
-    print(
-        "Public image references found (should use registry.ddbuild.io mirror):\n"
-    )
-    for img in sorted(by_image):
-        target = declared.get(img)
-        if target:
-            replacement = target
+            print(f"  {img}")
+            print(f"    -> {replacement}")
+            for filepath, lineno, line in by_image[img]:
+                relpath = os.path.relpath(filepath, PROJECT_DIR)
+                print(f"       {relpath}:{lineno}")
+            print()
+
+        if undeclared:
+            print(
+                "Images not declared in mirror_images.yaml (add them first):")
+            for img in sorted(undeclared):
+                print(f"  - {img}")
+            print()
+
+        print(
+            f"{len(public_refs)} public image reference(s) across {len(by_image)} image(s)."
+        )
+        rc = 1
+
+    # --- Check 2: GitLab CI matrix images must be in mirror_images.yaml ---
+    ci_images = find_gitlab_ci_images()
+    if ci_images:
+        missing: dict[str, list[str]] = {}
+        for source_file, img in ci_images:
+            if img not in declared:
+                missing.setdefault(img, []).append(source_file)
+
+        if missing:
+            print("GitLab CI matrix images not declared in mirror_images.yaml:\n")
+            for img in sorted(missing):
+                sources = sorted(set(missing[img]))
+                print(f"  - {img}")
+                for src in sources:
+                    print(f"      {src}")
+            print(
+                f"\n{len(missing)} image(s) from GitLab CI not in mirror_images.yaml."
+            )
+            rc = 1
         else:
-            replacement = f"{DEST_REGISTRY}/{img}"
-            undeclared.append(img)
+            print("All GitLab CI matrix images are declared in mirror_images.yaml.")
 
-        print(f"  {img}")
-        print(f"    -> {replacement}")
-        for filepath, lineno, line in by_image[img]:
-            relpath = os.path.relpath(filepath, PROJECT_DIR)
-            print(f"       {relpath}:{lineno}")
-        print()
-
-    if undeclared:
-        print("Images not declared in mirror_images.yaml (add them first):")
-        for img in sorted(undeclared):
-            print(f"  - {img}")
-        print()
-
-    print(
-        f"{len(public_refs)} public image reference(s) across {len(by_image)} image(s)."
-    )
-    return 1
+    if rc == 0:
+        print("All image references use registry.ddbuild.io.")
+    return rc
 
 
 # ---------------------------------------------------------------------------
