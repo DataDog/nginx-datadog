@@ -7,6 +7,7 @@ RUN mkdir /opt/app
 WORKDIR /opt/app
 
 RUN apk update && apk add nodejs npm
+RUN npm config set fetch-retries 5
 RUN npm install dd-trace @grpc/grpc-js @grpc/proto-loader grpc-node-server-reflection yarn
 
 COPY ./grpc.js ./grpc.proto /opt/app/
