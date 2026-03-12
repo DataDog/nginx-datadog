@@ -1,8 +1,8 @@
 # Dockerfile for registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
 
-ARG MIRROR_REGISTRY=registry.ddbuild.io/ci/nginx-datadog/mirror/
-FROM ${MIRROR_REGISTRY}ghcr.io/astral-sh/uv:0.9.28 AS uv
-FROM ${MIRROR_REGISTRY}alpine:3.20.3 AS sysroot
+ARG MIRROR_REGISTRY=registry.ddbuild.io/ci/nginx-datadog/mirror
+FROM ${MIRROR_REGISTRY}/ghcr.io/astral-sh/uv:0.9.28 AS uv
+FROM ${MIRROR_REGISTRY}/alpine:3.20.3 AS sysroot
 
 ARG LLVM_VERSION=17.0.6
 ARG ARCH

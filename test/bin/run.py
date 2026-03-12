@@ -28,32 +28,23 @@ def run_cmd(cmd: str, *args, **kwargs) -> None:
 
 def run_cmd_with_retries(cmd: str, retries: int = 3, **kwargs) -> None:
     start = time.monotonic()
-    try:
-        for attempt in range(1, retries + 1):
-            try:
-                run_cmd(cmd, **kwargs)
-                return
-            except subprocess.CalledProcessError:
-                if attempt == retries:
-                    raise
-                elapsed = time.monotonic() - start
-                print(f"\n{'!' * 60}")
+    for attempt in range(1, retries + 1):
+        try:
+            run_cmd(cmd, **kwargs)
+            return
+        except subprocess.CalledProcessError:
+            elapsed = time.monotonic() - start
+            banner = '!' * 60
+            print(f"\n{banner}")
+            print(
+                f"  RETRY: Attempt {attempt}/{retries} failed after {elapsed:.1f}s"
+            )
+            if attempt == retries:
                 print(
-                    f"  RETRY: Attempt {attempt}/{retries} failed after {elapsed:.1f}s"
-                )
-                print(f"{'!' * 60}\n")
-    except subprocess.CalledProcessError:
-        elapsed = time.monotonic() - start
-        print(f"\n{'!' * 60}")
-        print(
-            f"  BUILD FAILED after {retries} attempts ({elapsed:.1f}s total)")
-        print(f"{'!' * 60}\n")
-        raise
-    finally:
-        elapsed = time.monotonic() - start
-        print(f"\n{'=' * 60}")
-        print(f"  Build step finished in {elapsed:.1f}s")
-        print(f"{'=' * 60}\n")
+                    f"  BUILD FAILED after {retries} attempts")
+                print(f"{banner}\n")
+                raise
+            print(f"{banner}\n")
 
 
 def validate_file(arg):
