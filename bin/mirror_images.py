@@ -610,7 +610,9 @@ def _collect_gitlab_ci_files(entry: str) -> list[str]:
         try:
             with open(abspath) as f:
                 data = yaml.safe_load(f)
-        except Exception:
+        except (OSError, yaml.YAMLError) as exc:
+            print(f"  [warning] Could not parse {abspath}: {exc}",
+                  file=sys.stderr)
             continue
         if not isinstance(data, dict):
             continue
@@ -652,7 +654,9 @@ def find_gitlab_ci_images() -> list[tuple[str, str]]:
         try:
             with open(filepath) as f:
                 data = yaml.safe_load(f)
-        except Exception:
+        except (OSError, yaml.YAMLError) as exc:
+            print(f"  [warning] Could not parse {filepath}: {exc}",
+                  file=sys.stderr)
             continue
         if not isinstance(data, dict):
             continue
