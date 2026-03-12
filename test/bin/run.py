@@ -40,8 +40,7 @@ def run_cmd_with_retries(cmd: str, retries: int = 3, **kwargs) -> None:
                 f"  RETRY: Attempt {attempt}/{retries} failed after {elapsed:.1f}s"
             )
             if attempt == retries:
-                print(
-                    f"  BUILD FAILED after {retries} attempts")
+                print(f"  BUILD FAILED after {retries} attempts")
                 print(f"{banner}\n")
                 raise
             print(f"{banner}\n")
