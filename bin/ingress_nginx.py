@@ -30,13 +30,15 @@ DRY_RUN = False
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
-def get_underlying_nginx_version(controller_version: str) -> str:
-    # Map an ingress-nginx version to an NGINX version
+def get_underlying_nginx_version(ingress_nginx_version: str) -> str:
     mapping = {
+        "v1.15.0": "1.27.1",
+        "v1.14.4": "1.27.1",
         "v1.14.3": "1.27.1",
         "v1.14.2": "1.27.1",
         "v1.14.1": "1.27.1",
         "v1.14.0": "1.27.1",
+        "v1.13.8": "1.27.1",
         "v1.13.7": "1.27.1",
         "v1.13.6": "1.27.1",
         "v1.13.5": "1.27.1",
@@ -71,7 +73,7 @@ def get_underlying_nginx_version(controller_version: str) -> str:
         "v1.10.1": "1.25.3",
         "v1.10.0": "1.25.3",
     }
-    return mapping.get(controller_version, "")
+    return mapping.get(ingress_nginx_version, "")
 
 
 def run_cmd(cmd: str) -> None:
@@ -97,46 +99,18 @@ def clone_nginx(version: str, out_dir: str) -> str:
 
 
 def get_patch_directory(version: str, ingress_rootdir: str) -> str:
-    mapping = {
-        "v1.14.3": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.14.2": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.14.1": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.14.0": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.13.7": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.13.6": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.13.5": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.13.4": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.13.3": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.13.2": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.13.1": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.13.0": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.8": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.7": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.6": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.5": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.4": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.3": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.2": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.1": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.12.0": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.11.8": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.11.7": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.11.6": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.11.5": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.11.4": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.11.3": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.11.2": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.11.1": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.11.0": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.10.6": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.10.5": f"{ingress_rootdir}/images/nginx/rootfs/patches",
-        "v1.10.4": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.10.3": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.10.2": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.10.1": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
-        "v1.10.0": f"{ingress_rootdir}/images/nginx-1.25/rootfs/patches",
+    nginx_1_25_versions = {
+        "v1.10.0",
+        "v1.10.1",
+        "v1.10.2",
+        "v1.10.3",
+        "v1.10.4",
+        "v1.11.0",
+        "v1.11.1",
+        "v1.11.2",
     }
-    return mapping.get(version, "")
+    image = "nginx-1.25" if version in nginx_1_25_versions else "nginx"
+    return f"{ingress_rootdir}/images/{image}/rootfs/patches"
 
 
 def patch_nginx(src_dir: str, patch_dir: str) -> None:
