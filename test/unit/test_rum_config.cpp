@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <rapidjson/document.h>
 
+
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -143,6 +144,7 @@ TEST_CASE("make_rum_json_config with string fields", "[rum][config]") {
   };
 
   auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
   auto doc = parse_json(json);
 
   CHECK(doc["majorVersion"].GetInt() == 5);
@@ -158,6 +160,7 @@ TEST_CASE("make_rum_json_config with double fields", "[rum][config]") {
   };
 
   auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
   auto doc = parse_json(json);
 
   CHECK(doc["rum"]["sessionSampleRate"].GetDouble() == 75.5);
@@ -172,6 +175,7 @@ TEST_CASE("make_rum_json_config with bool fields", "[rum][config]") {
   };
 
   auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
   auto doc = parse_json(json);
 
   CHECK(doc["rum"]["trackResources"].GetBool() == true);
@@ -188,6 +192,7 @@ TEST_CASE("make_rum_json_config bool fields accept truthy variants",
           {"trackResources", {truthy}},
       };
       auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
       auto doc = parse_json(json);
       CHECK(doc["rum"]["trackResources"].GetBool() == true);
     }
@@ -200,6 +205,7 @@ TEST_CASE("make_rum_json_config bool fields accept truthy variants",
           {"trackResources", {falsy}},
       };
       auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
       auto doc = parse_json(json);
       CHECK(doc["rum"]["trackResources"].GetBool() == false);
     }
@@ -216,6 +222,7 @@ TEST_CASE("make_rum_json_config skips entries with empty values vector",
   };
 
   auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
   auto doc = parse_json(json);
 
   CHECK(std::string(doc["rum"]["applicationId"].GetString()) == "app-123");
@@ -230,6 +237,7 @@ TEST_CASE("make_rum_json_config with multi-value array", "[rum][config]") {
   };
 
   auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
   auto doc = parse_json(json);
 
   REQUIRE(doc["rum"]["customField"].IsArray());
@@ -247,6 +255,7 @@ TEST_CASE("make_rum_json_config with invalid double falls back to string",
   };
 
   auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
   auto doc = parse_json(json);
 
   // Invalid double values are passed as strings instead of crashing.
@@ -260,6 +269,7 @@ TEST_CASE("make_rum_json_config with empty config", "[rum][config]") {
   std::unordered_map<std::string, std::vector<std::string>> config;
 
   auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+
   auto doc = parse_json(json);
 
   CHECK(doc["majorVersion"].GetInt() == 5);
@@ -320,6 +330,7 @@ TEST_CASE("get_rum_config_from_env reads set variables", "[rum][config]") {
   for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
     unsets.push_back(std::make_unique<ScopedUnsetEnv>(
         std::string(env_name).c_str()));
+
   }
 
   ScopedEnv app_id("DD_RUM_APPLICATION_ID", "my-app");
@@ -339,6 +350,7 @@ TEST_CASE("get_rum_config_from_env skips unset variables", "[rum][config]") {
   for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
     unsets.push_back(std::make_unique<ScopedUnsetEnv>(
         std::string(env_name).c_str()));
+
   }
 
   auto config = rum::get_rum_config_from_env();
@@ -351,6 +363,7 @@ TEST_CASE("get_rum_config_from_env skips empty values", "[rum][config]") {
   for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
     unsets.push_back(std::make_unique<ScopedUnsetEnv>(
         std::string(env_name).c_str()));
+
   }
 
   ScopedEnv empty_val("DD_RUM_APPLICATION_ID", "");
