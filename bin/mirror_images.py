@@ -10,12 +10,10 @@ operations instead of Python registry libraries. Whichever tool is
 available on PATH will be used.
 """
 
-import functools
-
-print = functools.partial(print, flush=True)
-
 import argparse
+import collections
 import fnmatch
+import functools
 import glob
 import hashlib
 import json
@@ -30,18 +28,26 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import yaml
 
+# Force line-buffered output so parallel progress lines appear immediately.
+print = functools.partial(print, flush=True)  # type: ignore[assignment]
+
 PROJECT_DIR = os.getcwd()
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 DEST_REGISTRY = "registry.ddbuild.io/ci/nginx-datadog/mirror"
-_cwd_yaml = os.path.join(PROJECT_DIR, "mirror_images.yaml")
-_script_yaml = os.path.join(SCRIPT_DIR, "mirror_images.yaml")
-if os.path.exists(_cwd_yaml):
-    MIRROR_YAML = _cwd_yaml
-elif os.path.exists(_script_yaml):
-    MIRROR_YAML = _script_yaml
-    print(f"Note: using {_script_yaml} (not found in cwd)", file=sys.stderr)
-else:
-    MIRROR_YAML = _cwd_yaml  # will fail later with a clear FileNotFoundError
+
+
+def _find_mirror_yaml() -> str:
+    cwd_yaml = os.path.join(PROJECT_DIR, "mirror_images.yaml")
+    script_yaml = os.path.join(SCRIPT_DIR, "mirror_images.yaml")
+    if os.path.exists(cwd_yaml):
+        return cwd_yaml
+    if os.path.exists(script_yaml):
+        print(f"Note: using {script_yaml} (not found in cwd)", file=sys.stderr)
+        return script_yaml
+    return cwd_yaml  # will fail later with a clear FileNotFoundError
+
+
+MIRROR_YAML = _find_mirror_yaml()
 LOCK_YAML = os.path.join(os.path.dirname(MIRROR_YAML), "mirror_images.lock.yaml")
 
 # ---------------------------------------------------------------------------
@@ -115,28 +121,18 @@ def resolve_digest(image_ref: str, tool: str) -> str:
 def check_digest_exists(image_ref_with_digest: str, tool: str) -> bool:
     """Check if a digest exists at a target registry."""
     if tool == "crane":
-        result = subprocess.run(
-            ["crane", "manifest", image_ref_with_digest],
-            capture_output=True,
-            text=True,
-        )
-    elif tool in ("docker", "podman", "nerdctl"):
-        result = subprocess.run(
-            [tool, "manifest", "inspect", image_ref_with_digest],
-            capture_output=True,
-            text=True,
-        )
+        cmd = ["crane", "manifest", image_ref_with_digest]
     elif tool == "skopeo":
-        result = subprocess.run(
-            [
-                "skopeo", "inspect", "--raw",
-                f"docker://{image_ref_with_digest}"
-            ],
-            capture_output=True,
-            text=True,
-        )
+        cmd = [
+            "skopeo", "inspect", "--raw",
+            f"docker://{image_ref_with_digest}",
+        ]
+    elif tool in ("docker", "podman", "nerdctl"):
+        cmd = [tool, "manifest", "inspect", image_ref_with_digest]
     else:
         raise ValueError(f"Unknown tool: {tool}")
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
     return result.returncode == 0
 
 
@@ -203,7 +199,7 @@ def list_tags(image_repo: str, tool: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# YAML parsing
+# Image reference parsing & YAML config
 # ---------------------------------------------------------------------------
 
 
@@ -266,16 +262,13 @@ def parse_lock_yaml(path: str) -> dict[str, dict]:
 # ---------------------------------------------------------------------------
 
 
-def _version_sort_key(tag: str):
-    """Sort key that orders version-like tags so the highest version comes last."""
+def _version_sort_key(tag: str) -> list[tuple[int, int | str]]:
+    """Sort key that orders version-like tags so the highest version comes last.
+
+    Numeric parts sort before string parts so that "1.2.3" < "1.2.10".
+    """
     parts = re.split(r"[.\-+]", tag.lstrip("v"))
-    result = []
-    for p in parts:
-        try:
-            result.append((0, int(p)))
-        except ValueError:
-            result.append((1, p))
-    return result
+    return [(0, int(p)) if p.isdigit() else (1, p) for p in parts]
 
 
 def find_specific_tag(image_ref: str, digest: str, tool: str,
@@ -292,22 +285,26 @@ def find_specific_tag(image_ref: str, digest: str, tool: str,
     if not all_tags:
         return ""
 
+    # "clean" = pure version tags like "1.2.3" or "v1.2.3"
     clean_re = re.compile(r"^v?\d+(\.\d+)+$")
-    simple_suffix_re = re.compile(r"^v?\d+(\.\d+)+-[a-zA-Z][a-zA-Z0-9]*$")
+    # "suffixed" = version + single suffix like "1.2.3-alpine"
+    suffixed_re = re.compile(r"^v?\d+(\.\d+)+-[a-zA-Z][a-zA-Z0-9]*$")
 
-    clean = sorted([t for t in all_tags if clean_re.match(t)],
-                   key=_version_sort_key,
-                   reverse=True)
-    suffixed = sorted(
-        [t for t in all_tags if simple_suffix_re.match(t) and t not in clean],
-        key=_version_sort_key,
-        reverse=True)
+    clean_tags = sorted(
+        [t for t in all_tags if clean_re.match(t)],
+        key=_version_sort_key, reverse=True,
+    )
+    clean_set = set(clean_tags)
+    suffixed_tags = sorted(
+        [t for t in all_tags if suffixed_re.match(t) and t not in clean_set],
+        key=_version_sort_key, reverse=True,
+    )
 
-    candidates = clean[:30] + suffixed[:20]
+    candidates = clean_tags[:30] + suffixed_tags[:20]
     if not candidates:
         return ""
 
-    def _check(tag: str):
+    def _resolve_tag(tag: str) -> tuple[str, str | None]:
         try:
             d = resolve_digest(f"{repo}:{tag}", tool)
             return tag, d
@@ -316,19 +313,22 @@ def find_specific_tag(image_ref: str, digest: str, tool: str,
                   file=sys.stderr)
             return tag, None
 
-    futures = {pool.submit(_check, tag): tag for tag in candidates}
+    futures = {pool.submit(_resolve_tag, tag): tag for tag in candidates}
     matches = []
     for future in as_completed(futures):
-        tag, d = future.result()
-        if d == digest:
+        tag, tag_digest = future.result()
+        if tag_digest == digest:
             matches.append(tag)
 
     if not matches:
         return ""
 
-    clean_matches = [t for t in matches if clean_re.match(t)]
+    # Prefer clean version tags (e.g. "1.2.3") over suffixed ones (e.g. "1.2.3-alpine")
+    clean_matches = sorted(
+        [t for t in matches if clean_re.match(t)],
+        key=_version_sort_key, reverse=True,
+    )
     if clean_matches:
-        clean_matches.sort(key=_version_sort_key, reverse=True)
         return clean_matches[0]
 
     matches.sort(key=_version_sort_key, reverse=True)
@@ -381,6 +381,10 @@ def cmd_lock(args: argparse.Namespace) -> int:
                 file=sys.stderr)
             print("Resolving all images from scratch.", file=sys.stderr)
 
+    def _current_lock_entries() -> dict:
+        """Return only the results that are still declared in mirror_images.yaml."""
+        return {k: results[k] for k in results if k in images}
+
     # Only resolve images not already in the lock file
     to_resolve = {
         src: tgt
@@ -388,9 +392,7 @@ def cmd_lock(args: argparse.Namespace) -> int:
     }
     if not to_resolve:
         print(f"All {len(images)} images already resolved in {output_path}")
-        _write_lock_file(output_path,
-                         {k: results[k]
-                          for k in results if k in images})
+        _write_lock_file(output_path, _current_lock_entries())
         return 0
 
     print(
@@ -398,7 +400,7 @@ def cmd_lock(args: argparse.Namespace) -> int:
     )
 
     errors = []
-    lock = threading.Lock()
+    progress_lock = threading.Lock()
 
     def _resolve(source: str, target: str, pool: ThreadPoolExecutor):
         digest = resolve_digest(source, tool)
@@ -406,8 +408,7 @@ def cmd_lock(args: argparse.Namespace) -> int:
         tag = normalized.rsplit(":", 1)[1]
 
         if tag == "latest":
-            specific = find_specific_tag(source, digest, tool, pool)
-            resolved_tag = specific if specific else tag
+            resolved_tag = find_specific_tag(source, digest, tool, pool) or tag
         else:
             resolved_tag = tag
 
@@ -422,20 +423,16 @@ def cmd_lock(args: argparse.Namespace) -> int:
             src = futures[future]
             try:
                 source, target, digest, tag = future.result()
-                results[source] = {
-                    "digest": digest,
-                    "target": target,
-                    "tag": tag
-                }
-                tag_info = f" (tag: {tag})" if tag != source.rsplit(
-                    ":", 1)[-1] else ""
+                original_tag = source.rsplit(":", 1)[-1]
+                tag_info = f" (tag: {tag})" if tag != original_tag else ""
                 print(f"  {source}: {digest}{tag_info}")
-                # Snapshot progress after each successful resolve
-                with lock:
-                    _write_lock_file(
-                        output_path,
-                        {k: results[k]
-                         for k in results if k in images})
+                with progress_lock:
+                    results[source] = {
+                        "digest": digest,
+                        "target": target,
+                        "tag": tag,
+                    }
+                    _write_lock_file(output_path, _current_lock_entries())
             except (RuntimeError, subprocess.SubprocessError, ValueError) as exc:
                 errors.append((src, str(exc)))
                 print(f"  ERROR {src}: {exc}", file=sys.stderr)
@@ -466,23 +463,19 @@ def cmd_mirror(args: argparse.Namespace) -> int:
     digest_tool = _find_digest_tool()
     copy_tool = _find_copy_tool()
     images = parse_lock_yaml(lock_path)
-    print(
-        f"Checking {len(images)} images against target registry using {digest_tool}..."
-    )
 
     # Phase 1: check which images need copying
     print(
-        f"Phase 1: checking which images need copying ({args.jobs} workers)..."
+        f"Phase 1: checking {len(images)} images using {digest_tool} ({args.jobs} workers)..."
     )
 
-    def _check(source: str, info: dict):
+    def _check_if_mirrored(source: str, info: dict):
         target = info["target"]
         digest = info["digest"]
-        # Check if digest already exists at target by referencing target@digest
         target_repo = target.rsplit(":", 1)[0] if ":" in target else target
-        ref = f"{target_repo}@{digest}"
+        digest_ref = f"{target_repo}@{digest}"
         print(f"  ? {source} -> {target}")
-        present = check_digest_exists(ref, digest_tool)
+        present = check_digest_exists(digest_ref, digest_tool)
         return source, info, present
 
     to_copy = []
@@ -491,7 +484,7 @@ def cmd_mirror(args: argparse.Namespace) -> int:
 
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         futures = {
-            pool.submit(_check, src, info): src
+            pool.submit(_check_if_mirrored, src, info): src
             for src, info in images.items()
         }
         for future in as_completed(futures):
@@ -563,16 +556,14 @@ def find_public_image_refs() -> list[tuple[str, int, str, str]]:
     internal_prefixes = ("registry.ddbuild.io/", "486234852809.dkr.ecr")
     hits = []
 
+    _ignore_prefixes = internal_prefixes + (
+        "$", "{", "nginx-datadog-test-",
+    )
+
     def _is_external(img: str) -> bool:
-        if img.startswith("$") or img.startswith("{"):
+        if any(img.startswith(p) for p in _ignore_prefixes):
             return False
-        if any(img.startswith(p) for p in internal_prefixes):
-            return False
-        if img.startswith("nginx-datadog-test-"):
-            return False
-        if not re.match(r"^[a-zA-Z0-9]", img):
-            return False
-        return True
+        return bool(re.match(r"^[a-zA-Z0-9]", img))
 
     def _read_lines(filepath):
         try:
@@ -606,11 +597,13 @@ def find_public_image_refs() -> list[tuple[str, int, str, str]]:
                         hits.append((filepath, lineno, stripped, img))
 
     def _scan_yaml_image_fields():
+        skip_path_fragments = ("/.git/", "/.gitlab/")
         for pattern in ("**/*.yml", "**/*.yaml"):
             for filepath in glob.glob(os.path.join(PROJECT_DIR, pattern),
                                       recursive=True):
-                if "/.git/" in filepath or "/.gitlab/" in filepath or _in_skip_dir(
-                        filepath):
+                if any(frag in filepath for frag in skip_path_fragments):
+                    continue
+                if _in_skip_dir(filepath):
                     continue
                 for lineno, line in _read_lines(filepath):
                     m = re.match(r"^\s+image:\s+['\"]?(\S+?)['\"]?\s*$", line)
@@ -626,10 +619,10 @@ def find_public_image_refs() -> list[tuple[str, int, str, str]]:
 def _collect_gitlab_ci_files(entry: str) -> list[str]:
     """Starting from a GitLab CI YAML file, follow local includes and return all file paths."""
     collected = []
-    visited = set()
-    queue = [entry]
+    visited: set[str] = set()
+    queue: collections.deque[str] = collections.deque([entry])
     while queue:
-        path = queue.pop(0)
+        path = queue.popleft()
         abspath = os.path.join(PROJECT_DIR, path) if not os.path.isabs(path) else path
         if abspath in visited or not os.path.isfile(abspath):
             continue
@@ -668,6 +661,32 @@ _GITLAB_MATRIX_IMAGE_TEMPLATES: dict[str, list[str]] = {
 }
 
 
+def _extract_matrix_combos(job: dict) -> list[dict]:
+    """Extract the parallel:matrix combo list from a GitLab CI job definition."""
+    parallel = job.get("parallel")
+    if not isinstance(parallel, dict):
+        return []
+    matrix = parallel.get("matrix")
+    if not isinstance(matrix, list):
+        return []
+    return [c for c in matrix if isinstance(c, dict)]
+
+
+def _expand_matrix_images(combo: dict) -> list[str]:
+    """Expand a single matrix combo into image references using known templates."""
+    images = []
+    for var_name, templates in _GITLAB_MATRIX_IMAGE_TEMPLATES.items():
+        values = combo.get(var_name, [])
+        if isinstance(values, str):
+            values = [values]
+        if not isinstance(values, list):
+            continue
+        for val in values:
+            for tmpl in templates:
+                images.append(tmpl.format(value=val))
+    return images
+
+
 def find_gitlab_ci_images() -> list[tuple[str, str]]:
     """Extract public image references from GitLab CI matrix variables.
 
@@ -690,28 +709,12 @@ def find_gitlab_ci_images() -> list[tuple[str, str]]:
             continue
 
         relpath = os.path.relpath(filepath, PROJECT_DIR)
-        for job_name, job in data.items():
+        for _job_name, job in data.items():
             if not isinstance(job, dict):
                 continue
-            parallel = job.get("parallel")
-            if not isinstance(parallel, dict):
-                continue
-            matrix = parallel.get("matrix")
-            if not isinstance(matrix, list):
-                continue
-            for combo in matrix:
-                if not isinstance(combo, dict):
-                    continue
-                for var_name, templates in _GITLAB_MATRIX_IMAGE_TEMPLATES.items():
-                    values = combo.get(var_name, [])
-                    if isinstance(values, str):
-                        values = [values]
-                    if not isinstance(values, list):
-                        continue
-                    for val in values:
-                        for tmpl in templates:
-                            img = tmpl.format(value=val)
-                            results.append((relpath, img))
+            for combo in _extract_matrix_combos(job):
+                for img in _expand_matrix_images(combo):
+                    results.append((relpath, img))
 
     return results
 
@@ -734,10 +737,8 @@ def cmd_lint(args: argparse.Namespace) -> int:
             "Public image references found (should use registry.ddbuild.io mirror):\n"
         )
         for img in sorted(by_image):
-            target = declared.get(img)
-            if target:
-                replacement = target
-            else:
+            replacement = declared.get(img)
+            if not replacement:
                 replacement = f"{DEST_REGISTRY}/{img}"
                 undeclared.append(img)
 
