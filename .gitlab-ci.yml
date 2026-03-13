@@ -1,3 +1,4 @@
+# Cancel redundant pipelines when new commits are pushed to the same branch.
 workflow:
   auto_cancel:
     on_new_commit: interruptible

@@ -13,7 +13,6 @@
 - "alpine:3.19"
 - "alpine:3.20.3"
 - "amazonlinux:2023.3.20240219.0"
-- "ealen/echo-server:latest"
 - "ghcr.io/astral-sh/uv:0.9.28"
 - "ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.11.0"
 - "nginx:1.24.0"
@@ -116,5 +115,3 @@
 - "registry.k8s.io/ingress-nginx/controller:v1.14.3"
 - "registry.k8s.io/ingress-nginx/controller:v1.14.4"
 - "registry.k8s.io/ingress-nginx/controller:v1.15.0"
-- datadog/agent:
-    target: registry.ddbuild.io/ci/nginx-datadog/mirror/datadog/agent
