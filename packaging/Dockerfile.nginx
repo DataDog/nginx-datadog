@@ -15,9 +15,17 @@ ARG WAF=OFF
 ARG RUM=OFF
 ARG BUILD_TYPE=RelWithDebInfo
 ARG MAKE_JOB_COUNT=8
+# Optional: URL prefix to rewrite github.com URLs for authenticated clones
+# e.g. "https://gitlab-ci-token:TOKEN@gitlab.ddbuild.io/DataDog/"
+ARG GIT_INSTEADOF_URL=""
 
 # Install git for CMake FetchContent (needed to fetch inject-browser-sdk when RUM=ON)
 RUN apk add --no-cache git
+
+# Configure git URL rewrite for private repo access in CI
+RUN if [ -n "${GIT_INSTEADOF_URL}" ]; then \
+      git config --global url."${GIT_INSTEADOF_URL}".insteadOf "https://github.com/DataDog/"; \
+    fi
 
 WORKDIR /build
 
@@ -30,8 +38,6 @@ COPY libddwaf/ ./libddwaf/
 COPY module/ ./module/
 COPY deps/ ./deps/
 COPY nginx_module.ld nginx_module.ld-prime ./
-
-# CMake will fetch and build inject-browser-sdk via FetchContent when RUM=ON
 
 # Run cmake configure and build
 # BUILD_TESTING=OFF avoids requiring test/unit directory

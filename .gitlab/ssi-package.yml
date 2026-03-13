@@ -26,7 +26,8 @@ ssi-build:
     - VERSION="${CI_COMMIT_TAG:-0.0.1-${CI_COMMIT_SHORT_SHA}}"
     - docker buildx create --name ssi-builder --driver docker-container
         --config buildkitd.toml --use
-    - SSI_PACKAGE_VERSION="$VERSION" docker buildx bake
+    - GIT_INSTEADOF_URL="https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/"
+        SSI_PACKAGE_VERSION="$VERSION" docker buildx bake
         ssi-package-assemble-${ARCH}
   artifacts:
     paths:

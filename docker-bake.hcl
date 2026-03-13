@@ -110,6 +110,11 @@ variable "TOOLCHAIN_IMAGE" {
   default = ""
 }
 
+variable "GIT_INSTEADOF_URL" {
+  # URL prefix to rewrite github.com/DataDog/ URLs for authenticated clones in CI
+  default = ""
+}
+
 variable "BUILD_TYPE" {
   default = "RelWithDebInfo"
 }
@@ -279,6 +284,7 @@ target "ssi-nginx" {
     RUM                        = "ON"
     BUILD_TYPE                 = BUILD_TYPE
     MAKE_JOB_COUNT             = MAKE_JOB_COUNT
+    GIT_INSTEADOF_URL          = GIT_INSTEADOF_URL
   }
 
   contexts = {
@@ -308,6 +314,7 @@ target "ssi-nginx-dev" {
     RUM                        = "ON"
     BUILD_TYPE                 = BUILD_TYPE
     MAKE_JOB_COUNT             = MAKE_JOB_COUNT
+    GIT_INSTEADOF_URL          = GIT_INSTEADOF_URL
   }
 
   contexts = {
