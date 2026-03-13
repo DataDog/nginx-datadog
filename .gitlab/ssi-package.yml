@@ -12,6 +12,7 @@
 ssi-build:
   extends: .ssi-package
   stage: build
+  needs: []
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
