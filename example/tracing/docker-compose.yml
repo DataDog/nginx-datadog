@@ -31,7 +31,7 @@ services:
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_CONTAINER_EXCLUDE=name:datadog-agent
       - DD_LOG_LEVEL=ERROR
-    image: 'datadog/agent'
+    image: 'registry.ddbuild.io/ci/nginx-datadog/mirror/datadog/agent'
 
   # `http` is an HTTP server that is reverse proxied by `nginx`.
   http:
