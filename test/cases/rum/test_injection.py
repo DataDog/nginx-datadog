@@ -389,7 +389,6 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_SERVICE": "env-only-service",
             "DD_RUM_ENVIRONMENT": "env-test",
             "DD_RUM_MAJOR_VERSION": "3.0.0",
-
             "DD_RUM_SESSION_SAMPLE_RATE": "100",
             "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "50",
             "DD_RUM_TRACK_RESOURCES": "true",
@@ -410,7 +409,6 @@ class TestRUMInjection(case.TestCase):
             self.assertIn('"env":"env-test"', body)
             self.assertIn('"version":"3.0.0"', body)
 
-
     def test_partial_env_config(self):
         """
         Verify that nginx config fields override corresponding DD_RUM_* env
@@ -426,7 +424,6 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_SITE": "datadoghq.eu",
             "DD_RUM_SERVICE": "env-service-should-be-overridden",
             "DD_RUM_ENVIRONMENT": "env-production-should-be-overridden",
-
             "DD_RUM_SESSION_SAMPLE_RATE": "100",
             "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "100",
             "DD_RUM_TRACK_RESOURCES": "true",
@@ -450,7 +447,6 @@ class TestRUMInjection(case.TestCase):
             self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
             self.assertIn('"site":"datadoghq.eu"', body)
 
-
     def test_nginx_config_takes_full_precedence(self):
         """
         Verify that when a full datadog_rum_config block is present, it
@@ -469,7 +465,6 @@ class TestRUMInjection(case.TestCase):
         self.assertIn('"service":"my-web-application"', body)
         self.assertIn('"env":"production"', body)
         self.assertIn('"applicationId":"<DATADOG_APPLICATION_ID>"', body)
-
 
     def test_env_remote_configuration_id(self):
         """
@@ -496,7 +491,6 @@ class TestRUMInjection(case.TestCase):
 
             self.assertIn('"remoteConfigurationId":"abc-123-remote-cfg"', body)
 
-
     def test_env_disabled_overrides_env_config(self):
         """
         Verify DD_RUM_ENABLED=false disables RUM even when DD_RUM_* config
@@ -521,7 +515,6 @@ class TestRUMInjection(case.TestCase):
             headers = self.make_dict_headers(headers)
             self.assertIsNone(headers.get("x-datadog-rum-injected"))
             self.assertNotIn("datadog-rum.js", body)
-
 
     def test_env_disabled_location_override(self):
         """
@@ -548,7 +541,6 @@ class TestRUMInjection(case.TestCase):
             self.assertIsNone(headers.get("x-datadog-rum-injected"))
             self.assertNotIn("datadog-rum.js", body)
 
-
     def test_skip_injection_when_already_injected(self):
         """
         Verify that when the request carries the x-datadog-rum-injected: 1
@@ -563,7 +555,6 @@ class TestRUMInjection(case.TestCase):
         headers = self.make_dict_headers(headers)
         self.assertIsNone(headers.get("x-datadog-rum-injected"))
         self.assertNotIn("datadog-rum.js", body)
-
 
     def test_skip_injection_on_empty_response(self):
         """
@@ -597,7 +588,6 @@ class TestRUMInjection(case.TestCase):
         headers = self.make_dict_headers(headers)
         self.assertIsNone(headers.get("x-datadog-rum-injected"))
         self.assertNotIn("datadog-rum.js", body)
-
 
     def test_skip_injection_on_compressed_response(self):
         """
@@ -640,7 +630,6 @@ class TestRUMInjection(case.TestCase):
         headers = self.make_dict_headers(headers)
         self.assertIsNone(headers.get("x-datadog-rum-injected"))
         self.assertNotIn("datadog-rum.js", body)
-
 
     def test_missing_head_tag_pads_instead_of_injecting(self):
         """
@@ -692,7 +681,6 @@ class TestRUMInjection(case.TestCase):
         # Padding spaces were added to fill the content-length delta
         self.assertGreater(len(body), len(original_html))
 
-
     def test_csp_header_present_still_injects(self):
         """
         Verify that when the upstream sets a Content-Security-Policy header
@@ -738,4 +726,3 @@ class TestRUMInjection(case.TestCase):
         self.assertInjection(headers, body)
         headers = self.make_dict_headers(headers)
         self.assertIn("content-security-policy", headers)
-
