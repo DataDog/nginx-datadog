@@ -10,7 +10,7 @@ include:
 
 format:
   extends: .build-and-test-fast
-  image: registry.ddbuild.io/ci/nginx-datadog/dd-trace-cpp-ci
+  image: $CI_REGISTRY/dd-trace-cpp-ci
   tags: ["arch:amd64"]
   script:
     - pip install -r requirements.txt
@@ -19,10 +19,10 @@ format:
 
 shellcheck:
   extends: .build-and-test-fast
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  image: $CI_REGISTRY/nginx_musl_toolchain
   tags: ["arch:amd64"]
   script:
-    - find bin/ test/ example/ -type f -executable | xargs shellcheck --exclude SC1071,SC1091,SC2317
+    - find bin/ test/ example/ -type f -executable -not -name '*.py' | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
 build-nginx-fast:
   extends:
