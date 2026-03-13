@@ -3,9 +3,10 @@
 # Called by one-pipeline's package-oci job to populate the sources/ directory
 # that datadog-package create expects.
 #
-# The ssi-build CI job exports assembled sources (nginx .so modules + version file)
-# to artifacts/ssi-sources/<arch>/ via docker buildx bake ssi-package-assemble-<arch>.
-# This script copies those artifacts into sources/ for OCI packaging.
+# The ssi-build / ssi-build-all CI jobs collect RUM-enabled nginx modules from
+# build-nginx-rum-fast / build-nginx-rum-all and assemble them into
+# artifacts/ssi-sources/<arch>/. This script copies those artifacts into
+# sources/ for OCI packaging.
 
 set -eo pipefail
 
@@ -18,7 +19,7 @@ SOURCES_DIR="../artifacts/ssi-sources/${ARCH}"
 
 if [ ! -d "${SOURCES_DIR}" ]; then
   echo "ERROR: Sources directory not found: ${SOURCES_DIR}"
-  echo "The ssi-build job must complete before package-oci runs."
+  echo "The ssi-build or ssi-build-all job must complete before package-oci runs."
   exit 1
 fi
 

@@ -21,7 +21,10 @@ stages:
 
 package-oci:
   needs:
-    - ssi-build
+    - job: ssi-build
+      optional: true
+    - job: ssi-build-all
+      optional: true
 
 macrobenchmarks:
   stage: benchmarks
