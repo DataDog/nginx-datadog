@@ -15,7 +15,7 @@ COPY ./nginx.conf /datadog-tests/nginx.conf
 
 # the uwsgi_params are not at the same location of openresty and nginx containers
 ARG BASE_IMAGE
-RUN if echo "${BASE_IMAGE}" | grep -q '^openresty'; then \
+RUN if echo "${BASE_IMAGE}" | grep -q 'openresty'; then \
         ln -s /usr/local/openresty/nginx/logs/nginx.pid /run/nginx.pid; \
         ln -s /usr/local/openresty/nginx/conf/uwsgi_params /etc/nginx/uwsgi_params; \
         # used to activate openresty test
