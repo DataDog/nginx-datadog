@@ -19,6 +19,13 @@ stages:
   - shared-pipeline
   - benchmarks
 
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
+
 package-oci:
   needs:
     - job: ssi-build
