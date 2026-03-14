@@ -9,7 +9,7 @@
 #   artifacts/ssi-sources/$ARCH/version
 
 .ssi-assemble:
-  image: alpine:3.20
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
   stage: build
   parallel:
     matrix:
