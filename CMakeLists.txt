@@ -21,6 +21,7 @@ option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 option(ENABLE_FUZZERS "For building fuzzers" OFF)
 set(NGINX_DATADOG_FLAVOR "nginx" CACHE STRING "NGINX flavor")
+set(DEPS_BUILD_DIR "" CACHE PATH "Pre-built deps from Stage 1. If empty, build deps from source.")
 
 if (NGINX_DATADOG_RUM_ENABLED AND NGINX_DATADOG_ASM_ENABLED)
   message(FATAL_ERROR "ASM and RUM features are mutually exclusive")
@@ -81,19 +82,28 @@ add_compile_options(-fno-omit-frame-pointer)
 
 # Nginx module boilerplate (code within the nginx repository)
 include(./cmake/deps/nginx-module.cmake)
-include(./cmake/deps/rapidjson.cmake)
-include(./cmake/deps/cppcodec.cmake)
 
-add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
+if(DEPS_BUILD_DIR STREQUAL "")
+  # Original behavior: build all dependencies from source.
+  include(./cmake/deps/rapidjson.cmake)
+  include(./cmake/deps/cppcodec.cmake)
+
+  add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
+
+  if(NGINX_DATADOG_ASM_ENABLED)
+    # we need neither but libddwaf requires one enabled
+    set(LIBDDWAF_BUILD_STATIC ON)
+    set(LIBDDWAF_BUILD_SHARED OFF)
+    set(LIBDDWAF_TESTING OFF)
+    set(LIBDDWAF_ENABLE_LTO OFF)
+    add_subdirectory(./libddwaf EXCLUDE_FROM_ALL)
+  endif()
+else()
+  # Stage 2: import pre-built deps from a Stage 1 build.
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/import_prebuilt_deps.cmake)
+endif()
 
 if(NGINX_DATADOG_ASM_ENABLED)
-  # we need neither but libddwaf requires one enabled
-  set(LIBDDWAF_BUILD_STATIC ON)
-  set(LIBDDWAF_BUILD_SHARED OFF)
-  set(LIBDDWAF_TESTING OFF)
-  set(LIBDDWAF_ENABLE_LTO OFF)
-  add_subdirectory(./libddwaf EXCLUDE_FROM_ALL)
-
   # get libddwaf version
   file(READ "./libddwaf/version" LIBDDWAF_VERSION)
 

@@ -4,8 +4,11 @@
 # build arifacts
 *.so*
 /.build
+/.build-*
 /.musl-build
 /.openresty-build
+/.deps-build
+/.nginx-sources
 
 # text editor noise
 .*.sw?
