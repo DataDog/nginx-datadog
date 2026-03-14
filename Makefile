@@ -19,6 +19,9 @@ endif
 
 NGINX_SRC_DIR ?= $(PWD)/nginx
 
+# Default: read all supported versions from the canonical list.
+NGINX_VERSIONS ?= $(shell grep -v '^\#' nginx_versions.txt | grep -v '^\s*$$' | tr '\n' ' ')
+
 ifneq ($(PCRE2_PATH),)
 	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
 endif
@@ -207,9 +210,6 @@ build-deps-musl-aux:
 # Pre-configure nginx sources for all requested versions.
 .PHONY: prepare-nginx-sources
 prepare-nginx-sources:
-ifndef NGINX_VERSIONS
-	$(error NGINX_VERSIONS is not set. Provide a space-separated list of versions.)
-endif
 	WAF=$(WAF) bin/prepare_nginx_sources.sh $(NGINX_SOURCES_DIR) $(NGINX_VERSIONS)
 
 # Stage 2: build the module for a single nginx version using pre-built deps.
@@ -248,9 +248,6 @@ endif
 # Build all nginx versions in parallel using pre-built deps.
 .PHONY: build-all-versions
 build-all-versions: build-deps prepare-nginx-sources
-ifndef NGINX_VERSIONS
-	$(error NGINX_VERSIONS is not set. Provide a space-separated list of versions.)
-endif
 	echo $(NGINX_VERSIONS) | tr ' ' '\n' | \
 		xargs -P $(PARALLEL_VERSIONS) -I{} \
 		$(MAKE) build-module-for-version NGINX_VERSION={}
@@ -259,9 +256,6 @@ endif
 # Build all nginx versions (musl) in parallel using pre-built deps.
 .PHONY: build-all-versions-musl
 build-all-versions-musl: $(TOOLCHAIN_DEPENDENCY)
-ifndef NGINX_VERSIONS
-	$(error NGINX_VERSIONS is not set. Provide a space-separated list of versions.)
-endif
 ifdef GITLAB_CI
 	$(MAKE) build-all-versions-musl-aux
 else
