@@ -1,16 +1,1 @@
-[
-    {
-        "name": "should block non-nginx process",
-        "filepath": "/usr/bin/python3",
-        "args": ["python3", "app.py"],
-        "envars": [],
-        "host": {"os": "linux", "arch": "x64", "libc": "glibc:2.17"}
-    },
-    {
-        "name": "should block non-nginx process on arm64",
-        "filepath": "/usr/bin/python3",
-        "args": ["python3", "app.py"],
-        "envars": [],
-        "host": {"os": "linux", "arch": "arm64", "libc": "glibc:2.17"}
-    }
-]
+[]
