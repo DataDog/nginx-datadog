@@ -11,6 +11,7 @@ DEPS_BUILD_DIR ?= .deps-build
 NGINX_SOURCES_DIR ?= .nginx-sources
 PARALLEL_VERSIONS ?= 4
 
+
 # Force reconfigure by removing CMakeCache.txt for all versions.
 .PHONY: reconfigure
 reconfigure:
@@ -37,6 +38,7 @@ else
 		--env ARCH=$(ARCH) \
 		--env BUILD_TYPE=$(BUILD_TYPE) \
 		--env WAF=$(WAF) \
+		--env RUM=$(RUM) \
 		--mount "type=bind,source=$(dir $(lastword $(MAKEFILE_LIST))),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \
 		make -C /mnt/repo build-deps-musl-aux
@@ -64,6 +66,7 @@ ifndef NGINX_VERSION
 endif
 	@if [ -f .build-$(NGINX_VERSION)/CMakeCache.txt ] && \
 	    grep -q 'NGINX_DATADOG_ASM_ENABLED:BOOL=$(WAF)' .build-$(NGINX_VERSION)/CMakeCache.txt && \
+	    grep -q 'NGINX_DATADOG_RUM_ENABLED:BOOL=$(RUM)' .build-$(NGINX_VERSION)/CMakeCache.txt && \
 	    grep -q 'CMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE)' .build-$(NGINX_VERSION)/CMakeCache.txt; then \
 		echo "skipping configure for nginx $(NGINX_VERSION)"; \
 	else \
@@ -71,6 +74,7 @@ endif
 			-DNGINX_SRC_DIR=$(NGINX_SOURCES_DIR)/$(NGINX_VERSION) \
 			-DDEPS_BUILD_DIR=$(DEPS_BUILD_DIR) \
 			-DNGINX_DATADOG_ASM_ENABLED=$(WAF) \
+			-DNGINX_DATADOG_RUM_ENABLED=$(RUM) \
 			-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 			-DBUILD_TESTING=OFF \
 			$(CMAKE_PCRE_OPTIONS) . ; \
@@ -87,6 +91,7 @@ ifndef NGINX_VERSION
 endif
 	@if [ -f .build-$(NGINX_VERSION)/CMakeCache.txt ] && \
 	    grep -q 'NGINX_DATADOG_ASM_ENABLED:BOOL=$(WAF)' .build-$(NGINX_VERSION)/CMakeCache.txt && \
+	    grep -q 'NGINX_DATADOG_RUM_ENABLED:BOOL=$(RUM)' .build-$(NGINX_VERSION)/CMakeCache.txt && \
 	    grep -q 'CMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE)' .build-$(NGINX_VERSION)/CMakeCache.txt; then \
 		echo "skipping configure for nginx $(NGINX_VERSION)"; \
 	else \
@@ -96,6 +101,7 @@ endif
 			-DNGINX_SRC_DIR=$(NGINX_SOURCES_DIR)/$(NGINX_VERSION) \
 			-DDEPS_BUILD_DIR=$(DEPS_BUILD_DIR) \
 			-DNGINX_DATADOG_ASM_ENABLED=$(WAF) \
+			-DNGINX_DATADOG_RUM_ENABLED=$(RUM) \
 			-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 			-DBUILD_TESTING=OFF . ; \
 	fi
@@ -120,6 +126,7 @@ else
 		--env ARCH=$(ARCH) \
 		--env BUILD_TYPE=$(BUILD_TYPE) \
 		--env WAF=$(WAF) \
+		--env RUM=$(RUM) \
 		--env NGINX_VERSIONS="$(NGINX_VERSIONS)" \
 		--env PARALLEL_VERSIONS=$(PARALLEL_VERSIONS) \
 		--mount "type=bind,source=$(dir $(lastword $(MAKEFILE_LIST))),destination=/mnt/repo" \

@@ -117,23 +117,10 @@ endif()
 if(NGINX_DATADOG_RUM_ENABLED)
   add_subdirectory(deps)
 
-  # Determine the inject-browser-sdk version for the build identifier
-  find_file(_inject_sdk_cargo_toml "Cargo.toml"
-    PATHS
-      "${CMAKE_CURRENT_SOURCE_DIR}/deps/inject-browser-sdk"
-      "${injectbrowsersdk_SOURCE_DIR}"
-    NO_DEFAULT_PATH)
-  if(_inject_sdk_cargo_toml)
-    execute_process(
-      COMMAND cargo pkgid --package inject-browser-sdk --manifest-path "${_inject_sdk_cargo_toml}"
-      OUTPUT_VARIABLE RUM_SDK_INJECTOR_PKGID
-    )
-    string(REGEX REPLACE ".*@(.*)" "\\1" RUM_SDK_INJECTOR_VERSION ${RUM_SDK_INJECTOR_PKGID})
-    string(STRIP "${RUM_SDK_INJECTOR_VERSION}" RUM_SDK_INJECTOR_VERSION)
-    unset(RUM_SDK_INJECTOR_PKGID)
-    unset(_inject_sdk_cargo_toml CACHE)
-  else()
-    set(RUM_SDK_INJECTOR_VERSION "unknown")
+  # The SDK's CMakeLists.txt exports INJECT_BROWSER_SDK_COMBINED_VERSION
+  # via PARENT_SCOPE (e.g. "0.1.0+758c1ab"). Falls back to "unknown".
+  if(NOT INJECT_BROWSER_SDK_COMBINED_VERSION)
+    set(INJECT_BROWSER_SDK_COMBINED_VERSION "unknown")
   endif()
 endif()
 
