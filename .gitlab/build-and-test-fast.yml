@@ -8,13 +8,33 @@ include:
       when: never
     - when: always
 
-format:
+build-formatter-image:
   extends: .build-and-test-fast
-  image: $CI_REGISTRY/dd-trace-cpp-ci
+  image: registry.ddbuild.io/images/nydus:v2.3.8-dd
+  tags: ["docker-in-docker:amd64"]
+  script:
+    - |
+      HASH=$(cat Dockerfile.formatter | sha256sum | cut -d ' ' -f 1)
+    - echo "FORMATTER_IMAGE_TAG=$CI_REGISTRY/formatter:$HASH" >> formatter-image.env
+    - |
+      if docker buildx imagetools inspect "$CI_REGISTRY/formatter:$HASH" > /dev/null 2>&1; then
+        echo "Image $CI_REGISTRY/formatter:$HASH already exists. Skipping build."
+      else
+        docker build --progress=plain --platform linux/amd64 -t $CI_REGISTRY/formatter:$HASH -f Dockerfile.formatter .
+        docker push $CI_REGISTRY/formatter:$HASH
+        nydus-convert $CI_REGISTRY/formatter:$HASH $CI_REGISTRY/formatter:$HASH
+      fi
+  artifacts:
+    reports:
+      dotenv: formatter-image.env
+
+lint:
+  extends: .build-and-test-fast
+  needs:
+    - build-formatter-image
+  image: $FORMATTER_IMAGE_TAG
   tags: ["arch:amd64"]
   script:
-    - pip install -r requirements.txt
-    - update-alternatives --install /usr/local/bin/yapf3 yapf3 /usr/local/bin/yapf 100
     - make lint
 
 shellcheck:

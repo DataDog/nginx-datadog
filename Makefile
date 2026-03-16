@@ -19,13 +19,6 @@ endif
 
 NGINX_SRC_DIR ?= $(PWD)/nginx
 
-ifneq ($(PCRE2_PATH),)
-	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
-endif
-
-
-# ----- Docker Images
-
 DOCKER_PLATFORM := linux/$(ARCH)
 ifeq ($(DOCKER_PLATFORM),linux/x86_64)
 	DOCKER_PLATFORM := linux/amd64
@@ -34,11 +27,27 @@ ifeq ($(DOCKER_PLATFORM),linux/aarch64)
 	DOCKER_PLATFORM := linux/arm64
 endif
 
+ifneq ($(PCRE2_PATH),)
+	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
+endif
+
+# Detect if we're already running inside Docker or CI
+IN_DOCKER_OR_CI := $(shell if [ "$(IN_DOCKER)" = "true" ] || \
+			[ -f /.dockerenv ] || \
+			[ "$$KUBERNETES_SERVICE_PORT_HTTPS" ] || \
+			[ "$$GITLAB_CI" ]; then echo "true"; \
+			else echo "false"; fi)
+
+
+# ----- Docker Images
+
 BUILD_IMAGE := nginx_musl_toolchain
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
 CI_BUILD_IMAGE := $(CI_REGISTRY)/$(BUILD_IMAGE)
 CI_TEST_IMAGE := $(CI_REGISTRY)/test
 UWSGI_TEST_IMAGE := $(CI_REGISTRY)/uwsgi
+
+FORMATTER_IMAGE ?= nginx-datadog-formatter
 
 # On GitLab, we get the Docker images from registry.ddbuild.io.
 # Locally, we build them before using them in some targets via $(TOOLCHAIN_DEPENDENCY) and $(TEST_DEPENDENCY).
@@ -96,13 +105,41 @@ dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 
 .clang-format: dd-trace-cpp/.clang-format
 
+# Docker run command for the formatter (empty when already in Docker/CI)
+FORMATTER_WORKDIR := -v $(CURDIR):$(CURDIR) -w $(CURDIR)
+ifeq ($(shell uname -s),Linux)
+	FORMATTER_USER_OPTS := --user "$(shell id -u):$(shell id -g)"
+else
+	FORMATTER_USER_OPTS :=
+endif
+ifeq ($(IN_DOCKER_OR_CI),true)
+	FORMATTER_RUN :=
+else
+	FORMATTER_RUN := docker run --rm --platform $(DOCKER_PLATFORM) $(FORMATTER_USER_OPTS) $(FORMATTER_WORKDIR) $(FORMATTER_IMAGE)
+endif
+
 .PHONY: format
-format: .clang-format
-	bin/format.sh
+format: ensure-formatter-image .clang-format
+	$(FORMATTER_RUN) bin/format.sh
 
 .PHONY: lint
-lint: .clang-format
-	bin/lint.sh
+lint: ensure-formatter-image .clang-format
+	$(FORMATTER_RUN) bin/lint.sh
+
+.PHONY: ensure-formatter-image
+ensure-formatter-image:
+ifeq ($(IN_DOCKER_OR_CI),false)
+	@if ! docker image inspect $(FORMATTER_IMAGE) > /dev/null 2>&1; then \
+		echo "Formatter image not found, building..."; \
+		$(MAKE) build-formatter-image; \
+	fi
+else
+	@echo "Skipping: already in Docker/CI"
+endif
+
+.PHONY: build-formatter-image
+build-formatter-image:
+	docker build --platform $(DOCKER_PLATFORM) $(if $(filter environment command,$(origin MIRROR_REGISTRY)),--build-arg MIRROR_REGISTRY=$(MIRROR_REGISTRY),) -t $(FORMATTER_IMAGE) -f Dockerfile.formatter .
 
 
 # ----- Build
