@@ -10,30 +10,29 @@ include:
 
 build-formatter-image:
   extends: .build-and-test-fast
-  image: registry.ddbuild.io/images/docker:27.3.1
-  tags: ["docker-in-docker:amd64"]
-  rules:
-    - when: manual
-      allow_failure: true
-  script:
-    - docker build --progress=plain --platform linux/amd64 -t $CI_REGISTRY/formatter:$CI_PIPELINE_ID -f Dockerfile.formatter .
-    - docker push $CI_REGISTRY/formatter:$CI_PIPELINE_ID
-
-convert-formatter-image:
-  extends: .build-and-test-fast
-  needs:
-    - build-formatter-image
   image: registry.ddbuild.io/images/nydus:v2.3.8-dd
-  tags: ["arch:amd64"]
-  rules:
-    - when: manual
-      allow_failure: true
+  tags: ["docker-in-docker:amd64"]
   script:
-    - nydus-convert $CI_REGISTRY/formatter:$CI_PIPELINE_ID $CI_REGISTRY/formatter:$CI_PIPELINE_ID
+    - |
+      HASH=$(cat Dockerfile.formatter | sha256sum | cut -d ' ' -f 1)
+    - echo "FORMATTER_IMAGE_TAG=$CI_REGISTRY/formatter:$HASH" >> formatter-image.env
+    - |
+      if docker buildx imagetools inspect "$CI_REGISTRY/formatter:$HASH" > /dev/null 2>&1; then
+        echo "Image $CI_REGISTRY/formatter:$HASH already exists. Skipping build."
+      else
+        docker build --progress=plain --platform linux/amd64 -t $CI_REGISTRY/formatter:$HASH -f Dockerfile.formatter .
+        docker push $CI_REGISTRY/formatter:$HASH
+        nydus-convert $CI_REGISTRY/formatter:$HASH $CI_REGISTRY/formatter:$HASH
+      fi
+  artifacts:
+    reports:
+      dotenv: formatter-image.env
 
 lint:
   extends: .build-and-test-fast
-  image: registry.ddbuild.io/ci/nginx-datadog/formatter:102793200
+  needs:
+    - build-formatter-image
+  image: $FORMATTER_IMAGE_TAG
   tags: ["arch:amd64"]
   script:
     - make lint
