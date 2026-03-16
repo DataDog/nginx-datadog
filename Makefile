@@ -47,11 +47,7 @@ CI_BUILD_IMAGE := $(CI_REGISTRY)/$(BUILD_IMAGE)
 CI_TEST_IMAGE := $(CI_REGISTRY)/test
 UWSGI_TEST_IMAGE := $(CI_REGISTRY)/uwsgi
 
-ifdef GITLAB_CI
-	FORMATTER_IMAGE ?= registry.ddbuild.io/ci/nginx-datadog/formatter:$(CI_PIPELINE_ID)
-else
-	FORMATTER_IMAGE ?= nginx-datadog-formatter
-endif
+FORMATTER_IMAGE ?= nginx-datadog-formatter
 
 # On GitLab, we get the Docker images from registry.ddbuild.io.
 # Locally, we build them before using them in some targets via $(TOOLCHAIN_DEPENDENCY) and $(TEST_DEPENDENCY).
@@ -144,11 +140,6 @@ endif
 .PHONY: build-formatter-image
 build-formatter-image:
 	docker build --platform $(DOCKER_PLATFORM) $(if $(filter environment command,$(origin MIRROR_REGISTRY)),--build-arg MIRROR_REGISTRY=$(MIRROR_REGISTRY),) -t $(FORMATTER_IMAGE) -f Dockerfile.formatter .
-
-.PHONY: build-push-formatter-image
-build-push-formatter-image:
-	docker build --progress=plain --platform $(DOCKER_PLATFORM) $(if $(filter environment command,$(origin MIRROR_REGISTRY)),--build-arg MIRROR_REGISTRY=$(MIRROR_REGISTRY),) -t $(FORMATTER_IMAGE) -f Dockerfile.formatter .
-	docker push $(FORMATTER_IMAGE)
 
 
 # ----- Build

@@ -1,12 +1,16 @@
 variables:
   CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
   TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_DEPTH: 1
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/.insteadOf
+  GIT_CONFIG_VALUE_0: https://github.com/DataDog/
 
 .build:
   image: $CI_REGISTRY/nginx_musl_toolchain
   tags: ["arch:$ARCH"]
   variables:
-    GIT_SUBMODULE_STRATEGY: recursive
     MAKE_JOB_COUNT: "8"
 
 .build-nginx:
@@ -26,7 +30,6 @@ variables:
   variables:
     RUM: "ON"
   script:
-    - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/".insteadOf "https://github.com/DataDog/"
     - make build-musl-aux
     - mkdir -p artifacts-rum/$ARCH/$NGINX_VERSION/$WAF
     - cp .musl-build/ngx_http_datadog_module.so* artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
