@@ -106,7 +106,7 @@ dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 .clang-format: dd-trace-cpp/.clang-format
 
 # Docker run command for the formatter (empty when already in Docker/CI)
-FORMATTER_WORKDIR := -v $(CURDIR):/workspace -w /workspace
+FORMATTER_WORKDIR := -v $(CURDIR):$(CURDIR) -w $(CURDIR)
 ifeq ($(shell uname -s),Linux)
 	FORMATTER_USER_OPTS := --user "$(shell id -u):$(shell id -g)"
 else
