@@ -6,7 +6,7 @@ on:
       - master
   pull_request:
   schedule:
-    - cron:  '00 03 * * 2-6'
+    - cron:  '00 03 * * *'
 
 jobs:
 
