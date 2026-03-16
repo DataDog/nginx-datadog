@@ -3,6 +3,15 @@ include(FetchContent)
 set(INJECT_BROWSER_SDK_GIT_REF "758c1aba91950461f6a617c626930a7ba8da3014" CACHE STRING
     "Git tag/branch for inject-browser-sdk")
 
+# Use pre-fetched source if available (e.g., cloned on host before Docker build).
+set(_prefetched_sdk "${CMAKE_SOURCE_DIR}/.deps-build/inject-browser-sdk-src")
+if(NOT DEFINED FETCHCONTENT_SOURCE_DIR_INJECTBROWSERSDK
+    AND EXISTS "${_prefetched_sdk}/CMakeLists.txt")
+  set(FETCHCONTENT_SOURCE_DIR_INJECTBROWSERSDK "${_prefetched_sdk}"
+      CACHE PATH "Pre-fetched inject-browser-sdk source")
+endif()
+unset(_prefetched_sdk)
+
 FetchContent_Declare(
   InjectBrowserSDK
   GIT_REPOSITORY https://github.com/DataDog/inject-browser-sdk.git

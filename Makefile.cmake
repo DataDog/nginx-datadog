@@ -11,11 +11,29 @@ DEPS_BUILD_DIR ?= .deps-build
 NGINX_SOURCES_DIR ?= .nginx-sources
 PARALLEL_VERSIONS ?= 4
 
+# Pre-fetch inject-browser-sdk on the host so Docker builds don't need git credentials.
+INJECT_BROWSER_SDK_DIR := $(DEPS_BUILD_DIR)/inject-browser-sdk-src
+INJECT_BROWSER_SDK_REF := $(shell grep 'INJECT_BROWSER_SDK_GIT_REF' deps/CMakeLists.txt | head -1 | sed 's/.*"\(.*\)".*/\1/')
+
+.PHONY: prefetch-rum-sdk
+prefetch-rum-sdk:
+ifeq ($(RUM),ON)
+	@if [ ! -d "$(INJECT_BROWSER_SDK_DIR)/.git" ]; then \
+		echo "Cloning inject-browser-sdk..."; \
+		git clone https://github.com/DataDog/inject-browser-sdk.git $(INJECT_BROWSER_SDK_DIR); \
+	fi
+	@cd $(INJECT_BROWSER_SDK_DIR) && \
+		if [ "$$(git rev-parse HEAD)" != "$(INJECT_BROWSER_SDK_REF)" ]; then \
+			echo "Checking out inject-browser-sdk $(INJECT_BROWSER_SDK_REF)..."; \
+			git fetch origin && git checkout $(INJECT_BROWSER_SDK_REF); \
+		fi
+endif
+
 
 # Force reconfigure by removing CMakeCache.txt for all versions.
 .PHONY: reconfigure
 reconfigure:
-	rm -f $(foreach v,$(NGINX_VERSIONS),.build-$(v)/CMakeCache.txt)
+	rm -f $(foreach v,$(NGINX_VERSIONS),.build-$(v)/CMakeCache.txt .build-musl-$(v)/CMakeCache.txt)
 
 # Stage 1: build shared dependencies once.
 .PHONY: build-deps
@@ -89,13 +107,13 @@ build-module-for-version-musl:
 ifndef NGINX_VERSION
 	$(error NGINX_VERSION is not set)
 endif
-	@if [ -f .build-$(NGINX_VERSION)/CMakeCache.txt ] && \
-	    grep -q 'NGINX_DATADOG_ASM_ENABLED:BOOL=$(WAF)' .build-$(NGINX_VERSION)/CMakeCache.txt && \
-	    grep -q 'NGINX_DATADOG_RUM_ENABLED:BOOL=$(RUM)' .build-$(NGINX_VERSION)/CMakeCache.txt && \
-	    grep -q 'CMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE)' .build-$(NGINX_VERSION)/CMakeCache.txt; then \
+	@if [ -f .build-musl-$(NGINX_VERSION)/CMakeCache.txt ] && \
+	    grep -q 'NGINX_DATADOG_ASM_ENABLED:BOOL=$(WAF)' .build-musl-$(NGINX_VERSION)/CMakeCache.txt && \
+	    grep -q 'NGINX_DATADOG_RUM_ENABLED:BOOL=$(RUM)' .build-musl-$(NGINX_VERSION)/CMakeCache.txt && \
+	    grep -q 'CMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE)' .build-musl-$(NGINX_VERSION)/CMakeCache.txt; then \
 		echo "skipping configure for nginx $(NGINX_VERSION)"; \
 	else \
-		cmake -B .build-$(NGINX_VERSION) \
+		cmake -B .build-musl-$(NGINX_VERSION) \
 			-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 			-DNGINX_PATCH_AWAY_LIBC=ON \
 			-DNGINX_SRC_DIR=$(NGINX_SOURCES_DIR)/$(NGINX_VERSION) \
@@ -105,11 +123,11 @@ endif
 			-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 			-DBUILD_TESTING=OFF . ; \
 	fi
-	cmake --build .build-$(NGINX_VERSION) -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module
+	cmake --build .build-musl-$(NGINX_VERSION) -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module
 
 # Build all nginx versions in parallel using pre-built deps.
 .PHONY: build-all-versions
-build-all-versions: build-deps prepare-nginx-sources
+build-all-versions: build-deps prepare-nginx-sources prefetch-rum-sdk
 	echo $(NGINX_VERSIONS) | tr ' ' '\n' | \
 		xargs -P $(PARALLEL_VERSIONS) -I{} \
 		$(MAKE) build-module-for-version NGINX_VERSION={}
@@ -117,7 +135,7 @@ build-all-versions: build-deps prepare-nginx-sources
 
 # Build all nginx versions (musl) in parallel using pre-built deps.
 .PHONY: build-all-versions-musl
-build-all-versions-musl: $(TOOLCHAIN_DEPENDENCY)
+build-all-versions-musl: $(TOOLCHAIN_DEPENDENCY) prefetch-rum-sdk
 ifdef GITLAB_CI
 	$(MAKE) build-all-versions-musl-aux
 else

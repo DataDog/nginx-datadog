@@ -127,7 +127,7 @@ build: dd-trace-cpp-deps
 	@echo 'build successful 👍'
 
 .PHONY: build-musl build-musl-cov
-build-musl build-musl-cov: $(TOOLCHAIN_DEPENDENCY)
+build-musl build-musl-cov: $(TOOLCHAIN_DEPENDENCY) prefetch-rum-sdk
 ifndef NGINX_VERSION
 	$(error NGINX_VERSION is not set. Please set the NGINX_VERSION environment variable)
 endif
