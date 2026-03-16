@@ -35,7 +35,7 @@ class InjectionHandler final {
 
   // Pointer to an Injector instance, used to scan and locate where the RUM
   // Browser SDK needs to be injected.
-  Injector* injector_;
+  Injector *injector_;
 
  public:
   InjectionHandler();
@@ -44,7 +44,7 @@ class InjectionHandler final {
   // Handles the rewrite phase of an HTTP request (NGX_HTTP_REWRITE_PHASE)
   // @param r - HTTP request being processed.
   // @return ngx_int_t - Status code indicating success or failure.
-  ngx_int_t on_rewrite_handler(ngx_http_request_t* r);
+  ngx_int_t on_rewrite_handler(ngx_http_request_t *r);
 
   // Handles the header filtering phase of an HTTP request.
   // @param r - HTTP request being processed.
@@ -53,8 +53,8 @@ class InjectionHandler final {
   // NGINX filter chain.
   // @return ngx_int_t - Status code indicating success or failure.
   ngx_int_t on_header_filter(
-      ngx_http_request_t* r, datadog_loc_conf_t* cfg,
-      ngx_http_output_header_filter_pt& next_header_filter);
+      ngx_http_request_t *r, datadog_loc_conf_t *cfg,
+      ngx_http_output_header_filter_pt &next_header_filter);
 
   // Handles the body modification of an HTTP request.
   // @param r - HTTP request being processed.
@@ -63,14 +63,14 @@ class InjectionHandler final {
   // @param next_body_filter - Reference to the next body filter in the NGINX
   // body filter chain.
   // @return ngx_int_t - Status code indicating success or failure.
-  ngx_int_t on_body_filter(ngx_http_request_t* r, datadog_loc_conf_t* cfg,
-                           ngx_chain_t* in,
-                           ngx_http_output_body_filter_pt& next_body_filter);
+  ngx_int_t on_body_filter(ngx_http_request_t *r, datadog_loc_conf_t *cfg,
+                           ngx_chain_t *in,
+                           ngx_http_output_body_filter_pt &next_body_filter);
 
   // Handles the logging phase of an HTTP request.
   // @param r - HTTP request being processed.
   // @return ngx_int_t - Status code indicating success or failure.
-  ngx_int_t on_log_request(ngx_http_request_t* r);
+  ngx_int_t on_log_request(ngx_http_request_t *r);
 
  private:
   // Sends the output to the next body filter.
@@ -78,8 +78,8 @@ class InjectionHandler final {
   // @param out - Chain of buffers containing the response to send.
   // @param next_body_filter - Reference to the next body filter in the NGINX
   // body filter chain.
-  ngx_int_t output(ngx_http_request_t* r, ngx_chain_t* out,
-                   ngx_http_output_body_filter_pt& next_body_filter);
+  ngx_int_t output(ngx_http_request_t *r, ngx_chain_t *out,
+                   ngx_http_output_body_filter_pt &next_body_filter);
 
   // Injects the RUM Browser SDK into a chain of buffers at the appropriate
   // location.
@@ -88,7 +88,7 @@ class InjectionHandler final {
   // @param slices - Pointer to an array of `BytesSlice`.
   // @param slices_length - Number of elements in the `slices` array.
   // @return ngx_chain_t* - Chain of buffers with the injected data.
-  ngx_chain_t* inject(ngx_pool_t* pool, ngx_chain_t* in,
+  ngx_chain_t *inject(ngx_pool_t *pool, ngx_chain_t *in,
                       std::span<const BytesSlice> slices);
 };
 

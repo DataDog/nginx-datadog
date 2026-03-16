@@ -1,27 +1,32 @@
-#!/bin/sh
+#!/bin/bash
+set -o pipefail
 # Print any discrepancies between the formatting of the code and the expected
-# style.
+# style. Collects all errors before exiting (no set -e).
 
+if [ -L .clang-format ] && ! [ -e .clang-format ]; then
+    >&2 echo '.clang-format is a broken symlink. Initialize the dd-trace-cpp submodule: git submodule update --init dd-trace-cpp'
+    exit 1
+fi
 if ! [ -e .clang-format ]; then
-    >&2 echo '.clang-format file is missing. Run "make lint".'
+    >&2 echo '.clang-format file is missing. Initialize the dd-trace-cpp submodule: git submodule update --init dd-trace-cpp'
     exit 1
 fi
 
 error_messages=''
 
-find src/ -type f \( -name '*.h' -o -name '*.cpp' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
+find src/ -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
 rc=$?
 if [ "$rc" -ne 0 ]; then
     error_messages=$(printf '%s\nC++ formatter reported formatting differences in src/ and returned error status %d.\n' "$error_messages" "$rc")
 fi
 
-find bin/ -type f -name '*.py' -print0 | xargs -0 yapf3 --diff
+find bin/ -type f -name '*.py' -print0 | xargs -0 yapf --diff
 rc=$?
 if [ "$rc" -ne 0 ]; then
     error_messages=$(printf '%s\nPython formatter reported formatting differences in bin/ and returned error status %d.\n' "$error_messages" "$rc")
 fi
 
-yapf3 --recursive --diff "$@" "test/"
+yapf --recursive --diff "$@" "test/"
 rc=$?
 if [ "$rc" -ne 0 ]; then
     error_messages=$(printf '%s\nPython formatter reported formatting differences in test/ and returned error status %d.\n' "$error_messages" "$rc")

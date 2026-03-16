@@ -1,0 +1,24 @@
+# Docker image for code formatting
+# Contains all dependencies needed to format C/C++ and Python code
+
+ARG MIRROR_REGISTRY=registry.ddbuild.io/ci/nginx-datadog/mirror/
+FROM ${MIRROR_REGISTRY}ghcr.io/astral-sh/uv:0.9.28 AS uv
+FROM registry.ddbuild.io/images/base/gbi-ubuntu_2404:release
+
+USER root
+
+RUN apt-get update && apt-get install -y \
+    clang-format-14 \
+    findutils \
+    git \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_TOOL_BIN_DIR="/usr/local/bin"
+RUN uv tool install yapf==0.43.0
+
+WORKDIR /workspace
+
+# Default command formats code in-place; use bin/lint.sh to check without modifying
+CMD ["bin/format.sh"]
