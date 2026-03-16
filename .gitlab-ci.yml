@@ -1,8 +1,16 @@
+# Cancel redundant pipelines when new commits are pushed to the same branch.
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
 stages:
   - build-and-test-fast
   - build-all
   - test-all
   - benchmarks
+
+default:
+  interruptible: true
 
 include:
   - local: ".gitlab/build-and-test-all.yml"
