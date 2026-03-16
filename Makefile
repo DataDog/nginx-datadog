@@ -19,13 +19,6 @@ endif
 
 NGINX_SRC_DIR ?= $(PWD)/nginx
 
-ifneq ($(PCRE2_PATH),)
-	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
-endif
-
-
-# ----- Docker Images
-
 DOCKER_PLATFORM := linux/$(ARCH)
 ifeq ($(DOCKER_PLATFORM),linux/x86_64)
 	DOCKER_PLATFORM := linux/amd64
@@ -33,6 +26,16 @@ endif
 ifeq ($(DOCKER_PLATFORM),linux/aarch64)
 	DOCKER_PLATFORM := linux/arm64
 endif
+
+# Include Docker-based formatter targets
+-include Makefile.formatter
+
+ifneq ($(PCRE2_PATH),)
+	CMAKE_PCRE_OPTIONS := -DCMAKE_C_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_CXX_FLAGS=-I$(PCRE2_PATH)/include/ -DCMAKE_LDFLAGS=-L$(PCRE2_PATH)/lib
+endif
+
+
+# ----- Docker Images
 
 BUILD_IMAGE := nginx_musl_toolchain
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
@@ -96,13 +99,7 @@ dd-trace-cpp/.clang-format: dd-trace-cpp/.git
 
 .clang-format: dd-trace-cpp/.clang-format
 
-.PHONY: format
-format: .clang-format
-	bin/format.sh
-
-.PHONY: lint
-lint: .clang-format
-	bin/lint.sh
+# format and lint targets are provided by Makefile.formatter
 
 
 # ----- Build
