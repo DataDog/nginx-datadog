@@ -1,0 +1,26 @@
+lint-mirror-images:
+  stage: mirror-images
+  # Use the docker image for its pre-configured registry auth helpers.
+  image: registry.ddbuild.io/images/docker:27.3.1
+  tags: ["arch:amd64"]
+  needs: []
+  rules:
+    - when: always
+  script:
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.local/bin:$PATH"
+    - uv run bin/mirror_images.py lint
+
+mirror-images:
+  stage: mirror-images
+  # Use the docker image for its pre-configured registry auth helpers
+  # and crane binary for copying images.
+  image: registry.ddbuild.io/images/docker:27.3.1
+  tags: ["arch:amd64"]
+  needs: []
+  rules:
+    - when: always
+  script:
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.local/bin:$PATH"
+    - uv run bin/mirror_images.py mirror
