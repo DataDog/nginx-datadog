@@ -212,3 +212,6 @@ coverage:
   tags: ["docker-in-docker:$ARCH"]
   script:
     - make coverage
+    # Upload coverage to Datadog (side-by-side with Codecov)
+    - curl -L --fail "https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64" --output "/usr/local/bin/datadog-ci" && chmod +x /usr/local/bin/datadog-ci
+    - datadog-ci coverage upload --format=lcov .musl-build/coverage.lcov || true
