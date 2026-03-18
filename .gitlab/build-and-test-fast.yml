@@ -8,7 +8,6 @@ build-nginx-fast:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
         NGINX_VERSION:
           - "1.24.0"
           - "1.25.5"
@@ -156,16 +155,3 @@ test-nginx-rum-fast:
         BASE_IMAGE: ["nginx:1.29.6"]
         NGINX_VERSION: ["1.29.6"]
         WAF: ["OFF"]
-
-coverage:
-  extends:
-    - .build-and-test-fast
-    - .build
-  variables:
-    ARCH: "amd64"
-    BASE_IMAGE: "nginx:1.26.0"
-    NGINX_VERSION: "1.26.0"
-    WAF: "ON"
-  tags: [docker-in-docker:$ARCH]
-  script:
-    - make coverage

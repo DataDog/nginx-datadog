@@ -17,6 +17,7 @@ include:
   - local: ".gitlab/build-and-test-all.yml"
   - local: ".gitlab/build-and-test-fast-static.yml"
   - local: ".gitlab/build-and-test-fast.yml"
+  - local: ".gitlab/coverage.yml"
 
 macrobenchmarks:
   stage: benchmarks

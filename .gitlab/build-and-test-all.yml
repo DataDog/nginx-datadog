@@ -225,8 +225,6 @@ test-nginx-all:
         NGINX_VERSION: ["1.29.4"]
         WAF: ["ON", "OFF"]
 
-# GitLab is not able to handle a matrix with more than 200 jobs!
-
 test-nginx-all-bis:
   extends:
     - .test-all

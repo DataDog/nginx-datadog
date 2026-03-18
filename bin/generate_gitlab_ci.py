@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.9"
 # dependencies = ["pyyaml"]
 # ///
 """Generate .gitlab/build-and-test-all.yml and .gitlab/build-and-test-fast.yml
-from supported_versions.yml using dataclasses + line-list rendering.
+from supported_versions.yml using dataclasses + yaml.dump rendering.
 
 Usage:
     uv run bin/generate_gitlab_ci.py           # write files
@@ -18,7 +18,6 @@ import difflib
 import os
 import sys
 from dataclasses import dataclass
-from textwrap import dedent
 
 import yaml
 
@@ -36,54 +35,54 @@ JOBS_PER_NGINX_VERSION = 8  # 2 arch × 2 base_image × 2 WAF
 JOBS_PER_EXTRA_IMAGE = 4  # 2 arch × 1 base_image × 2 WAF
 GITLAB_MATRIX_LIMIT = 200
 
-SYSTEM_TESTS_COMMENT = (
-    "# The version used by system-tests must be one of the ones below."
-    " See https://github.com/DataDog/system-tests/pull/6113.")
-
 WAF_BOTH = ("ON", "OFF")
 WAF_OFF = ("OFF", )
 
 # ---------------------------------------------------------------------------
-# YAML formatting helpers
+# YAML custom types and dumper
 # ---------------------------------------------------------------------------
 
 
-def flow(*items: str) -> str:
-    """Format as YAML flow list: ["amd64", "arm64"]."""
-    return "[" + ", ".join(f'"{v}"' for v in items) + "]"
+class FlowList(list):
+    """List rendered in YAML flow style."""
 
 
-ARCH_BOTH = flow("amd64", "arm64")
+class QuotedStr(str):
+    """String rendered with double-quote style."""
 
 
-def _at(depth: int, text: str = "") -> str:
-    """YAML line at the given indentation depth (2 spaces per level)."""
-    return "  " * depth + text
+def Q(s):
+    """Wrap a string as QuotedStr."""
+    return QuotedStr(s)
 
 
-def render_row(row: dict) -> list[str]:
-    """Render a matrix row dict as YAML lines."""
-    lines = []
-    for i, (key, values) in enumerate(row.items()):
-        prefix = _at(3, "- ") if i == 0 else _at(4)
-        lines.append(f"{prefix}{key}: {flow(*values)}")
-    return lines
+def F(*items):
+    """Create a FlowList of QuotedStr items."""
+    return FlowList(QuotedStr(item) for item in items)
 
 
-def _version_matrix_lines(var_name, versions, waf=None, comment=None):
-    """Lines for a single-row matrix with a block-style version list."""
-    lines = [_at(3, f"- ARCH: {ARCH_BOTH}")]
-    if comment:
-        lines.append(_at(4, comment))
-    lines.append(_at(4, f"{var_name}:"))
-    lines.extend(_at(5, f'- "{v}"') for v in versions)
-    if waf:
-        lines.append(_at(4, f"WAF: {flow(*waf)}"))
-    return lines
+class GitLabDumper(yaml.Dumper):
+    """YAML dumper that indents sequences under their parent key."""
+
+    def increase_indent(self, flow=False, indentless=False):
+        return super().increase_indent(flow, indentless=False)
+
+
+def _represent_flow_list(dumper, data):
+    return dumper.represent_sequence(
+        'tag:yaml.org,2002:seq', data, flow_style=True)
+
+
+def _represent_quoted_str(dumper, data):
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
+
+
+GitLabDumper.add_representer(FlowList, _represent_flow_list)
+GitLabDumper.add_representer(QuotedStr, _represent_quoted_str)
 
 
 # ---------------------------------------------------------------------------
-# Matrix row builders (return plain dicts)
+# Matrix row builders (return dicts with F() values)
 # ---------------------------------------------------------------------------
 
 
@@ -95,27 +94,27 @@ def nginx_test(version: str,
     if alpine:
         images.append(f"nginx:{version}-alpine")
     row = {
-        "ARCH": ["amd64", "arm64"],
-        "BASE_IMAGE": images,
-        "NGINX_VERSION": [version]
+        "ARCH": F("amd64", "arm64"),
+        "BASE_IMAGE": F(*images),
+        "NGINX_VERSION": F(version),
     }
     if waf:
-        row["WAF"] = waf
+        row["WAF"] = F(*waf)
     return row
 
 
 def extra_image_test(image: dict) -> dict:
     """One matrix row for an extra test image (e.g. amazonlinux)."""
     return {
-        "ARCH": ["amd64", "arm64"],
-        "BASE_IMAGE": [image["base_image"]],
-        "NGINX_VERSION": [image["nginx_version"]],
-        "WAF": WAF_BOTH,
+        "ARCH": F("amd64", "arm64"),
+        "BASE_IMAGE": F(image["base_image"]),
+        "NGINX_VERSION": F(image["nginx_version"]),
+        "WAF": F(*WAF_BOTH),
     }
 
 
 # ---------------------------------------------------------------------------
-# Job dataclasses — each render() returns a list[str] of YAML lines
+# Job dataclasses — each render() returns a dict
 # ---------------------------------------------------------------------------
 
 
@@ -127,20 +126,17 @@ class Build:
     var_name: str
     versions: list[str]
     waf: tuple[str, ...] | None = WAF_BOTH
-    comment: str | None = None
-
-    def render(self) -> list[str]:
-        lines = dedent(f"""\
-            {self.name}:
-              extends:
-                - {self.extends[0]}
-                - {self.extends[1]}
-              parallel:
-                matrix:""").splitlines()
-        lines.extend(
-            _version_matrix_lines(self.var_name, self.versions, self.waf,
-                                  self.comment))
-        return lines
+    def render(self) -> dict:
+        row = {"ARCH": F("amd64", "arm64")}
+        row[self.var_name] = [Q(v) for v in self.versions]
+        if self.waf:
+            row["WAF"] = F(*self.waf)
+        return {
+            self.name: {
+                "extends": list(self.extends),
+                "parallel": {"matrix": [row]},
+            }
+        }
 
 
 @dataclass
@@ -154,50 +150,20 @@ class Test:
     rows: list[dict] | None = None
     waf: tuple[str, ...] | None = WAF_BOTH
 
-    def render(self) -> list[str]:
-        lines = dedent(f"""\
-            {self.name}:
-              extends:
-                - {self.extends[0]}
-                - {self.extends[1]}""").splitlines()
+    def render(self) -> dict:
+        body: dict = {"extends": list(self.extends)}
         if self.needs:
-            lines.append(_at(1, f"needs: {flow(self.needs)}"))
-        lines.append(_at(1, "parallel:"))
-        lines.append(_at(2, "matrix:"))
+            body["needs"] = FlowList([self.needs])
         if self.rows is not None:
-            for row in self.rows:
-                lines.extend(render_row(row))
+            matrix = self.rows
         else:
-            lines.extend(
-                _version_matrix_lines(self.var_name, self.versions, self.waf))
-        return lines
-
-
-@dataclass
-class Coverage:
-    extends: list[str]
-    nginx_version: str
-    name: str = "coverage"
-
-    def render(self) -> list[str]:
-        return dedent(f"""\
-            {self.name}:
-              extends:
-                - {self.extends[0]}
-                - {self.extends[1]}
-              variables:
-                ARCH: "amd64"
-                BASE_IMAGE: "nginx:{self.nginx_version}"
-                NGINX_VERSION: "{self.nginx_version}"
-                WAF: "ON"
-              tags: {flow("docker-in-docker:$ARCH")}
-              script:
-                - make coverage""").splitlines()
-
-
-@dataclass
-class Comment:
-    text: str
+            row = {"ARCH": F("amd64", "arm64")}
+            row[self.var_name] = [Q(v) for v in self.versions]
+            if self.waf:
+                row["WAF"] = F(*self.waf)
+            matrix = [row]
+        body["parallel"] = {"matrix": matrix}
+        return {self.name: body}
 
 
 # ---------------------------------------------------------------------------
@@ -250,10 +216,9 @@ def split_nginx_test_versions(all_versions, extras):
 def render_jobs(jobs: list) -> str:
     blocks = []
     for job in jobs:
-        if isinstance(job, Comment):
-            blocks.append(f"# {job.text}")
-        else:
-            blocks.append("\n".join(job.render()))
+        text = yaml.dump(job.render(), Dumper=GitLabDumper,
+                         default_flow_style=False, sort_keys=False, width=1000)
+        blocks.append(text.rstrip('\n'))
     return GENERATED_HEADER + "\n" + "\n\n".join(blocks) + "\n"
 
 
@@ -290,9 +255,6 @@ def generate_all(data):
              extends=[".test-all", ".test-nginx"],
              rows=[nginx_test(v) for v in first_v] +
              [extra_image_test(img) for img in first_ex]),
-        Comment(
-            text=
-            "GitLab is not able to handle a matrix with more than 200 jobs!"),
         Test(name="test-nginx-all-bis",
              extends=[".test-all", ".test-nginx"],
              rows=[nginx_test(v) for v in second_v] +
@@ -318,14 +280,12 @@ def generate_fast(data):
     fast_ingress = _versions(data["ingress_nginx"]["versions"], "fast")
     fast_openresty = _versions(data["openresty"]["versions"], "fast")
     extras = _extras(data)
-    cov = data["nginx"]["coverage_version"]
 
     return render_jobs([
         Build(name="build-nginx-fast",
               extends=[".build-and-test-fast", ".build-nginx"],
               var_name="NGINX_VERSION",
-              versions=fast_nginx,
-              comment=SYSTEM_TESTS_COMMENT),
+              versions=fast_nginx),
         Build(name="build-ingress-nginx-fast",
               extends=[".build-and-test-fast", ".build-ingress-nginx"],
               var_name="INGRESS_NGINX_VERSION",
@@ -360,8 +320,6 @@ def generate_fast(data):
              extends=[".build-and-test-fast", ".test-nginx-rum"],
              rows=[nginx_test(v, alpine=False, waf=WAF_OFF) for v in rum],
              needs="build-nginx-rum-fast"),
-        Coverage(extends=[".build-and-test-fast", ".build"],
-                 nginx_version=cov),
     ])
 
 

@@ -1,0 +1,12 @@
+coverage:
+  extends:
+    - .build-and-test-fast
+    - .build
+  variables:
+    ARCH: "amd64"
+    BASE_IMAGE: "nginx:1.26.0"
+    NGINX_VERSION: "1.26.0"
+    WAF: "ON"
+  tags: ["docker-in-docker:$ARCH"]
+  script:
+    - make coverage
