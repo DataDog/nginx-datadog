@@ -67,8 +67,9 @@ class GitLabDumper(yaml.Dumper):
 
 
 def _represent_flow_list(dumper, data):
-    return dumper.represent_sequence(
-        'tag:yaml.org,2002:seq', data, flow_style=True)
+    return dumper.represent_sequence('tag:yaml.org,2002:seq',
+                                     data,
+                                     flow_style=True)
 
 
 def _represent_quoted_str(dumper, data):
@@ -77,7 +78,6 @@ def _represent_quoted_str(dumper, data):
 
 GitLabDumper.add_representer(FlowList, _represent_flow_list)
 GitLabDumper.add_representer(QuotedStr, _represent_quoted_str)
-
 
 # ---------------------------------------------------------------------------
 # Matrix row builders (return dicts with F() values)
@@ -124,6 +124,7 @@ class Build:
     var_name: str
     versions: list[str]
     waf: tuple[str, ...] | None = WAF_BOTH
+
     def render(self) -> dict:
         row = {"ARCH": F("amd64", "arm64")}
         row[self.var_name] = [Q(v) for v in self.versions]
@@ -132,7 +133,9 @@ class Build:
         return {
             self.name: {
                 "extends": list(self.extends),
-                "parallel": {"matrix": [row]},
+                "parallel": {
+                    "matrix": [row]
+                },
             }
         }
 
@@ -217,8 +220,11 @@ def split_rows(rows, limit=GITLAB_MATRIX_LIMIT):
 def render_jobs(jobs: list) -> str:
     blocks = []
     for job in jobs:
-        text = yaml.dump(job.render(), Dumper=GitLabDumper,
-                         default_flow_style=False, sort_keys=False, width=1000)
+        text = yaml.dump(job.render(),
+                         Dumper=GitLabDumper,
+                         default_flow_style=False,
+                         sort_keys=False,
+                         width=1000)
         blocks.append(text.rstrip('\n'))
     return GENERATED_HEADER + "\n" + "\n\n".join(blocks) + "\n"
 
@@ -230,8 +236,8 @@ def generate_all(data):
     openresty = _versions(data["openresty"]["versions"])
     extras = _extras(data)
 
-    all_rows = ([nginx_test(v) for v in nginx]
-                + [extra_image_test(img) for img in extras])
+    all_rows = ([nginx_test(v)
+                 for v in nginx] + [extra_image_test(img) for img in extras])
     groups = split_rows(all_rows)
 
     jobs = [
@@ -256,9 +262,8 @@ def generate_all(data):
     ]
     for i, group in enumerate(groups):
         name = "test-nginx-all" if i == 0 else f"test-nginx-all-{i + 1}"
-        jobs.append(Test(name=name,
-                         extends=[".test-all", ".test-nginx"],
-                         rows=group))
+        jobs.append(
+            Test(name=name, extends=[".test-all", ".test-nginx"], rows=group))
     jobs += [
         Test(name="test-nginx-rum-all",
              extends=[".test-all", ".test-nginx-rum"],
