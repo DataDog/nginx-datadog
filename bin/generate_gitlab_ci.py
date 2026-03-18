@@ -31,8 +31,6 @@ GENERATED_HEADER = (
     " from supported_versions.yml.\n"
     "# Do not edit manually. Run: uv run bin/generate_gitlab_ci.py\n")
 
-JOBS_PER_NGINX_VERSION = 8  # 2 arch × 2 base_image × 2 WAF
-JOBS_PER_EXTRA_IMAGE = 4  # 2 arch × 1 base_image × 2 WAF
 GITLAB_MATRIX_LIMIT = 200
 
 WAF_BOTH = ("ON", "OFF")
@@ -188,24 +186,27 @@ def _extras(data):
     )
 
 
-def split_nginx_test_versions(all_versions, extras):
-    """Split versions across test-nginx-all / test-nginx-all-bis
-    to stay under the GitLab 200-job matrix limit."""
-    job_count = 0
-    split_at = len(all_versions)
-    for i, _ in enumerate(all_versions):
-        job_count += JOBS_PER_NGINX_VERSION
-        if job_count > GITLAB_MATRIX_LIMIT:
-            split_at = i
-            break
+def row_job_count(row):
+    """Count actual jobs a matrix row produces (product of list-valued fields)."""
+    count = 1
+    for v in row.values():
+        if isinstance(v, list):
+            count *= len(v)
+    return count
 
-    first = all_versions[:split_at]
-    second = all_versions[split_at:]
 
-    extra_jobs = len(extras) * JOBS_PER_EXTRA_IMAGE
-    if len(first) * JOBS_PER_NGINX_VERSION + extra_jobs <= GITLAB_MATRIX_LIMIT:
-        return first, extras, second, []
-    return first, [], second, extras
+def split_rows(rows, limit=GITLAB_MATRIX_LIMIT):
+    """Greedy-pack matrix rows into groups that each stay under *limit* jobs."""
+    groups = [[]]
+    current = 0
+    for row in rows:
+        jobs = row_job_count(row)
+        if current + jobs > limit and groups[-1]:
+            groups.append([])
+            current = 0
+        groups[-1].append(row)
+        current += jobs
+    return groups
 
 
 # ---------------------------------------------------------------------------
@@ -229,10 +230,11 @@ def generate_all(data):
     openresty = _versions(data["openresty"]["versions"])
     extras = _extras(data)
 
-    first_v, first_ex, second_v, second_ex = split_nginx_test_versions(
-        nginx, extras)
+    all_rows = ([nginx_test(v) for v in nginx]
+                + [extra_image_test(img) for img in extras])
+    groups = split_rows(all_rows)
 
-    return render_jobs([
+    jobs = [
         Build(name="build-nginx-all",
               extends=[".build-all", ".build-nginx"],
               var_name="NGINX_VERSION",
@@ -251,14 +253,13 @@ def generate_all(data):
               extends=[".build-all", ".build-openresty"],
               var_name="RESTY_VERSION",
               versions=openresty),
-        Test(name="test-nginx-all",
-             extends=[".test-all", ".test-nginx"],
-             rows=[nginx_test(v) for v in first_v] +
-             [extra_image_test(img) for img in first_ex]),
-        Test(name="test-nginx-all-bis",
-             extends=[".test-all", ".test-nginx"],
-             rows=[nginx_test(v) for v in second_v] +
-             [extra_image_test(img) for img in second_ex]),
+    ]
+    for i, group in enumerate(groups):
+        name = "test-nginx-all" if i == 0 else f"test-nginx-all-{i + 1}"
+        jobs.append(Test(name=name,
+                         extends=[".test-all", ".test-nginx"],
+                         rows=group))
+    jobs += [
         Test(name="test-nginx-rum-all",
              extends=[".test-all", ".test-nginx-rum"],
              rows=[nginx_test(v, alpine=False, waf=WAF_OFF) for v in rum]),
@@ -271,7 +272,8 @@ def generate_all(data):
              extends=[".test-all", ".test-openresty"],
              var_name="RESTY_VERSION",
              versions=openresty),
-    ])
+    ]
+    return render_jobs(jobs)
 
 
 def generate_fast(data):
