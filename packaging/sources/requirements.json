@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DataDog/auto_inject/refs/heads/main/preload_go/cmd/library_requirements_tester/testdata/requirements_schema.json",
+  "version": 1,
+  "native_deps": {
+    "glibc": [
+      {
+        "arch": "x64",
+        "supported": true,
+        "description": "nginx modules are built against musl, loaded into stock nginx on glibc systems"
+      },
+      {
+        "arch": "arm64",
+        "supported": true,
+        "description": "nginx modules are built against musl, loaded into stock nginx on glibc systems"
+      }
+    ],
+    "musl": [
+      {
+        "arch": "x64",
+        "supported": true,
+        "description": "nginx modules are built against musl for alpine-based nginx"
+      },
+      {
+        "arch": "arm64",
+        "supported": true,
+        "description": "nginx modules are built against musl for alpine-based nginx"
+      }
+    ]
+  },
+  "deny": []
+}

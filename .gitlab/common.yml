@@ -1,13 +1,20 @@
 variables:
   CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
   TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
-  GIT_SUBMODULE_STRATEGY: recursive
-  GIT_SUBMODULE_DEPTH: 1
-  GIT_CONFIG_COUNT: 1
-  GIT_CONFIG_KEY_0: url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/.insteadOf
-  GIT_CONFIG_VALUE_0: https://github.com/DataDog/
+
+# Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
+# rewriting via CI job token. Defined as a hidden job (not global) so
+# 3rd-party includes (one-pipeline) don't inherit the rewrite.
+.git-config:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 1
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/.insteadOf
+    GIT_CONFIG_VALUE_0: https://github.com/DataDog/
 
 .build:
+  extends: .git-config
   image: $CI_REGISTRY/nginx_musl_toolchain
   tags: ["arch:$ARCH"]
   variables:
@@ -60,6 +67,7 @@ variables:
       - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
 
 .test:
+  extends: .git-config
   image: $CI_REGISTRY/test
   tags: ["docker-in-docker:$ARCH"]
 

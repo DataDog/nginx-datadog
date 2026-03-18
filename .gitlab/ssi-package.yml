@@ -1,0 +1,61 @@
+# Assembles RUM-enabled nginx modules (built by build-nginx-rum-* jobs) into
+# the directory layout expected by prepare-oci-package.sh / package-oci.
+#
+# Input  (from build-nginx-rum-fast/all artifacts):
+#   artifacts-rum/$ARCH/$NGINX_VERSION/OFF/ngx_http_datadog_module.so
+#
+# Output (consumed by prepare-oci-package.sh):
+#   artifacts/ssi-sources/$ARCH/nginx/$NGINX_VERSION/ngx_http_datadog_module.so
+#   artifacts/ssi-sources/$ARCH/version
+
+.ssi-assemble:
+  extends: .git-config
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  stage: build
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64"]
+  tags: ["arch:amd64"]
+  script:
+    - set -euo pipefail
+    - VERSION="${CI_COMMIT_TAG:-0.0.1-${CI_COMMIT_SHORT_SHA}}"
+    - OUTPUT="artifacts/ssi-sources/${ARCH}"
+    - mkdir -p "${OUTPUT}"
+    - |
+      shopt -s nullglob
+      dirs=(artifacts-rum/${ARCH}/*/OFF)
+      if [ ${#dirs[@]} -eq 0 ]; then
+        echo "ERROR: No artifacts found at artifacts-rum/${ARCH}/*/OFF"
+        exit 1
+      fi
+      for dir in "${dirs[@]}"; do
+        nginx_ver="$(basename "$(dirname "$dir")")"
+        so_file="$dir/ngx_http_datadog_module.so"
+        if [ ! -f "$so_file" ]; then
+          echo "ERROR: Module not found: $so_file (nginx: $nginx_ver, arch: $ARCH)"
+          exit 1
+        fi
+        mkdir -p "${OUTPUT}/nginx/${nginx_ver}"
+        cp "$so_file" "${OUTPUT}/nginx/${nginx_ver}/"
+      done
+    - echo "${VERSION}" > "${OUTPUT}/version"
+    - echo "Assembled modules:" && find "${OUTPUT}" -type f | sort
+  artifacts:
+    paths:
+      - artifacts/ssi-sources/
+
+ssi-build:
+  extends: .ssi-assemble
+  needs: [build-nginx-rum-fast]
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: always
+
+ssi-build-all:
+  extends: .ssi-assemble
+  needs: [build-nginx-rum-all]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
+      when: always
+    - when: never
