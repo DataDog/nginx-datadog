@@ -13,11 +13,10 @@ default:
   interruptible: true
 
 include:
-  - local: ".gitlab/build-and-test-all-static.yml"
   - local: ".gitlab/build-and-test-all.yml"
-  - local: ".gitlab/build-and-test-fast-static.yml"
+  - local: ".gitlab/build-and-test-common.yml"
   - local: ".gitlab/build-and-test-fast.yml"
-  - local: ".gitlab/coverage.yml"
+  - local: ".gitlab/checks.yml"
 
 macrobenchmarks:
   stage: benchmarks
