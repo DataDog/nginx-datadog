@@ -1,0 +1,102 @@
+nginx:
+  versions:
+    - version: "1.24.0"
+      fast: true
+      rum: true
+    - version: "1.25.0"
+    - version: "1.25.1"
+    - version: "1.25.2"
+    - version: "1.25.3"
+    - version: "1.25.4"
+    - version: "1.25.5"
+      fast: true
+      rum: true
+    - version: "1.26.0"
+    - version: "1.26.1"
+    - version: "1.26.2"
+    - version: "1.26.3"
+      fast: true
+      rum: true
+    - version: "1.27.0"
+    - version: "1.27.1"
+    - version: "1.27.2"
+    - version: "1.27.3"
+    - version: "1.27.4"
+    - version: "1.27.5"
+      fast: true
+      rum: true
+    - version: "1.28.0"
+    - version: "1.28.1"
+    - version: "1.28.2"
+      fast: true
+      rum: true
+    - version: "1.29.0"
+    - version: "1.29.1"
+    - version: "1.29.2"
+    - version: "1.29.3"
+    - version: "1.29.4"
+    - version: "1.29.5"
+      fast: true
+    - version: "1.29.6"
+      fast: true
+      rum: true
+  extra_test_images:
+    - base_image: "amazonlinux:2023.3.20240219.0"
+      nginx_version: "1.24.0"
+  coverage_version: "1.26.0"
+
+ingress_nginx:
+  versions:
+    - version: "1.10.0"
+    - version: "1.10.1"
+    - version: "1.10.2"
+    - version: "1.10.3"
+    - version: "1.10.4"
+    - version: "1.10.5"
+    - version: "1.10.6"
+    - version: "1.11.0"
+    - version: "1.11.1"
+    - version: "1.11.2"
+    - version: "1.11.3"
+    - version: "1.11.4"
+    - version: "1.11.5"
+    - version: "1.11.6"
+    - version: "1.11.7"
+    - version: "1.11.8"
+    - version: "1.12.0"
+    - version: "1.12.1"
+    - version: "1.12.2"
+    - version: "1.12.3"
+    - version: "1.12.4"
+    - version: "1.12.5"
+    - version: "1.12.6"
+    - version: "1.12.7"
+    - version: "1.12.8"
+    - version: "1.13.0"
+    - version: "1.13.1"
+    - version: "1.13.2"
+    - version: "1.13.3"
+    - version: "1.13.4"
+    - version: "1.13.5"
+    - version: "1.13.6"
+    - version: "1.13.7"
+    - version: "1.13.8"
+      fast: true
+    - version: "1.14.0"
+    - version: "1.14.1"
+    - version: "1.14.2"
+    - version: "1.14.3"
+    - version: "1.14.4"
+      fast: true
+    - version: "1.15.0"
+      fast: true
+
+openresty:
+  versions:
+    - version: "1.25.3.1"
+    - version: "1.25.3.2"
+    - version: "1.27.1.1"
+    - version: "1.27.1.2"
+      fast: true
+    - version: "1.29.2.1"
+      fast: true

@@ -14,7 +14,9 @@ default:
 
 include:
   - local: ".gitlab/build-and-test-all.yml"
+  - local: ".gitlab/build-and-test-common.yml"
   - local: ".gitlab/build-and-test-fast.yml"
+  - local: ".gitlab/checks.yml"
 
 macrobenchmarks:
   stage: benchmarks
