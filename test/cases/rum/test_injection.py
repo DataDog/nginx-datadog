@@ -387,21 +387,24 @@ class TestRUMInjection(case.TestCase):
         command = docker_compose_command(
             "exec", "-T", "--", "nginx", "/bin/sh", "-c",
             f"mkdir -p /etc/datadog-agent && cat >'{config_path}'")
-        subprocess.run(
-            command, input=yaml_content, encoding="utf8",
-            env=child_env(), check=True,
-            capture_output=True)
+        subprocess.run(command,
+                       input=yaml_content,
+                       encoding="utf8",
+                       env=child_env(),
+                       check=True,
+                       capture_output=True)
 
     def _cleanup_stable_config(self):
         """Remove the stable config file from the nginx container."""
         import subprocess
         from ..orchestration import docker_compose_command, child_env
         command = docker_compose_command(
-            "exec", "-T", "--", "nginx",
-            "rm", "-f", "/etc/datadog-agent/application_monitoring.yaml")
-        subprocess.run(
-            command, env=child_env(), check=True,
-            capture_output=True)
+            "exec", "-T", "--", "nginx", "rm", "-f",
+            "/etc/datadog-agent/application_monitoring.yaml")
+        subprocess.run(command,
+                       env=child_env(),
+                       check=True,
+                       capture_output=True)
 
     def test_env_only_config(self):
         """
@@ -524,7 +527,8 @@ class TestRUMInjection(case.TestCase):
                 self.assertEqual(200, status)
                 self.assertInjection(headers, body)
 
-                self.assertIn('"remoteConfigurationId":"abc-123-remote-cfg"', body)
+                self.assertIn(
+                    '"remoteConfigurationId":"abc-123-remote-cfg"', body)
         finally:
             self._cleanup_stable_config()
 
