@@ -15,7 +15,7 @@ variables:
 
 .build:
   extends: .git-config
-  image: $CI_REGISTRY/nginx_musl_toolchain
+  image: $CI_REGISTRY/nginx_musl_toolchain:rust-1.85
   tags: ["arch:$ARCH"]
   variables:
     MAKE_JOB_COUNT: "8"
