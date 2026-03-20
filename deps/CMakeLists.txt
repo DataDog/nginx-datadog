@@ -16,10 +16,10 @@ FetchContent_MakeAvailable(InjectBrowserSDK)
 # Pass cross-compilation sysroot/target flags to Rust cc crate builds
 # (e.g. aws-lc-sys) that invoke the C compiler via CFLAGS.
 if(CMAKE_SYSROOT AND CMAKE_C_COMPILER_TARGET AND COMMAND corrosion_set_env_vars)
-  set(_cross_cflags "--sysroot=${CMAKE_SYSROOT} --target=${CMAKE_C_COMPILER_TARGET}")
+  set(_cross_flags "--sysroot=${CMAKE_SYSROOT} --target=${CMAKE_C_COMPILER_TARGET} -fuse-ld=lld -rtlib=compiler-rt")
   corrosion_set_env_vars(inject_browser_sdk_ffi
-    "CFLAGS_x86_64_unknown_linux_musl=${_cross_cflags}"
-    "CFLAGS_aarch64_unknown_linux_musl=${_cross_cflags}"
+    "CFLAGS_x86_64_unknown_linux_musl=${_cross_flags}"
+    "CFLAGS_aarch64_unknown_linux_musl=${_cross_flags}"
   )
 endif()
 
