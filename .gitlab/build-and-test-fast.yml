@@ -40,7 +40,7 @@ lint:
 
 shellcheck:
   extends: .build-and-test-fast
-  image: $CI_REGISTRY/nginx_musl_toolchain
+  image: $CI_REGISTRY/nginx_musl_toolchain:rust-1.85
   tags: ["arch:amd64"]
   script:
     - find bin/ test/ example/ .gitlab/ \( -type f -executable -not -name '*.py' \) -o \( -name '*.sh' -type f \) | xargs shellcheck --exclude SC1071,SC1091,SC2317

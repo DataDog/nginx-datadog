@@ -10,7 +10,7 @@
 
 .ssi-assemble:
   extends: .git-config
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain:rust-1.85
   stage: build
   parallel:
     matrix:
