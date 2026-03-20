@@ -373,22 +373,51 @@ class TestRUMInjection(case.TestCase):
         self.assertIsNone(headers.get("x-datadog-rum-injected"))
         self.assertNotIn("datadog-rum.js", body)
 
+    def _write_stable_config(self, config_vars):
+        """Write an application_monitoring.yaml into the nginx container
+        at the stable config path used by snippet_create_from_stable_config."""
+        import subprocess
+        from ..orchestration import docker_compose_command, child_env
+        yaml_lines = ["apm_configuration_default:"]
+        for key, value in config_vars.items():
+            yaml_lines.append(f"  {key}: {value}")
+        yaml_content = "\n".join(yaml_lines) + "\n"
+
+        config_path = "/etc/datadog-agent/application_monitoring.yaml"
+        command = docker_compose_command(
+            "exec", "-T", "--", "nginx", "/bin/sh", "-c",
+            f"mkdir -p /etc/datadog-agent && cat >'{config_path}'")
+        subprocess.run(
+            command, input=yaml_content, encoding="utf8",
+            env=child_env(), check=True,
+            capture_output=True)
+
+    def _cleanup_stable_config(self):
+        """Remove the stable config file from the nginx container."""
+        import subprocess
+        from ..orchestration import docker_compose_command, child_env
+        command = docker_compose_command(
+            "exec", "-T", "--", "nginx",
+            "rm", "-f", "/etc/datadog-agent/application_monitoring.yaml")
+        subprocess.run(
+            command, env=child_env(), check=True,
+            capture_output=True)
+
     def test_env_only_config(self):
         """
-        Verify RUM injection works when configuration comes entirely from
-        DD_RUM_* environment variables, with no datadog_rum_config directive
-        in the nginx config.
+        Verify RUM injection works when configuration comes from the
+        stable config file (application_monitoring.yaml), with no
+        datadog_rum_config directive in the nginx config.
         """
         conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
         nginx_conf = conf_path.read_text()
 
-        env = {
+        stable_config = {
             "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
             "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
             "DD_RUM_SERVICE": "env-only-service",
             "DD_RUM_ENVIRONMENT": "env-test",
-            "DD_RUM_MAJOR_VERSION": "3.0.0",
             "DD_RUM_SESSION_SAMPLE_RATE": "100",
             "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "50",
             "DD_RUM_TRACK_RESOURCES": "true",
@@ -396,29 +425,31 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_TRACK_USER_INTERACTIONS": "true",
         }
 
-        with self.orch.custom_nginx(nginx_conf,
-                                    extra_env=env,
-                                    healthcheck_port=80) as nginx:
-            status, headers, body = self.orch.send_nginx_http_request("/")
-            self.assertEqual(200, status)
-            self.assertInjection(headers, body)
+        self._write_stable_config(stable_config)
+        try:
+            with self.orch.custom_nginx(nginx_conf,
+                                        healthcheck_port=80) as nginx:
+                status, headers, body = self.orch.send_nginx_http_request("/")
+                self.assertEqual(200, status)
+                self.assertInjection(headers, body)
 
-            self.assertIn('"applicationId":"<ENV_APP_ID>"', body)
-            self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
-            self.assertIn('"service":"env-only-service"', body)
-            self.assertIn('"env":"env-test"', body)
-            self.assertIn('"version":"3.0.0"', body)
+                self.assertIn('"applicationId":"<ENV_APP_ID>"', body)
+                self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
+                self.assertIn('"service":"env-only-service"', body)
+                self.assertIn('"env":"env-test"', body)
+        finally:
+            self._cleanup_stable_config()
 
     def test_partial_env_config(self):
         """
-        Verify that nginx config fields override corresponding DD_RUM_* env
-        vars (per-field merging). The datadog_rum_config block sets service
-        and env; the remaining fields come from env vars.
+        Verify that nginx config fields override corresponding stable config
+        values (per-field merging). The datadog_rum_config block sets service
+        and env; the remaining fields come from stable config.
         """
         conf_path = Path(__file__).parent / "conf" / "rum_partial_env.conf"
         nginx_conf = conf_path.read_text()
 
-        env = {
+        stable_config = {
             "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
             "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
             "DD_RUM_SITE": "datadoghq.eu",
@@ -431,21 +462,24 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_TRACK_USER_INTERACTIONS": "true",
         }
 
-        with self.orch.custom_nginx(nginx_conf,
-                                    extra_env=env,
-                                    healthcheck_port=80) as nginx:
-            status, headers, body = self.orch.send_nginx_http_request("/")
-            self.assertEqual(200, status)
-            self.assertInjection(headers, body)
+        self._write_stable_config(stable_config)
+        try:
+            with self.orch.custom_nginx(nginx_conf,
+                                        healthcheck_port=80) as nginx:
+                status, headers, body = self.orch.send_nginx_http_request("/")
+                self.assertEqual(200, status)
+                self.assertInjection(headers, body)
 
-            # nginx config values take precedence
-            self.assertIn('"service":"nginx-partial-env"', body)
-            self.assertIn('"env":"staging"', body)
+                # nginx config values take precedence
+                self.assertIn('"service":"nginx-partial-env"', body)
+                self.assertIn('"env":"staging"', body)
 
-            # env var values used for fields not in nginx config
-            self.assertIn('"applicationId":"<ENV_APP_ID>"', body)
-            self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
-            self.assertIn('"site":"datadoghq.eu"', body)
+                # stable config values used for fields not in nginx config
+                self.assertIn('"applicationId":"<ENV_APP_ID>"', body)
+                self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
+                self.assertIn('"site":"datadoghq.eu"', body)
+        finally:
+            self._cleanup_stable_config()
 
     def test_nginx_config_takes_full_precedence(self):
         """
