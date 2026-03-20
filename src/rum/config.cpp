@@ -41,6 +41,35 @@ rum_config_map get_rum_config_from_env() {
   return config;
 }
 
+rum_config_map get_rum_config_from_stable_config() {
+  rum_config_map config;
+
+  auto entries = std::unique_ptr<StableConfigEntries,
+                                 decltype(&stable_config_entries_cleanup)>(
+      stable_config_get_entries("browser-sdk", false),
+      stable_config_entries_cleanup);
+
+  if (entries == nullptr || entries->error_code) {
+    return config;
+  }
+
+  for (uint32_t i = 0; i < entries->count; ++i) {
+    const char* name = entries->entries[i].name;
+    const char* value = entries->entries[i].value;
+    if (name == nullptr || value == nullptr || value[0] == '\0') continue;
+
+    std::string_view name_sv(name);
+    for (const auto& [env_name, config_key] : rum_env_mappings) {
+      if (name_sv == env_name) {
+        config[std::string(config_key)] = {std::string(value)};
+        break;
+      }
+    }
+  }
+
+  return config;
+}
+
 std::optional<bool> get_rum_enabled_from_env() {
   const char* value = std::getenv("DD_RUM_ENABLED");
   if (value == nullptr || value[0] == '\0') {
@@ -209,7 +238,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
         arg1_str.c_str());
   }
 
-  auto rum_config = get_rum_config_from_env();
+  auto rum_config = get_rum_config_from_stable_config();
 
   ngx_conf_t save = *cf;
   cf->handler = set_config;
@@ -244,37 +273,33 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
 void try_build_snippet_from_env(ngx_conf_t* cf,
                                 datadog::nginx::datadog_loc_conf_t* loc_conf) {
   try {
-    auto env_config = get_rum_config_from_env();
-    if (env_config.empty()) return;
-
-    auto json = make_rum_json_config(default_rum_config_version, env_config);
-    if (json.empty()) {
-      ngx_log_error(
-          NGX_LOG_WARN, cf->log, 0,
-          "nginx-datadog: DD_RUM_* environment variables were set but "
-          "JSON config generation produced an empty result");
-      return;
-    }
-
     auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-        snippet_create_from_json(json.c_str()), snippet_cleanup);
+        snippet_create_from_stable_config("browser-sdk", false),
+        snippet_cleanup);
+
     if (snippet == nullptr || snippet->error_code) {
       ngx_log_error(NGX_LOG_WARN, cf->log, 0,
                     "nginx-datadog: failed to create RUM snippet from "
-                    "environment variables: %s",
+                    "stable config: %s",
                     snippet ? snippet->error_message : "null snippet");
       return;
     }
 
     loc_conf->rum_snippet = snippet.release();
-    apply_rum_config_tags(loc_conf, env_config);
+    // Telemetry tags: best-effort from env (snippet is opaque)
+    const char* app_id = std::getenv("DD_RUM_APPLICATION_ID");
+    if (app_id && app_id[0] != '\0') {
+      loc_conf->rum_application_id_tag =
+          std::string("application_id:") + app_id;
+    }
+    loc_conf->rum_remote_config_tag = "remote_config_used:false";
   } catch (const std::bad_alloc&) {
     throw;
-  } catch (const std::exception& exception) {
-    ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                  "nginx-datadog: failed to build RUM snippet from environment "
-                  "variables: %s",
-                  exception.what());
+  } catch (const std::exception& e) {
+    ngx_log_error(
+        NGX_LOG_WARN, cf->log, 0,
+        "nginx-datadog: failed to build RUM snippet from stable config: %s",
+        e.what());
   }
 }
 
@@ -346,11 +371,8 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
 
 std::vector<std::string_view> get_environment_variable_names() {
   std::vector<std::string_view> names;
-  names.reserve(rum_env_mappings.size() + 1);
   names.push_back("DD_RUM_ENABLED"sv);
-  for (const auto& [env_name, config_key] : rum_env_mappings) {
-    names.push_back(env_name);
-  }
+  names.push_back("DD_RUM_APPLICATION_ID"sv);  // for telemetry tags
   return names;
 }
 

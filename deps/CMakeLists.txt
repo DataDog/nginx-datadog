@@ -1,7 +1,10 @@
 include(FetchContent)
 
-set(INJECT_BROWSER_SDK_GIT_REF "49245e1c6ed8275990bb910125187e0aaad09e3d" CACHE STRING
+set(INJECT_BROWSER_SDK_GIT_REF "587b071" CACHE STRING
     "Git tag/branch for inject-browser-sdk")
+
+set(INJECT_BROWSER_SDK_NO_DEFAULT_FEATURES OFF CACHE BOOL
+    "Build inject-browser-sdk without default features")
 
 FetchContent_Declare(
   InjectBrowserSDK
