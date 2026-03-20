@@ -508,7 +508,7 @@ class TestRUMInjection(case.TestCase):
         conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
         nginx_conf = conf_path.read_text()
 
-        env = {
+        stable_config = {
             "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
             "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
@@ -516,64 +516,75 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_REMOTE_CONFIGURATION_ID": "abc-123-remote-cfg",
         }
 
-        with self.orch.custom_nginx(nginx_conf,
-                                    extra_env=env,
-                                    healthcheck_port=80) as nginx:
-            status, headers, body = self.orch.send_nginx_http_request("/")
-            self.assertEqual(200, status)
-            self.assertInjection(headers, body)
+        self._write_stable_config(stable_config)
+        try:
+            with self.orch.custom_nginx(nginx_conf,
+                                        healthcheck_port=80) as nginx:
+                status, headers, body = self.orch.send_nginx_http_request("/")
+                self.assertEqual(200, status)
+                self.assertInjection(headers, body)
 
-            self.assertIn('"remoteConfigurationId":"abc-123-remote-cfg"', body)
+                self.assertIn('"remoteConfigurationId":"abc-123-remote-cfg"', body)
+        finally:
+            self._cleanup_stable_config()
 
     def test_env_disabled_overrides_env_config(self):
         """
-        Verify DD_RUM_ENABLED=false disables RUM even when DD_RUM_* config
-        env vars are present.
+        Verify DD_RUM_ENABLED=false disables RUM even when stable config
+        provides a complete RUM configuration.
         """
         conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
         nginx_conf = conf_path.read_text()
 
-        env = {
-            "DD_RUM_ENABLED": "false",
+        stable_config = {
             "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
             "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
             "DD_RUM_SERVICE": "should-not-inject",
         }
 
-        with self.orch.custom_nginx(nginx_conf,
-                                    extra_env=env,
-                                    healthcheck_port=80) as nginx:
-            status, headers, body = self.orch.send_nginx_http_request("/")
-            self.assertEqual(200, status)
-            headers = self.make_dict_headers(headers)
-            self.assertIsNone(headers.get("x-datadog-rum-injected"))
-            self.assertNotIn("datadog-rum.js", body)
+        env = {"DD_RUM_ENABLED": "false"}
+
+        self._write_stable_config(stable_config)
+        try:
+            with self.orch.custom_nginx(nginx_conf,
+                                        extra_env=env,
+                                        healthcheck_port=80) as nginx:
+                status, headers, body = self.orch.send_nginx_http_request("/")
+                self.assertEqual(200, status)
+                headers = self.make_dict_headers(headers)
+                self.assertIsNone(headers.get("x-datadog-rum-injected"))
+                self.assertNotIn("datadog-rum.js", body)
+        finally:
+            self._cleanup_stable_config()
 
     def test_env_disabled_location_override(self):
         """
         Verify that datadog_rum off in a location still disables injection
-        even when env vars provide a complete RUM config.
+        even when stable config provides a complete RUM configuration.
         """
         conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
         nginx_conf = conf_path.read_text()
 
-        env = {
+        stable_config = {
             "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
             "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
             "DD_RUM_SERVICE": "env-service",
         }
 
-        with self.orch.custom_nginx(nginx_conf,
-                                    extra_env=env,
-                                    healthcheck_port=80) as nginx:
-            status, headers, body = self.orch.send_nginx_http_request(
-                "/disable-rum")
-            self.assertEqual(200, status)
-            headers = self.make_dict_headers(headers)
-            self.assertIsNone(headers.get("x-datadog-rum-injected"))
-            self.assertNotIn("datadog-rum.js", body)
+        self._write_stable_config(stable_config)
+        try:
+            with self.orch.custom_nginx(nginx_conf,
+                                        healthcheck_port=80) as nginx:
+                status, headers, body = self.orch.send_nginx_http_request(
+                    "/disable-rum")
+                self.assertEqual(200, status)
+                headers = self.make_dict_headers(headers)
+                self.assertIsNone(headers.get("x-datadog-rum-injected"))
+                self.assertNotIn("datadog-rum.js", body)
+        finally:
+            self._cleanup_stable_config()
 
     def test_skip_injection_when_already_injected(self):
         """
