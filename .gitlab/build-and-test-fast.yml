@@ -43,7 +43,7 @@ shellcheck:
   image: $CI_REGISTRY/nginx_musl_toolchain
   tags: ["arch:amd64"]
   script:
-    - find bin/ test/ example/ .gitlab/ \( -type f -executable -not -name '*.py' \) -o \( -name '*.sh' -type f \) | xargs shellcheck --exclude SC1071,SC1091,SC2317
+    - find bin/ test/ example/ .gitlab/ -type f \( \( -executable -not -name '*.py' \) -o -name '*.sh' \) | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
 build-nginx-fast:
   extends:
@@ -59,7 +59,6 @@ build-nginx-fast:
           - "1.26.3"
           - "1.27.5"
           - "1.28.2"
-          - "1.29.5"
           - "1.29.6"
         WAF: ["ON", "OFF"]
 
@@ -100,7 +99,6 @@ build-nginx-rum-fast:
           - "1.26.3"
           - "1.27.5"
           - "1.28.2"
-          - "1.29.5"
           - "1.29.6"
         WAF: ["OFF"]
 
@@ -130,10 +128,6 @@ test-nginx-fast:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.28.2", "nginx:1.28.2-alpine"]
         NGINX_VERSION: ["1.28.2"]
-        WAF: ["ON", "OFF"]
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.29.5", "nginx:1.29.5-alpine"]
-        NGINX_VERSION: ["1.29.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.29.6", "nginx:1.29.6-alpine"]
@@ -196,10 +190,6 @@ test-nginx-rum-fast:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.28.2"]
         NGINX_VERSION: ["1.28.2"]
-        WAF: ["OFF"]
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.29.5"]
-        NGINX_VERSION: ["1.29.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.29.6"]

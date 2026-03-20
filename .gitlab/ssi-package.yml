@@ -15,6 +15,7 @@
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
+  # OK to run on amd64 — this job only copies files, no native compilation
   tags: ["arch:amd64"]
   script:
     - set -euo pipefail
