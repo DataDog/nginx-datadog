@@ -13,7 +13,7 @@ include:
   - local: ".gitlab/one-pipeline.locked.yml"
 
 variables:
-  OCI_PACKAGE_NAME: datadog-nginx-ssi
+  OCI_PACKAGE_NAME: datadog-apm-library-nginx
   OCI_AGENT_REGISTRY_PACKAGE_NAME: apm-library-nginx-package
   AGENT_REPO_PRODUCT_NAME: nginx_datadog
   LIB_INJECTION_NAME: dd-lib-nginx-init
