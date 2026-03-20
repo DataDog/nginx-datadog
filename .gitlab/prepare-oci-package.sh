@@ -3,10 +3,11 @@
 # Called by one-pipeline's package-oci job to populate the sources/ directory
 # that datadog-package create expects.
 #
-# Assumes CWD is set by the package-oci job (a subdirectory of the repo root,
+# Assumes current working directory is set by the package-oci job (a subdirectory of the repo root,
 # so ../artifacts/ resolves to the ssi-build artifact directory).
 #
-# The ssi-build / ssi-build-all CI jobs collect RUM-enabled nginx modules from
+# This script is used by the ssi-build and ssi-build-all jobs that are specific to RUM.
+# Those CI jobs collect RUM-enabled nginx modules from
 # build-nginx-rum-fast / build-nginx-rum-all and assemble them into
 # artifacts/ssi-sources/<arch>/. This script copies those artifacts into
 # sources/ for OCI packaging.
@@ -28,6 +29,10 @@ fi
 
 echo "Copying sources from ${SOURCES_DIR} to sources/"
 mkdir -p sources
+if [ -z "$(ls -A "${SOURCES_DIR}")" ]; then
+  echo "ERROR: Sources directory is empty: ${SOURCES_DIR}"
+  exit 1
+fi
 cp -r "${SOURCES_DIR}/"* sources/
 
 so_count=$(find sources -name '*.so' -type f | wc -l)
