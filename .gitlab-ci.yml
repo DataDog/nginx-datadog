@@ -3,18 +3,57 @@ workflow:
   auto_cancel:
     on_new_commit: interruptible
 
-stages:
-  - build-and-test-fast
-  - build-all
-  - test-all
-  - benchmarks
-
 default:
   interruptible: true
 
 include:
   - local: ".gitlab/build-and-test-all.yml"
   - local: ".gitlab/build-and-test-fast.yml"
+  - local: ".gitlab/ssi-package.yml"
+  - local: ".gitlab/one-pipeline.locked.yml"
+
+variables:
+  OCI_PACKAGE_NAME: datadog-nginx-ssi
+  OCI_AGENT_REGISTRY_PACKAGE_NAME: apm-library-nginx-package
+  AGENT_REPO_PRODUCT_NAME: nginx_datadog
+  LIB_INJECTION_NAME: dd-lib-nginx-init
+  REPO_NOTIFICATION_CHANNEL: "#injection-platform"
+
+stages:
+  - build-and-test-fast
+  - build-all
+  - test-all
+  - build
+  - shared-pipeline
+  - benchmarks
+
+requirements_json_test:
+  rules:
+    - when: on_success
+  variables:
+    REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
+    REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
+
+package-oci:
+  # Both ssi-build jobs are optional because only one runs per pipeline type.
+  # prepare-oci-package.sh validates that the ssi-sources directory for the
+  # target architecture exists, and exits 1 if missing.
+  needs:
+    - job: ssi-build
+      optional: true
+    - job: ssi-build-all
+      optional: true
+
+# TODO: Re-enable when adding k8s injection support.
+# Requires ci.nginx-datadog.apm-ecosystems-reliability-profile SSM parameter
+# in AWS us-east-1 (ask infra/platform team to create it).
+kubernetes-injection-test-ecr-publish:
+  allow_failure: true
+
+configure_system_tests:
+  variables:
+    SYSTEM_TESTS_LIBRARY: cpp_nginx
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "docker-ssi"
 
 macrobenchmarks:
   stage: benchmarks
