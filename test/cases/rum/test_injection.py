@@ -527,8 +527,8 @@ class TestRUMInjection(case.TestCase):
                 self.assertEqual(200, status)
                 self.assertInjection(headers, body)
 
-                self.assertIn(
-                    '"remoteConfigurationId":"abc-123-remote-cfg"', body)
+                self.assertIn('"remoteConfigurationId":"abc-123-remote-cfg"',
+                              body)
         finally:
             self._cleanup_stable_config()
 
