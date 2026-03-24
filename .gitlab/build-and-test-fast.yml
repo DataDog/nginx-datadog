@@ -52,7 +52,9 @@ build-nginx-fast:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        # The version used by system-tests must be one of the ones below. See https://github.com/DataDog/system-tests/pull/6113.
+        # The version used by System Tests, in
+        # https://github.com/DataDog/system-tests/blob/main/utils/build/docker/cpp_nginx/nginx.Dockerfile#L3
+        # must be one of the ones below (and must match the one set in .github/workflows/system-tests.yml).
         NGINX_VERSION:
           - "1.24.0"
           - "1.25.5"
