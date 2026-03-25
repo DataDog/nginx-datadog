@@ -1,3 +1,4 @@
+# Datadog Code Coverage migration - see Makefile coverage target
 include:
   - local: ".gitlab/common.yml"
 
