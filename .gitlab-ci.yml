@@ -2,6 +2,10 @@
 workflow:
   auto_cancel:
     on_new_commit: interruptible
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE =~ /^(api|schedule|web)$/
 
 default:
   interruptible: true
