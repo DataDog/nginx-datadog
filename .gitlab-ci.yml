@@ -27,7 +27,7 @@ stages:
   - build-and-test-fast
   - build-all
   - test-all
-  - build
+  - assemble
   - shared-pipeline
   - benchmarks
 
