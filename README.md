@@ -111,7 +111,7 @@ Below are specific commands and options for different build targets.
 > The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee portability.
 
 ```shell
-WAF=ON ARCH=x86_64 NGINX_VERSION=1.27.1 make build-musl
+WAF=ON ARCH=x86_64 NGINX_VERSION=1.29.7 make build-musl
 ```
 
 Options:
@@ -128,7 +128,7 @@ The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 To build the module for OpenResty:
 
 ```shell
-WAF=ON ARCH=x86_64 RESTY_VERSION=1.27.1.1 make build-openresty
+WAF=ON ARCH=x86_64 RESTY_VERSION=1.29.2.1 make build-openresty
 ```
 
 Options:
@@ -145,7 +145,7 @@ The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 To build the module for [Ingress Nginx](https://github.com/kubernetes/ingress-nginx):
 
 ```shell
-WAF=ON ARCH=x86_64 INGRESS_NGINX_VERSION=1.11.2 make build-ingress-nginx
+WAF=ON ARCH=x86_64 INGRESS_NGINX_VERSION=1.15.1 make build-ingress-nginx
 ```
 
 Options:
