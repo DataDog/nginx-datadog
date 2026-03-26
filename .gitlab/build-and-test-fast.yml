@@ -213,4 +213,4 @@ coverage:
     max: 2
     when: script_failure
   script:
-    - make coverage
+    - DD_API_KEY=$(vault kv get --format=json kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key 2>/dev/null | jq -r '.data.data.key // empty') make coverage
