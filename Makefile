@@ -266,4 +266,4 @@ endif
 	tar -C .musl-build -xzf test/coverage_data.tar.gz
 	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
 	codecov -Z -f .musl-build/coverage.lcov --disable-search -t $$(vault kv get -field=token kv/k8s/gitlab-runner/nginx-datadog/codecov)
-	apk add --no-cache nodejs npm && npx @datadog/datadog-ci@latest coverage upload --format=lcov .musl-build/coverage.lcov || true
+	apk add --no-cache nodejs npm 2>&1 && node --version && npx --yes @datadog/datadog-ci@latest coverage upload --format=lcov .musl-build/coverage.lcov || true
