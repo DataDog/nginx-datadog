@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")"/..
 
 if [ -z "$RESTY_VERSION" ]; then
-    export RESTY_VERSION=1.27.1.2
+    export RESTY_VERSION=1.29.2.1
 fi
 
 if [ -z "$BASE_IMAGE" ]; then

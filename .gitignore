@@ -1,24 +1,8 @@
-# source code fetched by the build
-/nginx/
-
-# build arifacts
-*.so*
 /.build
 /.musl-build
 /.openresty-build
+/.vscode/
 
-# text editor noise
-.*.sw?
-.vscode/
-
-# file used as part of the build configuration
-/nginx-version-info
-/openresty-version-info
-
-# scratch directory for preparing releases
-/.release/
-
-# Python
 __pycache__/
-
-/metrics.csv
+.DS_Store
+*.so*
