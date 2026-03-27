@@ -98,7 +98,3 @@ ENV PATH="/.venv/bin:$PATH"
 RUN LINUX_ARCH=linux_$(echo ${ARCH} | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
   wget -qO- https://releases.hashicorp.com/vault/1.21.2/vault_1.21.2_${LINUX_ARCH}.zip | busybox unzip -
 RUN chmod +x vault && mv vault /usr/local/bin/
-
-# CodeCov
-RUN curl -o bin/codecov https://uploader.codecov.io/v0.8.0/alpine/codecov
-RUN chmod +x bin/codecov

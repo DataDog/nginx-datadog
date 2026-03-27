@@ -1,7 +1,5 @@
 <img alt="Datadog Tracing Nginx" src="mascot.svg" height="200"/>
 
-[![codecov](https://codecov.io/gh/DataDog/nginx-datadog/graph/badge.svg?token=SZCZI1FAYU)](https://codecov.io/gh/DataDog/nginx-datadog)
-
 # Datadog Nginx Module
 This repository contains the source code for the `ngx_http_datadog_module`, an Nginx module
 that integrates Datadog [APM](https://docs.datadoghq.com/tracing) and

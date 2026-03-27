@@ -208,8 +208,5 @@ coverage:
     NGINX_VERSION: "1.26.0"
     WAF: "ON"
   tags: ["docker-in-docker:$ARCH"]
-  retry:
-    max: 2
-    when: script_failure
   script:
     - DD_API_KEY=$(vault kv get -field key kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key 2>/dev/null) make coverage
