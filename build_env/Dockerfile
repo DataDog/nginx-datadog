@@ -85,6 +85,9 @@ RUN cargo install --locked cbindgen --version 0.26.0 && \
 # Shellcheck
 RUN apk add --no-cache shellcheck
 
+# Node.js (for datadog-ci coverage upload)
+RUN apk add --no-cache nodejs npm
+
 # UV and Python packages for tests
 COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml .
