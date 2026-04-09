@@ -48,6 +48,7 @@ jobs:
       TEST_OPTIMIZATION_API_KEY: ${{ secrets.DD_API_KEY }}
     permissions:
       contents: read
+      id-token: write
       packages: write
     with:
       library: cpp_nginx
@@ -58,6 +59,7 @@ jobs:
       excluded_scenarios: INTEGRATIONS  # no test activated, and long warm-up
       skip_empty_scenarios: true
       push_to_test_optimization: true
+      dd_sts_policy: nginx-datadog
 
   # Ensure the main job is run to completion
   check:
