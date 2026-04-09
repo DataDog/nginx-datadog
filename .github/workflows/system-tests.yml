@@ -17,7 +17,7 @@ jobs:
       # The Nginx version must match the one in System Tests, in
       # https://github.com/DataDog/system-tests/blob/main/utils/build/docker/cpp_nginx/nginx.Dockerfile#L3,
       # and must be one of the versions built in GitLab CI build-and-test-fast.
-      NGINX_VERSION: 1.29.7
+      NGINX_VERSION: 1.29.8
       WAF: ON
       MIRROR_REGISTRY: ""
     steps:
