@@ -55,13 +55,14 @@ build-nginx-fast:
         # The version used by System Tests, in
         # https://github.com/DataDog/system-tests/blob/main/utils/build/docker/cpp_nginx/nginx.Dockerfile#L3
         # must be one of the ones below (and must match the one set in .github/workflows/system-tests.yml).
+        # (This is why a latest but one version can be in build-nginx-fast but not in test-nginx-fast.)
         NGINX_VERSION:
           - "1.24.0"
           - "1.25.5"
           - "1.26.3"
           - "1.27.5"
           - "1.28.3"
-          - "1.29.7"
+          - "1.29.8"
         WAF: ["ON", "OFF"]
 
 build-ingress-nginx-fast:
@@ -85,7 +86,7 @@ build-openresty-fast:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION:
           - "1.27.1.2"
-          - "1.29.2.1"
+          - "1.29.2.3"
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-fast:
@@ -101,7 +102,7 @@ build-nginx-rum-fast:
           - "1.26.3"
           - "1.27.5"
           - "1.28.3"
-          - "1.29.7"
+          - "1.29.8"
         WAF: ["OFF"]
 
 test-nginx-fast:
@@ -132,8 +133,8 @@ test-nginx-fast:
         NGINX_VERSION: ["1.28.3"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.29.7", "nginx:1.29.7-alpine"]
-        NGINX_VERSION: ["1.29.7"]
+        BASE_IMAGE: ["nginx:1.29.8", "nginx:1.29.8-alpine"]
+        NGINX_VERSION: ["1.29.8"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["amazonlinux:2023.3.20240219.0"]
@@ -163,7 +164,7 @@ test-openresty-fast:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION:
           - "1.27.1.2"
-          - "1.29.2.1"
+          - "1.29.2.3"
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-fast:
@@ -194,8 +195,8 @@ test-nginx-rum-fast:
         NGINX_VERSION: ["1.28.3"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.29.7"]
-        NGINX_VERSION: ["1.29.7"]
+        BASE_IMAGE: ["nginx:1.29.8"]
+        NGINX_VERSION: ["1.29.8"]
         WAF: ["OFF"]
 
 coverage:
