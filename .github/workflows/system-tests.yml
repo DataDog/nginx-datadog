@@ -59,7 +59,6 @@ jobs:
       excluded_scenarios: INTEGRATIONS  # no test activated, and long warm-up
       skip_empty_scenarios: true
       push_to_test_optimization: true
-      dd_sts_policy: nginx-datadog
 
   # Ensure the main job is run to completion
   check:
