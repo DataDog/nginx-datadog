@@ -47,9 +47,7 @@ jobs:
       DD_API_KEY: ${{ secrets.DD_API_KEY }}
       TEST_OPTIMIZATION_API_KEY: ${{ secrets.DD_API_KEY }}
     permissions:
-      contents: read
       id-token: write
-      packages: write
     with:
       library: cpp_nginx
       binaries_artifact: binaries
