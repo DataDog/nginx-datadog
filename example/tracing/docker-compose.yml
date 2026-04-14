@@ -6,8 +6,8 @@ services:
       context: ./services/nginx
       dockerfile: ./Dockerfile
       args:
-        BASE_IMAGE: ${BASE_IMAGE}
-        NGINX_DATADOG_VERSION: ${NGINX_DATADOG_VERSION}
+        BASE_IMAGE: ${BASE_IMAGE:-}
+        NGINX_DATADOG_VERSION: ${NGINX_DATADOG_VERSION:-}
     environment:
       - DD_AGENT_HOST=agent
     depends_on:
