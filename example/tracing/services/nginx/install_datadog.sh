@@ -17,7 +17,6 @@ get_nginx_version() {
     >&2 echo 'Could not execute nginx binary'
     exit 1
   fi
-
   nginx -version 2>&1 | sed 's@.*/@@'
 }
 
@@ -95,10 +94,18 @@ if ! is_installed nginx; then
   fi
 fi
 
-RELEASE_TAG=$(get_latest_release DataDog/nginx-datadog)
+
 NGINX_VERSION=$(get_nginx_version)
 tarball="ngx_http_datadog_module-appsec-${ARCH}-${NGINX_VERSION}.so.tgz"
 
-wget "https://github.com/DataDog/nginx-datadog/releases/download/$RELEASE_TAG/$tarball"
-tar -xzf "$tarball" -C "$nginx_modules_path"
-rm "$tarball"
+REPOSITORY="DataDog/nginx-datadog"
+
+if [ -n "$NGINX_DATADOG_VERSION" ]; then
+  NGINX_DATADOG_RELEASE_TAG="v${NGINX_DATADOG_VERSION}"
+else
+  NGINX_DATADOG_RELEASE_TAG=$(get_latest_release $REPOSITORY)
+fi
+
+wget "https://github.com/$REPOSITORY/releases/download/$NGINX_DATADOG_RELEASE_TAG/$tarball"
+tar -xzf $tarball -C $nginx_modules_path
+rm $tarball

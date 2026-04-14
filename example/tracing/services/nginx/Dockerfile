@@ -8,6 +8,8 @@ FROM ${BASE_IMAGE}
 COPY ./install_datadog.sh /tmp/
 ARG BASE_IMAGE
 ENV BASE_IMAGE=${BASE_IMAGE}
+ARG NGINX_DATADOG_VERSION
+ENV NGINX_DATADOG_VERSION=${NGINX_DATADOG_VERSION}
 RUN /tmp/install_datadog.sh
 
 COPY ./nginx.conf /etc/nginx/nginx.conf
