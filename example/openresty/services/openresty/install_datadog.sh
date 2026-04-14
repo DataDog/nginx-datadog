@@ -54,5 +54,5 @@ else
 fi
 
 wget "https://github.com/$repository/releases/download/$nginx_datadog_release_tag/$tarball"
-tar -xzf $tarball -C /usr/local/openresty/nginx/modules
-rm $tarball
+tar -xzf "$tarball" -C /usr/local/openresty/nginx/modules
+rm "$tarball"
