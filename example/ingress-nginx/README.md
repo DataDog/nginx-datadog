@@ -13,10 +13,11 @@ Add the `ingress-nginx` repository in your local Helm configuration:
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 ```
 
-In Docker Desktop, go the 'Kubernetes' tab, and create a cluster. Then use it:
+Get a local Kubernetes cluster, then use it. For example, with Colima:
 
 ```shell
-kubectl config use-context docker-desktop
+colima start --cpu 4 --memory 16 --vm-type=vz --vz-rosetta `--kubernetes
+kubectl config use-context colima
 ```
 
 Install `ingress-nginx` (with the Datadog module):
