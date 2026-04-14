@@ -1,5 +1,5 @@
 #!/bin/sh
-# Set up the nginx container image. Install nginx, if necessary, and install the nginx-datadog module.
+# Set up the Nginx container image. Install Nginx, if necessary, and install the Nginx Datadog module.
 
 set -x
 set -e
@@ -40,16 +40,16 @@ case "$BASE_IMAGE" in
       ;;
 esac
 
-ARCH="$(uname -m)"
-case "$ARCH" in
+arch="$(uname -m)"
+case "$arch" in
     aarch64)
-      ARCH="arm64"
+      arch="arm64"
       ;;
     x86_64)
-      ARCH="amd64"
+      arch="amd64"
       ;;
     *)
-      >&2 echo "Platform ${BASE_IMAGE}-${ARCH} is not supported."
+      >&2 echo "Platform ${BASE_IMAGE}-${arch} is not supported."
       exit 1
       ;;
 esac
@@ -94,18 +94,17 @@ if ! is_installed nginx; then
   fi
 fi
 
+nginx_version=$(get_nginx_version)
+tarball="ngx_http_datadog_module-appsec-${arch}-${nginx_version}.so.tgz"
 
-NGINX_VERSION=$(get_nginx_version)
-tarball="ngx_http_datadog_module-appsec-${ARCH}-${NGINX_VERSION}.so.tgz"
-
-REPOSITORY="DataDog/nginx-datadog"
+repository="DataDog/nginx-datadog"
 
 if [ -n "$NGINX_DATADOG_VERSION" ]; then
-  NGINX_DATADOG_RELEASE_TAG="v${NGINX_DATADOG_VERSION}"
+  nginx_datadog_release_tag="v${NGINX_DATADOG_VERSION}"
 else
-  NGINX_DATADOG_RELEASE_TAG=$(get_latest_release $REPOSITORY)
+  nginx_datadog_release_tag=$(get_latest_release $repository)
 fi
 
-wget "https://github.com/$REPOSITORY/releases/download/$NGINX_DATADOG_RELEASE_TAG/$tarball"
+wget "https://github.com/$repository/releases/download/$nginx_datadog_release_tag/$tarball"
 tar -xzf $tarball -C $nginx_modules_path
 rm $tarball
