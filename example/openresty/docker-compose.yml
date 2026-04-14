@@ -6,7 +6,8 @@ services:
       context: ./services/openresty
       dockerfile: ./Dockerfile
       args:
-        BASE_IMAGE: ${BASE_IMAGE}
+        OPENRESTY_VERSION: ${OPENRESTY_VERSION:-}
+        NGINX_DATADOG_VERSION: ${NGINX_DATADOG_VERSION:-}
     environment:
       - DD_AGENT_HOST=agent
     depends_on:

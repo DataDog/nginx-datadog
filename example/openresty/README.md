@@ -28,19 +28,13 @@ export DD_API_KEY=your_api_key_here
 bin/run
 ```
 
-You can also choose which OpenResty version to run with the RESTY_VERSION environment variable:
-
-```shell
-RESTY_VERSION=1.27.1.2 bin/run
-```
-
 Then, in another shell, make HTTP or gRPC calls to the `openresty` service using
 the included command line tools:
 
 ```shell
 bin/curl http://openresty/openresty
 
-openresty lua
+openresty lua generated content
 ```
 
 See [services/openresty/nginx.conf](services/openresty/nginx.conf) for the available routes.
