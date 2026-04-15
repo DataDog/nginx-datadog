@@ -102,7 +102,7 @@ repository="DataDog/nginx-datadog"
 if [ -n "$NGINX_DATADOG_VERSION" ]; then
   nginx_datadog_release_tag="v${NGINX_DATADOG_VERSION}"
 else
-  nginx_datadog_release_tag=$(get_latest_release $repository)
+  nginx_datadog_release_tag=$(get_latest_release "$repository")
 fi
 
 wget "https://github.com/$repository/releases/download/$nginx_datadog_release_tag/$tarball"
