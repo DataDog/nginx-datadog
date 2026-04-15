@@ -1,5 +1,7 @@
 #include "ngx_http_datadog_module.h"
 
+#include <datadog/runtime_id.h>
+
 #include <cassert>
 #include <cstdlib>
 #include <exception>
@@ -408,6 +410,7 @@ static void *create_datadog_main_conf(ngx_conf_t *conf) noexcept {
   if (register_destructor(conf->pool, main_conf)) {
     return nullptr;  // error
   }
+  main_conf->root_session_id = dd::RuntimeID::generate().string();
   return main_conf;
 }
 
