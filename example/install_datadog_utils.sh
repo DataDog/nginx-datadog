@@ -2,16 +2,16 @@
 # Shared utility functions for install_datadog.sh scripts.
 
 detect_arch() {
-  arch="$(uname -m)"
-  case "$arch" in
+  raw_arch="$(uname -m)"
+  case "$raw_arch" in
       aarch64)
-        arch="arm64"
+        echo "arm64"
         ;;
       x86_64)
-        arch="amd64"
+        echo "amd64"
         ;;
       *)
-        >&2 echo "Platform ${arch} is not supported."
+        >&2 echo "Platform ${raw_arch} is not supported."
         exit 1
         ;;
   esac

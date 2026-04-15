@@ -34,7 +34,7 @@ case "$BASE_IMAGE" in
       ;;
 esac
 
-detect_arch
+arch=$(detect_arch)
 
 install_packages curl jq tar wget
 

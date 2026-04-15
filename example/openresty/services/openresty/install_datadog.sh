@@ -6,7 +6,7 @@ set -e
 
 . /tmp/install_datadog_utils.sh
 
-detect_arch
+arch=$(detect_arch)
 
 install_packages curl jq tar wget
 
