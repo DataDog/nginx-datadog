@@ -3,8 +3,8 @@ services:
   # `openresty` is an instance of openresty that has the Datadog tracing module loaded.
   openresty:
     build:
-      context: ./services/openresty
-      dockerfile: ./Dockerfile
+      context: ..
+      dockerfile: openresty/services/openresty/Dockerfile
       args:
         OPENRESTY_VERSION: ${OPENRESTY_VERSION:-}
         NGINX_DATADOG_VERSION: ${NGINX_DATADOG_VERSION:-}

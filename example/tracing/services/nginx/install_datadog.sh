@@ -4,13 +4,7 @@
 set -x
 set -e
 
-is_installed() {
-  command -v "$1" > /dev/null 2>&1
-}
-
-get_latest_release() {
-  curl --silent "https://api.github.com/repos/$1/releases/latest" | jq --raw-output .tag_name
-}
+. /tmp/install_datadog_utils.sh
 
 get_nginx_version() {
   if ! is_installed nginx; then

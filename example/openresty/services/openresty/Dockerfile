@@ -10,10 +10,11 @@ ARG OPENRESTY_VERSION
 ENV OPENRESTY_VERSION=${OPENRESTY_VERSION}
 ARG NGINX_DATADOG_VERSION
 ENV NGINX_DATADOG_VERSION=${NGINX_DATADOG_VERSION}
-COPY ./install_datadog.sh /tmp/
+COPY ./install_datadog_utils.sh /tmp/
+COPY ./openresty/services/openresty/install_datadog.sh /tmp/
 RUN /tmp/install_datadog.sh
 
-COPY ./nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY ./openresty/services/openresty/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
 
 ENTRYPOINT ["nginx"]
 CMD ["-g", "daemon off;"]
