@@ -16,7 +16,7 @@ helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 Get a local Kubernetes cluster, then use it. For example, with Colima:
 
 ```shell
-colima start --cpu 4 --memory 16 --vm-type=vz --vz-rosetta `--kubernetes
+colima start --cpu 4 --memory 16 --vm-type=vz --vz-rosetta --kubernetes
 kubectl config use-context colima
 ```
 
