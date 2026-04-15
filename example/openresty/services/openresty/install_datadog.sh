@@ -9,7 +9,12 @@ is_installed() {
 }
 
 get_latest_release() {
-  curl --silent "https://api.github.com/repos/$1/releases/latest" | jq --raw-output .tag_name
+  tag=$(curl --silent --fail "https://api.github.com/repos/$1/releases/latest" | jq --raw-output .tag_name)
+  if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+    >&2 echo "Failed to fetch latest release tag for $1. Check network and GitHub API rate limits."
+    exit 1
+  fi
+  echo "$tag"
 }
 
 arch="$(uname -m)"
