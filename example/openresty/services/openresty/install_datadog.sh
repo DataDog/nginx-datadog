@@ -6,36 +6,9 @@ set -e
 
 . /tmp/install_datadog_utils.sh
 
-arch="$(uname -m)"
-case "$arch" in
-    aarch64)
-      arch="arm64"
-      ;;
-    x86_64)
-      arch="amd64"
-      ;;
-    *)
-      >&2 echo "Platform ${arch} is not supported."
-      exit 1
-      ;;
-esac
+detect_arch
 
-# Install the command line tools needed to fetch and extract the module.
-# `apt-get` (Debian, Ubuntu), `apk` (Alpine), and `yum` (Amazon Linux) are
-# supported.
-if is_installed apt-get; then
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y tar wget curl jq
-elif is_installed apk; then
-    apk update
-    apk add tar wget curl jq
-elif is_installed yum; then
-    yum update -y
-    yum install -y tar wget curl jq
-else
-    >&2 printf 'Did not find a supported package manager.\n'
-    exit 3
-fi
+install_packages curl jq tar wget
 
 if [ -z "$OPENRESTY_VERSION" ]; then
   >&2 echo 'OPENRESTY_VERSION must be set (e.g. "1.29.2.1").'
