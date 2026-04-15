@@ -43,6 +43,11 @@ else
     exit 3
 fi
 
+if [ -z "$OPENRESTY_VERSION" ]; then
+  >&2 echo 'OPENRESTY_VERSION must be set (e.g. "1.29.2.1").'
+  exit 1
+fi
+
 tarball="openresty-ngx_http_datadog_module-appsec-${arch}-${OPENRESTY_VERSION}.so.tgz"
 
 repository="DataDog/nginx-datadog"
