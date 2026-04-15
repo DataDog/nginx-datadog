@@ -19,7 +19,7 @@ include:
 variables:
   OCI_PACKAGE_NAME: datadog-nginx-ssi
   OCI_AGENT_REGISTRY_PACKAGE_NAME: apm-library-nginx-package
-  AGENT_REPO_PRODUCT_NAME: nginx_datadog
+  AGENT_REPO_PRODUCT_NAME: auto_inject-nginx
   LIB_INJECTION_NAME: dd-lib-nginx-init
   REPO_NOTIFICATION_CHANNEL: "#injection-platform"
 
