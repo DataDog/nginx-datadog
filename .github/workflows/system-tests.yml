@@ -42,7 +42,7 @@ jobs:
   main:
     needs:
     - build
-    uses:  DataDog/system-tests/.github/workflows/system-tests.yml@1e5d6b7096279ca43ce4826fda3cc805635b63c1
+    uses:  DataDog/system-tests/.github/workflows/system-tests.yml@main
     secrets:
       DD_API_KEY: ${{ secrets.DD_API_KEY }}
       TEST_OPTIMIZATION_API_KEY: ${{ secrets.DD_API_KEY }}
@@ -51,7 +51,6 @@ jobs:
       id-token: write
     with:
       library: cpp_nginx
-      ref: 1e5d6b7096279ca43ce4826fda3cc805635b63c1
       binaries_artifact: binaries
       desired_execution_time: 600  # 10 minutes
       scenarios_groups: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && 'tracer_release' || 'appsec' }}
