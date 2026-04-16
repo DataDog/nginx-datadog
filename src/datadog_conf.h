@@ -94,6 +94,7 @@ struct datadog_main_conf_t {
   // module configuration, instead we grab the values from the environment
   // of the master process and apply them later in the worker processes after
   // `fork()`.
+  std::string root_session_id;
   std::vector<environment_variable_t> environment_variables;
   // If `propagation_styles` is empty, then use the defaults instead.
   // `propagation_styles` is populated by the "datadog_propagation_styles"
