@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-      - run: git submodule sync && git submodule update --init --recursive
+      - run: git submodule sync dd-trace-cpp libddwaf && git submodule update --init --recursive dd-trace-cpp libddwaf
       - name: Login to Docker Hub
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
