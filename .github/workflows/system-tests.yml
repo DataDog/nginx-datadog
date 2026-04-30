@@ -14,9 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ARCH: x86_64
-      # The Nginx version must match the one in system-tests repository:
-      # https://github.com/DataDog/system-tests/blob/main/utils/build/docker/cpp_nginx/nginx.Dockerfile
-      NGINX_VERSION: 1.29.6
+      # The Nginx version must match the one in System Tests, in
+      # https://github.com/DataDog/system-tests/blob/main/utils/build/docker/cpp_nginx/nginx.Dockerfile#L3,
+      # and must be one of the versions built in GitLab CI build-and-test-fast.
+      NGINX_VERSION: 1.29.8
       WAF: ON
       MIRROR_REGISTRY: ""
     steps:
@@ -47,7 +48,7 @@ jobs:
       TEST_OPTIMIZATION_API_KEY: ${{ secrets.DD_API_KEY }}
     permissions:
       contents: read
-      packages: write
+      id-token: write
     with:
       library: cpp_nginx
       binaries_artifact: binaries

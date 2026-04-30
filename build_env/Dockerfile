@@ -85,6 +85,9 @@ RUN cargo install --locked cbindgen --version 0.26.0 && \
 # Shellcheck
 RUN apk add --no-cache shellcheck
 
+# Node.js (for datadog-ci coverage upload)
+RUN apk add --no-cache nodejs npm
+
 # UV and Python packages for tests
 COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml .
@@ -95,7 +98,3 @@ ENV PATH="/.venv/bin:$PATH"
 RUN LINUX_ARCH=linux_$(echo ${ARCH} | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
   wget -qO- https://releases.hashicorp.com/vault/1.21.2/vault_1.21.2_${LINUX_ARCH}.zip | busybox unzip -
 RUN chmod +x vault && mv vault /usr/local/bin/
-
-# CodeCov
-RUN curl -o bin/codecov https://uploader.codecov.io/v0.8.0/alpine/codecov
-RUN chmod +x bin/codecov

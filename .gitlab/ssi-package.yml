@@ -10,8 +10,8 @@
 
 .ssi-assemble:
   extends: .git-config
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain:rust-1.85
-  stage: build
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+  stage: assemble
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -20,6 +20,7 @@
   script:
     - set -euo pipefail
     - VERSION="${CI_COMMIT_TAG:-0.0.1-${CI_COMMIT_SHORT_SHA}}"
+    - VERSION="${VERSION#v}"
     - OUTPUT="artifacts/ssi-sources/${ARCH}"
     - mkdir -p "${OUTPUT}"
     - |
@@ -55,7 +56,7 @@ ssi-build:
 
 ssi-build-all:
   extends: .ssi-assemble
-  needs: [build-nginx-rum-all]
+  # Don't put 'needs: [build-nginx-rum-all]', because it would exceed the maximum number of jobs allowed as a dependency (50).
   rules:
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
       when: always

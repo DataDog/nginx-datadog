@@ -3,28 +3,57 @@ set -e
 
 cd "$(dirname "$0")"/..
 
-if [ -z "$RESTY_VERSION" ]; then
-    export RESTY_VERSION=1.27.1.2
-fi
+DEFAULT_OPENRESTY_VERSION=1.29.2.1
 
-if [ -z "$BASE_IMAGE" ]; then
-    BASE_IMAGE="openresty/openresty:${RESTY_VERSION}-alpine"
-    export BASE_IMAGE
-fi
+usage() {
+    echo "Usage: $0 [--openresty OpenResty_version] [--nginx-datadog Nginx_Datadog_version] [--no-cache]"
+    echo "  -h, --help"
+    echo "      show this help message"
+    echo "  --openresty OpenResty_version"
+    echo "      OpenResty version (default: $DEFAULT_OPENRESTY_VERSION)"
+    echo "  --nginx-datadog Nginx_Datadog_version"
+    echo "      Nginx Datadog release tag (example: 1.0.0, default: latest one)"
+    echo "  --no-cache"
+    echo "      disable cache when building Docker images"
+}
 
-# Fail fast in case the base image is not supported.
-# For now, we only support nginx, nginx-alpine, and amazonlinux images.
-case "$BASE_IMAGE" in
-    openresty/openresty:*) ;;
-    *)
-      >&2 echo 'BASE_IMAGE value "%s" is invalid.' "$BASE_IMAGE"
-      exit 1
-      ;;
-esac
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --openresty)
+            [ $# -ge 2 ] || { usage >&2; exit 1; }
+            OPENRESTY_VERSION="$2"
+            shift 2
+            ;;
+        --nginx-datadog)
+            [ $# -ge 2 ] || { usage >&2; exit 1; }
+            NGINX_DATADOG_VERSION="$2"
+            shift 2
+            ;;
+        --no-cache)
+            NO_CACHE=true
+            shift
+            ;;
+        *)
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+OPENRESTY_VERSION=${OPENRESTY_VERSION:-${DEFAULT_OPENRESTY_VERSION}}
+export OPENRESTY_VERSION
+export NGINX_DATADOG_VERSION
 
 if [ "$DD_API_KEY" = '' ]; then
     >&2 echo 'The environment variable DD_API_KEY must be set to a Datadog API key.'
     exit 1
 fi
 
+if [ -n "$NO_CACHE" ]; then
+    docker compose build --no-cache
+fi
 docker compose up --build --abort-on-container-exit --remove-orphans
