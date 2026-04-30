@@ -412,7 +412,8 @@ class TestRUMInjection(case.TestCase):
         stable config file (application_monitoring.yaml), with no
         datadog_rum_config directive in the nginx config.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_only.conf"
+        conf_path = Path(
+            __file__).parent / "conf" / "rum_stable_config_only.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
@@ -449,7 +450,8 @@ class TestRUMInjection(case.TestCase):
         values (per-field merging). The datadog_rum_config block sets service
         and env; the remaining fields come from stable config.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_partial.conf"
+        conf_path = Path(
+            __file__).parent / "conf" / "rum_stable_config_partial.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
@@ -508,7 +510,8 @@ class TestRUMInjection(case.TestCase):
         Verify that DD_RUM_REMOTE_CONFIGURATION_ID from stable config is
         passed through to the RUM SDK init call as remoteConfigurationId.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_only.conf"
+        conf_path = Path(
+            __file__).parent / "conf" / "rum_stable_config_only.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
@@ -537,7 +540,8 @@ class TestRUMInjection(case.TestCase):
         Verify DD_RUM_ENABLED=false disables RUM even when stable config
         provides a complete RUM configuration.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_only.conf"
+        conf_path = Path(
+            __file__).parent / "conf" / "rum_stable_config_only.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
@@ -567,7 +571,8 @@ class TestRUMInjection(case.TestCase):
         Verify that datadog_rum off in a location still disables injection
         even when stable config provides a complete RUM configuration.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_only.conf"
+        conf_path = Path(
+            __file__).parent / "conf" / "rum_stable_config_only.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {

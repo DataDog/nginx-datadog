@@ -226,8 +226,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   auto overlay_json = make_rum_json_config(*config_version, rum_config);
 
   auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-      snippet_create_from_stable_config("nginx", false,
-                                        overlay_json.c_str()),
+      snippet_create_from_stable_config("nginx", false, overlay_json.c_str()),
       snippet_cleanup);
 
   if (snippet == nullptr || snippet->error_code) {
