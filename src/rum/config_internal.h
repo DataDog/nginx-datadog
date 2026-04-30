@@ -41,8 +41,6 @@ using rum_config_map =
 
 rum_config_map get_rum_config_from_env();
 
-rum_config_map get_rum_config_from_stable_config();
-
 std::optional<bool> get_rum_enabled_from_env();
 
 std::string make_rum_json_config(int config_version,

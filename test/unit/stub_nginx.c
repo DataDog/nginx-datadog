@@ -23,6 +23,11 @@ void* ngx_palloc(ngx_pool_t* pool, size_t size) {
   return malloc(size);
 }
 
+void* ngx_pcalloc(ngx_pool_t* pool, size_t size) {
+  (void)pool;
+  return calloc(1, size);
+}
+
 u_char* ngx_snprintf(u_char* buf, size_t max, const char* fmt, ...) {
   (void)buf;
   (void)max;

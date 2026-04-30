@@ -41,35 +41,6 @@ rum_config_map get_rum_config_from_env() {
   return config;
 }
 
-rum_config_map get_rum_config_from_stable_config() {
-  rum_config_map config;
-
-  auto entries = std::unique_ptr<StableConfigEntries,
-                                 decltype(&stable_config_entries_cleanup)>(
-      stable_config_get_entries("browser-sdk", false),
-      stable_config_entries_cleanup);
-
-  if (entries == nullptr || entries->error_code) {
-    return config;
-  }
-
-  for (uint32_t i = 0; i < entries->count; ++i) {
-    const char* name = entries->entries[i].name;
-    const char* value = entries->entries[i].value;
-    if (name == nullptr || value == nullptr || value[0] == '\0') continue;
-
-    std::string_view name_sv(name);
-    for (const auto& [env_name, config_key] : rum_env_mappings) {
-      if (name_sv == env_name) {
-        config[std::string(config_key)] = {std::string(value)};
-        break;
-      }
-    }
-  }
-
-  return config;
-}
-
 std::optional<bool> get_rum_enabled_from_env() {
   const char* value = std::getenv("DD_RUM_ENABLED");
   if (value == nullptr || value[0] == '\0') {
@@ -238,7 +209,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
         arg1_str.c_str());
   }
 
-  auto rum_config = get_rum_config_from_stable_config();
+  rum_config_map rum_config;
 
   ngx_conf_t save = *cf;
   cf->handler = set_config;
@@ -250,14 +221,15 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
     return status;
   }
 
-  auto json = make_rum_json_config(*config_version, rum_config);
-  if (json.empty()) {
-    return conf_err(
-        cf, "failed to generate the RUM SDK script: missing version field");
-  }
+  // Build a JSON overlay from the block's directives and let the SDK merge it
+  // on top of the Agent's stable-config YAML. The overlay has the same shape as
+  // snippet_create_from_json input but every field is optional.
+  auto overlay_json = make_rum_json_config(*config_version, rum_config);
 
   auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-      snippet_create_from_json(json.c_str()), snippet_cleanup);
+      snippet_create_from_stable_config("nginx", false,
+                                        overlay_json.c_str()),
+      snippet_cleanup);
 
   if (snippet == nullptr || snippet->error_code) {
     return conf_err(cf, "failed to generate the RUM SDK script: %s",
@@ -274,7 +246,7 @@ void try_build_snippet_from_env(ngx_conf_t* cf,
                                 datadog::nginx::datadog_loc_conf_t* loc_conf) {
   try {
     auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-        snippet_create_from_stable_config("browser-sdk", false),
+        snippet_create_from_stable_config("nginx", false, nullptr),
         snippet_cleanup);
 
     if (snippet == nullptr || snippet->error_code) {

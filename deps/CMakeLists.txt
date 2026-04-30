@@ -1,17 +1,16 @@
-include(FetchContent)
-
-set(INJECT_BROWSER_SDK_GIT_REF "f509450" CACHE STRING
-    "Git tag/branch for inject-browser-sdk")
-
 set(INJECT_BROWSER_SDK_NO_DEFAULT_FEATURES OFF CACHE BOOL
     "Build inject-browser-sdk without default features")
 
-FetchContent_Declare(
-  InjectBrowserSDK
-  GIT_REPOSITORY https://github.com/DataDog/inject-browser-sdk.git
-  GIT_TAG        ${INJECT_BROWSER_SDK_GIT_REF}
-)
-FetchContent_MakeAvailable(InjectBrowserSDK)
+# inject-browser-sdk is vendored as a git submodule under deps/inject-browser-sdk.
+# Its top-level CMakeLists fetches Corrosion if needed and exposes the
+# inject_browser_sdk_ffi target.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/inject-browser-sdk/CMakeLists.txt")
+  message(FATAL_ERROR
+    "inject-browser-sdk submodule is missing. Run:\n"
+    "  git submodule update --init --recursive deps/inject-browser-sdk")
+endif()
+
+add_subdirectory(inject-browser-sdk)
 
 # Pass cross-compilation sysroot/target flags to Rust cc crate builds
 # (e.g. aws-lc-sys) that invoke the C compiler via CFLAGS.
