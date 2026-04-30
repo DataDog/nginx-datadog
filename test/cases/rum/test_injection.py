@@ -406,18 +406,18 @@ class TestRUMInjection(case.TestCase):
                        check=True,
                        capture_output=True)
 
-    def test_env_only_config(self):
+    def test_stable_config_only(self):
         """
         Verify RUM injection works when configuration comes from the
         stable config file (application_monitoring.yaml), with no
         datadog_rum_config directive in the nginx config.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_only.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
-            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
-            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<STABLE_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
             "DD_RUM_SERVICE": "env-only-service",
             "DD_RUM_ENVIRONMENT": "env-test",
@@ -436,25 +436,25 @@ class TestRUMInjection(case.TestCase):
                 self.assertEqual(200, status)
                 self.assertInjection(headers, body)
 
-                self.assertIn('"applicationId":"<ENV_APP_ID>"', body)
-                self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
+                self.assertIn('"applicationId":"<STABLE_APP_ID>"', body)
+                self.assertIn('"clientToken":"<STABLE_TOKEN>"', body)
                 self.assertIn('"service":"env-only-service"', body)
                 self.assertIn('"env":"env-test"', body)
         finally:
             self._cleanup_stable_config()
 
-    def test_partial_env_config(self):
+    def test_nginx_config_overlays_stable_config(self):
         """
         Verify that nginx config fields override corresponding stable config
         values (per-field merging). The datadog_rum_config block sets service
         and env; the remaining fields come from stable config.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_partial_env.conf"
+        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_partial.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
-            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
-            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<STABLE_TOKEN>",
             "DD_RUM_SITE": "datadoghq.eu",
             "DD_RUM_SERVICE": "env-service-should-be-overridden",
             "DD_RUM_ENVIRONMENT": "env-production-should-be-overridden",
@@ -478,8 +478,8 @@ class TestRUMInjection(case.TestCase):
                 self.assertIn('"env":"staging"', body)
 
                 # stable config values used for fields not in nginx config
-                self.assertIn('"applicationId":"<ENV_APP_ID>"', body)
-                self.assertIn('"clientToken":"<ENV_TOKEN>"', body)
+                self.assertIn('"applicationId":"<STABLE_APP_ID>"', body)
+                self.assertIn('"clientToken":"<STABLE_TOKEN>"', body)
                 self.assertIn('"site":"datadoghq.eu"', body)
         finally:
             self._cleanup_stable_config()
@@ -503,17 +503,17 @@ class TestRUMInjection(case.TestCase):
         self.assertIn('"env":"production"', body)
         self.assertIn('"applicationId":"<DATADOG_APPLICATION_ID>"', body)
 
-    def test_env_remote_configuration_id(self):
+    def test_stable_config_remote_configuration_id(self):
         """
-        Verify that DD_RUM_REMOTE_CONFIGURATION_ID is passed through to the
-        RUM SDK init call as remoteConfigurationId.
+        Verify that DD_RUM_REMOTE_CONFIGURATION_ID from stable config is
+        passed through to the RUM SDK init call as remoteConfigurationId.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_only.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
-            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
-            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<STABLE_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
             "DD_RUM_SERVICE": "env-service",
             "DD_RUM_REMOTE_CONFIGURATION_ID": "abc-123-remote-cfg",
@@ -532,17 +532,17 @@ class TestRUMInjection(case.TestCase):
         finally:
             self._cleanup_stable_config()
 
-    def test_env_disabled_overrides_env_config(self):
+    def test_dd_rum_enabled_false_overrides_stable_config(self):
         """
         Verify DD_RUM_ENABLED=false disables RUM even when stable config
         provides a complete RUM configuration.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_only.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
-            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
-            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<STABLE_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
             "DD_RUM_SERVICE": "should-not-inject",
         }
@@ -562,17 +562,17 @@ class TestRUMInjection(case.TestCase):
         finally:
             self._cleanup_stable_config()
 
-    def test_env_disabled_location_override(self):
+    def test_location_off_overrides_stable_config(self):
         """
         Verify that datadog_rum off in a location still disables injection
         even when stable config provides a complete RUM configuration.
         """
-        conf_path = Path(__file__).parent / "conf" / "rum_env_only.conf"
+        conf_path = Path(__file__).parent / "conf" / "rum_stable_config_only.conf"
         nginx_conf = conf_path.read_text()
 
         stable_config = {
-            "DD_RUM_APPLICATION_ID": "<ENV_APP_ID>",
-            "DD_RUM_CLIENT_TOKEN": "<ENV_TOKEN>",
+            "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
+            "DD_RUM_CLIENT_TOKEN": "<STABLE_TOKEN>",
             "DD_RUM_SITE": "datadoghq.com",
             "DD_RUM_SERVICE": "env-service",
         }
