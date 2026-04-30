@@ -151,7 +151,6 @@ using namespace datadog::nginx::rum::internal;
 
 void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
                            const rum_config_map& config) {
-  loc_conf->rum_remote_config_tag = "remote_config_used:false";
   if (auto it = config.find("applicationId");
       it != config.end() && !it->second.empty()) {
     loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
@@ -242,8 +241,8 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   return NGX_CONF_OK;
 }
 
-void try_build_snippet_from_env(ngx_conf_t* cf,
-                                datadog::nginx::datadog_loc_conf_t* loc_conf) {
+void try_build_snippet_from_stable_config(
+    ngx_conf_t* cf, datadog::nginx::datadog_loc_conf_t* loc_conf) {
   try {
     auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
         snippet_create_from_stable_config("nginx", false, nullptr),
@@ -258,13 +257,6 @@ void try_build_snippet_from_env(ngx_conf_t* cf,
     }
 
     loc_conf->rum_snippet = snippet.release();
-    // Telemetry tags: best-effort from env (snippet is opaque)
-    const char* app_id = std::getenv("DD_RUM_APPLICATION_ID");
-    if (app_id && app_id[0] != '\0') {
-      loc_conf->rum_application_id_tag =
-          std::string("application_id:") + app_id;
-    }
-    loc_conf->rum_remote_config_tag = "remote_config_used:false";
   } catch (const std::bad_alloc&) {
     throw;
   } catch (const std::exception& e) {
@@ -330,7 +322,7 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
   // If no snippet was inherited from the directive, try building one from env
   // vars.
   if (child->rum_snippet == nullptr) {
-    try_build_snippet_from_env(cf, child);
+    try_build_snippet_from_stable_config(cf, child);
   }
 
   // Determine rum_enable when neither child nor parent set it explicitly.
@@ -344,7 +336,6 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
 std::vector<std::string_view> get_environment_variable_names() {
   std::vector<std::string_view> names;
   names.push_back("DD_RUM_ENABLED"sv);
-  names.push_back("DD_RUM_APPLICATION_ID"sv);  // for telemetry tags
   return names;
 }
 
