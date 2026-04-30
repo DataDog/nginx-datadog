@@ -20,7 +20,7 @@ namespace datadog::nginx::rum::internal {
 std::optional<bool> parse_bool(std::string_view value) {
   std::string lower(value);
   std::transform(lower.begin(), lower.end(), lower.begin(),
-                 [](unsigned char c) { return std::tolower(c); });
+                 datadog::nginx::to_lower);
   if (lower == "true" || lower == "1" || lower == "yes" || lower == "on") {
     return true;
   }
@@ -45,7 +45,6 @@ std::string make_rum_json_config(int config_version,
       char* endp;
       double val = std::strtod(values.front().c_str(), &endp);
       if (endp == values.front().c_str()) {
-        // Not a valid number — pass as string and let the RUM SDK validate.
         rum.AddMember(
             rapidjson::Value(key.c_str(), allocator).Move(),
             rapidjson::Value(values.front().c_str(), allocator).Move(),
@@ -61,8 +60,6 @@ std::string make_rum_json_config(int config_version,
         rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
                       rapidjson::Value(*parsed).Move(), allocator);
       } else {
-        // Not a recognized boolean — pass as string and let the RUM SDK
-        // validate.
         rum.AddMember(
             rapidjson::Value(key.c_str(), allocator).Move(),
             rapidjson::Value(values.front().c_str(), allocator).Move(),
