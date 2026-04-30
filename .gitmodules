@@ -6,4 +6,4 @@
 	url = ../libddwaf.git
 [submodule "deps/inject-browser-sdk"]
 	path = deps/inject-browser-sdk
-	url = ../inject-browser-sdk.git
+	url = https://gitlab.ddbuild.io/DataDog/inject-browser-sdk
