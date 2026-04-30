@@ -1,9 +1,6 @@
 set(INJECT_BROWSER_SDK_NO_DEFAULT_FEATURES OFF CACHE BOOL
     "Build inject-browser-sdk without default features")
 
-# inject-browser-sdk is vendored as a git submodule under deps/inject-browser-sdk.
-# Its top-level CMakeLists fetches Corrosion if needed and exposes the
-# inject_browser_sdk_ffi target.
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/inject-browser-sdk/CMakeLists.txt")
   message(FATAL_ERROR
     "inject-browser-sdk submodule is missing. Run:\n"

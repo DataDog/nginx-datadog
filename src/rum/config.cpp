@@ -30,25 +30,6 @@ std::optional<bool> parse_bool(std::string_view value) {
   return std::nullopt;
 }
 
-rum_config_map get_rum_config_from_env() {
-  rum_config_map config;
-  for (const auto& [env_name, config_key] : rum_env_mappings) {
-    const char* value = std::getenv(env_name.data());
-    if (value != nullptr && value[0] != '\0') {
-      config[std::string(config_key)] = {std::string(value)};
-    }
-  }
-  return config;
-}
-
-std::optional<bool> get_rum_enabled_from_env() {
-  const char* value = std::getenv("DD_RUM_ENABLED");
-  if (value == nullptr || value[0] == '\0') {
-    return std::nullopt;
-  }
-  return parse_bool(value);
-}
-
 std::string make_rum_json_config(int config_version,
                                  const rum_config_map& config) {
   rapidjson::Document doc;
@@ -220,13 +201,12 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
     return status;
   }
 
-  // Build a JSON overlay from the block's directives and let the SDK merge it
-  // on top of the Agent's stable-config YAML. The overlay has the same shape as
-  // snippet_create_from_json input but every field is optional.
+  // SDK merges this overlay on top of the Agent's stable-config YAML.
   auto overlay_json = make_rum_json_config(*config_version, rum_config);
 
   auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-      snippet_create_from_stable_config("nginx", false, overlay_json.c_str()),
+      snippet_create_from_stable_config(rum_language.data(), false,
+                                        overlay_json.c_str()),
       snippet_cleanup);
 
   if (snippet == nullptr || snippet->error_code) {
@@ -244,7 +224,7 @@ void try_build_snippet_from_stable_config(
     ngx_conf_t* cf, datadog::nginx::datadog_loc_conf_t* loc_conf) {
   try {
     auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-        snippet_create_from_stable_config("nginx", false, nullptr),
+        snippet_create_from_stable_config(rum_language.data(), false, nullptr),
         snippet_cleanup);
 
     if (snippet == nullptr || snippet->error_code) {
