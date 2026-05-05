@@ -125,9 +125,9 @@ using namespace datadog::nginx::rum::internal;
 using SnippetPtr = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>;
 
 SnippetPtr make_stable_config_snippet(const char* overlay_json) {
-  return SnippetPtr(snippet_create_from_stable_config(rum_language, false,
-                                                      overlay_json),
-                    snippet_cleanup);
+  return SnippetPtr(
+      snippet_create_from_stable_config(rum_language, false, overlay_json),
+      snippet_cleanup);
 }
 
 void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
