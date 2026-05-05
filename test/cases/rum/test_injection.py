@@ -380,34 +380,19 @@ class TestRUMInjection(case.TestCase):
         self.assertIsNone(headers.get("x-datadog-rum-injected"))
         self.assertNotIn("datadog-rum.js", body)
 
-    def _write_stable_config(self, config_vars):
-        """Write an application_monitoring.yaml into the nginx container
-        at the stable config path used by snippet_create_from_stable_config."""
-        yaml_content = yaml.safe_dump(
-            {"apm_configuration_default": config_vars})
-
-        command = docker_compose_command(
-            "exec", "-T", "--", "nginx", "/bin/sh", "-c",
-            f"mkdir -p /etc/datadog-agent && cat >'{STABLE_CONFIG_PATH}'")
-        subprocess.run(command,
-                       input=yaml_content,
-                       encoding="utf8",
-                       env=child_env(),
-                       check=True)
-
-    def _cleanup_stable_config(self):
-        """Remove the stable config file from the nginx container."""
-        command = docker_compose_command("exec", "-T", "--", "nginx", "rm",
-                                         "-f", STABLE_CONFIG_PATH)
-        subprocess.run(command, env=child_env(), check=True)
-
     @contextlib.contextmanager
     def _stable_config(self, config_vars):
-        self._write_stable_config(config_vars)
+        self.orch.nginx_replace_file(
+            STABLE_CONFIG_PATH,
+            yaml.safe_dump({"apm_configuration_default": config_vars}))
         try:
             yield
         finally:
-            self._cleanup_stable_config()
+            subprocess.run(docker_compose_command("exec", "-T", "--", "nginx",
+                                                  "rm", "-f",
+                                                  STABLE_CONFIG_PATH),
+                           env=child_env(),
+                           check=True)
 
     def test_stable_config_only(self):
         """
