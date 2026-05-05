@@ -1,8 +1,13 @@
+import contextlib
 import hashlib
-import time
 import string
+import subprocess
+import time
+
+import yaml
 
 from .. import case
+from ..orchestration import child_env, docker_compose_command
 from pathlib import Path
 
 from threading import Thread
@@ -11,6 +16,8 @@ from werkzeug import Request, Response
 from werkzeug.serving import make_server
 
 import logging
+
+STABLE_CONFIG_PATH = "/etc/datadog-agent/application_monitoring.yaml"
 
 log = logging.getLogger("werkzeug")
 log.disabled = True
@@ -376,35 +383,31 @@ class TestRUMInjection(case.TestCase):
     def _write_stable_config(self, config_vars):
         """Write an application_monitoring.yaml into the nginx container
         at the stable config path used by snippet_create_from_stable_config."""
-        import subprocess
-        from ..orchestration import docker_compose_command, child_env
-        yaml_lines = ["apm_configuration_default:"]
-        for key, value in config_vars.items():
-            yaml_lines.append(f"  {key}: {value}")
-        yaml_content = "\n".join(yaml_lines) + "\n"
+        yaml_content = yaml.safe_dump(
+            {"apm_configuration_default": config_vars})
 
-        config_path = "/etc/datadog-agent/application_monitoring.yaml"
         command = docker_compose_command(
             "exec", "-T", "--", "nginx", "/bin/sh", "-c",
-            f"mkdir -p /etc/datadog-agent && cat >'{config_path}'")
+            f"mkdir -p /etc/datadog-agent && cat >'{STABLE_CONFIG_PATH}'")
         subprocess.run(command,
                        input=yaml_content,
                        encoding="utf8",
                        env=child_env(),
-                       check=True,
-                       capture_output=True)
+                       check=True)
 
     def _cleanup_stable_config(self):
         """Remove the stable config file from the nginx container."""
-        import subprocess
-        from ..orchestration import docker_compose_command, child_env
-        command = docker_compose_command(
-            "exec", "-T", "--", "nginx", "rm", "-f",
-            "/etc/datadog-agent/application_monitoring.yaml")
-        subprocess.run(command,
-                       env=child_env(),
-                       check=True,
-                       capture_output=True)
+        command = docker_compose_command("exec", "-T", "--", "nginx", "rm",
+                                         "-f", STABLE_CONFIG_PATH)
+        subprocess.run(command, env=child_env(), check=True)
+
+    @contextlib.contextmanager
+    def _stable_config(self, config_vars):
+        self._write_stable_config(config_vars)
+        try:
+            yield
+        finally:
+            self._cleanup_stable_config()
 
     def test_stable_config_only(self):
         """
@@ -429,20 +432,16 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_TRACK_USER_INTERACTIONS": "true",
         }
 
-        self._write_stable_config(stable_config)
-        try:
-            with self.orch.custom_nginx(nginx_conf,
-                                        healthcheck_port=80) as nginx:
-                status, headers, body = self.orch.send_nginx_http_request("/")
-                self.assertEqual(200, status)
-                self.assertInjection(headers, body)
+        with self._stable_config(stable_config), self.orch.custom_nginx(
+                nginx_conf, healthcheck_port=80):
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
 
-                self.assertIn('"applicationId":"<STABLE_APP_ID>"', body)
-                self.assertIn('"clientToken":"<STABLE_TOKEN>"', body)
-                self.assertIn('"service":"env-only-service"', body)
-                self.assertIn('"env":"env-test"', body)
-        finally:
-            self._cleanup_stable_config()
+            self.assertIn('"applicationId":"<STABLE_APP_ID>"', body)
+            self.assertIn('"clientToken":"<STABLE_TOKEN>"', body)
+            self.assertIn('"service":"env-only-service"', body)
+            self.assertIn('"env":"env-test"', body)
 
     def test_nginx_config_overlays_stable_config(self):
         """
@@ -467,24 +466,20 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_TRACK_USER_INTERACTIONS": "true",
         }
 
-        self._write_stable_config(stable_config)
-        try:
-            with self.orch.custom_nginx(nginx_conf,
-                                        healthcheck_port=80) as nginx:
-                status, headers, body = self.orch.send_nginx_http_request("/")
-                self.assertEqual(200, status)
-                self.assertInjection(headers, body)
+        with self._stable_config(stable_config), self.orch.custom_nginx(
+                nginx_conf, healthcheck_port=80):
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
 
-                # nginx config values take precedence
-                self.assertIn('"service":"nginx-partial-env"', body)
-                self.assertIn('"env":"staging"', body)
+            # nginx config values take precedence
+            self.assertIn('"service":"nginx-partial-env"', body)
+            self.assertIn('"env":"staging"', body)
 
-                # stable config values used for fields not in nginx config
-                self.assertIn('"applicationId":"<STABLE_APP_ID>"', body)
-                self.assertIn('"clientToken":"<STABLE_TOKEN>"', body)
-                self.assertIn('"site":"datadoghq.eu"', body)
-        finally:
-            self._cleanup_stable_config()
+            # stable config values used for fields not in nginx config
+            self.assertIn('"applicationId":"<STABLE_APP_ID>"', body)
+            self.assertIn('"clientToken":"<STABLE_TOKEN>"', body)
+            self.assertIn('"site":"datadoghq.eu"', body)
 
     def test_nginx_config_takes_full_precedence(self):
         """
@@ -522,18 +517,13 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_REMOTE_CONFIGURATION_ID": "abc-123-remote-cfg",
         }
 
-        self._write_stable_config(stable_config)
-        try:
-            with self.orch.custom_nginx(nginx_conf,
-                                        healthcheck_port=80) as nginx:
-                status, headers, body = self.orch.send_nginx_http_request("/")
-                self.assertEqual(200, status)
-                self.assertInjection(headers, body)
+        with self._stable_config(stable_config), self.orch.custom_nginx(
+                nginx_conf, healthcheck_port=80):
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            self.assertInjection(headers, body)
 
-                self.assertIn('"remoteConfigurationId":"abc-123-remote-cfg"',
-                              body)
-        finally:
-            self._cleanup_stable_config()
+            self.assertIn('"remoteConfigurationId":"abc-123-remote-cfg"', body)
 
     def test_dd_rum_enabled_false_overrides_stable_config(self):
         """
@@ -553,18 +543,13 @@ class TestRUMInjection(case.TestCase):
 
         env = {"DD_RUM_ENABLED": "false"}
 
-        self._write_stable_config(stable_config)
-        try:
-            with self.orch.custom_nginx(nginx_conf,
-                                        extra_env=env,
-                                        healthcheck_port=80) as nginx:
-                status, headers, body = self.orch.send_nginx_http_request("/")
-                self.assertEqual(200, status)
-                headers = self.make_dict_headers(headers)
-                self.assertIsNone(headers.get("x-datadog-rum-injected"))
-                self.assertNotIn("datadog-rum.js", body)
-        finally:
-            self._cleanup_stable_config()
+        with self._stable_config(stable_config), self.orch.custom_nginx(
+                nginx_conf, extra_env=env, healthcheck_port=80):
+            status, headers, body = self.orch.send_nginx_http_request("/")
+            self.assertEqual(200, status)
+            headers = self.make_dict_headers(headers)
+            self.assertIsNone(headers.get("x-datadog-rum-injected"))
+            self.assertNotIn("datadog-rum.js", body)
 
     def test_location_off_overrides_stable_config(self):
         """
@@ -582,18 +567,14 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_SERVICE": "env-service",
         }
 
-        self._write_stable_config(stable_config)
-        try:
-            with self.orch.custom_nginx(nginx_conf,
-                                        healthcheck_port=80) as nginx:
-                status, headers, body = self.orch.send_nginx_http_request(
-                    "/disable-rum")
-                self.assertEqual(200, status)
-                headers = self.make_dict_headers(headers)
-                self.assertIsNone(headers.get("x-datadog-rum-injected"))
-                self.assertNotIn("datadog-rum.js", body)
-        finally:
-            self._cleanup_stable_config()
+        with self._stable_config(stable_config), self.orch.custom_nginx(
+                nginx_conf, healthcheck_port=80):
+            status, headers, body = self.orch.send_nginx_http_request(
+                "/disable-rum")
+            self.assertEqual(200, status)
+            headers = self.make_dict_headers(headers)
+            self.assertIsNone(headers.get("x-datadog-rum-injected"))
+            self.assertNotIn("datadog-rum.js", body)
 
     def test_skip_injection_when_already_injected(self):
         """
