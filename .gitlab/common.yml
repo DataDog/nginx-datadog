@@ -74,7 +74,7 @@ variables:
 .test-nginx:
   extends: .test
   script:
-    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -84,7 +84,7 @@ variables:
   variables:
     RUM: "ON"
   script:
-    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -94,7 +94,7 @@ variables:
   variables:
     NGINX_FLAVOR: ingress-nginx
   script:
-    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
+    - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -102,7 +102,7 @@ variables:
 .test-openresty:
   extends: .test
   script:
-    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
