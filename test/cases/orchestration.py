@@ -965,6 +965,19 @@ END_CONF
             encoding="utf8",
         )
 
+    def nginx_remove_file(self, file):
+        """Removes a file from the nginx container if it exists."""
+        command = docker_compose_command("exec", "-T", "--", "nginx", "rm",
+                                         "-f", file)
+        subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=self.verbose,
+            stderr=self.verbose,
+            env=child_env(),
+            check=True,
+        )
+
     @contextlib.contextmanager
     def custom_nginx(self, nginx_conf, extra_env=None, healthcheck_port=None):
         """Yield a managed `Popen` object referring to a new instance of nginx

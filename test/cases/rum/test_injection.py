@@ -1,13 +1,11 @@
 import contextlib
 import hashlib
 import string
-import subprocess
 import time
 
 import yaml
 
 from .. import case
-from ..orchestration import child_env, docker_compose_command
 from pathlib import Path
 
 from threading import Thread
@@ -388,11 +386,7 @@ class TestRUMInjection(case.TestCase):
         try:
             yield
         finally:
-            subprocess.run(docker_compose_command("exec", "-T", "--", "nginx",
-                                                  "rm", "-f",
-                                                  STABLE_CONFIG_PATH),
-                           env=child_env(),
-                           check=True)
+            self.orch.nginx_remove_file(STABLE_CONFIG_PATH)
 
     def test_stable_config_only(self):
         """
