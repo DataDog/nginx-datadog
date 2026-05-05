@@ -245,6 +245,9 @@ window.DD_RUM.onReady(function() {
 class TestRUMInjection(case.TestCase):
     requires_rum = True
 
+    def _read_conf(self, conf_file):
+        return (Path(__file__).parent / "conf" / conf_file).read_text()
+
     def load_conf(self, conf_file):
         conf_path = Path(__file__).parent / "conf" / conf_file
         return self.orch.nginx_replace_config(conf_path.read_text(),
@@ -394,9 +397,7 @@ class TestRUMInjection(case.TestCase):
         stable config file (application_monitoring.yaml), with no
         datadog_rum_config directive in the nginx config.
         """
-        conf_path = Path(
-            __file__).parent / "conf" / "rum_stable_config_only.conf"
-        nginx_conf = conf_path.read_text()
+        nginx_conf = self._read_conf("rum_stable_config_only.conf")
 
         stable_config = {
             "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
@@ -428,9 +429,7 @@ class TestRUMInjection(case.TestCase):
         values (per-field merging). The datadog_rum_config block sets service
         and env; the remaining fields come from stable config.
         """
-        conf_path = Path(
-            __file__).parent / "conf" / "rum_stable_config_partial.conf"
-        nginx_conf = conf_path.read_text()
+        nginx_conf = self._read_conf("rum_stable_config_partial.conf")
 
         stable_config = {
             "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
@@ -463,8 +462,7 @@ class TestRUMInjection(case.TestCase):
     def test_nginx_config_takes_full_precedence(self):
         """
         Verify that when a full datadog_rum_config block is present, it
-        completely overrides all DD_RUM_* env vars for the fields it sets.
-        The existing rum_enabled.conf test still works unchanged.
+        is used as-is and stable-config values do not leak in.
         """
         status, lines = self.load_conf("rum_enabled.conf")
         self.assertEqual(0, status, lines)
@@ -473,8 +471,6 @@ class TestRUMInjection(case.TestCase):
         self.assertEqual(200, status)
         self.assertInjection(headers, body)
 
-        # Values from rum_enabled.conf should be present, not from
-        # DD_RUM_* env vars set in docker-compose.yml
         self.assertIn('"service":"my-web-application"', body)
         self.assertIn('"env":"production"', body)
         self.assertIn('"applicationId":"<DATADOG_APPLICATION_ID>"', body)
@@ -484,9 +480,7 @@ class TestRUMInjection(case.TestCase):
         Verify that DD_RUM_REMOTE_CONFIGURATION_ID from stable config is
         passed through to the RUM SDK init call as remoteConfigurationId.
         """
-        conf_path = Path(
-            __file__).parent / "conf" / "rum_stable_config_only.conf"
-        nginx_conf = conf_path.read_text()
+        nginx_conf = self._read_conf("rum_stable_config_only.conf")
 
         stable_config = {
             "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
@@ -509,9 +503,7 @@ class TestRUMInjection(case.TestCase):
         Verify DD_RUM_ENABLED=false disables RUM even when stable config
         provides a complete RUM configuration.
         """
-        conf_path = Path(
-            __file__).parent / "conf" / "rum_stable_config_only.conf"
-        nginx_conf = conf_path.read_text()
+        nginx_conf = self._read_conf("rum_stable_config_only.conf")
 
         stable_config = {
             "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",
@@ -535,9 +527,7 @@ class TestRUMInjection(case.TestCase):
         Verify that datadog_rum off in a location still disables injection
         even when stable config provides a complete RUM configuration.
         """
-        conf_path = Path(
-            __file__).parent / "conf" / "rum_stable_config_only.conf"
-        nginx_conf = conf_path.read_text()
+        nginx_conf = self._read_conf("rum_stable_config_only.conf")
 
         stable_config = {
             "DD_RUM_APPLICATION_ID": "<STABLE_APP_ID>",

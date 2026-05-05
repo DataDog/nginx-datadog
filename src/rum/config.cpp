@@ -129,6 +129,7 @@ using namespace datadog::nginx::rum::internal;
 
 void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
                            const rum_config_map& config) {
+  loc_conf->rum_remote_config_tag = "remote_config_used:false";
   if (auto it = config.find("applicationId");
       it != config.end() && !it->second.empty()) {
     loc_conf->rum_application_id_tag = "application_id:" + it->second[0];
@@ -202,7 +203,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   auto overlay_json = make_rum_json_config(*config_version, rum_config);
 
   auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-      snippet_create_from_stable_config(rum_language.data(), false,
+      snippet_create_from_stable_config(rum_language, false,
                                         overlay_json.c_str()),
       snippet_cleanup);
 
@@ -221,7 +222,7 @@ void try_build_snippet_from_stable_config(
     ngx_conf_t* cf, datadog::nginx::datadog_loc_conf_t* loc_conf) {
   try {
     auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-        snippet_create_from_stable_config(rum_language.data(), false, nullptr),
+        snippet_create_from_stable_config(rum_language, false, nullptr),
         snippet_cleanup);
 
     if (snippet == nullptr || snippet->error_code) {
@@ -233,13 +234,14 @@ void try_build_snippet_from_stable_config(
     }
 
     loc_conf->rum_snippet = snippet.release();
+    loc_conf->rum_remote_config_tag = "remote_config_used:false";
   } catch (const std::bad_alloc&) {
     throw;
-  } catch (const std::exception& e) {
+  } catch (const std::exception& exception) {
     ngx_log_error(
         NGX_LOG_WARN, cf->log, 0,
         "nginx-datadog: failed to build RUM snippet from stable config: %s",
-        e.what());
+        exception.what());
   }
 }
 
@@ -247,9 +249,9 @@ void resolve_rum_enable_from_env(ngx_conf_t* cf,
                                  datadog::nginx::datadog_loc_conf_t* loc_conf) {
   const char* raw = std::getenv("DD_RUM_ENABLED");
   if (raw == nullptr || raw[0] == '\0') {
-    // Not set — auto-enable if a valid snippet exists (from env vars or
-    // inherited). This avoids requiring users to set DD_RUM_ENABLED explicitly
-    // when DD_RUM_* config vars are already provided.
+    // Auto-enable when a snippet is available (from a directive, parent
+    // inheritance, or stable config) so users don't have to set
+    // DD_RUM_ENABLED explicitly alongside their RUM configuration.
     if (loc_conf->rum_snippet != nullptr) {
       loc_conf->rum_enable = 1;
     }
@@ -295,13 +297,10 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
     child->rum_remote_config_tag = parent->rum_remote_config_tag;
   }
 
-  // If no snippet was inherited from the directive, try building one from env
-  // vars.
   if (child->rum_snippet == nullptr) {
     try_build_snippet_from_stable_config(cf, child);
   }
 
-  // Determine rum_enable when neither child nor parent set it explicitly.
   if (!child_explicit && !parent_explicit) {
     resolve_rum_enable_from_env(cf, child);
   }
