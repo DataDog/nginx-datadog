@@ -41,45 +41,40 @@ std::string make_rum_json_config(int config_version,
   rapidjson::Value rum(rapidjson::kObjectType);
   for (const auto& [key, values] : config) {
     if (values.empty()) continue;
+
+    auto add_member = [&](rapidjson::Value&& v) {
+      rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(), v.Move(),
+                    allocator);
+    };
+    auto add_first_as_string = [&] {
+      add_member(rapidjson::Value(values.front().c_str(), allocator));
+    };
+
     if (key == "sessionSampleRate" || key == "sessionReplaySampleRate") {
       char* endp;
       double val = std::strtod(values.front().c_str(), &endp);
       if (endp == values.front().c_str()) {
-        rum.AddMember(
-            rapidjson::Value(key.c_str(), allocator).Move(),
-            rapidjson::Value(values.front().c_str(), allocator).Move(),
-            allocator);
+        add_first_as_string();
       } else {
-        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(val).Move(), allocator);
+        add_member(rapidjson::Value(val));
       }
     } else if (key == "trackResources" || key == "trackLongTasks" ||
                key == "trackUserInteractions") {
       auto parsed = parse_bool(values.front());
       if (parsed.has_value()) {
-        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      rapidjson::Value(*parsed).Move(), allocator);
+        add_member(rapidjson::Value(*parsed));
       } else {
-        rum.AddMember(
-            rapidjson::Value(key.c_str(), allocator).Move(),
-            rapidjson::Value(values.front().c_str(), allocator).Move(),
-            allocator);
+        add_first_as_string();
       }
+    } else if (values.size() == 1) {
+      add_first_as_string();
     } else {
-      if (values.size() == 1) {
-        rum.AddMember(
-            rapidjson::Value(key.c_str(), allocator).Move(),
-            rapidjson::Value(values.front().c_str(), allocator).Move(),
-            allocator);
-      } else {
-        rapidjson::Value array(rapidjson::kArrayType);
-        for (const auto& entry : values) {
-          array.PushBack(rapidjson::Value(entry.c_str(), allocator).Move(),
-                         allocator);
-        }
-        rum.AddMember(rapidjson::Value(key.c_str(), allocator).Move(),
-                      array.Move(), allocator);
+      rapidjson::Value array(rapidjson::kArrayType);
+      for (const auto& entry : values) {
+        array.PushBack(rapidjson::Value(entry.c_str(), allocator).Move(),
+                       allocator);
       }
+      add_member(std::move(array));
     }
   }
 
@@ -126,6 +121,14 @@ char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
 }
 
 using namespace datadog::nginx::rum::internal;
+
+using SnippetPtr = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>;
+
+SnippetPtr make_stable_config_snippet(const char* overlay_json) {
+  return SnippetPtr(snippet_create_from_stable_config(rum_language, false,
+                                                      overlay_json),
+                    snippet_cleanup);
+}
 
 void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
                            const rum_config_map& config) {
@@ -202,10 +205,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
   // SDK merges this overlay on top of the Agent's stable-config YAML.
   auto overlay_json = make_rum_json_config(*config_version, rum_config);
 
-  auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-      snippet_create_from_stable_config(rum_language, false,
-                                        overlay_json.c_str()),
-      snippet_cleanup);
+  auto snippet = make_stable_config_snippet(overlay_json.c_str());
 
   if (snippet == nullptr || snippet->error_code) {
     return conf_err(cf, "failed to generate the RUM SDK script: %s",
@@ -221,9 +221,7 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
 void try_build_snippet_from_stable_config(
     ngx_conf_t* cf, datadog::nginx::datadog_loc_conf_t* loc_conf) {
   try {
-    auto snippet = std::unique_ptr<Snippet, decltype(&snippet_cleanup)>(
-        snippet_create_from_stable_config(rum_language, false, nullptr),
-        snippet_cleanup);
+    auto snippet = make_stable_config_snippet(nullptr);
 
     if (snippet == nullptr || snippet->error_code) {
       ngx_log_error(NGX_LOG_WARN, cf->log, 0,
@@ -280,8 +278,8 @@ void resolve_rum_enable_from_env(ngx_conf_t* cf,
 char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
                                    datadog::nginx::datadog_loc_conf_t* parent,
                                    datadog::nginx::datadog_loc_conf_t* child) {
-  bool child_explicit = (child->rum_enable != NGX_CONF_UNSET);
-  bool parent_explicit = (parent->rum_enable != NGX_CONF_UNSET);
+  bool rum_enable_unset = (child->rum_enable == NGX_CONF_UNSET &&
+                           parent->rum_enable == NGX_CONF_UNSET);
 
   ngx_conf_merge_value(child->rum_enable, parent->rum_enable, 0);
 
@@ -301,7 +299,7 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
     try_build_snippet_from_stable_config(cf, child);
   }
 
-  if (!child_explicit && !parent_explicit) {
+  if (rum_enable_unset) {
     resolve_rum_enable_from_env(cf, child);
   }
 

@@ -818,10 +818,9 @@ exit "$rcode"
         """Replace the nginx config with one that has no server blocks
         (releasing any listened ports) and reload, waiting for old workers
         to terminate.  A worker_shutdown_timeout of 2s ensures old workers
-        exit promptly even if they have active connections.
+        exit promptly even if they have active connections (e.g. keep-alive
+        to trace agent).
         """
-        # worker_shutdown_timeout forces old workers to exit after 2s,
-        # even if they have active connections (e.g. keep-alive to trace agent).
         empty_conf = "worker_shutdown_timeout 2s;\nevents { worker_connections 1024; }\nhttp {}\n"
         script = f"""
 >{nginx_conf_path} cat <<'END_CONF'
