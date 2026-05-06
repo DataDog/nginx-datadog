@@ -283,7 +283,7 @@ upload-rum-snapshots:
 upload-rum-snapshots-latest:
   extends: .upload-rum-snapshot-template
   variables:
-    S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/latest
+    S3_PATH: s3://rum-auto-instrumentation/nginx/latest
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
