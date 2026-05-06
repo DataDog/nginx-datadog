@@ -46,7 +46,7 @@ elif command -v apk >/dev/null 2>&1; then
     fi
 elif command -v yum >/dev/null 2>&1; then
     yum update -y
-    yum install -y procps gdb
+    yum install -y findutils gdb procps util-linux-core
     if ! command -v nginx >/dev/null 2>&1; then
         install_nginx_on_amazon_linux
     fi
