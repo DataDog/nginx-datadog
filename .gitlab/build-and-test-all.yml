@@ -510,3 +510,26 @@ test-openresty-all:
           - "1.29.2.1"
           - "1.29.2.3"
         WAF: ["ON", "OFF"]
+
+# Tag-pipeline RUM snapshot uploads. Reuses .upload-rum-snapshot-template
+# defined in build-and-test-fast.yml (both files are aggregated into the
+# main pipeline, so hidden jobs are visible across).
+#
+# Don't put 'needs: [build-nginx-rum-all]' — the 62-entry matrix exceeds
+# GitLab's 50-need limit. Stage ordering (build-all → test-all → assemble
+# → aws) guarantees the build-nginx-rum-all artifacts (including upload/)
+# are available.
+.upload-rum-snapshot-all:
+  extends:
+    - .build-and-test-all
+    - .upload-rum-snapshot-template
+
+upload-rum-snapshots-all:
+  extends: .upload-rum-snapshot-all
+  variables:
+    S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/pipeline-${CI_PIPELINE_ID}
+
+upload-rum-snapshots-latest-all:
+  extends: .upload-rum-snapshot-all
+  variables:
+    S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/latest
