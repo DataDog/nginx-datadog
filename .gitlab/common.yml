@@ -38,11 +38,13 @@ variables:
     RUM: "ON"
   script:
     - make build-musl-aux
-    - mkdir -p artifacts-rum/$ARCH/$NGINX_VERSION/$WAF
+    - mkdir -p artifacts-rum/$ARCH/$NGINX_VERSION/$WAF upload
     - cp .musl-build/ngx_http_datadog_module.so* artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
+    - (cd artifacts-rum/$ARCH/$NGINX_VERSION/$WAF && zip "$CI_PROJECT_DIR/upload/ngx_http_datadog_module-${NGINX_VERSION}-${ARCH}.zip" ngx_http_datadog_module.so)
   artifacts:
     paths:
       - artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/
+      - upload/
 
 .build-openresty:
   extends: .build

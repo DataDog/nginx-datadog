@@ -99,10 +99,34 @@ build-nginx-rum-fast:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION:
           - "1.24.0"
+          - "1.25.0"
+          - "1.25.1"
+          - "1.25.2"
+          - "1.25.3"
+          - "1.25.4"
           - "1.25.5"
+          - "1.26.0"
+          - "1.26.1"
+          - "1.26.2"
           - "1.26.3"
+          - "1.27.0"
+          - "1.27.1"
+          - "1.27.2"
+          - "1.27.3"
+          - "1.27.4"
           - "1.27.5"
+          - "1.28.0"
+          - "1.28.1"
+          - "1.28.2"
           - "1.28.3"
+          - "1.29.0"
+          - "1.29.1"
+          - "1.29.2"
+          - "1.29.3"
+          - "1.29.4"
+          - "1.29.5"
+          - "1.29.6"
+          - "1.29.7"
           - "1.29.8"
           - "1.30.0"
         WAF: ["OFF"]
@@ -221,3 +245,77 @@ coverage:
   tags: ["docker-in-docker:$ARCH"]
   script:
     - DD_API_KEY=$(vault kv get -field key kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key 2>/dev/null) make coverage
+
+.upload-rum-snapshot-template:
+  stage: aws
+  # Don't put 'needs: [build-nginx-rum-fast]', because it would exceed the maximum number of jobs allowed as a dependency (50).
+  # Stage ordering (build-and-test-fast → assemble → aws) guarantees the build-nginx-rum-fast artifacts (including upload/) are available.
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/aws-cli:2.33.12
+  script:
+    - aws s3 cp upload/ "${S3_PATH}/" --recursive --acl public-read
+    - echo "Uploaded to ${S3_PATH}/"
+  after_script:
+    - |
+      PUBLIC_URL=$(echo "${S3_PATH}" | sed 's|s3://\([^/]*\)/|https://\1.s3.amazonaws.com/|')
+      echo "Public URLs:"
+      for f in upload/*; do
+        echo "  ${PUBLIC_URL}/$(basename "$f")"
+      done
+      for f in upload/*; do
+        curl -sSfI "${PUBLIC_URL}/$(basename "$f")" && echo "  $(basename "$f") verified" || echo "  $(basename "$f") not accessible"
+      done
+
+upload-rum-branch-snapshots:
+  extends: .upload-rum-snapshot-template
+  variables:
+    S3_PATH: s3://rum-auto-instrumentation/nginx/branch-snapshots/pipeline-${CI_PIPELINE_ID}
+  rules:
+    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+
+upload-rum-snapshots:
+  extends: .upload-rum-snapshot-template
+  variables:
+    S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/pipeline-${CI_PIPELINE_ID}
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+upload-rum-snapshots-latest:
+  extends: .upload-rum-snapshot-template
+  variables:
+    S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/latest
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+configure-rum-branch-snapshot-expiry:
+  stage: aws
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/aws-cli:2.33.12
+  script:
+    - |
+      BUCKET=rum-auto-instrumentation
+      RULE_ID=expire-nginx-branch-snapshots
+
+      # Fetch existing lifecycle config (empty array if none)
+      EXISTING=$(aws s3api get-bucket-lifecycle-configuration --bucket "$BUCKET" 2>/dev/null | jq '.Rules // []' || echo '[]')
+
+      # Build the desired rule
+      RULE=$(jq -n '{
+        ID: $id,
+        Filter: { Prefix: "nginx/branch-snapshots/" },
+        Status: "Enabled",
+        Expiration: { Days: 30 }
+      }' --arg id "$RULE_ID")
+
+      # Replace existing rule with same ID, or append
+      UPDATED=$(echo "$EXISTING" | jq --argjson rule "$RULE" '
+        [.[] | select(.ID != $rule.ID)] + [$rule]
+      ')
+
+      aws s3api put-bucket-lifecycle-configuration \
+        --bucket "$BUCKET" \
+        --lifecycle-configuration "{\"Rules\": $UPDATED}"
+
+      echo "Lifecycle rule '$RULE_ID' configured: expire nginx/branch-snapshots/ after 30 days"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

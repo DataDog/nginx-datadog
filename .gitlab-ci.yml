@@ -28,6 +28,7 @@ stages:
   - build-all
   - test-all
   - assemble
+  - aws
   - shared-pipeline
   - benchmarks
 
