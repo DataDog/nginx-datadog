@@ -224,10 +224,6 @@ coverage:
 
 .upload-rum-snapshot-template:
   stage: aws
-  needs:
-    - job: build-nginx-rum-fast
-      artifacts: true
-    - job: test-nginx-rum-fast
   tags: ["arch:amd64"]
   image: registry.ddbuild.io/images/aws-cli:2.33.12
   script:
@@ -247,8 +243,15 @@ coverage:
       done
       [ "$failed" -eq 0 ]
 
-upload-rum-branch-snapshots:
+.upload-rum-snapshot-fast:
   extends: .upload-rum-snapshot-template
+  needs:
+    - job: build-nginx-rum-fast
+      artifacts: true
+    - job: test-nginx-rum-fast
+
+upload-rum-branch-snapshots:
+  extends: .upload-rum-snapshot-fast
   variables:
     S3_PATH: s3://rum-auto-instrumentation/nginx/branch-snapshots/pipeline-${CI_PIPELINE_ID}
   rules:
@@ -257,14 +260,14 @@ upload-rum-branch-snapshots:
     - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
 
 upload-rum-snapshots:
-  extends: .upload-rum-snapshot-template
+  extends: .upload-rum-snapshot-fast
   variables:
     S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/pipeline-${CI_PIPELINE_ID}
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 upload-rum-snapshots-latest:
-  extends: .upload-rum-snapshot-template
+  extends: .upload-rum-snapshot-fast
   variables:
     S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/latest
   rules:
