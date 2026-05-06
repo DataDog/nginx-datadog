@@ -99,34 +99,10 @@ build-nginx-rum-fast:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION:
           - "1.24.0"
-          - "1.25.0"
-          - "1.25.1"
-          - "1.25.2"
-          - "1.25.3"
-          - "1.25.4"
           - "1.25.5"
-          - "1.26.0"
-          - "1.26.1"
-          - "1.26.2"
           - "1.26.3"
-          - "1.27.0"
-          - "1.27.1"
-          - "1.27.2"
-          - "1.27.3"
-          - "1.27.4"
           - "1.27.5"
-          - "1.28.0"
-          - "1.28.1"
-          - "1.28.2"
           - "1.28.3"
-          - "1.29.0"
-          - "1.29.1"
-          - "1.29.2"
-          - "1.29.3"
-          - "1.29.4"
-          - "1.29.5"
-          - "1.29.6"
-          - "1.29.7"
           - "1.29.8"
           - "1.30.0"
         WAF: ["OFF"]
@@ -201,22 +177,7 @@ test-nginx-rum-fast:
   extends:
     - .build-and-test-fast
     - .test-nginx-rum
-  # Need only the matrix subset we test, to stay under GitLab's 50-need limit
-  # (the full build-nginx-rum-fast matrix has 62 entries).
-  needs:
-    - job: build-nginx-rum-fast
-      parallel:
-        matrix:
-          - ARCH: ["amd64", "arm64"]
-            NGINX_VERSION:
-              - "1.24.0"
-              - "1.25.5"
-              - "1.26.3"
-              - "1.27.5"
-              - "1.28.3"
-              - "1.29.8"
-              - "1.30.0"
-            WAF: ["OFF"]
+  needs: [build-nginx-rum-fast]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -263,8 +224,10 @@ coverage:
 
 .upload-rum-snapshot-template:
   stage: aws
-  # Don't put 'needs: [build-nginx-rum-fast]', because it would exceed the maximum number of jobs allowed as a dependency (50).
-  # Stage ordering (build-and-test-fast → assemble → aws) guarantees the build-nginx-rum-fast artifacts (including upload/) are available.
+  needs:
+    - job: build-nginx-rum-fast
+      artifacts: true
+    - job: test-nginx-rum-fast
   tags: ["arch:amd64"]
   image: registry.ddbuild.io/images/aws-cli:2.33.12
   script:
