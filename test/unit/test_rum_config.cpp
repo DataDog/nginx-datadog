@@ -1,8 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <rapidjson/document.h>
 
-#include <cstdlib>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -14,59 +12,6 @@ namespace rum = datadog::nginx::rum::internal;
 
 namespace {
 
-// RAII helper that sets an environment variable on construction
-// and restores the original state on destruction.
-struct ScopedEnv {
-  std::string name;
-  std::optional<std::string> old_value;
-
-  ScopedEnv(const char* env_name, const char* value) : name(env_name) {
-    const char* prev = std::getenv(env_name);
-    if (prev) {
-      old_value = prev;
-    }
-    setenv(env_name, value, 1);
-  }
-
-  ~ScopedEnv() {
-    if (old_value) {
-      setenv(name.c_str(), old_value->c_str(), 1);
-    } else {
-      unsetenv(name.c_str());
-    }
-  }
-
-  ScopedEnv(const ScopedEnv&) = delete;
-  ScopedEnv& operator=(const ScopedEnv&) = delete;
-};
-
-// RAII helper that unsets an environment variable on construction
-// and restores the original state on destruction.
-struct ScopedUnsetEnv {
-  std::string name;
-  std::optional<std::string> old_value;
-
-  explicit ScopedUnsetEnv(const char* env_name) : name(env_name) {
-    const char* prev = std::getenv(env_name);
-    if (prev) {
-      old_value = prev;
-    }
-    unsetenv(env_name);
-  }
-
-  ~ScopedUnsetEnv() {
-    if (old_value) {
-      setenv(name.c_str(), old_value->c_str(), 1);
-    } else {
-      unsetenv(name.c_str());
-    }
-  }
-
-  ScopedUnsetEnv(const ScopedUnsetEnv&) = delete;
-  ScopedUnsetEnv& operator=(const ScopedUnsetEnv&) = delete;
-};
-
-// Helper: parse JSON string and return a RapidJSON Document.
 rapidjson::Document parse_json(const std::string& json) {
   rapidjson::Document doc;
   doc.Parse(json.c_str());
@@ -267,94 +212,3 @@ TEST_CASE("make_rum_json_config with empty config", "[rum][config]") {
   CHECK(doc["rum"].ObjectEmpty());
 }
 
-// ---------------------------------------------------------------------------
-// get_rum_enabled_from_env
-// ---------------------------------------------------------------------------
-
-TEST_CASE("get_rum_enabled_from_env truthy values", "[rum][config]") {
-  for (const char* val : {"true", "TRUE", "True", "1", "yes", "on"}) {
-    SECTION(std::string("DD_RUM_ENABLED=") + val) {
-      ScopedEnv env("DD_RUM_ENABLED", val);
-      auto result = rum::get_rum_enabled_from_env();
-      REQUIRE(result.has_value());
-      CHECK(*result == true);
-    }
-  }
-}
-
-TEST_CASE("get_rum_enabled_from_env falsy values", "[rum][config]") {
-  for (const char* val : {"false", "FALSE", "False", "0", "no", "off"}) {
-    SECTION(std::string("DD_RUM_ENABLED=") + val) {
-      ScopedEnv env("DD_RUM_ENABLED", val);
-      auto result = rum::get_rum_enabled_from_env();
-      REQUIRE(result.has_value());
-      CHECK(*result == false);
-    }
-  }
-}
-
-TEST_CASE("get_rum_enabled_from_env unset returns nullopt", "[rum][config]") {
-  ScopedUnsetEnv env("DD_RUM_ENABLED");
-  CHECK(rum::get_rum_enabled_from_env() == std::nullopt);
-}
-
-TEST_CASE("get_rum_enabled_from_env empty string returns nullopt",
-          "[rum][config]") {
-  ScopedEnv env("DD_RUM_ENABLED", "");
-  CHECK(rum::get_rum_enabled_from_env() == std::nullopt);
-}
-
-TEST_CASE("get_rum_enabled_from_env unrecognized value returns nullopt",
-          "[rum][config]") {
-  ScopedEnv env("DD_RUM_ENABLED", "maybe");
-  CHECK(rum::get_rum_enabled_from_env() == std::nullopt);
-}
-
-// ---------------------------------------------------------------------------
-// get_rum_config_from_env
-// ---------------------------------------------------------------------------
-
-TEST_CASE("get_rum_config_from_env reads set variables", "[rum][config]") {
-  // Unset all RUM env vars first to get a clean slate.
-  std::vector<std::unique_ptr<ScopedUnsetEnv>> unsets;
-  for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
-    unsets.push_back(std::make_unique<ScopedUnsetEnv>(
-        std::string(env_name).c_str()));
-  }
-
-  ScopedEnv app_id("DD_RUM_APPLICATION_ID", "my-app");
-  ScopedEnv token("DD_RUM_CLIENT_TOKEN", "my-token");
-
-  auto config = rum::get_rum_config_from_env();
-  CHECK(config.size() == 2);
-  REQUIRE(config.count("applicationId"));
-  CHECK(config["applicationId"] == std::vector<std::string>{"my-app"});
-  REQUIRE(config.count("clientToken"));
-  CHECK(config["clientToken"] == std::vector<std::string>{"my-token"});
-}
-
-TEST_CASE("get_rum_config_from_env skips unset variables", "[rum][config]") {
-  // Unset all RUM env vars.
-  std::vector<std::unique_ptr<ScopedUnsetEnv>> unsets;
-  for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
-    unsets.push_back(std::make_unique<ScopedUnsetEnv>(
-        std::string(env_name).c_str()));
-  }
-
-  auto config = rum::get_rum_config_from_env();
-  CHECK(config.empty());
-}
-
-TEST_CASE("get_rum_config_from_env skips empty values", "[rum][config]") {
-  // Unset all RUM env vars first.
-  std::vector<std::unique_ptr<ScopedUnsetEnv>> unsets;
-  for (const auto& [env_name, config_key] : rum::rum_env_mappings) {
-    unsets.push_back(std::make_unique<ScopedUnsetEnv>(
-        std::string(env_name).c_str()));
-  }
-
-  ScopedEnv empty_val("DD_RUM_APPLICATION_ID", "");
-
-  auto config = rum::get_rum_config_from_env();
-  CHECK(config.empty());
-}
