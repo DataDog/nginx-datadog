@@ -302,8 +302,8 @@ test-nginx-all-bis:
         NGINX_VERSION: ["1.30.0"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["amazonlinux:2023.3.20240219.0"]
-        NGINX_VERSION: ["1.30.0"]
+        BASE_IMAGE: ["amazonlinux:2023.11.20260427.1"]
+        NGINX_VERSION: ["1.28.3"]
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-all:
