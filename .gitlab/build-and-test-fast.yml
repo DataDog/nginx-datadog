@@ -201,7 +201,22 @@ test-nginx-rum-fast:
   extends:
     - .build-and-test-fast
     - .test-nginx-rum
-  needs: [build-nginx-rum-fast]
+  # Need only the matrix subset we test, to stay under GitLab's 50-need limit
+  # (the full build-nginx-rum-fast matrix has 62 entries).
+  needs:
+    - job: build-nginx-rum-fast
+      parallel:
+        matrix:
+          - ARCH: ["amd64", "arm64"]
+            NGINX_VERSION:
+              - "1.24.0"
+              - "1.25.5"
+              - "1.26.3"
+              - "1.27.5"
+              - "1.28.3"
+              - "1.29.8"
+              - "1.30.0"
+            WAF: ["OFF"]
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
@@ -255,22 +270,27 @@ coverage:
   script:
     - aws s3 cp upload/ "${S3_PATH}/" --recursive --acl public-read
     - echo "Uploaded to ${S3_PATH}/"
-  after_script:
     - |
       PUBLIC_URL=$(echo "${S3_PATH}" | sed 's|s3://\([^/]*\)/|https://\1.s3.amazonaws.com/|')
-      echo "Public URLs:"
+      failed=0
       for f in upload/*; do
-        echo "  ${PUBLIC_URL}/$(basename "$f")"
+        url="${PUBLIC_URL}/$(basename "$f")"
+        if curl -sSfI "$url" > /dev/null; then
+          echo "  ${url} verified"
+        else
+          echo "  ${url} not accessible"
+          failed=1
+        fi
       done
-      for f in upload/*; do
-        curl -sSfI "${PUBLIC_URL}/$(basename "$f")" && echo "  $(basename "$f") verified" || echo "  $(basename "$f") not accessible"
-      done
+      [ "$failed" -eq 0 ]
 
 upload-rum-branch-snapshots:
   extends: .upload-rum-snapshot-template
   variables:
     S3_PATH: s3://rum-auto-instrumentation/nginx/branch-snapshots/pipeline-${CI_PIPELINE_ID}
   rules:
+    - if: $CI_COMMIT_TAG
+      when: never
     - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
 
 upload-rum-snapshots:
