@@ -57,7 +57,6 @@ build-nginx-fast:
         # must be one of the ones below (and must match the one set in .github/workflows/system-tests.yml).
         # (This is why a latest but one version can be in build-nginx-fast but not in test-nginx-fast.)
         NGINX_VERSION:
-          - "1.24.0"
           - "1.25.5"
           - "1.26.3"
           - "1.27.5"
@@ -98,7 +97,6 @@ build-nginx-rum-fast:
     matrix:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION:
-          - "1.24.0"
           - "1.25.5"
           - "1.26.3"
           - "1.27.5"
@@ -114,10 +112,6 @@ test-nginx-fast:
   needs: [build-nginx-fast]
   parallel:
     matrix:
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.24.0", "nginx:1.24.0-alpine"]
-        NGINX_VERSION: ["1.24.0"]
-        WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.25.5", "nginx:1.25.5-alpine"]
         NGINX_VERSION: ["1.25.5"]
@@ -144,7 +138,7 @@ test-nginx-fast:
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["amazonlinux:2023.3.20240219.0"]
-        NGINX_VERSION: ["1.24.0"]
+        NGINX_VERSION: ["1.30.0"]
         WAF: ["ON", "OFF"]
 
 test-ingress-nginx-fast:
@@ -180,10 +174,6 @@ test-nginx-rum-fast:
   needs: [build-nginx-rum-fast]
   parallel:
     matrix:
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.24.0"]
-        NGINX_VERSION: ["1.24.0"]
-        WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.25.5"]
         NGINX_VERSION: ["1.25.5"]
