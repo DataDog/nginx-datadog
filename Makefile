@@ -86,9 +86,9 @@ build-push-uwsgi-test-image:
 
 # $(1): image name, $(2): build context
 define build-push-multiarch
-	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(1):latest-amd64 $(2)
+	docker build --provenance=false --sbom=false --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(1):latest-amd64 $(2)
 	docker push $(1):latest-amd64
-	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(1):latest-arm64 $(2)
+	docker build --provenance=false --sbom=false --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(1):latest-arm64 $(2)
 	docker push $(1):latest-arm64
 	docker buildx imagetools create -t $(1):latest $(1):latest-amd64 $(1):latest-arm64
 endef
