@@ -14,18 +14,14 @@ images:
     digest: sha256:1e42bbe2508154c9126d48c2b8a75420c3544343bf86fd041fb7527e017a4b4a
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/alpine:3.20.3
     tag: 3.20.3
+  amazonlinux:2023.11.20260427.1:
+    digest: sha256:82085f72b15db462da227bd8a45c925c72f9d6f25965d22f1c31c47e0a803d80
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/amazonlinux:2023.11.20260427.1
+    tag: 2023.11.20260427.1
   amazonlinux:2023.3.20240219.0:
     digest: sha256:db247dc601fcaa65b35d1074f4f34c8f31552ccd185a4002ffa152965e499c61
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/amazonlinux:2023.3.20240219.0
     tag: 2023.3.20240219.0
-  datadog/agent:
-    digest: sha256:d30172d6fd606d3e8c4396b7dd44c0015583546beee36f302702be2504b4ef3f
-    target: registry.ddbuild.io/ci/nginx-datadog/mirror/datadog/agent
-    tag: 7.76.2
-  ealen/echo-server:latest:
-    digest: sha256:ec8a6e95890df937a1eb5fafca033a32172d4f43c1fea1f302931d5f230a137f
-    target: registry.ddbuild.io/ci/nginx-datadog/mirror/ealen/echo-server:latest
-    tag: latest
   ghcr.io/astral-sh/uv:0.9.28:
     digest: sha256:59240a65d6b57e6c507429b45f01b8f2c7c0bbeee0fb697c41a39c6a8e3a4cfb
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/ghcr.io/astral-sh/uv:0.9.28
@@ -194,6 +190,14 @@ images:
     digest: sha256:15e96e59aa3b0aada3a121296e3bce117721f42d88f5f64217ef4b18f458c6ab
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.28.2-alpine
     tag: 1.28.2-alpine
+  nginx:1.28.3:
+    digest: sha256:146adea4768b83c607d0bdfa4188464e3da6e0a3ad4475db1d1d8f64f27c29cc
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.28.3
+    tag: 1.28.3
+  nginx:1.28.3-alpine:
+    digest: sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.28.3-alpine
+    tag: 1.28.3-alpine
   nginx:1.29.0:
     digest: sha256:3ab4ed065a1437cbbd45e65617b1285bdf6523c6bf56a121e00df41720e09a89
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.29.0
@@ -250,6 +254,46 @@ images:
     digest: sha256:f46cb72c7df02710e693e863a983ac42f6a9579058a59a35f1ae36c9958e4ce0
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.29.6-alpine
     tag: 1.29.6-alpine
+  nginx:1.29.7:
+    digest: sha256:1854da86e82d5dfb49a8f3d78b099adcc7e36608b207146ed95cd47937938a40
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.29.7
+    tag: 1.29.7
+  nginx:1.29.7-alpine:
+    digest: sha256:e7257f1ef28ba17cf7c248cb8ccf6f0c6e0228ab9c315c152f9c203cd34cf6d1
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.29.7-alpine
+    tag: 1.29.7-alpine
+  nginx:1.29.8:
+    digest: sha256:1881968aff6f7cdcc4b888c00a11f4ce241ad7ec957e0cb4a9e19e93a3ff87ea
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.29.8
+    tag: 1.29.8
+  nginx:1.29.8-alpine:
+    digest: sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.29.8-alpine
+    tag: 1.29.8-alpine
+  nginx:1.30.0:
+    digest: sha256:55d1fb0944aafb8534b253e486c6cf57d3e0c785c4f6a7b3e9f02c5a080fb2ce
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.30.0
+    tag: 1.30.0
+  nginx:1.30.0-alpine:
+    digest: sha256:0272e4604ed93c1792f03695a033a6e8546840f86e0de20a884bb17d2c924883
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.30.0-alpine
+    tag: 1.30.0-alpine
+  nginx:1.30.1:
+    digest: sha256:842a3f99afd73859b5c647f8be6f0000849be286674e30d9dbcf7a6902a69487
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.30.1
+    tag: 1.30.1
+  nginx:1.30.1-alpine:
+    digest: sha256:5c5ea33561790f4d9fbcebb9ecfd4bbb781c760815b4d8b4f80b9d36c6da2659
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.30.1-alpine
+    tag: 1.30.1-alpine
+  nginx:1.31.0:
+    digest: sha256:06aa3d7be10bc6307990c81bdca075793132e9163391abc370c015e344e23128
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.31.0
+    tag: 1.31.0
+  nginx:1.31.0-alpine:
+    digest: sha256:f105e3f12187c58ddc3acd09bbe4b9e4a9ab1df855d3d0e511b641077b5e988e
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.31.0-alpine
+    tag: 1.31.0-alpine
   openresty/openresty:1.25.3.1-alpine:
     digest: sha256:2c21c754fbc25080f768b41063331f8c8400fb77603a5701b296eb4933183a71
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/openresty/openresty:1.25.3.1-alpine
@@ -270,6 +314,10 @@ images:
     digest: sha256:711a9c269a6e4f4b5540fe6bdb4924bba14fc95ff16a77d6da76f89a78ad3e11
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/openresty/openresty:1.29.2.1-alpine
     tag: 1.29.2.1-alpine
+  openresty/openresty:1.29.2.3-alpine:
+    digest: sha256:3e69863f079ba22fc7e13ef27da50a88456f9ca277e78c40d026f6205685f343
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/openresty/openresty:1.29.2.3-alpine
+    tag: 1.29.2.3-alpine
   python:3.14-alpine:
     digest: sha256:faee120f7885a06fcc9677922331391fa690d911c020abb9e8025ff3d908e510
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/python:3.14-alpine
@@ -410,6 +458,10 @@ images:
     digest: sha256:0e7fad5de70f55c7f5fb61858be5ba6794d61091ad0874e963a61851e43edf99
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/registry.k8s.io/ingress-nginx/controller:v1.13.8
     tag: v1.13.8
+  registry.k8s.io/ingress-nginx/controller:v1.13.9:
+    digest: sha256:d803625b20d471400fdae9dce0fdd076c0361f8f7e1ecee0dcd2f84fa0d196f8
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/registry.k8s.io/ingress-nginx/controller:v1.13.9
+    tag: v1.13.9
   registry.k8s.io/ingress-nginx/controller:v1.14.0:
     digest: sha256:e4127065d0317bd11dc64c4dd38dcf7fb1c3d72e468110b4086e636dbaac943d
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/registry.k8s.io/ingress-nginx/controller:v1.14.0
@@ -430,7 +482,15 @@ images:
     digest: sha256:f8c7959ed0cc0c1dd6060f291fc50ccaf27a5497d182bbb6bc4ffed943616f23
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/registry.k8s.io/ingress-nginx/controller:v1.14.4
     tag: v1.14.4
+  registry.k8s.io/ingress-nginx/controller:v1.14.5:
+    digest: sha256:af3312d040dbe8d503001a1094b248e8be372f70f317a4bc35f81fb312bff3a8
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/registry.k8s.io/ingress-nginx/controller:v1.14.5
+    tag: v1.14.5
   registry.k8s.io/ingress-nginx/controller:v1.15.0:
     digest: sha256:4eea9a4cc2cb6ddcb7da14d377aaf452e68bd3dbe87fe280755d225c4d5e7e4e
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/registry.k8s.io/ingress-nginx/controller:v1.15.0
     tag: v1.15.0
+  registry.k8s.io/ingress-nginx/controller:v1.15.1:
+    digest: sha256:594ceea76b01c592858f803f9ff4d2cb40542cae2060410b2c95f75907d659e1
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/registry.k8s.io/ingress-nginx/controller:v1.15.1
+    tag: v1.15.1
