@@ -5,6 +5,7 @@ stages:
   - notify
 
 include:
+- local: ".gitlab/common.yml"
 - project: 'DataDog/benchmarking-platform-tools'
   file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
 - project: 'DataDog/benchmarking-platform-tools'
@@ -20,6 +21,7 @@ workflow:
     on_new_commit: interruptible
 
 build-nginx-module:
+  extends: .git-config
   stage: build
   tags: ["arch:amd64"]
   timeout: 20min
@@ -35,7 +37,6 @@ build-nginx-module:
     BUILD_TYPE: Release
     ARCH: x86_64
   script:
-    - git submodule sync && git submodule update --init --recursive
     - export NGINX_SRC_DIR="$PWD/nginx"
     - make build-musl-aux
   artifacts:
