@@ -5,17 +5,18 @@ stages:
   - notify
 
 include:
-- project: 'DataDog/benchmarking-platform-tools'
-  file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
-- project: 'DataDog/benchmarking-platform-tools'
-  file: 'images/templates/gitlab/check-slo-breaches.template.yml'
+  - local: ".gitlab/common.yml"
+  - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+  - project: 'DataDog/benchmarking-platform-tools'
+    file: 'images/templates/gitlab/check-slo-breaches.template.yml'
 
 variables:
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
   BUILD_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/images/mirror/b1o7r7e0/nginx_musl_toolchain
   NGINX_VERSION: 1.26.0
 
-workflow: 
+workflow:
   auto_cancel:
     on_new_commit: interruptible
 
@@ -44,7 +45,6 @@ build-nginx-module:
     paths:
       - .musl-build/ngx_http_datadog_module.so
     expire_in: 3 months
-
 
 
 .benchmarks:
