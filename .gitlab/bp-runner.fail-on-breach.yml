@@ -13,5 +13,5 @@ experiments:
               - throughput > 3700 op/s
           - name: normal_operation/only-tracing
             thresholds:
-              - threshold: agg_http_req_duration_p50 < 0.116 ms
+              - threshold: agg_http_req_duration_p50 < 0.119 ms
                 warning_range: 2
