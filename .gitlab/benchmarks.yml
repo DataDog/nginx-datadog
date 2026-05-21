@@ -20,6 +20,7 @@ workflow:
     on_new_commit: interruptible
 
 build-nginx-module:
+  extends: .git-config
   stage: build
   tags: ["arch:amd64"]
   timeout: 20min
@@ -35,7 +36,6 @@ build-nginx-module:
     BUILD_TYPE: Release
     ARCH: x86_64
   script:
-    - git submodule sync && git submodule update --init --recursive
     - export NGINX_SRC_DIR="$PWD/nginx"
     - make build-musl-aux
   artifacts:
@@ -44,6 +44,7 @@ build-nginx-module:
     paths:
       - .musl-build/ngx_http_datadog_module.so
     expire_in: 3 months
+
 
 
 .benchmarks:
