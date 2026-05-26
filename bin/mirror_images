@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-export MIRROR_DEST_REGISTRY="${MIRROR_DEST_REGISTRY:-registry.ddbuild.io/ci/nginx-datadog/mirror}"
 exec uv run --no-config --script \
-    https://binaries.ddbuild.io/dd-repo-tools/default/ca/4caf160ba9150dc4c97a8d25e4b81473e48aeb9e/mirror_images.py \
+    https://binaries.ddbuild.io/dd-repo-tools/default/ca/96e18fa713cc785d8d3d5e2d2ac997c825d42110/mirror_images.py \
     "$@"
