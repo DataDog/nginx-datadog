@@ -9,7 +9,7 @@ lint-mirror-images:
   script:
     - curl -LsSf https://astral.sh/uv/install.sh | sh
     - export PATH="$HOME/.local/bin:$PATH"
-    - uv run bin/mirror_images.py lint
+    - bin/mirror_images lint
 
 mirror-images:
   stage: mirror-images
@@ -23,4 +23,4 @@ mirror-images:
   script:
     - curl -LsSf https://astral.sh/uv/install.sh | sh
     - export PATH="$HOME/.local/bin:$PATH"
-    - uv run bin/mirror_images.py mirror
+    - bin/mirror_images mirror
