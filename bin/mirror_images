@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 exec uv run --no-config --script \
-    https://binaries.ddbuild.io/dd-repo-tools/default/ca/96e18fa713cc785d8d3d5e2d2ac997c825d42110/mirror_images.py \
+    https://binaries.ddbuild.io/dd-repo-tools/default/ca/fb4f39a542e4dd42b646c300b539c7a9f4201531/mirror_images.py \
     "$@"
