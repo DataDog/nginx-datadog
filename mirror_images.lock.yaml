@@ -286,6 +286,14 @@ images:
     digest: sha256:5c5ea33561790f4d9fbcebb9ecfd4bbb781c760815b4d8b4f80b9d36c6da2659
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.30.1-alpine
     tag: 1.30.1-alpine
+  nginx:1.30.2:
+    digest: sha256:42ff6c6704359b80306f35a0c7bb0bbc9b65a058e63f0cc1e91a48fd22e3e1e5
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.30.2
+    tag: 1.30.2
+  nginx:1.30.2-alpine:
+    digest: sha256:5f979dcfed4ce6461873f087e8c980d6e29b084b9e8776d9704a7e989b5f4898
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.30.2-alpine
+    tag: 1.30.2-alpine
   nginx:1.31.0:
     digest: sha256:06aa3d7be10bc6307990c81bdca075793132e9163391abc370c015e344e23128
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.31.0
@@ -294,6 +302,14 @@ images:
     digest: sha256:f105e3f12187c58ddc3acd09bbe4b9e4a9ab1df855d3d0e511b641077b5e988e
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.31.0-alpine
     tag: 1.31.0-alpine
+  nginx:1.31.1:
+    digest: sha256:5aca99593157f4ae539a5dec1092a0ad8762f8e2eb1789085a13a0f5622369f6
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.31.1
+    tag: 1.31.1
+  nginx:1.31.1-alpine:
+    digest: sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/nginx:1.31.1-alpine
+    tag: 1.31.1-alpine
   openresty/openresty:1.25.3.1-alpine:
     digest: sha256:2c21c754fbc25080f768b41063331f8c8400fb77603a5701b296eb4933183a71
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/openresty/openresty:1.25.3.1-alpine
@@ -318,6 +334,10 @@ images:
     digest: sha256:3e69863f079ba22fc7e13ef27da50a88456f9ca277e78c40d026f6205685f343
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/openresty/openresty:1.29.2.3-alpine
     tag: 1.29.2.3-alpine
+  openresty/openresty:1.29.2.4-alpine:
+    digest: sha256:a155a204d5d477d1c695dd10dc53b73e91fc0977e181a95cb5c3e07d4f35f755
+    target: registry.ddbuild.io/ci/nginx-datadog/mirror/openresty/openresty:1.29.2.4-alpine
+    tag: 1.29.2.4-alpine
   python:3.14-alpine:
     digest: sha256:faee120f7885a06fcc9677922331391fa690d911c020abb9e8025ff3d908e510
     target: registry.ddbuild.io/ci/nginx-datadog/mirror/python:3.14-alpine

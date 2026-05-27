@@ -32,12 +32,15 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 def get_underlying_nginx_version(ingress_nginx_version: str) -> str:
     mapping = {
+        "v1.15.1": "1.27.1",
         "v1.15.0": "1.27.1",
+        "v1.14.5": "1.27.1",
         "v1.14.4": "1.27.1",
         "v1.14.3": "1.27.1",
         "v1.14.2": "1.27.1",
         "v1.14.1": "1.27.1",
         "v1.14.0": "1.27.1",
+        "v1.13.9": "1.27.1",
         "v1.13.8": "1.27.1",
         "v1.13.7": "1.27.1",
         "v1.13.6": "1.27.1",

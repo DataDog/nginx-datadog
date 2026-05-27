@@ -81,14 +81,19 @@ images:
   - "nginx:1.30.0-alpine"
   - "nginx:1.30.1"
   - "nginx:1.30.1-alpine"
+  - "nginx:1.30.2"
+  - "nginx:1.30.2-alpine"
   - "nginx:1.31.0"
   - "nginx:1.31.0-alpine"
+  - "nginx:1.31.1"
+  - "nginx:1.31.1-alpine"
   - "openresty/openresty:1.25.3.1-alpine"
   - "openresty/openresty:1.25.3.2-alpine"
   - "openresty/openresty:1.27.1.1-alpine"
   - "openresty/openresty:1.27.1.2-alpine"
   - "openresty/openresty:1.29.2.1-alpine"
   - "openresty/openresty:1.29.2.3-alpine"
+  - "openresty/openresty:1.29.2.4-alpine"
   - "python:3.14-alpine"
   - "registry.k8s.io/ingress-nginx/controller:v1.10.0"
   - "registry.k8s.io/ingress-nginx/controller:v1.10.1"
@@ -136,6 +141,6 @@ images:
 
 ignore:
   paths:
-    - "example"
-    - "dd-trace-cpp"
-    - "libddwaf"
+    - example
+    - dd-trace-cpp
+    - libddwaf

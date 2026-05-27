@@ -14,15 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ARCH: x86_64
-      # The Nginx version must match the one in system-tests repository:
-      # https://github.com/DataDog/system-tests/blob/main/utils/build/docker/cpp_nginx/nginx.Dockerfile
-      NGINX_VERSION: 1.29.6
+      # The Nginx version must match the one in System Tests, in
+      # https://github.com/DataDog/system-tests/blob/main/utils/build/docker/cpp_nginx/nginx.Dockerfile#L3,
+      # and must be one of the versions built in GitLab CI build-and-test-fast.
+      NGINX_VERSION: 1.29.8
       WAF: ON
       MIRROR_REGISTRY: ""
     steps:
       - name: checkout
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-      - run: git submodule sync && git submodule update --init --recursive
+      - run: git submodule sync dd-trace-cpp libddwaf && git submodule update --init --recursive dd-trace-cpp libddwaf
       - name: Login to Docker Hub
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
@@ -47,7 +48,7 @@ jobs:
       TEST_OPTIMIZATION_API_KEY: ${{ secrets.DD_API_KEY }}
     permissions:
       contents: read
-      packages: write
+      id-token: write
     with:
       library: cpp_nginx
       binaries_artifact: binaries
@@ -55,7 +56,7 @@ jobs:
       scenarios_groups: ${{ (github.event_name == 'schedule' || github.event_name == 'push') && 'tracer_release' || 'appsec' }}
       scenarios: DEFAULT
       excluded_scenarios: INTEGRATIONS  # no test activated, and long warm-up
-      skip_empty_scenarios: true
+      skip_empty_scenarios: ${{ github.event_name == 'pull_request' }}
       push_to_test_optimization: true
 
   # Ensure the main job is run to completion

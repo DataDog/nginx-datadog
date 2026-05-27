@@ -5,6 +5,7 @@ include:
 # with more than 100 jobs!
 
 .build-and-test-all:
+  extends: .git-config
   rules:
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
       when: always
@@ -26,7 +27,6 @@ build-nginx-all:
     matrix:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION:
-          - "1.24.0"
           - "1.25.0"
           - "1.25.1"
           - "1.25.2"
@@ -46,6 +46,7 @@ build-nginx-all:
           - "1.28.0"
           - "1.28.1"
           - "1.28.2"
+          - "1.28.3"
           - "1.29.0"
           - "1.29.1"
           - "1.29.2"
@@ -53,6 +54,13 @@ build-nginx-all:
           - "1.29.4"
           - "1.29.5"
           - "1.29.6"
+          - "1.29.7"
+          - "1.29.8"
+          - "1.30.0"
+          - "1.30.1"
+          - "1.30.2"
+          - "1.31.0"
+          - "1.31.1"
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-all:
@@ -63,12 +71,40 @@ build-nginx-rum-all:
     matrix:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION:
-          - "1.24.0"
+          - "1.25.0"
+          - "1.25.1"
+          - "1.25.2"
+          - "1.25.3"
+          - "1.25.4"
           - "1.25.5"
+          - "1.26.0"
+          - "1.26.1"
+          - "1.26.2"
           - "1.26.3"
+          - "1.27.0"
+          - "1.27.1"
+          - "1.27.2"
+          - "1.27.3"
+          - "1.27.4"
           - "1.27.5"
+          - "1.28.0"
+          - "1.28.1"
           - "1.28.2"
+          - "1.28.3"
+          - "1.29.0"
+          - "1.29.1"
+          - "1.29.2"
+          - "1.29.3"
+          - "1.29.4"
+          - "1.29.5"
           - "1.29.6"
+          - "1.29.7"
+          - "1.29.8"
+          - "1.30.0"
+          - "1.30.1"
+          - "1.30.2"
+          - "1.31.0"
+          - "1.31.1"
         WAF: ["OFF"]
 
 build-ingress-nginx-all:
@@ -113,12 +149,15 @@ build-ingress-nginx-all:
           - "1.13.6"
           - "1.13.7"
           - "1.13.8"
+          - "1.13.9"
           - "1.14.0"
           - "1.14.1"
           - "1.14.2"
           - "1.14.3"
           - "1.14.4"
+          - "1.14.5"
           - "1.15.0"
+          - "1.15.1"
 
 build-openresty-all:
   extends:
@@ -133,6 +172,8 @@ build-openresty-all:
           - "1.27.1.1"
           - "1.27.1.2"
           - "1.29.2.1"
+          - "1.29.2.3"
+          - "1.29.2.4"
         WAF: ["ON", "OFF"]
 
 test-nginx-all:
@@ -141,10 +182,6 @@ test-nginx-all:
     - .test-nginx
   parallel:
     matrix:
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.24.0", "nginx:1.24.0-alpine"]
-        NGINX_VERSION: ["1.24.0"]
-        WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.25.0", "nginx:1.25.0-alpine"]
         NGINX_VERSION: ["1.25.0"]
@@ -221,6 +258,10 @@ test-nginx-all:
         BASE_IMAGE: ["nginx:1.28.2", "nginx:1.28.2-alpine"]
         NGINX_VERSION: ["1.28.2"]
         WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.3", "nginx:1.28.3-alpine"]
+        NGINX_VERSION: ["1.28.3"]
+        WAF: ["ON", "OFF"]
 
 # GitLab is not able to handle a matrix with more than 200 jobs!
 test-nginx-all-bis:
@@ -258,8 +299,36 @@ test-nginx-all-bis:
         NGINX_VERSION: ["1.29.6"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["amazonlinux:2023.3.20240219.0"]
-        NGINX_VERSION: ["1.24.0"]
+        BASE_IMAGE: ["nginx:1.29.7", "nginx:1.29.7-alpine"]
+        NGINX_VERSION: ["1.29.7"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.8", "nginx:1.29.8-alpine"]
+        NGINX_VERSION: ["1.29.8"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.30.0", "nginx:1.30.0-alpine"]
+        NGINX_VERSION: ["1.30.0"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.30.1", "nginx:1.30.1-alpine"]
+        NGINX_VERSION: ["1.30.1"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.30.2", "nginx:1.30.2-alpine"]
+        NGINX_VERSION: ["1.30.2"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.0", "nginx:1.31.0-alpine"]
+        NGINX_VERSION: ["1.31.0"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.1", "nginx:1.31.1-alpine"]
+        NGINX_VERSION: ["1.31.1"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["amazonlinux:2023.11.20260427.1"]
+        NGINX_VERSION: ["1.28.3"]
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-all:
@@ -269,28 +338,140 @@ test-nginx-rum-all:
   parallel:
     matrix:
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.24.0"]
-        NGINX_VERSION: ["1.24.0"]
+        BASE_IMAGE: ["nginx:1.25.0"]
+        NGINX_VERSION: ["1.25.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.1"]
+        NGINX_VERSION: ["1.25.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.2"]
+        NGINX_VERSION: ["1.25.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.3"]
+        NGINX_VERSION: ["1.25.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.25.4"]
+        NGINX_VERSION: ["1.25.4"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.25.5"]
         NGINX_VERSION: ["1.25.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.26.0"]
+        NGINX_VERSION: ["1.26.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.26.1"]
+        NGINX_VERSION: ["1.26.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.26.2"]
+        NGINX_VERSION: ["1.26.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.26.3"]
         NGINX_VERSION: ["1.26.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.0"]
+        NGINX_VERSION: ["1.27.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.1"]
+        NGINX_VERSION: ["1.27.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.2"]
+        NGINX_VERSION: ["1.27.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.3"]
+        NGINX_VERSION: ["1.27.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.27.4"]
+        NGINX_VERSION: ["1.27.4"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.27.5"]
         NGINX_VERSION: ["1.27.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.0"]
+        NGINX_VERSION: ["1.28.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.1"]
+        NGINX_VERSION: ["1.28.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.28.2"]
         NGINX_VERSION: ["1.28.2"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.28.3"]
+        NGINX_VERSION: ["1.28.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.0"]
+        NGINX_VERSION: ["1.29.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.1"]
+        NGINX_VERSION: ["1.29.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.2"]
+        NGINX_VERSION: ["1.29.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.3"]
+        NGINX_VERSION: ["1.29.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.4"]
+        NGINX_VERSION: ["1.29.4"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.5"]
+        NGINX_VERSION: ["1.29.5"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.29.6"]
         NGINX_VERSION: ["1.29.6"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.7"]
+        NGINX_VERSION: ["1.29.7"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.29.8"]
+        NGINX_VERSION: ["1.29.8"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.30.0"]
+        NGINX_VERSION: ["1.30.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.30.1"]
+        NGINX_VERSION: ["1.30.1"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.30.2"]
+        NGINX_VERSION: ["1.30.2"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.0"]
+        NGINX_VERSION: ["1.31.0"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.1"]
+        NGINX_VERSION: ["1.31.1"]
         WAF: ["OFF"]
 
 test-ingress-nginx-all:
@@ -335,12 +516,15 @@ test-ingress-nginx-all:
           - "1.13.6"
           - "1.13.7"
           - "1.13.8"
+          - "1.13.9"
           - "1.14.0"
           - "1.14.1"
           - "1.14.2"
           - "1.14.3"
           - "1.14.4"
+          - "1.14.5"
           - "1.15.0"
+          - "1.15.1"
 
 test-openresty-all:
   extends:
@@ -355,4 +539,6 @@ test-openresty-all:
           - "1.27.1.1"
           - "1.27.1.2"
           - "1.29.2.1"
+          - "1.29.2.3"
+          - "1.29.2.4"
         WAF: ["ON", "OFF"]

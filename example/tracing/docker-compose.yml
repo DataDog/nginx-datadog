@@ -3,10 +3,11 @@ services:
   # `nginx` is an instance of nginx that has the Datadog tracing module loaded.
   nginx:
     build:
-      context: ./services/nginx
-      dockerfile: ./Dockerfile
+      context: ..
+      dockerfile: tracing/services/nginx/Dockerfile
       args:
-        BASE_IMAGE: ${BASE_IMAGE}
+        BASE_IMAGE: ${BASE_IMAGE:-}
+        NGINX_DATADOG_VERSION: ${NGINX_DATADOG_VERSION:-}
     environment:
       - DD_AGENT_HOST=agent
     depends_on:

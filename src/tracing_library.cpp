@@ -55,6 +55,10 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   config.integration_version = NGINX_VERSION;
   config.service = "nginx";
 
+  if (!nginx_conf.root_session_id.empty()) {
+    config.root_session_id = nginx_conf.root_session_id;
+  }
+
   if (nginx_conf.apm_tracing_enabled != NGX_CONF_UNSET) {
     config.tracing_enabled = {nginx_conf.apm_tracing_enabled == 1};
   }

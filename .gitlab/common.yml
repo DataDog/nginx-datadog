@@ -1,14 +1,21 @@
 variables:
   CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
   TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
-  GIT_SUBMODULE_STRATEGY: recursive
-  GIT_SUBMODULE_DEPTH: 1
-  GIT_CONFIG_COUNT: 1
-  GIT_CONFIG_KEY_0: url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/.insteadOf
-  GIT_CONFIG_VALUE_0: https://github.com/DataDog/
+
+# Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
+# rewriting via CI job token. Defined as a hidden job (not global) so
+# 3rd-party includes (one-pipeline) don't inherit the rewrite.
+.git-config:
+  variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 1
+    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_KEY_0: url.https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/.insteadOf
+    GIT_CONFIG_VALUE_0: https://github.com/DataDog/
 
 .build:
-  image: $CI_REGISTRY/nginx_musl_toolchain
+  extends: .git-config
+  image: $CI_REGISTRY/nginx_musl_toolchain:rust-1.94
   tags: ["arch:$ARCH"]
   variables:
     MAKE_JOB_COUNT: "8"
@@ -60,13 +67,14 @@ variables:
       - artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/
 
 .test:
+  extends: .git-config
   image: $CI_REGISTRY/test
   tags: ["docker-in-docker:$ARCH"]
 
 .test-nginx:
   extends: .test
   script:
-    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -76,7 +84,7 @@ variables:
   variables:
     RUM: "ON"
   script:
-    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts-rum/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -86,7 +94,7 @@ variables:
   variables:
     NGINX_FLAVOR: ingress-nginx
   script:
-    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
+    - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/registry.k8s.io/ingress-nginx/controller:v$INGRESS_NGINX_VERSION --module-path artifacts-ingress/$ARCH/$INGRESS_NGINX_VERSION/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log
@@ -94,7 +102,7 @@ variables:
 .test-openresty:
   extends: .test
   script:
-    - python3 test/bin/run.py --image $TESTS_IMAGES_REGISTRY/openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+    - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/openresty/openresty:$RESTY_VERSION-alpine --module-path artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
     paths:
       - test/logs/test.log

@@ -1,23 +1,16 @@
 #!/bin/sh
-# Set up the nginx container image. Install nginx, if necessary, and install the nginx-datadog module.
+# Set up the Nginx container image. Install Nginx, if necessary, and install the Nginx Datadog module.
 
 set -x
 set -e
 
-is_installed() {
-  command -v "$1" > /dev/null 2>&1
-}
-
-get_latest_release() {
-  curl --silent "https://api.github.com/repos/$1/releases/latest" | jq --raw-output .tag_name
-}
+. /tmp/install_datadog_utils.sh
 
 get_nginx_version() {
   if ! is_installed nginx; then
     >&2 echo 'Could not execute nginx binary'
     exit 1
   fi
-
   nginx -version 2>&1 | sed 's@.*/@@'
 }
 
@@ -41,64 +34,32 @@ case "$BASE_IMAGE" in
       ;;
 esac
 
-ARCH="$(uname -m)"
-case "$ARCH" in
-    aarch64)
-      ARCH="arm64"
-      ;;
-    x86_64)
-      ARCH="amd64"
-      ;;
-    *)
-      >&2 echo "Platform ${BASE_IMAGE}-${ARCH} is not supported."
-      exit 1
-      ;;
-esac
+arch=$(detect_arch)
 
-# Install the command line tools needed to fetch and extract the module.
-# `apt-get` (Debian, Ubuntu), `apk` (Alpine), and `yum` (Amazon Linux) are
-# supported.
-if is_installed apt-get; then
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get install -y tar wget curl jq
-elif is_installed apk; then
-    apk update
-    apk add tar wget curl jq
-elif is_installed yum; then
-    yum update -y
-    yum install -y tar wget curl jq
-else
-    >&2 printf 'Did not find a supported package manager.\n'
-    exit 3
-fi
+install_packages curl jq tar wget
 
 # If nginx itself is not installed already, then install it.
 if ! is_installed nginx; then
-  if is_installed apt-get; then
-      apt-get update
-      DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
-  elif is_installed apk; then
-      apk update
-      apk add nginx
-  elif is_installed yum; then
-      yum update -y
-      # Older versions of Amazon Linux needed "amazon-linux-extras" in order to
-      # install nginx. Newer versions of Amazon Linux don't have
-      # "amazon-linux-extras".
-      if >/dev/null command -v amazon-linux-extras; then
-          amazon-linux-extras enable -y nginx1
-      fi
-      yum install -y nginx
-  else
-      >&2 printf 'Did not find a supported package manager.\n'
-      exit 2
+  # Older versions of Amazon Linux needed "amazon-linux-extras" in order to
+  # install nginx. Newer versions of Amazon Linux don't have
+  # "amazon-linux-extras".
+  if is_installed yum && >/dev/null command -v amazon-linux-extras; then
+      amazon-linux-extras enable -y nginx1
   fi
+  install_packages nginx
 fi
 
-RELEASE_TAG=$(get_latest_release DataDog/nginx-datadog)
-NGINX_VERSION=$(get_nginx_version)
-tarball="ngx_http_datadog_module-appsec-${ARCH}-${NGINX_VERSION}.so.tgz"
+nginx_version=$(get_nginx_version)
+tarball="ngx_http_datadog_module-appsec-${arch}-${nginx_version}.so.tgz"
 
-wget "https://github.com/DataDog/nginx-datadog/releases/download/$RELEASE_TAG/$tarball"
+repository="DataDog/nginx-datadog"
+
+if [ -n "$NGINX_DATADOG_VERSION" ]; then
+  nginx_datadog_release_tag="v${NGINX_DATADOG_VERSION}"
+else
+  nginx_datadog_release_tag=$(get_latest_release "$repository")
+fi
+
+wget "https://github.com/$repository/releases/download/$nginx_datadog_release_tag/$tarball"
 tar -xzf "$tarball" -C "$nginx_modules_path"
 rm "$tarball"

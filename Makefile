@@ -10,6 +10,7 @@ RUM ?= OFF
 WAF ?= OFF
 
 ARCH ?= $(shell arch)
+# Normalize architecture names: CI uses amd64/arm64, build tools expect x86_64/aarch64
 ifeq ($(ARCH),amd64)
 	ARCH := x86_64
 endif
@@ -85,9 +86,9 @@ build-push-uwsgi-test-image:
 
 # $(1): image name, $(2): build context
 define build-push-multiarch
-	docker build --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(1):latest-amd64 $(2)
+	docker build --provenance=false --sbom=false --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(1):latest-amd64 $(2)
 	docker push $(1):latest-amd64
-	docker build --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(1):latest-arm64 $(2)
+	docker build --provenance=false --sbom=false --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(1):latest-arm64 $(2)
 	docker push $(1):latest-arm64
 	docker buildx imagetools create -t $(1):latest $(1):latest-amd64 $(1):latest-arm64
 endef
@@ -273,7 +274,7 @@ build-and-test: build-musl test
 
 .PHONY: test
 test: $(TEST_DEPENDENCY)
-	python3 test/bin/run.py --image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine} \
+	uv run --project test test/bin/run.py --image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine} \
 		--module-path .musl-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
 
@@ -282,7 +283,7 @@ build-and-test-openresty: build-openresty test-openresty
 
 .PHONY: test-openresty
 test-openresty: $(TEST_DEPENDENCY)
-	RESTY_TEST=ON python3 test/bin/run.py --image ${BASE_IMAGE} \
+	RESTY_TEST=ON uv run --project test test/bin/run.py --image ${BASE_IMAGE} \
 		--module-path .openresty-build/ngx_http_datadog_module.so -- \
 		--verbose $(TEST_ARGS)
 
@@ -299,7 +300,7 @@ endif
 	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
 	cd .musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests
 	rm -f test/coverage_data.tar.gz
-	python3 test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
+	uv run --project test test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
 	tar -C .musl-build -xzf test/coverage_data.tar.gz
 	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
-	codecov -Z -f .musl-build/coverage.lcov --disable-search -t $$(vault kv get -field=token kv/k8s/gitlab-runner/nginx-datadog/codecov)
+	npx --yes @datadog/datadog-ci@latest coverage upload --format=lcov .musl-build/coverage.lcov
