@@ -87,7 +87,7 @@ build-openresty-fast:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION:
           - "1.27.1.2"
-          - "1.29.2.4"
+          - "1.29.2.5"
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-fast:
@@ -170,7 +170,7 @@ test-openresty-fast:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION:
           - "1.27.1.2"
-          - "1.29.2.4"
+          - "1.29.2.5"
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-fast:
