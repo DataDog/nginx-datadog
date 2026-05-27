@@ -211,7 +211,7 @@ inline std::size_t has_special(ngx_chain_t const *ch) {
 }
 inline std::size_t has_last(ngx_chain_t const *ch) {
   for (ngx_chain_t const *cl = ch; cl; cl = cl->next) {
-    if (cl->buf->last) {
+    if (cl->buf->last_buf) {
       return true;
     }
   }
