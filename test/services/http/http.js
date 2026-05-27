@@ -63,6 +63,15 @@ const requestListener = function (request, response) {
     return;
   }
 
+  if (request.url.match(/.*\/empty_body_json\/?(?:\?.*)?$/)) {
+    response.writeHead(202, {
+      "content-type": "application/json",
+      "content-length": "0"
+    });
+    response.end();
+    return;
+  }
+
   // parameterized response body test endpoint
   if (request.url.match(/.*\/response_body_test\/?.*/)) {
     ignoreRequestBody(request);
