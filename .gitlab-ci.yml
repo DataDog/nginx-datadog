@@ -13,6 +13,7 @@ default:
 include:
   - local: ".gitlab/build-and-test-all.yml"
   - local: ".gitlab/build-and-test-fast.yml"
+  - local: ".gitlab/mirror.yml"
   - local: ".gitlab/ssi-package.yml"
   - local: ".gitlab/one-pipeline.locked.yml"
 
@@ -27,6 +28,7 @@ stages:
   - build-and-test-fast
   - build-all
   - test-all
+  - mirror-images
   - assemble
   - shared-pipeline
   - benchmarks
