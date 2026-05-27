@@ -221,3 +221,84 @@ coverage:
   tags: ["docker-in-docker:$ARCH"]
   script:
     - DD_API_KEY=$(vault kv get -field key kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key 2>/dev/null) make coverage
+
+.upload-rum-snapshot-template:
+  stage: aws
+  needs:
+    - job: build-nginx-rum-fast
+      artifacts: true
+    - job: test-nginx-rum-fast
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/aws-cli:2.33.12
+  script:
+    - aws s3 cp upload/ "${S3_PATH}/" --recursive --acl public-read
+    - echo "Uploaded to ${S3_PATH}/"
+    - |
+      PUBLIC_URL=$(echo "${S3_PATH}" | sed 's|s3://\([^/]*\)/|https://\1.s3.amazonaws.com/|')
+      failed=0
+      for f in upload/*; do
+        url="${PUBLIC_URL}/$(basename "$f")"
+        if curl -sSfI "$url" > /dev/null; then
+          echo "  ${url} verified"
+        else
+          echo "  ${url} not accessible"
+          failed=1
+        fi
+      done
+      [ "$failed" -eq 0 ]
+
+upload-rum-branch-snapshots:
+  extends: .upload-rum-snapshot-template
+  variables:
+    S3_PATH: s3://rum-auto-instrumentation/nginx/branch-snapshots/pipeline-${CI_PIPELINE_ID}
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+
+upload-rum-snapshots:
+  extends: .upload-rum-snapshot-template
+  variables:
+    S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/pipeline-${CI_PIPELINE_ID}
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+upload-rum-snapshots-latest:
+  extends: .upload-rum-snapshot-template
+  variables:
+    S3_PATH: s3://rum-auto-instrumentation/nginx/snapshots/latest
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+configure-rum-branch-snapshot-expiry:
+  stage: aws
+  tags: ["arch:amd64"]
+  image: registry.ddbuild.io/images/aws-cli:2.33.12
+  script:
+    - |
+      BUCKET=rum-auto-instrumentation
+      RULE_ID=expire-nginx-branch-snapshots
+
+      # Fetch existing lifecycle config (empty array if none)
+      EXISTING=$(aws s3api get-bucket-lifecycle-configuration --bucket "$BUCKET" 2>/dev/null | jq '.Rules // []' || echo '[]')
+
+      # Build the desired rule
+      RULE=$(jq -n '{
+        ID: $id,
+        Filter: { Prefix: "nginx/branch-snapshots/" },
+        Status: "Enabled",
+        Expiration: { Days: 30 }
+      }' --arg id "$RULE_ID")
+
+      # Replace existing rule with same ID, or append
+      UPDATED=$(echo "$EXISTING" | jq --argjson rule "$RULE" '
+        [.[] | select(.ID != $rule.ID)] + [$rule]
+      ')
+
+      aws s3api put-bucket-lifecycle-configuration \
+        --bucket "$BUCKET" \
+        --lifecycle-configuration "{\"Rules\": $UPDATED}"
+
+      echo "Lifecycle rule '$RULE_ID' configured: expire nginx/branch-snapshots/ after 30 days"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
