@@ -338,14 +338,12 @@ def docker_compose_services():
 def curl(url, headers, stderr=None, method="GET", body=None, http_version=1):
 
     def header_args():
-        if isinstance(headers, dict):
-            for name, value in headers.items():
-                yield "--header"
-                yield f"{name}: {value}"
-        else:
-            for name, value in headers:
-                yield "--header"
-                yield f"{name}: {value}"
+        pairs = headers.items() if isinstance(headers, dict) else headers
+        for name, value in pairs:
+            yield "--header"
+            # Empty string means suppress the header (curl removes a built-in
+            # header when passed "Name:" with no trailing space or value).
+            yield f"{name}:" if value == "" else f"{name}: {value}"
 
     if http_version == 1:
         version_arg = "--http1.1"
