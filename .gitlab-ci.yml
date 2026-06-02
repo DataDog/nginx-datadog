@@ -69,3 +69,37 @@ macrobenchmarks:
       when: always
     - when: manual
       allow_failure: true
+
+# TEMPORARY probe (branch pawel/ecr-assume-test only) — validates the OIDC-driven
+# assume path to the apm-ecosystems-reliability ECR (no SSM profile). Remove before merge.
+apm-ecosystems-ecr-assume-test:
+  image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
+  stage: build-and-test-fast
+  needs: []
+  tags: ["arch:amd64"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "pawel/ecr-assume-test"
+      when: always
+  variables:
+    ECR_ACCOUNT: "235494822917"
+  script:
+    - set +e -x
+    - echo "### 1. runner OIDC identity:"
+    - aws sts get-caller-identity
+    - echo "### 2. assume ddbuild-${CI_PROJECT_NAME}-ci via ExternalId:"
+    - |
+      creds=$(aws sts assume-role \
+        --role-arn "arn:aws:iam::${ECR_ACCOUNT}:role/ddbuild-${CI_PROJECT_NAME}-ci" \
+        --external-id "ddbuild-${CI_PROJECT_NAME}-ci" \
+        --role-session-name ecr-assume-test 2>&1)
+      if ! echo "$creds" | grep -q AccessKeyId; then echo "ASSUME FAILED:"; echo "$creds" | head -3; echo "### done"; exit 0; fi
+      echo "ASSUME OK"
+      export AWS_ACCESS_KEY_ID=$(echo "$creds" | python3 -c "import sys,json;print(json.load(sys.stdin)['Credentials']['AccessKeyId'])")
+      export AWS_SECRET_ACCESS_KEY=$(echo "$creds" | python3 -c "import sys,json;print(json.load(sys.stdin)['Credentials']['SecretAccessKey'])")
+      export AWS_SESSION_TOKEN=$(echo "$creds" | python3 -c "import sys,json;print(json.load(sys.stdin)['Credentials']['SessionToken'])")
+      echo "### 3. identity after assume:"
+      aws sts get-caller-identity
+      echo "### 4. ECR access (AdministratorAccess):"
+      aws ecr get-login-password --region us-east-1 >/dev/null && echo "ecr:GetAuthorizationToken OK"
+      aws ecr describe-repositories --region us-east-1 --max-items 3 --query 'repositories[].repositoryName' && echo "ecr:DescribeRepositories OK"
+    - echo "### done"
