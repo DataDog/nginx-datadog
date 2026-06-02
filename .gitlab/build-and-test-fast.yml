@@ -220,4 +220,4 @@ coverage:
     WAF: "ON"
   tags: ["docker-in-docker:$ARCH"]
   script:
-    - DD_API_KEY=$(vault kv get -field key kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key 2>/dev/null) make coverage
+    - make coverage

@@ -303,4 +303,5 @@ endif
 	uv run --project test test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
 	tar -C .musl-build -xzf test/coverage_data.tar.gz
 	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
-	npx --yes @datadog/datadog-ci@latest coverage upload --format=lcov .musl-build/coverage.lcov
+	# datadog-ci package comes from https://www.npmjs.com/package/@datadog/datadog-ci?activeTab=versions
+	DD_API_KEY=$$(vault kv get -field=key kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key 2>/dev/null) npx --yes @datadog/datadog-ci@5.18.0 coverage upload --format=lcov .musl-build/coverage.lcov
