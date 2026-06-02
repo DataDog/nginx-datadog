@@ -108,7 +108,8 @@ class TestCase(unittest.TestCase):
                 break
             if crash_re.search(line):
                 crash_lines.append(line.strip())
-        self.assertEqual([], crash_lines, f'nginx worker crashed: {crash_lines}')
+        self.assertEqual([], crash_lines,
+                         f'nginx worker crashed: {crash_lines}')
 
     def tearDown(self):
         end = time.monotonic()

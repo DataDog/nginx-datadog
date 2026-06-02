@@ -116,12 +116,12 @@ class ToDdwafObjHandler
     auto &buf = bufs_.back();
     if (buf.len > 1) {
       // should not happen
-      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
-                     "json parsing finished with multiple top-level objects");
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                    "json parsing finished with multiple top-level objects");
     } else if (buf.len == 0) {
       // should not happen
-      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
-                     "json parsing finished without producing any object");
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                    "json parsing finished without producing any object");
       return nullptr;
     }
 
