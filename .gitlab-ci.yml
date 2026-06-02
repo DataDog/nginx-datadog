@@ -83,23 +83,25 @@ apm-ecosystems-ecr-assume-test:
   variables:
     ECR_ACCOUNT: "235494822917"
   script:
-    - set +e -x
+    - set +e
     - echo "### 1. runner OIDC identity:"
-    - aws sts get-caller-identity
-    - echo "### 2. assume ddbuild-${CI_PROJECT_NAME}-ci via ExternalId:"
+    - aws sts get-caller-identity --query Arn --output text
+    - echo "### 2. assume ddbuild-${CI_PROJECT_NAME}-ci via ExternalId (no python, no SSM):"
     - |
       creds=$(aws sts assume-role \
         --role-arn "arn:aws:iam::${ECR_ACCOUNT}:role/ddbuild-${CI_PROJECT_NAME}-ci" \
         --external-id "ddbuild-${CI_PROJECT_NAME}-ci" \
-        --role-session-name ecr-assume-test 2>&1)
-      if ! echo "$creds" | grep -q AccessKeyId; then echo "ASSUME FAILED:"; echo "$creds" | head -3; echo "### done"; exit 0; fi
+        --role-session-name ecr-assume-test \
+        --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)
+      if [ -z "$creds" ]; then echo "ASSUME FAILED"; echo "### done"; exit 0; fi
       echo "ASSUME OK"
-      export AWS_ACCESS_KEY_ID=$(echo "$creds" | python3 -c "import sys,json;print(json.load(sys.stdin)['Credentials']['AccessKeyId'])")
-      export AWS_SECRET_ACCESS_KEY=$(echo "$creds" | python3 -c "import sys,json;print(json.load(sys.stdin)['Credentials']['SecretAccessKey'])")
-      export AWS_SESSION_TOKEN=$(echo "$creds" | python3 -c "import sys,json;print(json.load(sys.stdin)['Credentials']['SessionToken'])")
-      echo "### 3. identity after assume:"
-      aws sts get-caller-identity
-      echo "### 4. ECR access (AdministratorAccess):"
+      AWS_ACCESS_KEY_ID=$(echo "$creds" | awk '{print $1}')
+      AWS_SECRET_ACCESS_KEY=$(echo "$creds" | awk '{print $2}')
+      AWS_SESSION_TOKEN=$(echo "$creds" | awk '{print $3}')
+      export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+      echo "### 3. identity after assume (should be ddbuild-${CI_PROJECT_NAME}-ci in ${ECR_ACCOUNT}):"
+      aws sts get-caller-identity --query Arn --output text
+      echo "### 4. ECR access under assumed role (AdministratorAccess):"
       aws ecr get-login-password --region us-east-1 >/dev/null && echo "ecr:GetAuthorizationToken OK"
-      aws ecr describe-repositories --region us-east-1 --max-items 3 --query 'repositories[].repositoryName' && echo "ecr:DescribeRepositories OK"
+      aws ecr describe-repositories --region us-east-1 --max-items 5 --query 'repositories[].repositoryName' --output text && echo "ecr:DescribeRepositories OK"
     - echo "### done"
