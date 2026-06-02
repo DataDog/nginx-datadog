@@ -1,6 +1,8 @@
 import base64
 import hashlib
 import json
+import queue
+import re
 import time
 from pathlib import Path
 
@@ -326,5 +328,63 @@ class TestSecRemoteConfig(case.TestCase):
         code, _, _ = self.orch.send_nginx_http_request(
             '/', headers={'User-agent': 'dd-test-scanner-log-block'})
         self.assertEqual(403, code)
+
+        self.drop_cfg()
+
+    def assert_no_worker_crash(self):
+        """Drain nginx's captured stderr and fail if a worker died on a signal."""
+        crash_re = re.compile(r'exited on signal \d+')
+        q = self.orch.logs['nginx']
+        crash_lines = []
+        while True:
+            try:
+                line = q.get_nowait()
+            except queue.Empty:
+                break
+            if crash_re.search(line):
+                crash_lines.append(line.strip())
+        self.assertEqual([], crash_lines,
+                         f'nginx worker crashed: {crash_lines}')
+
+    def test_failed_regenerate_does_not_crash(self):
+        """Regression for commit 1cf91c1: ngx_str_t passed by value (not pointer)
+        for %V caused a crash in regenerate_handle() on a failed WAF rebuild.
+
+        Triggered by delivering an ASM_DD config with an empty rules array, which
+        removes the bundled ruleset and forces build_instance() to throw
+        `incomplete_ruleset`.
+        """
+        # First, enable appsec via remote config.
+        version = self.apply_cfg({
+            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            '{"asm":{"enabled":true}}'
+        })
+        self.wait_for_req_with_version(version, 30)
+
+        # Deliver an ASM_DD config with an empty rules array. This removes the
+        # bundled ruleset and leaves the builder with no valid rules, so
+        # build_instance() throws `incomplete_ruleset` and regenerate_handle()
+        # reaches the faulty error log statement that crashes without the fix.
+        version = self.apply_cfg({
+            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            '{"asm":{"enabled":true}}',
+            'datadog/2/ASM_DD/empty_cfg/config':
+            json.dumps({
+                "version": "2.1",
+                "rules": []
+            })
+        })
+        self.wait_for_req_with_version(version, 30)
+
+        # Give the worker's remote-config thread a moment to process the update
+        # (and crash, without the fix) before inspecting nginx's logs.
+        time.sleep(2)
+
+        # nginx must still be alive and serving requests.
+        code, _, _ = self.orch.send_nginx_http_request('/')
+        self.assertEqual(200, code)
+
+        # The authoritative check: no worker may have died on a signal.
+        self.assert_no_worker_crash()
 
         self.drop_cfg()

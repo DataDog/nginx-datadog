@@ -870,7 +870,7 @@ bool Library::active() noexcept {
     std::string diag_str = ddwaf_diagnostics_to_str(*diags);
     ngx_str_t str = ngx_stringv(diag_str);
     ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
-                  "WAF configuration update failed: %V", str);
+                  "WAF configuration update failed: %V", &str);
   }
   return res;
 }
