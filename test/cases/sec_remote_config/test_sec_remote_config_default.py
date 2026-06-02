@@ -1,8 +1,6 @@
 import base64
 import hashlib
 import json
-import queue
-import re
 import time
 from pathlib import Path
 
@@ -331,24 +329,9 @@ class TestSecRemoteConfig(case.TestCase):
 
         self.drop_cfg()
 
-    def assert_no_worker_crash(self):
-        """Drain nginx's captured stderr and fail if a worker died on a signal."""
-        crash_re = re.compile(r'exited on signal \d+')
-        q = self.orch.logs['nginx']
-        crash_lines = []
-        while True:
-            try:
-                line = q.get_nowait()
-            except queue.Empty:
-                break
-            if crash_re.search(line):
-                crash_lines.append(line.strip())
-        self.assertEqual([], crash_lines,
-                         f'nginx worker crashed: {crash_lines}')
-
     def test_failed_regenerate_does_not_crash(self):
-        """Regression for commit 1cf91c1: ngx_str_t passed by value (not pointer)
-        for %V caused a crash in regenerate_handle() on a failed WAF rebuild.
+        """ngx_str_t passed by value (not pointer) for %V caused a crash in
+        regenerate_handle() on a failed WAF rebuild.
 
         Triggered by delivering an ASM_DD config with an empty rules array, which
         removes the bundled ruleset and forces build_instance() to throw
@@ -376,15 +359,11 @@ class TestSecRemoteConfig(case.TestCase):
         })
         self.wait_for_req_with_version(version, 30)
 
-        # Give the worker's remote-config thread a moment to process the update
-        # (and crash, without the fix) before inspecting nginx's logs.
-        time.sleep(2)
-
         # nginx must still be alive and serving requests.
         code, _, _ = self.orch.send_nginx_http_request('/')
         self.assertEqual(200, code)
 
         # The authoritative check: no worker may have died on a signal.
-        self.assert_no_worker_crash()
+        self.assert_no_worker_crash(timeout_secs=2)
 
         self.drop_cfg()

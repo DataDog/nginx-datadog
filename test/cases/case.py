@@ -1,6 +1,8 @@
 """Boilerplate for test cases"""
 
 import os
+import queue
+import re
 import time
 import unittest
 
@@ -89,6 +91,24 @@ class TestCase(unittest.TestCase):
         context = self.orch_context = orchestration.singleton()
         self.orch = context.__enter__()
         self.begin = time.monotonic()
+
+    def assert_no_worker_crash(self, timeout_secs=5):
+        """Fail if nginx logged a worker crash within timeout_secs."""
+        crash_re = re.compile(r'exited on signal \d+')
+        nginx_log_queue = self.orch.logs['nginx']
+        deadline = time.monotonic() + timeout_secs
+        crash_lines = []
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            try:
+                line = nginx_log_queue.get(timeout=remaining)
+            except queue.Empty:
+                break
+            if crash_re.search(line):
+                crash_lines.append(line.strip())
+        self.assertEqual([], crash_lines, f'nginx worker crashed: {crash_lines}')
 
     def tearDown(self):
         end = time.monotonic()
