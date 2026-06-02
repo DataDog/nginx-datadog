@@ -3,11 +3,14 @@
 BUILD_DIR ?= .build
 BUILD_TESTING ?= ON
 BUILD_TYPE ?= RelWithDebInfo
+ASAN ?= OFF
 COVERAGE ?= OFF
 MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 RUM ?= OFF
 WAF ?= OFF
+ASAN_TEST_ARG = $(if $(filter ON TRUE true 1 YES yes,$(ASAN)),--asan --arch $(ARCH),)
+TEST_IMAGE_ARG = $(if $(filter ON TRUE true 1 YES yes,$(ASAN)),,--image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine})
 
 ARCH ?= $(shell arch)
 # Normalize architecture names: CI uses amd64/arm64, build tools expect x86_64/aarch64
@@ -86,9 +89,9 @@ build-push-uwsgi-test-image:
 
 # $(1): image name, $(2): build context
 define build-push-multiarch
-	docker build --provenance=false --sbom=false --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 -t $(1):latest-amd64 $(2)
+	docker build --provenance=false --sbom=false --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 $(if $(filter environment command,$(origin MIRROR_REGISTRY)),--build-arg MIRROR_REGISTRY=$(MIRROR_REGISTRY),) -t $(1):latest-amd64 $(2)
 	docker push $(1):latest-amd64
-	docker build --provenance=false --sbom=false --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 -t $(1):latest-arm64 $(2)
+	docker build --provenance=false --sbom=false --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 $(if $(filter environment command,$(origin MIRROR_REGISTRY)),--build-arg MIRROR_REGISTRY=$(MIRROR_REGISTRY),) -t $(1):latest-arm64 $(2)
 	docker push $(1):latest-arm64
 	docker buildx imagetools create -t $(1):latest $(1):latest-amd64 $(1):latest-arm64
 endef
@@ -177,6 +180,7 @@ else
 		--env NGINX_SRC_DIR=$(NGINX_SRC_DIR) \
 		--env WAF=$(WAF) \
 		--env RUM=$(RUM) \
+		--env ASAN=$(ASAN) \
 		--env COVERAGE=$(COVERAGE) \
 		--mount "type=bind,source=$(dir $(lastword $(MAKEFILE_LIST))),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \
@@ -193,6 +197,7 @@ build-musl-aux build-musl-cov-aux:
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \
+		-DENABLE_ASAN="$(ASAN)" . \
 		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
 		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
@@ -274,8 +279,8 @@ build-and-test: build-musl test
 
 .PHONY: test
 test: $(TEST_DEPENDENCY)
-	uv run --project test test/bin/run.py --image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine} \
-		--module-path .musl-build/ngx_http_datadog_module.so -- \
+	uv run --project test test/bin/run.py $(TEST_IMAGE_ARG) \
+		--module-path .musl-build/ngx_http_datadog_module.so $(ASAN_TEST_ARG) -- \
 		--verbose $(TEST_ARGS)
 
 .PHONY: build-and-test-openresty

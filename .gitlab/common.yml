@@ -1,6 +1,7 @@
 variables:
   CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
   TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
+  MUSL_TOOLCHAIN_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:c3efb21475bb0a3e2755f93e83def9d5acaa4c771f25a2660c8795ae12f0cf4c"
 
 # Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
 # rewriting via CI job token. Defined as a hidden job (not global) so
@@ -15,7 +16,7 @@ variables:
 
 .build:
   extends: .git-config
-  image: $CI_REGISTRY/nginx_musl_toolchain:rust-1.94
+  image: $MUSL_TOOLCHAIN_IMAGE
   tags: ["arch:$ARCH"]
   variables:
     MAKE_JOB_COUNT: "8"
@@ -31,6 +32,20 @@ variables:
   artifacts:
     paths:
       - artifacts/$ARCH/$NGINX_VERSION/$WAF/
+
+.build-nginx-asan:
+  extends: .build
+  variables:
+    RUM: "OFF"
+    ASAN: "ON"
+    BUILD_TYPE: "Debug"
+  script:
+    - make build-musl-aux
+    - mkdir -p artifacts-asan/$ARCH/$NGINX_VERSION/$WAF
+    - cp .musl-build/ngx_http_datadog_module.so* artifacts-asan/$ARCH/$NGINX_VERSION/$WAF/
+  artifacts:
+    paths:
+      - artifacts-asan/$ARCH/$NGINX_VERSION/$WAF/
 
 .build-nginx-rum:
   extends: .build
@@ -76,6 +91,15 @@ variables:
   script:
     - uv run --project test test/bin/run.py --image $TESTS_IMAGES_REGISTRY/$BASE_IMAGE --module-path artifacts/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
   artifacts:
+    paths:
+      - test/logs/test.log
+
+.test-nginx-asan:
+  extends: .test
+  script:
+    - uv run --project test test/bin/run.py --asan --arch $ARCH --module-path artifacts-asan/$ARCH/$NGINX_VERSION/$WAF/ngx_http_datadog_module.so -- --verbose --failfast
+  artifacts:
+    when: always
     paths:
       - test/logs/test.log
 

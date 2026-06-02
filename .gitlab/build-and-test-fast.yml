@@ -40,7 +40,7 @@ lint:
 
 shellcheck:
   extends: .build-and-test-fast
-  image: $CI_REGISTRY/nginx_musl_toolchain:rust-1.94
+  image: $MUSL_TOOLCHAIN_IMAGE
   tags: ["arch:amd64"]
   script:
     - find bin/ test/ example/ .gitlab/ -type f \( \( -executable -not -name '*.py' \) -o -name '*.sh' \) | xargs shellcheck --exclude SC1071,SC1091,SC2317
@@ -65,6 +65,15 @@ build-nginx-fast:
           - "1.30.2"
           - "1.31.1"
         WAF: ["ON", "OFF"]
+
+build-nginx-asan-fast:
+  extends:
+    - .build-and-test-fast
+    - .build-nginx-asan
+  variables:
+    ARCH: "amd64"
+    NGINX_VERSION: "1.31.1"
+    WAF: "ON"
 
 build-ingress-nginx-fast:
   extends:
@@ -147,6 +156,17 @@ test-nginx-fast:
         BASE_IMAGE: ["amazonlinux:2023.11.20260427.1"]
         NGINX_VERSION: ["1.28.3"]
         WAF: ["ON", "OFF"]
+
+test-nginx-asan-fast:
+  extends:
+    - .build-and-test-fast
+    - .test-nginx-asan
+  needs:
+    - build-nginx-asan-fast
+  variables:
+    ARCH: "amd64"
+    NGINX_VERSION: "1.31.1"
+    WAF: "ON"
 
 test-ingress-nginx-fast:
   extends:

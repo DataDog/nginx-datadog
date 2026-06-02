@@ -20,6 +20,7 @@ endif()
 option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 option(ENABLE_FUZZERS "For building fuzzers" OFF)
+option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
 set(NGINX_DATADOG_FLAVOR "nginx" CACHE STRING "NGINX flavor")
 
 if (NGINX_DATADOG_RUM_ENABLED AND NGINX_DATADOG_ASM_ENABLED)
@@ -207,6 +208,16 @@ if(ENABLE_FUZZERS)
   target_compile_options(ngx_http_datadog_objs PUBLIC -fsanitize=fuzzer,address,undefined,leak)
 endif()
 
+if(ENABLE_ASAN)
+  target_compile_options(ngx_http_datadog_objs PUBLIC -fsanitize=address,undefined)
+  target_compile_definitions(ngx_http_datadog_objs PUBLIC
+    $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_ENABLE_ASSERTIONS=1>)
+  # INTERFACE so all consumers (ngx_http_datadog_module, unit_tests via the static lib) link
+  # the sanitizer runtime dynamically. -shared-libasan avoids two ASAN runtimes being loaded:
+  # without it executables get a static copy while libc++.so (ASAN-instrumented) loads the shared one.
+  target_link_options(ngx_http_datadog_objs INTERFACE -fsanitize=address,undefined -shared-libasan)
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(ngx_http_datadog_objs PRIVATE -Wall -Werror)
 endif()
@@ -260,7 +271,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   if(APPLE)
     set_property(TARGET ngx_http_datadog_module PROPERTY SUFFIX ".so")
     target_link_options(ngx_http_datadog_module PRIVATE -undefined dynamic_lookup)
-  else()
+  elseif(NOT ENABLE_ASAN)
     target_link_options(ngx_http_datadog_module PRIVATE -static-libstdc++ -static-libgcc)
   endif()
 endif()

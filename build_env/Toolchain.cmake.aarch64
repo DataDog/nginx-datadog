@@ -17,9 +17,22 @@ set(CMAKE_CXX_COMPILER /usr/bin/clang++-17)
 set(CMAKE_CXX_COMPILER_TARGET ${triple})
 set(CMAKE_CXX_FLAGS_INIT "-stdlib=libc++ ${c_cxx_flags}")
 
-set(linker_flags "-v -fuse-ld=lld -nodefaultlibs -Wl,-Bstatic -lc++ -lc++abi ${sysroot}/usr/lib/libclang_rt.builtins.a -lunwind -lglibc_compat -Wl,-Bdynamic ${sysroot}/usr/lib/libclang_rt.builtins.a -Wl,--dynamic-linker,${sysroot}/lib/${interpreter} -Wl,-rpath=${sysroot} -resource-dir ${sysroot}/usr/lib/resource_dir")
+if(ENABLE_ASAN OR "$ENV{ASAN}" MATCHES "^(ON|TRUE|true|1|YES|yes)$")
+  # Under ASAN, libunwind is provided as a shared ASAN-instrumented library so
+  # it must be linked dynamically here to match, avoiding ODR violations from
+  # having both libunwind.a and libunwind.so define the same global symbols.
+  set(cxx_runtime_linker_flags "-Wl,-Bdynamic -lc++ -lc++abi -lunwind -Wl,-Bstatic")
+  set(static_unwind_flag "")
+else()
+  set(cxx_runtime_linker_flags "-Wl,-Bstatic -lc++ -lc++abi")
+  set(static_unwind_flag "-lunwind")
+endif()
+
+set(linker_flags "-v -fuse-ld=lld -nodefaultlibs ${cxx_runtime_linker_flags} ${sysroot}/usr/lib/libclang_rt.builtins.a ${static_unwind_flag} -lglibc_compat -Wl,-Bdynamic ${sysroot}/usr/lib/libclang_rt.builtins.a -Wl,--dynamic-linker,${sysroot}/lib/${interpreter} -Wl,-rpath=${sysroot} -resource-dir ${sysroot}/usr/lib/resource_dir")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "${linker_flags} -Wl,--dynamic-linker,${sysroot}/lib/${interpreter}")
 set(CMAKE_SHARED_LINKER_FLAGS_INIT ${linker_flags})
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS_INIT}" CACHE STRING "" FORCE)
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS_INIT}" CACHE STRING "" FORCE)
 set(CMAKE_C_STANDARD_LIBRARIES "-Wl,-Bdynamic -lc")
 set(CMAKE_CXX_STANDARD_LIBRARIES "-Wl,-Bdynamic -lc")
 
