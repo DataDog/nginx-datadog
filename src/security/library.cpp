@@ -596,7 +596,7 @@ FinalizedConfigSettings::FinalizedConfigSettings(
       } else {
         ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,
                       "Invalid port number in appsec_stats_host_port: %V",
-                      ngx_conf.appsec_stats_host_port);
+                      &ngx_conf.appsec_stats_host_port);
       }
     } else {
       stats_host_port_ = std::make_pair(host_port, 8125);
@@ -870,7 +870,7 @@ bool Library::active() noexcept {
     std::string diag_str = ddwaf_diagnostics_to_str(*diags);
     ngx_str_t str = ngx_stringv(diag_str);
     ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
-                  "WAF configuration update failed: %V", str);
+                  "WAF configuration update failed: %V", &str);
   }
   return res;
 }

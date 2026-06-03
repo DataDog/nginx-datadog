@@ -328,3 +328,42 @@ class TestSecRemoteConfig(case.TestCase):
         self.assertEqual(403, code)
 
         self.drop_cfg()
+
+    def test_failed_regenerate_does_not_crash(self):
+        """ngx_str_t passed by value (not pointer) for %V caused a crash in
+        regenerate_handle() on a failed WAF rebuild.
+
+        Triggered by delivering an ASM_DD config with an empty rules array, which
+        removes the bundled ruleset and forces build_instance() to throw
+        `incomplete_ruleset`.
+        """
+        # First, enable appsec via remote config.
+        version = self.apply_cfg({
+            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            '{"asm":{"enabled":true}}'
+        })
+        self.wait_for_req_with_version(version, 30)
+
+        # Deliver an ASM_DD config with an empty rules array. This removes the
+        # bundled ruleset and leaves the builder with no valid rules, so
+        # build_instance() throws `incomplete_ruleset` and regenerate_handle()
+        # reaches the faulty error log statement that crashes without the fix.
+        version = self.apply_cfg({
+            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            '{"asm":{"enabled":true}}',
+            'datadog/2/ASM_DD/empty_cfg/config':
+            json.dumps({
+                "version": "2.1",
+                "rules": []
+            })
+        })
+        self.wait_for_req_with_version(version, 30)
+
+        # nginx must still be alive and serving requests.
+        code, _, _ = self.orch.send_nginx_http_request('/')
+        self.assertEqual(200, code)
+
+        # The authoritative check: no worker may have died on a signal.
+        self.assert_no_worker_crash(timeout_secs=2)
+
+        self.drop_cfg()

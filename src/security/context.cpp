@@ -1716,7 +1716,7 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
                     "reporting an appsec event: %V", &json_ns);
     } else {
       ngx_log_error(NGX_LOG_INFO, request.connection->log, 0,
-                    "reporting an appsec event", &json_ns);
+                    "reporting an appsec event: %V", &json_ns);
     }
 
     span.set_tag("_dd.appsec.json"sv, json);

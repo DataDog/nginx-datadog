@@ -101,8 +101,8 @@ class ToDdwafObjHandler
 
   ddwaf_obj *finish(const ngx_http_request_t &req) {
     if (bufs_.size() != 1) {
-      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
-                     "json parsing finished prematurely");
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                    "json parsing finished prematurely");
       while (bufs_.size() > 1) {
         pop_container();
       }
@@ -116,12 +116,12 @@ class ToDdwafObjHandler
     auto &buf = bufs_.back();
     if (buf.len > 1) {
       // should not happen
-      ngx_log_error(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
                     "json parsing finished with multiple top-level objects");
     } else if (buf.len == 0) {
       // should not happen
-      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
-                     "json parsing finished without producing any object");
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                    "json parsing finished without producing any object");
       return nullptr;
     }
 
@@ -295,8 +295,8 @@ bool parse_json(ddwaf_obj &slot, const ngx_http_request_t &req,
                     rapidjson::GetParseError_En(res.Code()));
     }
   } else {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
-                   "body json parsing finished successfully");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                  "body json parsing finished successfully");
   }
 
   assert(json_obj == nullptr || json_obj == &slot);
