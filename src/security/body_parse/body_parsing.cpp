@@ -158,8 +158,8 @@ bool parse_body_req(ddwaf_obj &slot, const ngx_http_request_t &req,
                     const ngx_chain_t &chain, std::size_t size,
                     DdwafMemres &memres) {
   if (req.headers_in.content_type == nullptr) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
-                   "no content-type: won't parse request body");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                  "no content-type: won't parse request body");
     return false;
   }
 
