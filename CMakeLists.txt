@@ -23,6 +23,20 @@ option(ENABLE_FUZZERS "For building fuzzers" OFF)
 option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
 set(NGINX_DATADOG_FLAVOR "nginx" CACHE STRING "NGINX flavor")
 
+if(ENABLE_ASAN)
+  set(NGINX_DATADOG_ASAN_COMPILE_OPTIONS -fsanitize=address,undefined)
+  set(NGINX_DATADOG_ASAN_LINK_OPTIONS -fsanitize=address,undefined -shared-libasan)
+  set(NGINX_DATADOG_ASAN_CXX_DEFINITIONS
+    $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_ENABLE_ASSERTIONS=1>)
+
+  function(enable_nginx_datadog_asan target_name)
+    if(TARGET ${target_name})
+      target_compile_options(${target_name} PRIVATE ${NGINX_DATADOG_ASAN_COMPILE_OPTIONS})
+      target_compile_definitions(${target_name} PRIVATE ${NGINX_DATADOG_ASAN_CXX_DEFINITIONS})
+    endif()
+  endfunction()
+endif()
+
 if (NGINX_DATADOG_RUM_ENABLED AND NGINX_DATADOG_ASM_ENABLED)
   message(FATAL_ERROR "ASM and RUM features are mutually exclusive")
 endif ()
@@ -87,6 +101,17 @@ include(./cmake/deps/cppcodec.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
+if(ENABLE_ASAN)
+  foreach(target_name IN ITEMS
+      dd-trace-cpp-objects
+      dd-trace-cpp-static
+      libcurl_object
+      libcurl_static
+      nginx_module)
+    enable_nginx_datadog_asan(${target_name})
+  endforeach()
+endif()
+
 if(NGINX_DATADOG_ASM_ENABLED)
   # we need neither but libddwaf requires one enabled
   set(LIBDDWAF_BUILD_STATIC ON)
@@ -94,6 +119,9 @@ if(NGINX_DATADOG_ASM_ENABLED)
   set(LIBDDWAF_TESTING OFF)
   set(LIBDDWAF_ENABLE_LTO OFF)
   add_subdirectory(./libddwaf EXCLUDE_FROM_ALL)
+  if(ENABLE_ASAN)
+    enable_nginx_datadog_asan(libddwaf_objects)
+  endif()
 
   # get libddwaf version
   file(READ "./libddwaf/version" LIBDDWAF_VERSION)
@@ -209,13 +237,12 @@ if(ENABLE_FUZZERS)
 endif()
 
 if(ENABLE_ASAN)
-  target_compile_options(ngx_http_datadog_objs PUBLIC -fsanitize=address,undefined)
-  target_compile_definitions(ngx_http_datadog_objs PUBLIC
-    $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_ENABLE_ASSERTIONS=1>)
+  target_compile_options(ngx_http_datadog_objs PUBLIC ${NGINX_DATADOG_ASAN_COMPILE_OPTIONS})
+  target_compile_definitions(ngx_http_datadog_objs PUBLIC ${NGINX_DATADOG_ASAN_CXX_DEFINITIONS})
   # INTERFACE so all consumers (ngx_http_datadog_module, unit_tests via the static lib) link
   # the sanitizer runtime dynamically. -shared-libasan avoids two ASAN runtimes being loaded:
   # without it executables get a static copy while libc++.so (ASAN-instrumented) loads the shared one.
-  target_link_options(ngx_http_datadog_objs INTERFACE -fsanitize=address,undefined -shared-libasan)
+  target_link_options(ngx_http_datadog_objs INTERFACE ${NGINX_DATADOG_ASAN_LINK_OPTIONS})
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
