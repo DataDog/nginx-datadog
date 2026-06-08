@@ -2,9 +2,9 @@
 
 ARG MIRROR_REGISTRY=registry.ddbuild.io/ci/nginx-datadog/mirror/
 FROM ${MIRROR_REGISTRY}ghcr.io/astral-sh/uv:0.9.28 AS uv
-FROM ${MIRROR_REGISTRY}alpine:3.20.3 AS sysroot
+FROM ${MIRROR_REGISTRY}alpine:3.23.4 AS sysroot
 
-ARG LLVM_VERSION=17.0.6
+ARG LLVM_VERSION=21.1.2
 ARG ARCH
 
 COPY CHECKSUMS /CHECKSUMS
@@ -15,7 +15,7 @@ RUN apk --no-cache add alpine-sdk bash binutils clang cmake compiler-rt coreutil
   docker-cli-compose git linux-headers lit lld llvm make musl-dev patchelf python3 samurai sudo wget xz
 
 RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/llvm-project-${LLVM_VERSION}.src.tar.xz && \
-    grep -F llvm-project-${LLVM_VERSION}.src.tar.xz /CHECKSUMS | sha512sum --check && \
+    grep -F "llvm-project-${LLVM_VERSION}.src.tar.xz" /CHECKSUMS | sha512sum --check - && \
     tar -xvf llvm-project-${LLVM_VERSION}.src.tar.xz
 
 # compiler-rt-musl-tls.diff: fixes a TLS (thread-local storage) incompatibility
@@ -85,7 +85,8 @@ RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build && cd build && \
     -DCOMPILER_RT_INCLUDE_TESTS=OFF \
     -DLLVM_ENABLE_RUNTIMES="compiler-rt;libcxx;libcxxabi;libunwind" \
     -DLLVM_EXTERNAL_LIT=/usr/bin/lit ../runtimes && \
-    ninja -v install-unwind install-cxxabi install-cxx install-compiler-rt
+    ninja -v install-unwind install-cxxabi install-cxx && \
+    ninja -v install-compiler-rt
 
 # Second build: build ONLY the shared libc++/libc++abi (.so) libraries with
 # AddressSanitizer instrumentation and libc++ assertions enabled. The first
@@ -93,19 +94,18 @@ RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build && cd build && \
 # Having libc++.so ASAN-instrumented ensures the container-overflow annotations
 # it emits are consistent with those in ASAN-instrumented consumers (e.g. the
 # nginx module), eliminating false-positive container-overflow reports.
-RUN OUTLINE_ATOMICS_FLAG=$([ "${ARCH}" = "aarch64" ] && echo " -mno-outline-atomics" || echo "") && \
-    cd llvm-project-${LLVM_VERSION}.src && mkdir -p build-asan && cd build-asan && \
+RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build-asan && cd build-asan && \
     cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_C_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
-    -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -fsanitize=address${OUTLINE_ATOMICS_FLAG}" \
+    -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -fsanitize=address" \
     -DCMAKE_CXX_COMPILER=clang++ \
     -DCMAKE_CXX_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
-    -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -fsanitize=address -D_LIBCPP_ENABLE_ASSERTIONS=1${OUTLINE_ATOMICS_FLAG}" \
+    -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -fsanitize=address -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" \
     -DLIBCXX_ADDITIONAL_COMPILE_FLAGS="-fsanitize=vptr" \
-    -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address -fsanitize=vptr -shared-libasan -Wl,-rpath=/usr/lib/llvm${LLVM_VERSION%%.*}/lib/clang/${LLVM_VERSION%%.*}/lib/linux" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=address -fsanitize=vptr -shared-libasan -rtlib=compiler-rt -unwindlib=libunwind -Wl,-rpath=/usr/lib/llvm${LLVM_VERSION%%.*}/lib/clang/${LLVM_VERSION%%.*}/lib/linux" \
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DLIBUNWIND_ENABLE_SHARED=ON \
     -DLIBUNWIND_ENABLE_STATIC=OFF \
@@ -124,7 +124,10 @@ RUN OUTLINE_ATOMICS_FLAG=$([ "${ARCH}" = "aarch64" ] && echo " -mno-outline-atom
     -DLLVM_EXTERNAL_LIT=/usr/bin/lit ../runtimes && \
     ninja -v install-unwind install-cxx install-cxxabi
 
-RUN cd /usr/lib && ln -s gcc/*/*/ resource_dir
+# Create a stable symlink to GCC lib dir for resource_dir
+RUN set -eux; \
+    GCC_DIR=$(dirname $(dirname $(gcc -print-libgcc-file-name))); \
+    ln -sfn "$GCC_DIR" /usr/lib/resource_dir
 RUN cd /usr/lib && ln -s clang/${LLVM_VERSION%%.*}/lib/linux/libclang_rt.builtins-*.a libclang_rt.builtins.a
 
 RUN rm -rf /llvm-project-${LLVM_VERSION}.src
@@ -139,8 +142,10 @@ RUN ln -s /usr/lib/llvm${LLVM_VERSION%%.*}/lib/clang/${LLVM_VERSION%%.*}/lib /sy
 COPY Toolchain.cmake.${ARCH} /sysroot/${ARCH}-none-linux-musl/Toolchain.cmake
 
 # see https://github.com/llvm/llvm-project/issues/60572
-RUN mv /usr/lib/gcc/${ARCH}-alpine-linux-musl/13.2.1/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/13.2.1/include/stdatomic.h_
-RUN cp /usr/lib/llvm${LLVM_VERSION%%.*}/lib/clang/${LLVM_VERSION%%.*}/include/stdatomic.h /usr/lib/gcc/${ARCH}-alpine-linux-musl/13.2.1/include/stdatomic.h
+RUN GCC_VER=$(gcc -dumpfullversion) && \
+    GCC_DIR=/usr/lib/gcc/${ARCH}-alpine-linux-musl/${GCC_VER} && \
+    mv ${GCC_DIR}/include/stdatomic.h ${GCC_DIR}/include/stdatomic.h_ && \
+    cp /usr/lib/llvm${LLVM_VERSION%%.*}/lib/clang/${LLVM_VERSION%%.*}/include/stdatomic.h ${GCC_DIR}/include/stdatomic.h
 
 COPY glibc_compat.c /sysroot/
 RUN clang --sysroot /sysroot/${ARCH}-none-linux-musl/ -fpie -O2 -fno-omit-frame-pointer -ggdb3 -c /sysroot/glibc_compat.c -o /tmp/glibc_compat.o && \

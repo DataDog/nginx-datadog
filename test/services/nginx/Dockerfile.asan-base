@@ -14,29 +14,14 @@ RUN set -eux; \
     addgroup -S nginx; \
     adduser -S -D -H -h /var/cache/nginx -s /sbin/nologin -G nginx nginx; \
     mkdir -p /var/cache/nginx /var/log/nginx /run; \
+    # Ensure clang builtin headers (e.g., stdatomic.h) are available under the sysroot resource_dir
+    mkdir -p "${sysroot}/usr/lib/resource_dir"; \
+    ln -sfn "/usr/lib/llvm21/lib/clang/21/include" "${sysroot}/usr/lib/resource_dir/include"; \
     cd /tmp; \
-    wget -q "https://www.openssl.org/source/openssl-3.5.5.tar.gz"; \
-    tar -xzf "openssl-3.5.5.tar.gz"; \
     wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz"; \
     cc_opt="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g -fsanitize=address -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
-    ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir -fsanitize=address -shared-libasan -Wl,-rpath,/usr/lib/llvm17/lib/clang/17/lib/linux -Wl,-rpath,/usr/lib"; \
-    case "$ARCH" in \
-      x86_64)  ossl_target="linux-x86_64-clang" ;; \
-      aarch64) ossl_target="linux-aarch64" ;; \
-      *)       ossl_target="linux-${ARCH}" ;; \
-    esac; \
-    cd "/tmp/openssl-3.5.5"; \
-    CC=clang-17 ./Configure "$ossl_target" \
-      --prefix="${sysroot}/usr" \
-      no-shared no-threads no-tests \
-      --target=${triple} --sysroot=${sysroot} \
-      -fno-omit-frame-pointer -O1 -g -fsanitize=address \
-      -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind \
-      -resource-dir ${sysroot}/usr/lib/resource_dir; \
-    make -j"$(nproc)"; \
-    make install_sw LIBDIR=lib; \
-    rm -f "${sysroot}/usr/lib/libssl.so" "${sysroot}/usr/lib/libcrypto.so"; \
+    ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir -fsanitize=address -shared-libasan -Wl,-rpath,/usr/lib/llvm21/lib/clang/21/lib/linux -Wl,-rpath,/usr/lib"; \
     cd "/tmp/nginx-${NGINX_VERSION}"; \
     ./configure \
       --prefix=/etc/nginx \
@@ -65,11 +50,11 @@ RUN set -eux; \
       --with-http_realip_module \
       --with-http_gzip_static_module \
       --with-http_sub_module \
-      --with-cc=clang-17 \
+      --with-cc=clang \
       --with-cc-opt="$cc_opt" \
       --with-ld-opt="$ld_opt"; \
     make -j"$(nproc)"; \
     make install; \
-    rm -rf "/tmp/nginx-${NGINX_VERSION}" "/tmp/nginx-${NGINX_VERSION}.tar.gz" "/tmp/openssl-3.5.5" "/tmp/openssl-3.5.5.tar.gz"
+    rm -rf "/tmp/nginx-${NGINX_VERSION}" "/tmp/nginx-${NGINX_VERSION}.tar.gz"
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

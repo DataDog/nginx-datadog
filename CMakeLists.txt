@@ -27,7 +27,7 @@ if(ENABLE_ASAN)
   set(NGINX_DATADOG_ASAN_COMPILE_OPTIONS -fsanitize=address,undefined)
   set(NGINX_DATADOG_ASAN_LINK_OPTIONS -fsanitize=address,undefined -shared-libasan)
   set(NGINX_DATADOG_ASAN_CXX_DEFINITIONS
-    $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_ENABLE_ASSERTIONS=1>)
+    $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE>)
 
   function(enable_nginx_datadog_asan target_name)
     if(TARGET ${target_name})
