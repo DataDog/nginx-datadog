@@ -88,6 +88,7 @@ build-openresty-fast:
         RESTY_VERSION:
           - "1.27.1.2"
           - "1.29.2.5"
+          - "1.31.1.1"
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-fast:
@@ -171,6 +172,7 @@ test-openresty-fast:
         RESTY_VERSION:
           - "1.27.1.2"
           - "1.29.2.5"
+          - "1.31.1.1"
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-fast:
