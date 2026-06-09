@@ -1,5 +1,7 @@
 #include "headers.h"
 
+#include <memory>
+
 #include "string_util.h"
 
 namespace datadog::common {

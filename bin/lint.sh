@@ -14,7 +14,7 @@ fi
 
 error_messages=''
 
-find src/ -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
+find src/ tools/clang-tidy -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
 rc=$?
 if [ "$rc" -ne 0 ]; then
     error_messages=$(printf '%s\nC++ formatter reported formatting differences in src/ and returned error status %d.\n' "$error_messages" "$rc")

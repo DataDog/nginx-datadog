@@ -1,6 +1,7 @@
 /.build
 /.musl-build
 /.openresty-build
+/.clang-tidy-build
 /.vscode/
 
 __pycache__/
