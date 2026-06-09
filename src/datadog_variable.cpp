@@ -75,7 +75,7 @@ static ngx_int_t expand_span_variable(ngx_http_request_t *request,
   ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                 "failed to expand %V"
                 " for request %p: %s",
-                data, request, e.what());
+                reinterpret_cast<ngx_str_t *>(data), request, e.what());
   return NGX_ERROR;
 }
 

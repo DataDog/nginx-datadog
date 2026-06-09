@@ -172,7 +172,7 @@ char *set_datadog_sample_rate(ngx_conf_t *cf, ngx_command_t *command,
   } catch (const std::invalid_argument &) {
     ngx_log_error(
         NGX_LOG_ERR, cf->log, 0,
-        "Invalid argument \"%V\" to %V directive at %V:%d.  Expected a real "
+        "Invalid argument \"%V\" to %V directive at %V:%ui.  Expected a real "
         "number "
         "between 0.0 and 1.0, but the provided argument is not a number.",
         &values[1], &directive.directive_name, &directive.file_name,
@@ -254,7 +254,7 @@ char *set_datadog_propagation_styles(ngx_conf_t *cf, ngx_command_t *command,
                   "Datadog propagation styles are already configured.  They "
                   "were %s configured by "
                   "the call to \"%V\" at "
-                  "%V:%d.  Place the datadog_propagation_styles directive in "
+                  "%V:%ui.  Place the datadog_propagation_styles directive in "
                   "the http block, before any "
                   "proxy-related directives.",
                   qualifier, &location.directive_name, &location.file_name,

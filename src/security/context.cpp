@@ -63,12 +63,12 @@ auto catch_exceptions(std::string_view name, const ngx_http_request_t &req,
     return std::invoke(std::forward<Callable>(f));
   } catch (const std::exception &e) {
     ngx_log_error(NGX_LOG_ERR, req.connection->log, 0,
-                  "security_context::%.*s: %s", static_cast<int>(name.size()),
-                  name.data(), e.what());
+                  "security_context::%*s: %s", name.size(), name.data(),
+                  e.what());
   } catch (...) {
     ngx_log_error(NGX_LOG_ERR, req.connection->log, 0,
-                  "security_context::%.*s: unknown exception",
-                  static_cast<int>(name.size()), name.data());
+                  "security_context::%*s: unknown exception", name.size(),
+                  name.data());
   }
   if constexpr (!std::is_same_v<Ret, void>) {
     return err_ret;
@@ -238,7 +238,7 @@ class PolTaskCtx {
 
     auto count = req_.main->count;
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
-                  "refcount before decrement upon task %p completion: %d",
+                  "refcount before decrement upon task %p completion: %ud",
                   &get_task(), count);
 
     // create a stack copy to safely call destructor later
@@ -290,14 +290,14 @@ class PolTaskCtx {
     } else {
       ngx_log_error(NGX_LOG_ERR, req_log(), 0,
                     "unexpected read event handler %p; not restoring",
-                    req_.read_event_handler);
+                    reinterpret_cast<void *>(req_.read_event_handler));
     }
     if (req_.write_event_handler == PolTaskCtx<Self>::empty_write_handler) {
       req_.write_event_handler = prev_write_evt_handler_;
     } else {
       ngx_log_error(NGX_LOG_ERR, req_log(), 0,
                     "unexpected write event handler %p; not restoring",
-                    req_.write_event_handler);
+                    reinterpret_cast<void *>(req_.write_event_handler));
     }
   }
 
@@ -351,7 +351,7 @@ class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
 
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                       "completion handler of waf start task: sent blocking "
-                      "response (rc: %d, c: %d)",
+                      "response (rc: %i, c: %d)",
                       rc, req_.main->count);
       } catch (const std::exception &e) {
         ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
@@ -361,7 +361,7 @@ class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
 
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "completion handler of waf start task: finish: calling "
-                    "ngx_http_finalize_request with %d",
+                    "ngx_http_finalize_request with %i",
                     rc);
       ngx_http_finalize_request(&req_, rc);
       // the request may have been destroyed at this point
@@ -508,7 +508,7 @@ class PolReqBodyWafCtx : public PolTaskCtx<PolReqBodyWafCtx> {
         rc = service->block(*block_spec_, req_);
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                       "completion handler of waf req post task: sent "
-                      "blocking response (rc: %d, c: %d)",
+                      "blocking response (rc: %i, c: %d)",
                       rc, req_.main->count);
       } catch (const std::exception &e) {
         ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
@@ -518,7 +518,7 @@ class PolReqBodyWafCtx : public PolTaskCtx<PolReqBodyWafCtx> {
 
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "completion handler of waf start task: finish: calling "
-                    "ngx_http_finalize_request with %d",
+                    "ngx_http_finalize_request with %i",
                     rc);
       ngx_http_finalize_request(&req_, rc);
       // the request may have been destroyed at this point
@@ -569,7 +569,7 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
         rc = service->block(*block_spec_, req_);
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                       "completion handler of waf req final task: sent blocking "
-                      "response (rc: %d, c: %d)",
+                      "response (rc: %i, c: %d)",
                       rc, req_.main->count);
       } catch (const std::exception &e) {
         ngx_log_error(NGX_LOG_ERR, req_.connection->log, 0,
@@ -579,7 +579,7 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
 
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
                     "completion handler of waf req final task: calling "
-                    "ngx_http_finalize_request with %d",
+                    "ngx_http_finalize_request with %i",
                     rc);
 
       const auto count_before = req_.count;
@@ -732,7 +732,7 @@ ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
                  "waf request body filter %s in chain. accumulated=%uz, "
                  "copied=%uz, Stage: %d",
                  in ? "with" : "without", filter_ctx_.out_total,
-                 filter_ctx_.copied_total, st);
+                 filter_ctx_.copied_total, static_cast<int>(st));
 
   if (st == stage::AFTER_BEGIN_WAF) {
     ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
@@ -794,7 +794,7 @@ ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
       }
 
       ngx_log_debug2(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                     "running WAF on %lu bytes of data (found last: %s)",
+                     "running WAF on %uz bytes of data (found last: %s)",
                      new_size, is_last ? "true" : "false");
 
       PolReqBodyWafCtx &task_ctx =
@@ -994,7 +994,7 @@ ngx_int_t Context::buffer_header_output(RequestPool pool,
   ngx_int_t res = buffer_chain(header_filter_ctx_, pool, chain, true);
 
   ngx_log_debug(NGX_LOG_DEBUG_HTTP, pool->log, 0,
-                "buffer_header_output: buffer_chain output was %d, "
+                "buffer_header_output: buffer_chain output was %i, "
                 "saved_(len,size)=(%uz,%uz)",
                 res, chain::length(header_filter_ctx_.out),
                 chain::size(header_filter_ctx_.out));
@@ -1015,7 +1015,7 @@ ngx_int_t Context::send_buffered_header(ngx_http_request_t &request) noexcept {
     }
     header_filter_ctx_.clear(RequestPool{request});
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                  "send_buffered_header: ngx_http_write_filter returned %d",
+                  "send_buffered_header: ngx_http_write_filter returned %i",
                   rc);
     return rc;
   }
@@ -1384,7 +1384,7 @@ ngx_int_t Context::do_header_filter(ngx_http_request_t &request,
   }
   if (rc != NGX_OK) {
     ngx_log_error(NGX_LOG_ERR, request.connection->log, 0,
-                  "waf header filter: downstream filters returned %d", rc);
+                  "waf header filter: downstream filters returned %i", rc);
     transition_to_stage(stage::AFTER_RUN_WAF_END);
     return rc;
   }
@@ -1397,7 +1397,7 @@ ngx_int_t Context::do_header_filter(ngx_http_request_t &request,
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
                   "waf header filter: downstream filters returned NGX_OK; "
                   "attempting to submit WAF task (waf_send_resp_body=false, "
-                  "header_only=%d, content_length=%d)",
+                  "header_only=%d, content_length=%O)",
                   request.header_only, request.headers_out.content_length_n);
 
     PolFinalWafCtx &task_ctx = PolFinalWafCtx::create(request, *this, span);
@@ -1431,7 +1431,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
       NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
       "waf output body filter: in stage %V, header_sent=%d, "
       "header_(len_sized)=(%uz,%uz), out_(len,size,copied)=(%uz,%uz,%uz), "
-      "in_chain_(len,size)=(%uz,%uz), l:%d, s:%d",
+      "in_chain_(len,size)=(%uz,%uz), l:%uz, s:%uz",
       to_ngx_str(st), request.header_sent,
       chain::length(header_filter_ctx_.out),
       chain::size(header_filter_ctx_.out), chain::length(out_filter_ctx_.out),
@@ -1485,7 +1485,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
       } else {
         ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
                       "waf output body filter: enough data to do final WAF run "
-                      "(out total is %uz, has_last=%d)",
+                      "(out total is %uz, has_last=%uz)",
                       out_filter_ctx_.out_total, chain::has_last(in));
       }
 
@@ -1540,7 +1540,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
     }
     if (rc != NGX_OK) {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                    "waf output body filter: ngx_http_write_filter returned %d "
+                    "waf output body filter: ngx_http_write_filter returned %i "
                     "after sending down buffered header data; returning",
                     rc);
       return rc;
@@ -1566,7 +1566,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
 
     auto rc = ngx_http_next_output_body_filter(&request, out_filter_ctx_.out);
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                  "waf output body filter: downstream filter returned %d", rc);
+                  "waf output body filter: downstream filter returned %i", rc);
     out_filter_ctx_.clear(RequestPool{request});
     return rc;
   } else {
@@ -1575,7 +1575,7 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
                   "waf output body filter: sending down in chain directly");
     auto rc = ngx_http_next_output_body_filter(&request, in);
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                  "waf_output_body_filter: downstream filter returned %d", rc);
+                  "waf_output_body_filter: downstream filter returned %i", rc);
     return rc;
   }
 }
@@ -1716,7 +1716,7 @@ void Context::report_matches(ngx_http_request_t &request, dd::Span &span) {
                     "reporting an appsec event: %V", &json_ns);
     } else {
       ngx_log_error(NGX_LOG_INFO, request.connection->log, 0,
-                    "reporting an appsec event: %V", &json_ns);
+                    "reporting an appsec event");
     }
 
     span.set_tag("_dd.appsec.json"sv, json);
