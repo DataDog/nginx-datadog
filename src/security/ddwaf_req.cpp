@@ -289,7 +289,7 @@ bool handle_schema(ngx_log_t &log, const ddwaf_obj &obj, Func &&f) {
     if (b64.size() > kMaxSchemaSize) {
       ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                     "ddwaf_req: base-64 encoded attribute %V is too large",
-                    key);
+                    &key);
       return true;
     }
 
