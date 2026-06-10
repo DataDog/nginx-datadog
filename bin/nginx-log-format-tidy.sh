@@ -105,52 +105,22 @@ fi
 
 common_args=(
     -p "$build_dir"
-    "--load=$plugin"
+    "-load=$plugin"
     '-checks=-*,nginx-datadog-ngx-log-format'
     '-warnings-as-errors=nginx-datadog-ngx-log-format'
     "-header-filter=^$container_repo/src/.*"
-    --quiet
-    --system-headers=false
-    --extra-arg=-DNGX_DEBUG=1
-    --extra-arg=-Wno-error
-    --extra-arg=-Wno-everything
-    --extra-arg=-Wno-unknown-warning-option
-    --extra-arg=-Wno-unused-command-line-argument
+    -quiet
+    -extra-arg=-DNGX_DEBUG=1
+    -extra-arg=-Wno-error
+    -extra-arg=-Wno-everything
+    -extra-arg=-Wno-unknown-warning-option
+    -extra-arg=-Wno-unused-command-line-argument
 )
 
 if [ "$#" -gt 0 ]; then
-    clang-tidy "${common_args[@]}" "$@"
+    clang-tidy "${common_args[@]}" --use-color -system-headers=false "$@"
 else
-    python3 - "$container_repo" "$build_dir/compile_commands.json" <<'PY' \
-        | xargs -0 clang-tidy "${common_args[@]}"
-import json
-import pathlib
-import sys
-
-repo_root = pathlib.Path(sys.argv[1]).resolve()
-compile_commands = pathlib.Path(sys.argv[2])
-src_root = repo_root / "src"
-seen = set()
-
-with compile_commands.open(encoding="utf-8") as handle:
-    commands = json.load(handle)
-
-for entry in commands:
-    path = pathlib.Path(entry["file"])
-    if not path.is_absolute():
-        path = pathlib.Path(entry["directory"]) / path
-    path = path.resolve()
-
-    try:
-        path.relative_to(src_root)
-    except ValueError:
-        continue
-
-    if path.suffix not in {".c", ".cpp"} or path in seen:
-        continue
-
-    seen.add(path)
-    sys.stdout.buffer.write(str(path).encode())
-    sys.stdout.buffer.write(b"\0")
-PY
+    run-clang-tidy "${common_args[@]}" -use-color -j "$jobs" \
+        "-source-filter=^$container_repo/src/.*\\.(c|cpp)$" \
+        | perl -pe 's#^(\[\s*\d+/\d+\]\[[^]]+\]) .*/repo/(src/\S+)$#$1 $2#'
 fi

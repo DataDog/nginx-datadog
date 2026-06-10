@@ -353,12 +353,6 @@ bool hasSameCanonicalTypeAsTypedef(ASTContext& Context, QualType Type,
       Context.getCanonicalType(Typedef->getUnderlyingType()));
 }
 
-bool isNamedOrCanonicalTypedef(ASTContext& Context, QualType Type,
-                               llvm::StringRef TypedefName) {
-  return hasTypedefName(Type, TypedefName) ||
-         hasSameCanonicalTypeAsTypedef(Context, Type, TypedefName);
-}
-
 bool hasSameBuiltinType(ASTContext& Context, QualType Type, QualType Expected) {
   return Context.hasSameUnqualifiedType(
       Context.getCanonicalType(unqualifiedNonReference(Type)),
@@ -411,43 +405,44 @@ bool argumentMatches(ExpectedKind Kind, const Expr* Argument,
 
   switch (Kind) {
     case ExpectedKind::SizeT:
-      return isNamedOrCanonicalTypedef(Context, Type, "size_t");
+      // sizeof() doesn't yield the typedef size_t,
+      // so don't match the typedef directly
+      return hasSameCanonicalTypeAsTypedef(Context, Type, "size_t");
     case ExpectedKind::SSizeT:
-      return isNamedOrCanonicalTypedef(Context, Type, "ssize_t");
+      return hasTypedefName(Type, "ssize_t");
     case ExpectedKind::OffT:
-      return isNamedOrCanonicalTypedef(Context, Type, "off_t");
+      return hasTypedefName(Type, "off_t");
     case ExpectedKind::TimeT:
-      return isNamedOrCanonicalTypedef(Context, Type, "time_t");
+      return hasTypedefName(Type, "time_t");
     case ExpectedKind::NgxPidT:
-      return isNamedOrCanonicalTypedef(Context, Type, "ngx_pid_t");
+      return hasTypedefName(Type, "ngx_pid_t");
     case ExpectedKind::NgxMsecT:
-      return isNamedOrCanonicalTypedef(Context, Type, "ngx_msec_t");
+      return hasTypedefName(Type, "ngx_msec_t") ||
+             hasTypedefName(Type, "ngx_rbtree_key_t");
     case ExpectedKind::NgxIntT:
-      return isNamedOrCanonicalTypedef(Context, Type, "ngx_int_t");
+      return hasTypedefName(Type, "ngx_int_t");
     case ExpectedKind::NgxUIntT:
-      return isNamedOrCanonicalTypedef(Context, Type, "ngx_uint_t");
+      return hasTypedefName(Type, "ngx_uint_t");
     case ExpectedKind::NgxAtomicIntT:
-      return isNamedOrCanonicalTypedef(Context, Type, "ngx_atomic_int_t");
+      return hasTypedefName(Type, "ngx_atomic_int_t");
     case ExpectedKind::NgxAtomicUIntT:
-      return isNamedOrCanonicalTypedef(Context, Type, "ngx_atomic_uint_t");
+      return hasTypedefName(Type, "ngx_atomic_uint_t");
     case ExpectedKind::Int:
       return hasSameBuiltinType(Context, Type, Context.IntTy);
     case ExpectedKind::UInt:
-      return isNamedOrCanonicalTypedef(Context, Type, "u_int") ||
-             hasSameBuiltinType(Context, Type, Context.UnsignedIntTy);
+      return hasSameBuiltinType(Context, Type, Context.UnsignedIntTy);
     case ExpectedKind::Long:
       return hasSameBuiltinType(Context, Type, Context.LongTy);
     case ExpectedKind::ULong:
-      return isNamedOrCanonicalTypedef(Context, Type, "u_long") ||
-             hasSameBuiltinType(Context, Type, Context.UnsignedLongTy);
+      return hasSameBuiltinType(Context, Type, Context.UnsignedLongTy);
     case ExpectedKind::Int32:
-      return isNamedOrCanonicalTypedef(Context, Type, "int32_t");
+      return hasSameCanonicalTypeAsTypedef(Context, Type, "int32_t");
     case ExpectedKind::UInt32:
-      return isNamedOrCanonicalTypedef(Context, Type, "uint32_t");
+      return hasSameCanonicalTypeAsTypedef(Context, Type, "uint32_t");
     case ExpectedKind::Int64:
-      return isNamedOrCanonicalTypedef(Context, Type, "int64_t");
+      return hasSameCanonicalTypeAsTypedef(Context, Type, "int64_t");
     case ExpectedKind::UInt64:
-      return isNamedOrCanonicalTypedef(Context, Type, "uint64_t");
+      return hasSameCanonicalTypeAsTypedef(Context, Type, "uint64_t");
     case ExpectedKind::Double:
       return hasSameBuiltinType(Context, Type, Context.DoubleTy);
     case ExpectedKind::CharInt:
@@ -461,7 +456,7 @@ bool argumentMatches(ExpectedKind Kind, const Expr* Argument,
     case ExpectedKind::NgxVariableValuePointer:
       return isPointerToTypedef(Type, "ngx_variable_value_t");
     case ExpectedKind::RLimT:
-      return isNamedOrCanonicalTypedef(Context, Type, "rlim_t");
+      return hasSameCanonicalTypeAsTypedef(Context, Type, "rlim_t");
   }
 
   return false;
