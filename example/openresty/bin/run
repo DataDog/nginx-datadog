@@ -6,7 +6,7 @@ cd "$(dirname "$0")"/..
 DEFAULT_OPENRESTY_VERSION=1.29.2.1
 
 usage() {
-    echo "Usage: $0 [--openresty OpenResty_version] [--nginx-datadog Nginx_Datadog_version] [--no-cache]"
+    echo "Usage: $0 [--openresty OpenResty_version] [--nginx-datadog Nginx_Datadog_version] [--no-cache] [--show-docker-build]"
     echo "  -h, --help"
     echo "      show this help message"
     echo "  --openresty OpenResty_version"
@@ -15,6 +15,8 @@ usage() {
     echo "      Nginx Datadog release tag (example: 1.0.0, default: latest one)"
     echo "  --no-cache"
     echo "      disable cache when building Docker images"
+    echo "  --show-docker-build"
+    echo "      show the full Docker build log"
 }
 
 while [ $# -gt 0 ]; do
@@ -37,6 +39,10 @@ while [ $# -gt 0 ]; do
             NO_CACHE=true
             shift
             ;;
+        --show-docker-build)
+            SHOW_DOCKER_BUILD=true
+            shift
+            ;;
         *)
             usage >&2
             exit 1
@@ -53,7 +59,5 @@ if [ "$DD_API_KEY" = '' ]; then
     exit 1
 fi
 
-if [ -n "$NO_CACHE" ]; then
-    docker compose build --no-cache
-fi
-docker compose up --build --abort-on-container-exit --remove-orphans
+docker compose build ${SHOW_DOCKER_BUILD:+--progress=plain} ${NO_CACHE:+--no-cache}
+docker compose up --abort-on-container-exit --remove-orphans
