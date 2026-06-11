@@ -285,6 +285,7 @@ bool hasTypedefName(QualType QT, llvm::StringRef Name) {
   llvm::SmallPtrSet<const clang::Type*, 8> Seen;
 
   while (!QT.isNull()) {
+    // strip const, volatile, restrict, _Atomic
     QT = QT.getUnqualifiedType();
     const clang::Type* TypePtr = QT.getTypePtrOrNull();
     if (TypePtr == nullptr || !Seen.insert(TypePtr).second) {
@@ -295,16 +296,19 @@ bool hasTypedefName(QualType QT, llvm::StringRef Name) {
       if (Typedef->getDecl()->getName() == Name) {
         return true;
       }
+      // if looking at B, with typedef A B, resolve to A
       QT = Typedef->desugar();
       continue;
     }
 
     if (const auto* Elaborated = dyn_cast<ElaboratedType>(TypePtr)) {
+      // struct/class/enum B -> B
       QT = Elaborated->getNamedType();
       continue;
     }
 
     if (const auto* Attributed = dyn_cast<AttributedType>(TypePtr)) {
+      // remove attributes
       QT = Attributed->getModifiedType();
       continue;
     }

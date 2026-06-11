@@ -1,9 +1,17 @@
 #!/bin/bash
 set -eo pipefail
 
+alpine_version=3.23.4
+container_image=${NGINX_LOG_FORMAT_TIDY_IMAGE:-alpine:$alpine_version}
 container_repo=/repo
+default_build_root=".clang-tidy-build/alpine-$alpine_version"
 
-if [ "${NGINX_LOG_FORMAT_TIDY_IN_CONTAINER:-}" != "1" ]; then
+if [ -z "$NGINX_VERSION" ]; then
+    >&2 echo 'NGINX_VERSION is not set. Please set the NGINX_VERSION environment variable.'
+    exit 1
+fi
+
+if [ "$NGINX_LOG_FORMAT_TIDY_IN_CONTAINER" != "1" ]; then
     repo_root=$(git rev-parse --show-toplevel)
 
     if ! command -v docker >/dev/null 2>&1; then
@@ -13,17 +21,17 @@ if [ "${NGINX_LOG_FORMAT_TIDY_IN_CONTAINER:-}" != "1" ]; then
 
     exec docker run --rm -t \
         -e NGINX_LOG_FORMAT_TIDY_IN_CONTAINER=1 \
-        -e BUILD_TYPE="${BUILD_TYPE:-}" \
-        -e BUILD_DIR="${BUILD_DIR:-}" \
-        -e MAKE_JOB_COUNT="${MAKE_JOB_COUNT:-}" \
-        -e NGINX_VERSION="${NGINX_VERSION:-}" \
-        -e NGINX_LOG_FORMAT_TIDY_BUILD_DIR="${NGINX_LOG_FORMAT_TIDY_BUILD_DIR:-}" \
-        -e WAF="${WAF:-}" \
-        -e RUM="${RUM:-}" \
-        -e NGINX_CONF_ARGS="${NGINX_CONF_ARGS:-}" \
+        -e BUILD_DIR \
+        -e BUILD_TYPE \
+        -e MAKE_JOB_COUNT \
+        -e NGINX_CONF_ARGS \
+        -e NGINX_LOG_FORMAT_TIDY_BUILD_DIR \
+        -e NGINX_VERSION \
+        -e RUM \
+        -e WAF \
         -v "$repo_root:$container_repo" \
         -w "$container_repo" \
-        "${NGINX_LOG_FORMAT_TIDY_IMAGE:-alpine:3.23.4}" \
+        "$container_image" \
         sh -c 'apk add --no-cache bash >/dev/null && exec bash "$@"' \
         _ "$container_repo/bin/nginx-log-format-tidy.sh" "$@"
 fi
@@ -51,9 +59,9 @@ if [ -z "$jobs" ]; then
     jobs=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)
 fi
 
-build_dir=${BUILD_DIR:-.clang-tidy-build/alpine-3.23.4/project}
-plugin_build_dir=${NGINX_LOG_FORMAT_TIDY_BUILD_DIR:-.clang-tidy-build/alpine-3.23.4/plugin}
-nginx_version=${NGINX_VERSION:-1.31.1}
+build_dir=${BUILD_DIR:-$default_build_root/project}
+plugin_build_dir=${NGINX_LOG_FORMAT_TIDY_BUILD_DIR:-$default_build_root/plugin}
+nginx_version=$NGINX_VERSION
 build_type=${BUILD_TYPE:-Debug}
 waf=${WAF:-ON}
 rum=${RUM:-OFF}
