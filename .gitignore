@@ -1,4 +1,5 @@
 /.build
+/.clang-tidy-build
 /.musl-build
 /.openresty-build
 /.vscode/

@@ -186,9 +186,9 @@ class MetricSender {
     }
     if (res != static_cast<ssize_t>(data.length())) {
       ngx_log_error(NGX_LOG_ERR, ngx_cycle->log, 0,
-                    "Stats: incomplete write for metric %.*s: %zd != %zu",
-                    static_cast<int>(metric_name.length()), metric_name.data(),
-                    res, data.length());
+                    "Stats: incomplete write for metric %*s: %z != %uz",
+                    metric_name.length(), metric_name.data(), res,
+                    data.length());
     }
   }
 

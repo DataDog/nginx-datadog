@@ -38,6 +38,17 @@ lint:
   script:
     - make lint
 
+lint-nginx-log-format:
+  extends: .build-and-test-fast
+  image: registry.ddbuild.io/images/nydus:v2.3.8-dd
+  tags: ["docker-in-docker:amd64"]
+  variables:
+    WAF: "ON"
+    NGINX_VERSION: "1.31.1"
+    BUILD_TYPE: "Debug"
+  script:
+    - bin/nginx-log-format-tidy.sh
+
 shellcheck:
   extends: .build-and-test-fast
   image: $CI_REGISTRY/nginx_musl_toolchain:rust-1.94

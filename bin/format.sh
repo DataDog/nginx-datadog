@@ -11,7 +11,7 @@ if ! [ -e .clang-format ]; then
     exit 1
 fi
 
-find src/ -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 -i --style=file
+find src/ tools -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 -i --style=file
 find bin/ -type f -name '*.py' -print0 | xargs -0 yapf -i
 
 yapf --recursive --in-place "$@" "test/"

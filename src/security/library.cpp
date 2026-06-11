@@ -159,7 +159,7 @@ void ddwaf_log(DDWAF_LOG_LEVEL level, const char *function, const char *file,
   int const log_level = ddwaf_log_level_to_nginx(level);
   ngx_str_t const message_ngxs = dnsec::ngx_stringv(
       std::string_view{message, static_cast<std::size_t>(message_len)});
-  ngx_log_error(log_level, ngx_cycle->log, 0, "ddwaf: %V at %s on %s:%d",
+  ngx_log_error(log_level, ngx_cycle->log, 0, "ddwaf: %V at %s on %s:%ud",
                 &message_ngxs, function, file, line);
 }
 
@@ -769,7 +769,7 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
     if (max_per_min > std::numeric_limits<std::uint32_t>::max()) {
       ngx_log_error(
           NGX_LOG_ERR, ngx_cycle->log, 0,
-          "DD_API_SECURITY_PROXY_SAMPLE_RATE is too large, capping at %" PRIu32,
+          "DD_API_SECURITY_PROXY_SAMPLE_RATE is too large, capping at %uD",
           std::numeric_limits<std::uint32_t>::max());
       max_per_min = std::numeric_limits<std::uint32_t>::max();
     }
@@ -925,9 +925,10 @@ ngx_int_t Library::initialize_api_security_shared_memory(ngx_conf_t *cf) {
   }
 
   ngx_log_error(NGX_LOG_INFO, cf->log, 0,
-                "Created shared memory zone for API security rate limiter: %s "
+                "Created shared memory zone for API security rate limiter: %*s "
                 "(%uz bytes)",
-                zone_name, sizeof(SharedApiSecurityLimiter::StateType));
+                zone_name.size(), zone_name.data(),
+                sizeof(SharedApiSecurityLimiter::StateType));
 
   return NGX_OK;
 }
