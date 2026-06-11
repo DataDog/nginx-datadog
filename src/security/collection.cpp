@@ -338,6 +338,7 @@ class ReqSerializer {
     slot.set_key(kClientIp);
     if (!cl_ip) {
       slot.make_null();
+      return;
     }
     slot.make_string(*cl_ip, memres_);  // copy
   }

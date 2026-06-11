@@ -528,10 +528,9 @@ class PolReqBodyWafCtx : public PolTaskCtx<PolReqBodyWafCtx> {
                     "not blocking after request body waf run; "
                     "triggering read event on connection");
       ngx_post_event(req_.connection->read, &ngx_posted_events);
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                    "completion handler of waf req post task: finish");
     }
-
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                   "completion handler of waf req post task: finish");
   }
 
   friend PolTaskCtx;

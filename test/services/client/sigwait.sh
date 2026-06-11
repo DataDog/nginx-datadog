@@ -34,6 +34,7 @@ tmpdir=$(mktemp -d)
 pipe="$tmpdir"/pipe
 mkfifo "$pipe"
 
+# shellcheck disable=SC2329  # invoked indirectly via trap string on line 46
 close() {
     trap - "$@"
     echo 'cya!' >"$pipe"

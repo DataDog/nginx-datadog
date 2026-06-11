@@ -13,7 +13,7 @@ include:
 
 variables:
   MACROBENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:cpp-nginx
-  BUILD_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/images/mirror/b1o7r7e0/nginx_musl_toolchain
+  BUILD_IMAGE: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:432612f8c66c51cbee7134bde4b611df04f77a9b4c2b22c691bcbec12dfcf4a9
   NGINX_VERSION: 1.26.0
 
 workflow: 

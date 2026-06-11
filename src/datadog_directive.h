@@ -49,9 +49,14 @@ struct directive {
 template <std::size_t N1, std::size_t... Ns>
 constexpr auto merge_directives(const directive (&arr1)[N1],
                                 const directive (&...arrs)[Ns]) {
+  // Reserve one extra, value-initialized (zeroed) slot for the terminating
+  // `ngx_null_command` sentinel. nginx's config parser (`ngx_conf_handler`)
+  // iterates a module's command array until it finds an entry whose
+  // `name.len == 0`; without this sentinel it reads past the end of the
+  // array (ASAN: global-buffer-overflow).
   constexpr std::size_t total = N1 + (Ns + ...);
 
-  std::array<ngx_command_t, total> result{};
+  std::array<ngx_command_t, total + 1> result{};
 
   std::size_t offset = 0;  // Index to track insertion position
   for (std::size_t i = 0; i < N1; ++i) {

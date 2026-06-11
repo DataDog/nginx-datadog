@@ -255,9 +255,9 @@ class ToDdwafObjHandler
   }
 
   void pop_container() {
-    auto &buf_arr = bufs_.back();
+    Buf buf_arr = bufs_.back();
     bufs_.pop_back();
-    auto buf_cont = bufs_.back();
+    auto &buf_cont = bufs_.back();
     ddwaf_obj &slot = buf_cont.cur_obj();
     slot.nbEntries = buf_arr.len;
     slot.array = buf_arr.ptr;

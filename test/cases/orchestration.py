@@ -155,6 +155,7 @@ def docker_compose_ps(service):
                             stdout=subprocess.PIPE,
                             env=child_env(),
                             encoding="utf8",
+                            errors="replace",
                             check=True)
     return result.stdout.strip()
 
@@ -170,7 +171,8 @@ def docker_top(container, verbose_output):
         with subprocess.Popen(command,
                               stdout=subprocess.PIPE,
                               env=child_env(),
-                              encoding="utf8") as child:
+                              encoding="utf8",
+                              errors="replace") as child:
             # Discard the first line, which is the field names.
             # We could suppress it using ps's `--no-headers` option, but that
             # breaks something inside of `docker top`.
@@ -214,6 +216,7 @@ def ready_services():
                             stdout=subprocess.PIPE,
                             env=child_env(),
                             encoding="utf8",
+                            errors="replace",
                             check=True)
     return set(result.stdout.strip().split("\n"))
 
@@ -256,6 +259,7 @@ def docker_compose_up(on_ready, logs, verbose_file):
             stderr=subprocess.STDOUT,
             env=child_env(),
             encoding="utf8",
+            errors="replace",
     ) as child:
         for line in child.stdout:
             line = remove_terminal_escapes(line)
@@ -331,6 +335,7 @@ def docker_compose_services():
                             stdout=subprocess.PIPE,
                             env=child_env(),
                             encoding="utf8",
+                            errors="replace",
                             check=True)
     return result.stdout.split()
 
@@ -394,6 +399,7 @@ def curl(url, headers, stderr=None, method="GET", body=None, http_version=1):
         stderr=stderr,
         env=child_env(),
         encoding="utf8",
+        errors="replace",
         check=True,
     )
     fields_json, headers_json, body_json, *rest = result.stdout.split("\n")
@@ -424,7 +430,12 @@ def add_services_in_nginx_etc_hosts(services):
     # "-T" means "don't allocate a TTY".  This is necessary to avoid the
     # error "the input device is not a TTY".
     command = docker_compose_command("exec", "-T", "--", "nginx", "/bin/sh")
-    subprocess.run(command, input=script, env=child_env(), encoding="utf8")
+    subprocess.run(command,
+                   input=script,
+                   env=child_env(),
+                   encoding="utf8",
+                   errors="replace",
+                   check=True)
 
 
 class Orchestration:
@@ -505,21 +516,25 @@ class Orchestration:
 
         command = docker_compose_command("down", "--remove-orphans")
         with print_duration("Bringing down all services", self.verbose):
-            with subprocess.Popen(
-                    command,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.PIPE,  # "Stopping test_foo_1   ... done"
-                    env=child_env(),
-                    encoding="utf8",
-            ) as child:
-                for line in child.stderr:
-                    kind, fields = formats.parse_docker_compose_down_line(line)
-                    print(json.dumps((kind, fields)),
-                          file=self.verbose,
-                          flush=True)
+            result = subprocess.run(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,  # "Stopping test_foo_1   ... done"
+                env=child_env(),
+                encoding="utf8",
+                errors="replace",
+                timeout=30,
+            )
+            for line in result.stderr.splitlines():
+                kind, fields = formats.parse_docker_compose_down_line(line)
+                print(json.dumps((kind, fields)),
+                      file=self.verbose,
+                      flush=True)
 
-            self.up_thread.join()
+            self.up_thread.join(timeout=10)
+            if self.up_thread.is_alive():
+                raise Exception("docker compose up log thread did not exit")
 
         self.verbose.close()
 
@@ -527,7 +542,7 @@ class Orchestration:
     def has_coverage_data():
         command = docker_compose_command("exec", "-T", "--", "nginx", "find",
                                          "/tmp", "-name", "*.profraw")
-        result = subprocess.run(command, capture_output=True)
+        result = subprocess.run(command, capture_output=True, timeout=10)
         if result.returncode != 0:
             return False
 
@@ -546,13 +561,13 @@ class Orchestration:
             "*.profraw",
         )
 
-        result = subprocess.run(cmd, capture_output=True)
+        result = subprocess.run(cmd, capture_output=True, timeout=10)
         if result.returncode != 0:
             raise Exception("Failed to create tarball")
 
         with tempfile.TemporaryDirectory() as work_dir:
             files = []
-            for src_profraw in result.stdout.decode().split():
+            for src_profraw in result.stdout.decode(errors="replace").split():
                 out_profraw = os.path.join(work_dir,
                                            os.path.basename(src_profraw))
                 cp_cmd = docker_compose_command("cp", f"nginx:{src_profraw}",
@@ -570,6 +585,7 @@ class Orchestration:
             docker_compose_command("exec", "--", "nginx", "nginx", "-v"),
             capture_output=True,
             text=True,
+            errors="replace",
             check=True,
         )
         match = re.search(r"/([\d.]+)", result.stderr)
@@ -599,6 +615,7 @@ class Orchestration:
             stderr=stderr,
             env=child_env(),
             encoding="utf8",
+            errors="replace",
             check=True,
         )
         return result.returncode, result.stdout
@@ -623,6 +640,7 @@ class Orchestration:
             stdout=subprocess.PIPE,
             env=child_env(),
             encoding="utf8",
+            errors="replace",
             check=True,
         )
         return result.returncode, result.stdout
@@ -682,6 +700,7 @@ class Orchestration:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             encoding="utf8",
+            errors="replace",
             env=child_env(),
         )
         return result.returncode, result.stdout
@@ -809,6 +828,7 @@ exit "$rcode"
             stderr=subprocess.STDOUT,
             env=child_env(),
             encoding="utf8",
+            errors="replace",
         )
         return result.returncode, result.stdout.split("\n")
 
@@ -836,6 +856,7 @@ END_CONF
             env=child_env(),
             check=True,
             encoding="utf8",
+            errors="replace",
         )
         self.reload_nginx(wait_for_workers_to_terminate=True)
 
@@ -881,6 +902,32 @@ END_CONF
             if not wait_for_workers_to_terminate:
                 return
 
+            def dump_reload_state(reason):
+                print(
+                    f"Timed out while waiting for nginx reload: {reason}",
+                    file=self.verbose,
+                    flush=True,
+                )
+                commands = [
+                    ("docker compose ps", docker_compose_command("ps")),
+                    ("docker top nginx",
+                     docker_command("top", nginx_container, "-o", "pid,args")),
+                    ("docker logs nginx",
+                     docker_command("logs", "--tail", "200", nginx_container)),
+                ]
+                for label, command in commands:
+                    print(f"$ {' '.join(command)}",
+                          file=self.verbose,
+                          flush=True)
+                    subprocess.run(
+                        command,
+                        stdin=subprocess.DEVNULL,
+                        stdout=self.verbose,
+                        stderr=self.verbose,
+                        env=child_env(),
+                        check=False,
+                    )
+
             # Poll `docker top` until none of `worker_pids` remain.
             # The polling interval was chosen based on a system where:
             # - nginx_worker_pids ran in ~0.05 seconds
@@ -896,13 +943,22 @@ END_CONF
 
                 return check
 
-            wait_until(old_worker_stops(old_worker_pids), timeout_seconds=10)
+            try:
+                wait_until(old_worker_stops(old_worker_pids),
+                           timeout_seconds=10)
+            except Exception:
+                dump_reload_state("old workers to stop")
+                raise
 
             def new_worker_starts():
                 pids = nginx_worker_pids(nginx_container, self.verbose)
                 return len(pids) >= 1
 
-            wait_until(new_worker_starts, timeout_seconds=10)
+            try:
+                wait_until(new_worker_starts, timeout_seconds=10)
+            except Exception:
+                dump_reload_state("new worker to start")
+                raise
 
     def nginx_replace_config(self, nginx_conf_text, file_name):
         """Replace nginx's config and reload nginx.
@@ -934,6 +990,7 @@ END_CONF
             env=child_env(),
             check=True,
             encoding="utf8",
+            errors="replace",
         )
 
         self.reload_nginx()
@@ -960,6 +1017,7 @@ END_CONF
             env=child_env(),
             check=True,
             encoding="utf8",
+            errors="replace",
         )
 
     def nginx_remove_file(self, file):
@@ -1003,6 +1061,7 @@ END_CONF
             stdin=subprocess.DEVNULL,
             capture_output=True,
             encoding="utf8",
+            errors="replace",
             env=child_env(),
             check=True,
         )
@@ -1019,6 +1078,7 @@ END_CONF
             stdout=self.verbose,
             stderr=self.verbose,
             encoding="utf8",
+            errors="replace",
             env=child_env(),
             check=True,
         )
@@ -1103,6 +1163,7 @@ END_CONF
                 stdout=self.verbose,
                 stderr=self.verbose,
                 encoding="utf8",
+                errors="replace",
                 env=child_env(),
                 check=True,
             )

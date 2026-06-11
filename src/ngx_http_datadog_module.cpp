@@ -1,6 +1,7 @@
 #include "ngx_http_datadog_module.h"
 
 #include <datadog/runtime_id.h>
+#include <datadog/telemetry/telemetry.h>
 
 #include <cassert>
 #include <cstdlib>
@@ -368,6 +369,11 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 }
 
 static void datadog_exit_worker(ngx_cycle_t *cycle) noexcept {
+  // Shut down telemetry first: sends the app-closing payload, drains in-flight
+  // HTTP requests, and joins the Curl background thread. This must happen
+  // before reset_global_tracer() so the thread cannot call back into telemetry
+  // data that is about to be destroyed.
+  datadog::telemetry::shutdown();
   // If the `dd::Tracer` singleton has been set (in `datadog_init_worker`),
   // destroy it.
   reset_global_tracer();

@@ -28,7 +28,7 @@ RUN if echo "${BASE_IMAGE}" | grep -q 'openresty'; then \
 COPY ./install_tools.sh /tmp/
 RUN /tmp/install_tools.sh
 
-COPY ngx_http_datadog_module.so* /datadog-tests
+COPY ngx_http_datadog_module.so* /datadog-tests/
 
 COPY ./html/ /datadog-tests/html
 COPY ./rum_conf.json /datadog-tests/rum_conf.json
@@ -40,6 +40,9 @@ COPY ./.gdbinit /root/
 RUN mkdir /root/gdb/
 COPY ./nginx.py /root/gdb/
 COPY ./waf.py /root/gdb/
+
+ENV ASAN_OPTIONS=halt_on_error=1:detect_leaks=0
+ENV UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
 
 ENTRYPOINT ["nginx", "-c", "/datadog-tests/nginx.conf"]
 CMD ["-g", "daemon off;"]
