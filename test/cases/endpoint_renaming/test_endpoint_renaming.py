@@ -40,6 +40,36 @@ class TestEndpointRenaming(case.TestCase):
 
         return status, nginx_spans[0]
 
+    def send_request_and_get_span_with_env(self, url, config_name, extra_env):
+        conf_path = Path(__file__).parent / "conf" / config_name
+        conf_text = conf_path.read_text()
+
+        self.orch.sync_service('agent')
+        try:
+            with self.orch.custom_nginx(conf_text,
+                                        extra_env=extra_env,
+                                        healthcheck_port=80):
+                self.orch.sync_service('agent')
+                status, _, _ = self.orch.send_nginx_http_request(url)
+                self.assertEqual(200, status)
+        finally:
+            TestEndpointRenaming.last_config = ''
+
+        log_lines = self.orch.sync_service('agent')
+        spans = formats.parse_spans(log_lines)
+        nginx_spans = [
+            s for s in spans if s.get('service') == 'test-service'
+            and s.get('meta', {}).get('http.url', '').endswith(url)
+        ]
+
+        self.assertEqual(len(nginx_spans), 1, {
+            "url": url,
+            "spans": nginx_spans,
+            "log_lines": log_lines,
+        })
+
+        return 200, nginx_spans[0]
+
     def test_endpoint_renaming_disabled_by_default(self):
         """Verify that endpoint renaming is disabled by default.
 
@@ -156,3 +186,21 @@ class TestEndpointRenaming(case.TestCase):
             'http.endpoint', meta,
             "http.endpoint should NOT be set when http.route exists in fallback mode (appsec enabled)"
         )
+
+    def test_appsec_env_enables_fallback_mode_by_default(self):
+        """Verify that DD_APPSEC_ENABLED=true enables endpoint renaming by default."""
+        if self.waf_disabled:
+            self.skipTest("WAF is disabled - appsec test requires WAF support")
+
+        status, span = self.send_request_and_get_span_with_env(
+            "/api/users/456", "appsec_enabled_env.conf",
+            {"DD_APPSEC_ENABLED": "true"})
+        self.assertEqual(200, status)
+
+        meta = span.get('meta', {})
+        self.assertIn(
+            'http.endpoint', meta,
+            "http.endpoint should be present when appsec is enabled by env")
+        self.assertEqual(
+            meta['http.endpoint'], '/api/users/{param:int}',
+            f"Expected /api/users/{{param:int}}, got {meta['http.endpoint']}")

@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <iterator>
 
 extern "C" {
@@ -23,6 +24,7 @@ extern "C" {
 #include "datadog_conf.h"
 #include "ngx_event_scheduler.h"
 #ifdef WITH_WAF
+#include "security/library.h"
 #include "security/waf_remote_cfg.h"
 #endif
 #include "nginx_flavors.h"
@@ -84,7 +86,8 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
     const char *env_renaming =
         std::getenv("DD_TRACE_RESOURCE_RENAMING_ENABLED");
     if (!env_renaming || !env_renaming[0]) {
-      config.resource_renaming_enabled = {nginx_conf.appsec_enabled == 1};
+      config.resource_renaming_enabled = {
+          bool{security::Library::get_handle()}};
     }
   }
 #endif
