@@ -60,6 +60,8 @@ else
   nginx_datadog_release_tag=$(get_latest_release "$repository")
 fi
 
-wget "https://github.com/$repository/releases/download/$nginx_datadog_release_tag/$tarball"
+url="https://github.com/$repository/releases/download/$nginx_datadog_release_tag/$tarball"
+wget "$url"
+printf '\033[1;32m--- Downloaded %s for Nginx Datadog %s from %s\033[0m\n' "$tarball" "$nginx_datadog_release_tag" "$url"
 tar -xzf "$tarball" -C "$nginx_modules_path"
 rm "$tarball"
