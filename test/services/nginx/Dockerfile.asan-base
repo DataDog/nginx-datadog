@@ -58,3 +58,5 @@ RUN set -eux; \
     rm -rf "/tmp/nginx-${NGINX_VERSION}" "/tmp/nginx-${NGINX_VERSION}.tar.gz"
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV ASAN_OPTIONS=halt_on_error=1:detect_leaks=0
+ENV UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1

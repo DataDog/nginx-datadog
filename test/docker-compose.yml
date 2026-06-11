@@ -26,6 +26,12 @@ services:
       - "host.docker.internal:host-gateway"
     cap_add:
       - SYS_PTRACE
+    # MemorySanitizer disables ASLR at startup by re-execing via
+    # personality(ADDR_NO_RANDOMIZE), which the default seccomp profile blocks.
+    # Unconfined seccomp lets the MSan-instrumented nginx start; it is harmless
+    # for the non-MSan (plain/ASAN) test runs.
+    security_opt:
+      - seccomp=unconfined
     volumes:
       - ../:/mnt/repo/
     depends_on:

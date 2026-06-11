@@ -21,7 +21,12 @@ option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 option(ENABLE_FUZZERS "For building fuzzers" OFF)
 option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
+option(ENABLE_MSAN "Build with MemorySanitizer" OFF)
 set(NGINX_DATADOG_FLAVOR "nginx" CACHE STRING "NGINX flavor")
+
+if(ENABLE_ASAN AND ENABLE_MSAN)
+  message(FATAL_ERROR "ENABLE_ASAN and ENABLE_MSAN are mutually exclusive")
+endif()
 
 if(ENABLE_ASAN)
   set(NGINX_DATADOG_ASAN_COMPILE_OPTIONS -fsanitize=address,undefined)
@@ -33,6 +38,20 @@ if(ENABLE_ASAN)
     if(TARGET ${target_name})
       target_compile_options(${target_name} PRIVATE ${NGINX_DATADOG_ASAN_COMPILE_OPTIONS})
       target_compile_definitions(${target_name} PRIVATE ${NGINX_DATADOG_ASAN_CXX_DEFINITIONS})
+    endif()
+  endfunction()
+endif()
+
+if(ENABLE_MSAN)
+  set(NGINX_DATADOG_MSAN_COMPILE_OPTIONS -fsanitize=memory -fsanitize-memory-track-origins=2)
+  set(NGINX_DATADOG_MSAN_LINK_OPTIONS -fsanitize=memory -fsanitize-memory-track-origins=2)
+  set(NGINX_DATADOG_MSAN_CXX_DEFINITIONS
+    $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE>)
+
+  function(enable_nginx_datadog_msan target_name)
+    if(TARGET ${target_name})
+      target_compile_options(${target_name} PRIVATE ${NGINX_DATADOG_MSAN_COMPILE_OPTIONS})
+      target_compile_definitions(${target_name} PRIVATE ${NGINX_DATADOG_MSAN_CXX_DEFINITIONS})
     endif()
   endfunction()
 endif()
@@ -101,14 +120,18 @@ include(./cmake/deps/cppcodec.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
 
-if(ENABLE_ASAN)
+if(ENABLE_ASAN OR ENABLE_MSAN)
   foreach(target_name IN ITEMS
       dd-trace-cpp-objects
       dd-trace-cpp-static
       libcurl_object
       libcurl_static
       nginx_module)
-    enable_nginx_datadog_asan(${target_name})
+    if(ENABLE_ASAN)
+      enable_nginx_datadog_asan(${target_name})
+    else()
+      enable_nginx_datadog_msan(${target_name})
+    endif()
   endforeach()
 endif()
 
@@ -121,6 +144,8 @@ if(NGINX_DATADOG_ASM_ENABLED)
   add_subdirectory(./libddwaf EXCLUDE_FROM_ALL)
   if(ENABLE_ASAN)
     enable_nginx_datadog_asan(libddwaf_objects)
+  elseif(ENABLE_MSAN)
+    enable_nginx_datadog_msan(libddwaf_objects)
   endif()
 
   # get libddwaf version
@@ -245,6 +270,14 @@ if(ENABLE_ASAN)
   target_link_options(ngx_http_datadog_objs INTERFACE ${NGINX_DATADOG_ASAN_LINK_OPTIONS})
 endif()
 
+if(ENABLE_MSAN)
+  target_compile_options(ngx_http_datadog_objs PUBLIC ${NGINX_DATADOG_MSAN_COMPILE_OPTIONS})
+  target_compile_definitions(ngx_http_datadog_objs PUBLIC ${NGINX_DATADOG_MSAN_CXX_DEFINITIONS})
+  # INTERFACE so all consumers (the module .so, unit_tests) carry the MSan flags
+  # at link time; clang links the static MSan runtime into the final executable.
+  target_link_options(ngx_http_datadog_objs INTERFACE ${NGINX_DATADOG_MSAN_LINK_OPTIONS})
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(ngx_http_datadog_objs PRIVATE -Wall -Werror)
 endif()
@@ -298,7 +331,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   if(APPLE)
     set_property(TARGET ngx_http_datadog_module PROPERTY SUFFIX ".so")
     target_link_options(ngx_http_datadog_module PRIVATE -undefined dynamic_lookup)
-  elseif(NOT ENABLE_ASAN)
+  elseif(NOT ENABLE_ASAN AND NOT ENABLE_MSAN)
     target_link_options(ngx_http_datadog_module PRIVATE -static-libstdc++ -static-libgcc)
   endif()
 endif()
