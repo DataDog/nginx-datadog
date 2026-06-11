@@ -10,7 +10,7 @@
 
 .ssi-assemble:
   extends: .git-config
-  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:432612f8c66c51cbee7134bde4b611df04f77a9b4c2b22c691bcbec12dfcf4a9
+  image: registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:3b5806f006c05ac9490ff4adf9fd6fb262269d7fdd95095d08e69c6560c53092
   stage: assemble
   parallel:
     matrix:

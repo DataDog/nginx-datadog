@@ -86,6 +86,15 @@ build-nginx-asan-fast:
     NGINX_VERSION: "1.31.1"
     WAF: "ON"
 
+build-nginx-msan-fast:
+  extends:
+    - .build-and-test-fast
+    - .build-nginx-msan
+  variables:
+    ARCH: "amd64"
+    NGINX_VERSION: "1.31.1"
+    WAF: "OFF"
+
 build-ingress-nginx-fast:
   extends:
     - .build-and-test-fast
@@ -178,6 +187,17 @@ test-nginx-asan-fast:
     ARCH: "amd64"
     NGINX_VERSION: "1.31.1"
     WAF: "ON"
+
+test-nginx-msan-fast:
+  extends:
+    - .build-and-test-fast
+    - .test-nginx-msan
+  needs:
+    - build-nginx-msan-fast
+  variables:
+    ARCH: "amd64"
+    NGINX_VERSION: "1.31.1"
+    WAF: "OFF"
 
 test-ingress-nginx-fast:
   extends:
