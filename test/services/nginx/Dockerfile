@@ -41,8 +41,5 @@ RUN mkdir /root/gdb/
 COPY ./nginx.py /root/gdb/
 COPY ./waf.py /root/gdb/
 
-ENV ASAN_OPTIONS=halt_on_error=1:detect_leaks=0
-ENV UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1
-
 ENTRYPOINT ["nginx", "-c", "/datadog-tests/nginx.conf"]
 CMD ["-g", "daemon off;"]

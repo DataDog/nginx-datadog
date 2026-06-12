@@ -74,24 +74,27 @@ def docker_platform_for_arch(arch: str) -> str:
     raise SystemExit(f"--arch: unsupported architecture {arch!r}")
 
 
-def build_asan_nginx_base(arch: str) -> str:
-    """Returns the Docker image name."""
+def build_sanitizer_nginx_base(arch: str, sanitizer: str) -> str:
+    """Build an nginx-from-source base image instrumented with the given
+    sanitizer ("asan" or "msan"). Returns the Docker image name."""
     nginx_version = os.environ.get("NGINX_VERSION")
     if not nginx_version:
-        raise SystemExit("--asan requires NGINX_VERSION")
+        raise SystemExit(f"--{sanitizer} requires NGINX_VERSION")
 
     arch = normalize_arch(arch)
-    tag = f"nginx-datadog-asan-nginx:{nginx_version}-{arch}"
+    tag = f"nginx-datadog-{sanitizer}-nginx:{nginx_version}-{arch}"
     toolchain_image = os.environ.get("MUSL_TOOLCHAIN_IMAGE",
                                      "nginx_musl_toolchain")
     nginx_service_dir = os.path.join(PROJECT_DIR, "test", "services", "nginx")
+
+    dockerfile = os.path.join(nginx_service_dir, f"Dockerfile.{sanitizer}-base")
     run_cmd_with_retries(
         "docker build "
         f"--platform {shlex.quote(docker_platform_for_arch(arch))} "
         f"--build-arg NGINX_VERSION={shlex.quote(nginx_version)} "
         f"--build-arg ARCH={shlex.quote(arch)} "
         f"--build-arg TOOLCHAIN_IMAGE={shlex.quote(toolchain_image)} "
-        f"-f {shlex.quote(os.path.join(nginx_service_dir, 'Dockerfile.asan-base'))} "
+        f"-f {shlex.quote(dockerfile)} "
         f"-t {shlex.quote(tag)} "
         f"{shlex.quote(nginx_service_dir)}")
     return tag
@@ -133,6 +136,11 @@ def main() -> int:
         help="Enable ASAN by testing against a toolchain-built nginx image",
     )
     parser.add_argument(
+        "--msan",
+        action="store_true",
+        help="Enable MSAN by testing against a toolchain-built nginx image",
+    )
+    parser.add_argument(
         "--arch",
         default=os.environ.get("ARCH", platform.machine()),
         help="Target architecture for --asan nginx base image",
@@ -148,22 +156,27 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    if args.asan:
+    if args.asan and args.msan:
+        parser.error("--asan and --msan are mutually exclusive")
+    if args.asan or args.msan:
         if args.image:
-            parser.error("--image is not accepted with --asan; set "
+            parser.error("--image is not accepted with --asan/--msan; set "
                          "NGINX_VERSION instead")
     elif not args.image:
-        parser.error("--image is required unless --asan is set")
+        parser.error("--image is required unless --asan or --msan is set")
 
     nginx_service_dir = os.path.join(PROJECT_DIR, "test", "services", "nginx")
     base_image = args.image
     if args.asan:
-        base_image = build_asan_nginx_base(args.arch)
+        base_image = build_sanitizer_nginx_base(args.arch, "asan")
+    elif args.msan:
+        base_image = build_sanitizer_nginx_base(args.arch, "msan")
 
+    sanitizer = "asan" if args.asan else "msan" if args.msan else "none"
     print(f"     base image : {base_image}")
     print(f"   NGINX module : {args.module_path}")
     print(f"      test args : {args.inputs}")
-    print(f"     ASAN nginx : {'enabled' if args.asan else 'disabled'}")
+    print(f"      sanitizer : {sanitizer}")
 
     shutil.copy(src=args.module_path, dst=nginx_service_dir)
 

@@ -91,6 +91,15 @@ static ngx_int_t expand_span_variable(ngx_http_request_t *request,
 static ngx_int_t expand_environment_variable(
     ngx_http_request_t *request, ngx_http_variable_value_t *variable_value,
     uintptr_t data) noexcept {
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer)
+  std::array<int, 1> msan_environment_value;
+  if (msan_environment_probe(msan_environment_value)) {
+    variable_value->not_found = true;
+  }
+#endif
+#endif
+
   auto variable_name = to_string_view(*reinterpret_cast<ngx_str_t *>(data));
   auto prefix_length =
       TracingLibrary::environment_variable_name_prefix().size();
