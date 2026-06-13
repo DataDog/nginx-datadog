@@ -1,0 +1,172 @@
+{
+    "version": "2.1",
+    "metadata": {
+        "rules_version": "1.2.6"
+    },
+    "processors": [
+        {
+            "id": "decode-auth-jwt",
+            "generator": "jwt_decode",
+            "min_version": "1.25.0",
+            "parameters": {
+                "mappings": [
+                    {
+                        "inputs": [
+                            {
+                                "address": "server.request.headers.no_cookies",
+                                "key_path": ["authorization"]
+                            }
+                        ],
+                        "output": "server.request.jwt"
+                    }
+                ]
+            },
+            "evaluate": true,
+            "output": false
+        }
+    ],
+    "rules": [],
+    "rules_compat": [
+        {
+            "id": "api-001-100",
+            "name": "JWT: No expiry is present",
+            "tags": {
+                "type": "jwt",
+                "category": "api_security",
+                "confidence": "0",
+                "module": "business-logic"
+            },
+            "min_version": "1.25.0",
+            "conditions": [
+                {
+                    "parameters": {
+                        "inputs": [
+                            {
+                                "address": "server.request.jwt",
+                                "key_path": ["payload", "exp"]
+                            }
+                        ]
+                    },
+                    "operator": "!exists"
+                }
+            ],
+            "transformers": [],
+            "output": {
+                "event": false,
+                "keep": false,
+                "attributes": {
+                    "_dd.appsec.api.jwt.no_expiry": {
+                        "value": 1
+                    }
+                }
+            }
+        },
+        {
+            "id": "api-001-110",
+            "name": "JWT: Collect algorithm used",
+            "tags": {
+                "type": "jwt",
+                "category": "api_security",
+                "confidence": "0",
+                "module": "business-logic"
+            },
+            "min_version": "1.25.0",
+            "conditions": [
+                {
+                    "parameters": {
+                        "inputs": [
+                            {
+                                "address": "server.request.jwt",
+                                "key_path": ["header", "alg"]
+                            }
+                        ]
+                    },
+                    "operator": "exists"
+                }
+            ],
+            "transformers": [],
+            "output": {
+                "event": false,
+                "keep": false,
+                "attributes": {
+                    "api.security.jwt.alg": {
+                        "address": "server.request.jwt",
+                        "key_path": ["header", "alg"]
+                    }
+                }
+            }
+        },
+        {
+            "id": "api-001-120",
+            "name": "JWT: No audience is specified",
+            "tags": {
+                "type": "jwt",
+                "category": "api_security",
+                "confidence": "0",
+                "module": "business-logic"
+            },
+            "min_version": "1.25.0",
+            "conditions": [
+                {
+                    "parameters": {
+                        "inputs": [
+                            {
+                                "address": "server.request.jwt",
+                                "key_path": ["payload", "aud"]
+                            }
+                        ]
+                    },
+                    "operator": "!exists"
+                }
+            ],
+            "transformers": [],
+            "output": {
+                "event": false,
+                "keep": false,
+                "attributes": {
+                    "_dd.appsec.api.jwt.no_audience": {
+                        "value": 1
+                    }
+                }
+            }
+        },
+        {
+            "id": "api-001-130",
+            "name": "JWT: None algorithm used",
+            "tags": {
+                "type": "jwt",
+                "category": "api_security",
+                "confidence": "0",
+                "module": "business-logic"
+            },
+            "min_version": "1.25.0",
+            "conditions": [
+                {
+                    "parameters": {
+                        "inputs": [
+                            {
+                                "address": "server.request.jwt",
+                                "key_path": ["header", "alg"]
+                            }
+                        ],
+                        "list": [
+                            "none", "nonE", "noNe", "noNE", "nOne", "nOnE", "nONe", "nONE",
+                            "None", "NonE", "NoNe", "NoNE", "NOne", "NOnE", "NONe", "NONE"
+                        ]
+                    },
+                    "operator": "exact_match"
+                }
+            ],
+            "transformers": [],
+            "output": {
+                "event": false,
+                "keep": true,
+                "attributes": {
+                    "_dd.appsec.api.jwt.none_alg": {
+                        "value": 1
+                    }
+                }
+            }
+        }
+    ]
+}
