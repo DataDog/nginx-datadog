@@ -33,6 +33,26 @@ RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /compiler-rt-musl-rlimit6
 COPY compiler-rt-musl-stat.diff /compiler-rt-musl-stat.diff
 RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /compiler-rt-musl-stat.diff
 
+# libunwind-msan-unpoison-getcontext.diff: __unw_getcontext() is hand-written
+# assembly (UnwindRegistersSave.S) that stores CPU registers into its
+# unw_context_t output with no MSan instrumentation, leaving the shadow poisoned.
+# When a C++ exception unwinds, _Unwind_RaiseException reads that context and MSan
+# reports a false use-of-uninitialized-value (killing the worker under
+# abort_on_error=1). The patch calls __msan_unpoison() after each __unw_getcontext
+# call site. Only affects the MSan (third) build; the #if __has_feature guard
+# makes it a no-op for the baseline and ASan builds sharing this source tree.
+COPY libunwind-msan-unpoison-getcontext.diff /libunwind-msan-unpoison-getcontext.diff
+RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /libunwind-msan-unpoison-getcontext.diff
+
+# libunwind-msan-dwarfinstructions-unpoison.diff: MSan's poison_in_dtor=1
+# (the default) marks object fields as uninitialized when a destructor runs.
+# When C++ exception unwinding walks a frame whose stack contains such a
+# destroyed object, DwarfInstructions::getSavedRegister reads the DWARF-directed
+# saved register slot at that same address, triggering a false
+# use-of-uninitialized-value. Unpoison the address before each stack read.
+COPY libunwind-msan-dwarfinstructions-unpoison.diff /libunwind-msan-dwarfinstructions-unpoison.diff
+RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /libunwind-msan-dwarfinstructions-unpoison.diff
+
 COPY locale.h.diff /locale.h.diff
 RUN cd /usr/include && patch -p0 < /locale.h.diff
 

@@ -11,6 +11,7 @@ ARG PCRE2_VERSION=10.47
 ENV MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:fast_unwind_on_fatal=1
 
 COPY openssl-msan-auxv.patch /openssl-msan-auxv.patch
+COPY nginx-msan-crossbuild-probes.patch /nginx-msan-crossbuild-probes.patch
 
 RUN set -eux; \
     case "$ARCH" in \
@@ -127,17 +128,20 @@ RUN set -eux; \
            "/openssl-msan-auxv.patch"; \
     \
     # -----------------------------------------------------------------------
-    # nginx: --crossbuild tells ./configure we are cross-compiling so it skips
-    # executing the MSan-instrumented probe programs ("checking for long size" etc.),
-    # eliminating the personality(ADDR_NO_RANDOMIZE) re-exec that Docker's default
-    # seccomp profile blocks.
+    # nginx: nginx-msan-crossbuild-probes.patch adds NGX_MUSL_CROSSBUILD guards to
+    # auto/types/sizeof, auto/feature, and auto/endianness so that probe programs are
+    # never executed. This avoids the personality(ADDR_NO_RANDOMIZE) re-exec that
+    # MSan triggers and that Docker's default seccomp profile blocks.
+    # NGX_MUSL_CROSSBUILD_ARCH supplies the hardcoded size/endian presets.
+    # --crossbuild sets the OS string in nginx's config output (separate concern).
     # -----------------------------------------------------------------------
     cd /tmp; \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz"; \
     cc_opt="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g ${msan_flags} -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
     ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir ${msan_flags} -Wl,-rpath,/usr/msan/lib -Wl,-rpath,/usr/lib"; \
     cd "/tmp/nginx-${NGINX_VERSION}"; \
-    ./configure \
+    patch -p1 < /nginx-msan-crossbuild-probes.patch; \
+    NGX_MUSL_CROSSBUILD=YES NGX_MUSL_CROSSBUILD_ARCH="${ARCH}" ./configure \
       --prefix=/etc/nginx \
       --sbin-path=/usr/sbin/nginx \
       --modules-path=/usr/lib/nginx/modules \
@@ -170,6 +174,7 @@ RUN set -eux; \
       --with-ld-opt="${ld_opt}"; \
     make -j"$(nproc)"; \
     make install; \
-    rm -rf "/tmp/nginx-${NGINX_VERSION}" "/tmp/nginx-${NGINX_VERSION}.tar.gz"
+    rm -rf "/tmp/nginx-${NGINX_VERSION}" "/tmp/nginx-${NGINX_VERSION}.tar.gz" \
+           "/nginx-msan-crossbuild-probes.patch"
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
