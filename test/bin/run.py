@@ -87,7 +87,8 @@ def build_sanitizer_nginx_base(arch: str, sanitizer: str) -> str:
                                      "nginx_musl_toolchain")
     nginx_service_dir = os.path.join(PROJECT_DIR, "test", "services", "nginx")
 
-    dockerfile = os.path.join(nginx_service_dir, f"Dockerfile.{sanitizer}-base")
+    dockerfile = os.path.join(nginx_service_dir,
+                              f"Dockerfile.{sanitizer}-base")
     run_cmd_with_retries(
         "docker build "
         f"--platform {shlex.quote(docker_platform_for_arch(arch))} "
