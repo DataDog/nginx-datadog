@@ -1,5 +1,6 @@
 """Boilerplate for test cases"""
 
+import functools
 import os
 import queue
 import re
@@ -7,6 +8,17 @@ import time
 import unittest
 
 from . import orchestration
+
+
+def skip_if_waf_disabled(func):
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if self.waf_disabled:
+            self.skipTest("WAF is disabled - appsec test requires WAF support")
+        return func(self, *args, **kwargs)
+
+    return wrapper
 
 
 class TestCase(unittest.TestCase):
