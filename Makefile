@@ -313,4 +313,8 @@ endif
 	tar -C .musl-build -xzf test/coverage_data.tar.gz
 	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
 	# datadog-ci package comes from https://www.npmjs.com/package/@datadog/datadog-ci?activeTab=versions
-	DD_API_KEY=$$(vault kv get -field=key kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key 2>/dev/null) npx --yes @datadog/datadog-ci@5.18.0 coverage upload --format=lcov .musl-build/coverage.lcov
+	DD_API_KEY=$$(vault kv get -field=key kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key); \
+	vault_status=$$?; \
+	if [ $$vault_status -ne 0 ]; then exit $$vault_status; fi; \
+	echo "Retrieved DD_API_KEY from Vault ($${#DD_API_KEY} bytes)"; \
+	DD_API_KEY="$$DD_API_KEY" npx --yes @datadog/datadog-ci@5.18.0 coverage upload --format=lcov .musl-build/coverage.lcov
