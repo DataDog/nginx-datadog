@@ -21,7 +21,7 @@ RUN set -eux; \
     wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz"; \
     cc_opt="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g -fsanitize=address -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
-    ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir -fsanitize=address -shared-libasan -Wl,-rpath,/usr/lib/llvm21/lib/clang/21/lib/linux -Wl,-rpath,/usr/lib"; \
+    ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir -fsanitize=address -shared-libasan -Wl,-rpath,/usr/lib/llvm21/lib/clang/21/lib/linux -Wl,-rpath,/usr/asan/lib"; \
     cd "/tmp/nginx-${NGINX_VERSION}"; \
     ./configure \
       --prefix=/etc/nginx \

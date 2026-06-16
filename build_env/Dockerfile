@@ -113,7 +113,7 @@ RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build && cd build && \
 RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build-asan && cd build-asan && \
     cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_PREFIX=/usr/asan \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_C_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
     -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -fsanitize=address" \
@@ -188,7 +188,7 @@ RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build-msan && cd build-msan 
     -DLLVM_EXTERNAL_LIT=/usr/bin/lit ../runtimes && \
     ninja -v install-unwind install-cxx install-cxxabi
 
-RUN rm -f /usr/lib/libc++experimental.a /usr/msan/lib/libc++experimental.a
+RUN rm -f /usr/lib/libc++experimental.a /usr/asan/lib/libc++experimental.a /usr/msan/lib/libc++experimental.a
 
 # Create a stable symlink to GCC lib dir for resource_dir
 RUN set -eux; \
