@@ -1,7 +1,7 @@
 variables:
   CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
   TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
-  MUSL_TOOLCHAIN_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:3b5806f006c05ac9490ff4adf9fd6fb262269d7fdd95095d08e69c6560c53092"
+  MUSL_TOOLCHAIN_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:31b7e3f9130758552262b65df76c0cbd8ba95091c7bdd572bb8abeb1b840efdc"
 
 # Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
 # rewriting via CI job token. Defined as a hidden job (not global) so
