@@ -135,7 +135,9 @@ def parse_trace(log_line):
     if not isinstance(trace, list):
         return None
 
-    if not all(isinstance(chunk, list) and all(isinstance(span, dict) for span in chunk) for chunk in trace):
+    if not all(
+            isinstance(chunk, list) and all(
+                isinstance(span, dict) for span in chunk) for chunk in trace):
         return None
 
     return trace
