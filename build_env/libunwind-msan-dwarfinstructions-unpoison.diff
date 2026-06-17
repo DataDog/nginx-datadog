@@ -1,0 +1,107 @@
+--- a/libunwind/src/DwarfInstructions.hpp
++++ b/libunwind/src/DwarfInstructions.hpp
+@@ -16,6 +16,17 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ 
++// MSan's poison_in_dtor=1 (the default) poisons object fields when a destructor
++// runs. When C++ exception unwinding steps through a frame whose stack contains
++// a destroyed object, DwarfInstructions reads saved register values from stack
++// slots that overlap those poisoned bytes, triggering a false
++// use-of-uninitialized-value. Unpoison before each stack read: the register
++// value was written there before the object was constructed; reading it for
++// stack-unwinding is valid.
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++#include <sanitizer/msan_interface.h>
++#endif
++
+ #include "DwarfParser.hpp"
+ #include "Registers.hpp"
+ #include "config.h"
+@@ -95,15 +106,27 @@
+     const RegisterLocation &savedReg) {
+   switch (savedReg.location) {
+   case CFI_Parser<A>::kRegisterInCFA:
+-    return (pint_t)addressSpace.getRegister(cfa + (pint_t)savedReg.value);
++  {
++    pint_t addr = cfa + (pint_t)savedReg.value;
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++    __msan_unpoison(reinterpret_cast<void *>(addr), sizeof(pint_t));
++#endif
++    return (pint_t)addressSpace.getRegister(addr);
++  }
+ 
+   case CFI_Parser<A>::kRegisterInCFADecrypt: // sparc64 specific
+     return (pint_t)(addressSpace.getP(cfa + (pint_t)savedReg.value) ^
+            getSparcWCookie(registers, 0));
+ 
+   case CFI_Parser<A>::kRegisterAtExpression:
+-    return (pint_t)addressSpace.getRegister(evaluateExpression(
+-        (pint_t)savedReg.value, addressSpace, registers, cfa));
++  {
++    pint_t addr = evaluateExpression((pint_t)savedReg.value, addressSpace,
++                                     registers, cfa);
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++    __msan_unpoison(reinterpret_cast<void *>(addr), sizeof(pint_t));
++#endif
++    return (pint_t)addressSpace.getRegister(addr);
++  }
+ 
+   case CFI_Parser<A>::kRegisterIsExpression:
+     return evaluateExpression((pint_t)savedReg.value, addressSpace,
+@@ -127,12 +150,23 @@
+     const RegisterLocation &savedReg) {
+   switch (savedReg.location) {
+   case CFI_Parser<A>::kRegisterInCFA:
+-    return addressSpace.getDouble(cfa + (pint_t)savedReg.value);
++  {
++    pint_t addr = cfa + (pint_t)savedReg.value;
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++    __msan_unpoison(reinterpret_cast<void *>(addr), sizeof(double));
++#endif
++    return addressSpace.getDouble(addr);
++  }
+ 
+   case CFI_Parser<A>::kRegisterAtExpression:
+-    return addressSpace.getDouble(
+-        evaluateExpression((pint_t)savedReg.value, addressSpace,
+-                            registers, cfa));
++  {
++    pint_t addr = evaluateExpression((pint_t)savedReg.value, addressSpace,
++                                     registers, cfa);
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++    __msan_unpoison(reinterpret_cast<void *>(addr), sizeof(double));
++#endif
++    return addressSpace.getDouble(addr);
++  }
+   case CFI_Parser<A>::kRegisterUndefined:
+     return 0.0;
+   case CFI_Parser<A>::kRegisterInRegister:
+@@ -155,12 +189,23 @@
+     const RegisterLocation &savedReg) {
+   switch (savedReg.location) {
+   case CFI_Parser<A>::kRegisterInCFA:
+-    return addressSpace.getVector(cfa + (pint_t)savedReg.value);
++  {
++    pint_t addr = cfa + (pint_t)savedReg.value;
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++    __msan_unpoison(reinterpret_cast<void *>(addr), sizeof(v128));
++#endif
++    return addressSpace.getVector(addr);
++  }
+ 
+   case CFI_Parser<A>::kRegisterAtExpression:
+-    return addressSpace.getVector(
+-        evaluateExpression((pint_t)savedReg.value, addressSpace,
+-                            registers, cfa));
++  {
++    pint_t addr = evaluateExpression((pint_t)savedReg.value, addressSpace,
++                                     registers, cfa);
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++    __msan_unpoison(reinterpret_cast<void *>(addr), sizeof(v128));
++#endif
++    return addressSpace.getVector(addr);
++  }
+ 
+   case CFI_Parser<A>::kRegisterIsExpression:
+   case CFI_Parser<A>::kRegisterUnused:

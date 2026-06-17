@@ -120,7 +120,12 @@ def parse_docker_compose_down_line(line):
 
 def parse_trace(log_line):
     """Return a trace (list of list of dict) parsed from the specified
-    `log_line`, or return `None` if `log_line` is not a trace.
+    `log_line`, or return `None` if `log_line` is not a v0.4 trace.
+
+    Rejects v0.5-format payloads (string-table + integer-encoded spans) that
+    other tracers (e.g. dd-trace-py / uwsgi) may send to the same agent port.
+    Those have a list of strings as their first element rather than a list of
+    span dicts.
     """
     try:
         trace = json.loads(log_line)
@@ -128,6 +133,11 @@ def parse_trace(log_line):
         return None
 
     if not isinstance(trace, list):
+        return None
+
+    if not all(
+            isinstance(chunk, list) and all(
+                isinstance(span, dict) for span in chunk) for chunk in trace):
         return None
 
     return trace

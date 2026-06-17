@@ -21,7 +21,7 @@ RUN set -eux; \
     wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz"; \
     cc_opt="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g -fsanitize=address -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
-    ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir -fsanitize=address -shared-libasan -Wl,-rpath,/usr/lib/llvm21/lib/clang/21/lib/linux -Wl,-rpath,/usr/lib"; \
+    ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir -fsanitize=address -shared-libasan -Wl,-rpath,/usr/lib/llvm21/lib/clang/21/lib/linux -Wl,-rpath,/usr/asan/lib"; \
     cd "/tmp/nginx-${NGINX_VERSION}"; \
     ./configure \
       --prefix=/etc/nginx \
@@ -58,3 +58,5 @@ RUN set -eux; \
     rm -rf "/tmp/nginx-${NGINX_VERSION}" "/tmp/nginx-${NGINX_VERSION}.tar.gz"
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ENV ASAN_OPTIONS=halt_on_error=1:detect_leaks=0
+ENV UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1

@@ -18,30 +18,17 @@ RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_V
     grep -F "llvm-project-${LLVM_VERSION}.src.tar.xz" /CHECKSUMS | sha512sum --check - && \
     tar -xvf llvm-project-${LLVM_VERSION}.src.tar.xz
 
-# compiler-rt-musl-tls.diff: fixes a TLS (thread-local storage) incompatibility
-# between compiler-rt and musl libc on aarch64. musl uses TLS_ABOVE_TP (Variant I),
-# so the thread pointer sits between the pthread descriptor and the static TLS block;
-# compiler-rt's GetTls() uses the glibc-calibrated ThreadDescriptorSize() which
-# computes the wrong range, causing ASAN to see TLS overlapping the stack. The patch
-# uses pthread_self() directly to compute the correct gap.
-COPY compiler-rt-musl-tls.diff /compiler-rt-musl-tls.diff
-RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /compiler-rt-musl-tls.diff
-
-# compiler-rt-musl-msghdr.diff: fixes ASAN's sendmsg/recvmsg interceptors on musl.
-# ASAN's __sanitizer_msghdr uses glibc's layout where msg_iovlen and msg_controllen
-# are 8-byte size_t; musl defines them as 4-byte int/socklen_t with explicit padding.
-# The interceptor reads 8 bytes at msg_controllen's offset, picking up the uninitialized
-# padding as the high word and computing a bogus ~81 GB length, which aborts with
-# "CHECK failed: size <= 1ULL<<40". The patch adds a SANITIZER_MUSL branch with the
-# correct 4-byte field widths.
-COPY compiler-rt-musl-msghdr.diff /compiler-rt-musl-msghdr.diff
-RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /compiler-rt-musl-msghdr.diff
-
-COPY locale.h.diff /locale.h.diff
-RUN cd /usr/include && patch -p0 < /locale.h.diff
-
-COPY alltypes.h.diff /alltypes.h.diff
-RUN cd /usr/include && patch -p0 < /alltypes.h.diff
+COPY *.diff /
+RUN cd llvm-project-${LLVM_VERSION}.src && \
+    patch -p1 < /compiler-rt-musl-tls.diff && \
+    patch -p1 < /compiler-rt-musl-msghdr.diff && \
+    patch -p1 < /compiler-rt-musl-rlimit64.diff && \
+    patch -p1 < /compiler-rt-musl-stat.diff && \
+    patch -p1 < /libunwind-msan-unpoison-getcontext.diff && \
+    patch -p1 < /libunwind-msan-dwarfinstructions-unpoison.diff
+RUN cd /usr/include && \
+    patch -p0 < /locale.h.diff && \
+    patch -p0 < /alltypes.h.diff
 
 RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build && cd build && \
     cmake -G Ninja \
@@ -97,7 +84,7 @@ RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build && cd build && \
 RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build-asan && cd build-asan && \
     cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_PREFIX=/usr/asan \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_C_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
     -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -fsanitize=address" \
@@ -123,6 +110,56 @@ RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build-asan && cd build-asan 
     -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" \
     -DLLVM_EXTERNAL_LIT=/usr/bin/lit ../runtimes && \
     ninja -v install-unwind install-cxx install-cxxabi
+
+# Third build: build a SEPARATE copy of the shared libc++/libc++abi/libunwind
+# (.so) libraries instrumented with MemorySanitizer + origin tracking. MSan
+# requires that ALL code linked into the process -- including the C++ runtime --
+# be instrumented; an uninstrumented runtime produces a flood of false
+# "use-of-uninitialized-value" reports. MSan and ASan runtimes cannot coexist in
+# one process, and the .so names collide with the ASan-instrumented ones already
+# in /usr/lib, so this copy is installed under a distinct prefix (/usr/msan). The
+# MSan toolchain branch links against /usr/msan/lib with a matching rpath.
+# Note: the C++ headers are identical to the first build (same source, same
+# config) so we reuse /usr/include/c++/v1; only the compiled libraries differ.
+#
+# We must pass -DLLVM_USE_SANITIZER=MemoryWithOrigins (not just -fsanitize=memory
+# in the flags): unlike ASan there is no shared MSan runtime, so the __msan_*
+# symbols the instrumentation references are resolved at runtime from the final
+# executable. HandleLLVMOptions adds "-Wl,-z,defs" (--no-undefined) to every
+# shared-lib link UNLESS LLVM_USE_SANITIZER is set; without it the .so links fail
+# with undefined references to __msan_init / __msan_warning_with_origin_noreturn.
+# Setting LLVM_USE_SANITIZER both instruments the runtimes and drops -z defs.
+RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build-msan && cd build-msan && \
+    cmake -G Ninja \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DCMAKE_INSTALL_PREFIX=/usr/msan \
+    -DLLVM_USE_SANITIZER=MemoryWithOrigins \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_C_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
+    -DCMAKE_C_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -fsanitize=memory -fsanitize-memory-track-origins=2" \
+    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_CXX_COMPILER_TARGET=${ARCH}-alpine-linux-musl \
+    -DCMAKE_CXX_FLAGS="-fno-omit-frame-pointer -D_LIBCPP_HAS_NO_C11_ALIGNED_ALLOC=1 -fsanitize=memory -fsanitize-memory-track-origins=2 -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" \
+    -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=memory -fsanitize-memory-track-origins=2 -rtlib=compiler-rt -unwindlib=libunwind" \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    -DLIBUNWIND_ENABLE_SHARED=ON \
+    -DLIBUNWIND_ENABLE_STATIC=OFF \
+    -DLIBUNWIND_USE_COMPILER_RT=ON \
+    -DLIBCXXABI_ENABLE_SHARED=ON \
+    -DLIBCXXABI_ENABLE_STATIC=OFF \
+    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+    -DLIBCXXABI_ENABLE_STATIC_UNWINDER=OFF \
+    -DLIBCXXABI_USE_COMPILER_RT=ON \
+    -DLIBCXX_ENABLE_SHARED=ON \
+    -DLIBCXX_ENABLE_STATIC=OFF \
+    -DLIBCXX_HAS_MUSL_LIBC=ON \
+    -DLIBCXX_USE_COMPILER_RT=ON \
+    -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=OFF \
+    -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" \
+    -DLLVM_EXTERNAL_LIT=/usr/bin/lit ../runtimes && \
+    ninja -v install-unwind install-cxx install-cxxabi
+
+RUN rm -f /usr/lib/libc++experimental.a /usr/asan/lib/libc++experimental.a /usr/msan/lib/libc++experimental.a
 
 # Create a stable symlink to GCC lib dir for resource_dir
 RUN set -eux; \
@@ -163,6 +200,15 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -yq --d
 RUN cargo install --locked cbindgen --version 0.26.0 && \
   ln -s ~/.cargo/bin/cbindgen /usr/local/bin/cbindgen
 
+# Trim the Rust toolchain. The bundled HTML docs (~760 MB: the Rust book, std
+# docs) are never used in CI. librustc_driver-*.so and the bundled rust-lld carry
+# DWARF we don't need -- these are tools we *run* (via cargo), not libraries we
+# link into our artifacts, so --strip-debug does not affect anything we build.
+# (The final stage flattens the image, so these reductions land directly.)
+RUN rm -rf /root/.rustup/toolchains/*/share/doc && \
+    find /root/.rustup/toolchains -type f \( -name 'librustc_driver-*.so' -o -name 'rust-lld' \) \
+      -exec llvm-strip --strip-debug {} +
+
 # Shellcheck
 RUN apk add --no-cache shellcheck
 
@@ -175,7 +221,11 @@ COPY pyproject.toml .
 RUN uv sync
 ENV PATH="/.venv/bin:$PATH"
 
-# Vault
 RUN LINUX_ARCH=linux_$(echo ${ARCH} | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
-  wget -qO- https://releases.hashicorp.com/vault/1.21.2/vault_1.21.2_${LINUX_ARCH}.zip | busybox unzip -
-RUN chmod +x vault && mv vault /usr/local/bin/
+  wget -qO- https://releases.hashicorp.com/vault/1.21.2/vault_1.21.2_${LINUX_ARCH}.zip | busybox unzip - && \
+  chmod +x vault && mv vault /usr/local/bin/ && \
+  llvm-strip --strip-debug /usr/local/bin/vault
+
+FROM scratch
+COPY --from=sysroot / /
+ENV PATH="/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"

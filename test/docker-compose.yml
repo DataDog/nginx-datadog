@@ -11,6 +11,7 @@ services:
         - BASE_IMAGE
     environment:
       DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS: 1
+      DD_TRACE_AGENT_SHUTDOWN_TIMEOUT_MILLISECONDS: 10000
       DD_RUM_APPLICATION_ID: "<ENV_APPLICATION_ID>"
       DD_RUM_CLIENT_TOKEN: "<ENV_CLIENT_TOKEN>"
       DD_RUM_SITE: "<ENV_SITE>"
@@ -26,6 +27,12 @@ services:
       - "host.docker.internal:host-gateway"
     cap_add:
       - SYS_PTRACE
+    # MemorySanitizer disables ASLR at startup by re-execing via
+    # personality(ADDR_NO_RANDOMIZE), which the default seccomp profile blocks.
+    # Unconfined seccomp lets the MSan-instrumented nginx start; it is harmless
+    # for the non-MSan (plain/ASAN) test runs.
+    security_opt:
+      - seccomp=unconfined
     volumes:
       - ../:/mnt/repo/
     depends_on:

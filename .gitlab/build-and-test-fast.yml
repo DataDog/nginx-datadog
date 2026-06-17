@@ -7,7 +7,7 @@ include:
   rules:
     - if: $CI_COMMIT_TAG
       when: never
-    - when: always
+    - when: on_success
 
 build-formatter-image:
   extends: .build-and-test-fast
@@ -81,6 +81,15 @@ build-nginx-asan-fast:
   extends:
     - .build-and-test-fast
     - .build-nginx-asan
+  variables:
+    ARCH: "amd64"
+    NGINX_VERSION: "1.31.1"
+    WAF: "ON"
+
+build-nginx-msan-fast:
+  extends:
+    - .build-and-test-fast
+    - .build-nginx-msan
   variables:
     ARCH: "amd64"
     NGINX_VERSION: "1.31.1"
@@ -174,6 +183,17 @@ test-nginx-asan-fast:
     - .test-nginx-asan
   needs:
     - build-nginx-asan-fast
+  variables:
+    ARCH: "amd64"
+    NGINX_VERSION: "1.31.1"
+    WAF: "ON"
+
+test-nginx-msan-fast:
+  extends:
+    - .build-and-test-fast
+    - .test-nginx-msan
+  needs:
+    - build-nginx-msan-fast
   variables:
     ARCH: "amd64"
     NGINX_VERSION: "1.31.1"

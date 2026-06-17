@@ -1,0 +1,52 @@
+diff --git a/libunwind/src/UnwindLevel1.c b/libunwind/src/UnwindLevel1.c
+index 1111111..2222222 100644
+--- a/libunwind/src/UnwindLevel1.c
++++ b/libunwind/src/UnwindLevel1.c
+@@ -23,6 +23,17 @@
+ #include <stdio.h>
+ #include <string.h>
+ 
++// __unw_getcontext() is hand-written assembly (see UnwindRegistersSave.S): it
++// stores the live CPU registers directly into its unw_context_t output via raw
++// `mov` instructions, with no MemorySanitizer instrumentation. MSan poisons the
++// stack-allocated unw_context_t at its alloca and the assembly never clears that
++// shadow, so every subsequent read of the context is reported as a
++// use-of-uninitialized-value. Unpoison the context at each call site, matching
++// the convention that the producer of the bytes is responsible for their shadow.
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++#include <sanitizer/msan_interface.h>
++#endif
++
+ #include "config.h"
+ #include "libunwind.h"
+ #include "libunwind_ext.h"
+@@ -451,6 +461,9 @@ _Unwind_RaiseException(_Unwind_Exception *exception_object) {
+   unw_context_t uc;
+   unw_cursor_t cursor;
+   __unw_getcontext(&uc);
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++  __msan_unpoison(&uc, sizeof(uc));
++#endif
+ 
+   // Mark that this is a non-forced unwind, so _Unwind_Resume()
+   // can do the right thing.
+@@ -485,6 +498,9 @@ _Unwind_Resume(_Unwind_Exception *exception_object) {
+   unw_context_t uc;
+   unw_cursor_t cursor;
+   __unw_getcontext(&uc);
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++  __msan_unpoison(&uc, sizeof(uc));
++#endif
+ 
+   if (exception_object->private_1 != 0)
+     unwind_phase2_forced(&uc, &cursor, exception_object,
+@@ -510,6 +526,9 @@ _Unwind_ForcedUnwind(_Unwind_Exception *exception_object,
+   unw_context_t uc;
+   unw_cursor_t cursor;
+   __unw_getcontext(&uc);
++#if defined(__has_feature) && __has_feature(memory_sanitizer)
++  __msan_unpoison(&uc, sizeof(uc));
++#endif
+ 
+   // Mark that this is a forced unwind, so _Unwind_Resume() can do
+   // the right thing.

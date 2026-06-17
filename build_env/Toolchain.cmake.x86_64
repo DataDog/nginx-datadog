@@ -18,10 +18,26 @@ set(CMAKE_CXX_COMPILER_TARGET ${triple})
 set(CMAKE_CXX_FLAGS_INIT "-stdlib=libc++ ${c_cxx_flags}")
 
 if(ENABLE_ASAN OR "$ENV{ASAN}" MATCHES "^(ON|TRUE|true|1|YES|yes)$")
-  # Under ASAN, libunwind is provided as a shared ASAN-instrumented library so
-  # it must be linked dynamically here to match, avoiding ODR violations from
+  # Under ASAN we link against the separate ASAN-instrumented copy of the C++
+  # runtime installed in /usr/asan (see build_env/Dockerfile). It must be linked
+  # dynamically (shared .so) with a matching rpath so the loader finds it, and it
+  # must take precedence over the plain runtime in /usr/lib. libunwind is also
+  # provided as a shared ASAN-instrumented library to avoid ODR violations from
   # having both libunwind.a and libunwind.so define the same global symbols.
-  set(cxx_runtime_linker_flags "-Wl,-Bdynamic -lc++ -lc++abi -lunwind -Wl,-Bstatic")
+  set(cxx_runtime_linker_flags "-Wl,-Bdynamic -L/usr/asan/lib -Wl,-rpath,/usr/asan/lib -lc++ -lc++abi -lunwind -Wl,-Bstatic")
+  set(static_unwind_flag "")
+elseif(ENABLE_MSAN OR "$ENV{MSAN}" MATCHES "^(ON|TRUE|true|1|YES|yes)$")
+  # Under MSAN we link against the separate MSan-instrumented copy of the C++
+  # runtime installed in /usr/msan (see build_env/Dockerfile). It must be linked
+  # dynamically (shared .so) with a matching rpath so the loader finds it, and it
+  # must take precedence over the plain runtime in /usr/lib.
+  #
+  # The MSan-instrumented .so's carry undefined __msan_* references (there is no
+  # shared MSan runtime); they are resolved at runtime from the static runtime in
+  # the final executable. --allow-shlib-undefined stops lld from rejecting those
+  # at link time (its default --no-allow-shlib-undefined would error), including
+  # in CMake's compiler-detection try-compiles which are not MSan-instrumented.
+  set(cxx_runtime_linker_flags "-Wl,--allow-shlib-undefined -Wl,-Bdynamic -L/usr/msan/lib -Wl,-rpath,/usr/msan/lib -lc++ -lc++abi -lunwind -Wl,-Bstatic")
   set(static_unwind_flag "")
 else()
   set(cxx_runtime_linker_flags "-Wl,-Bstatic -lc++ -lc++abi")

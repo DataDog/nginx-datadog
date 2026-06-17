@@ -1,0 +1,69 @@
+diff -ruN nginx-crosspatch-old/auto/endianness nginx-crosspatch-new/auto/endianness
+--- nginx-crosspatch-old/auto/endianness	2026-06-15 11:04:47
++++ nginx-crosspatch-new/auto/endianness	2026-06-15 11:04:47
+@@ -13,6 +13,16 @@
+ END
+ 
+ 
++if [ "$NGX_MUSL_CROSSBUILD" = YES ]; then
++    case "$NGX_MUSL_CROSSBUILD_ARCH" in
++        x86_64 | aarch64) echo " little endian"; have=NGX_HAVE_LITTLE_ENDIAN . auto/have ;;
++        *) echo; echo "$0: error: no endian preset for $NGX_MUSL_CROSSBUILD_ARCH"; exit 1 ;;
++    esac
++
++    return
++fi
++
++
+ cat << END > $NGX_AUTOTEST.c
+ 
+ int main(void) {
+diff -ruN nginx-crosspatch-old/auto/feature nginx-crosspatch-new/auto/feature
+--- nginx-crosspatch-old/auto/feature	2026-06-15 11:04:47
++++ nginx-crosspatch-new/auto/feature	2026-06-15 11:04:47
+@@ -47,6 +47,12 @@
+ eval "/bin/sh -c \"$ngx_test\" >> $NGX_AUTOCONF_ERR 2>&1"
+ 
+ 
++if [ "$NGX_MUSL_CROSSBUILD" = YES ]; then
++    case "$ngx_feature_run" in
++        yes | bug) ngx_feature_run=no ;;
++    esac
++fi
++
+ if [ -x $NGX_AUTOTEST ]; then
+ 
+     case "$ngx_feature_run" in
+diff -ruN nginx-crosspatch-old/auto/types/sizeof nginx-crosspatch-new/auto/types/sizeof
+--- nginx-crosspatch-old/auto/types/sizeof	2026-06-15 11:04:47
++++ nginx-crosspatch-new/auto/types/sizeof	2026-06-15 11:04:47
+@@ -14,6 +14,20 @@
+ 
+ ngx_size=
+ 
++if [ "$NGX_MUSL_CROSSBUILD" = YES ]; then
++    case "$ngx_type" in
++        int | sig_atomic_t)
++            ngx_size=4
++        ;;
++        "long" | "long long" | "void *" | size_t | off_t | time_t)
++            ngx_size=8
++        ;;
++        *) echo; echo "$0: error: no cross size preset for $ngx_type"; exit 1 ;;
++    esac
++
++    echo " $ngx_size bytes"
++else
++
+ cat << END > $NGX_AUTOTEST.c
+ 
+ #include <sys/types.h>
+@@ -44,6 +58,8 @@
+     echo " $ngx_size bytes"
+ fi
+ 
++
++fi
+ 
+ case $ngx_size in
+     4)
