@@ -18,24 +18,16 @@ from pathlib import Path
 
 from .. import case, formats
 
-# HS256, no exp, no aud
-_JWT_HS256_NO_EXP_NO_AUD = (
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-    ".eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyfQ"
-    "."
-)
-# HS256, with exp and aud
+_JWT_HS256_NO_EXP_NO_AUD = ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+                            ".eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyfQ"
+                            ".")
 _JWT_HS256_WITH_EXP_WITH_AUD = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
     ".eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjk5OTk5OTk5OTksImF1ZCI6ImFwaSJ9"
-    "."
-)
-# none alg, no exp, no aud
-_JWT_NONE_ALG = (
-    "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0"
-    ".eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyfQ"
-    "."
-)
+    ".")
+_JWT_NONE_ALG = ("eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0"
+                 ".eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNTE2MjM5MDIyfQ"
+                 ".")
 
 
 class TestJwt(case.TestCase):
@@ -55,15 +47,16 @@ class TestJwt(case.TestCase):
 
             conf_path = Path(__file__).parent / "conf/http.conf"
             status, log_lines = self.orch.nginx_replace_config(
-                conf_path.read_text(), conf_path.name
-            )
+                conf_path.read_text(), conf_path.name)
             self.assertEqual(0, status, log_lines)
             TestJwt._config_done = True
 
         self.orch.sync_service("agent")
 
     def _spans_for_request(self, headers):
-        status, _, _ = self.orch.send_nginx_http_request("/http", 80, headers=headers)
+        status, _, _ = self.orch.send_nginx_http_request("/http",
+                                                         80,
+                                                         headers=headers)
         self.assertEqual(status, 200)
         self.orch.reload_nginx()
         log_lines = self.orch.sync_service("agent")
@@ -90,83 +83,76 @@ class TestJwt(case.TestCase):
     def test_no_expiry_tag_set_when_exp_missing(self):
         """api-001-100: _dd.appsec.api.jwt.no_expiry is set when JWT has no exp claim."""
         spans = self._spans_for_request(
-            {"Authorization": f"Bearer {_JWT_HS256_NO_EXP_NO_AUD}"}
-        )
+            {"Authorization": f"Bearer {_JWT_HS256_NO_EXP_NO_AUD}"})
         metrics = self._get_metrics(spans)
         self.assertIn(
             "_dd.appsec.api.jwt.no_expiry",
             metrics,
-            f"Expected _dd.appsec.api.jwt.no_expiry in metrics; got metrics={metrics}",
+            f"Expected _dd.appsec.api.jwt.no_expiry in metrics; got metrics={metrics!r}",
         )
 
     def test_no_expiry_tag_absent_when_exp_present(self):
         """api-001-100: _dd.appsec.api.jwt.no_expiry is absent when JWT has an exp claim."""
         spans = self._spans_for_request(
-            {"Authorization": f"Bearer {_JWT_HS256_WITH_EXP_WITH_AUD}"}
-        )
+            {"Authorization": f"Bearer {_JWT_HS256_WITH_EXP_WITH_AUD}"})
         metrics = self._get_metrics(spans)
         self.assertNotIn(
             "_dd.appsec.api.jwt.no_expiry",
             metrics,
-            f"Expected _dd.appsec.api.jwt.no_expiry to be absent; got metrics={metrics}",
+            f"Expected _dd.appsec.api.jwt.no_expiry to be absent; got metrics={metrics!r}",
         )
 
     def test_algorithm_collected(self):
         """api-001-110: api.security.jwt.alg is set to the algorithm from the JWT header."""
         spans = self._spans_for_request(
-            {"Authorization": f"Bearer {_JWT_HS256_NO_EXP_NO_AUD}"}
-        )
+            {"Authorization": f"Bearer {_JWT_HS256_NO_EXP_NO_AUD}"})
         meta = self._get_meta(spans)
         self.assertEqual(
             meta.get("api.security.jwt.alg"),
             "HS256",
-            f"Expected api.security.jwt.alg='HS256'; got meta={meta}",
+            f"Expected api.security.jwt.alg='HS256'; got meta={meta!r}",
         )
 
     def test_no_audience_tag_set_when_aud_missing(self):
         """api-001-120: _dd.appsec.api.jwt.no_audience is set when JWT has no aud claim."""
         spans = self._spans_for_request(
-            {"Authorization": f"Bearer {_JWT_HS256_NO_EXP_NO_AUD}"}
-        )
+            {"Authorization": f"Bearer {_JWT_HS256_NO_EXP_NO_AUD}"})
         metrics = self._get_metrics(spans)
         self.assertIn(
             "_dd.appsec.api.jwt.no_audience",
             metrics,
-            f"Expected _dd.appsec.api.jwt.no_audience in metrics; got metrics={metrics}",
+            f"Expected _dd.appsec.api.jwt.no_audience in metrics; got metrics={metrics!r}",
         )
 
     def test_no_audience_tag_absent_when_aud_present(self):
         """api-001-120: _dd.appsec.api.jwt.no_audience is absent when JWT has an aud claim."""
         spans = self._spans_for_request(
-            {"Authorization": f"Bearer {_JWT_HS256_WITH_EXP_WITH_AUD}"}
-        )
+            {"Authorization": f"Bearer {_JWT_HS256_WITH_EXP_WITH_AUD}"})
         metrics = self._get_metrics(spans)
         self.assertNotIn(
             "_dd.appsec.api.jwt.no_audience",
             metrics,
-            f"Expected _dd.appsec.api.jwt.no_audience to be absent; got metrics={metrics}",
+            f"Expected _dd.appsec.api.jwt.no_audience to be absent; got metrics={metrics!r}",
         )
 
     def test_none_alg_tag_set(self):
         """api-001-130: _dd.appsec.api.jwt.none_alg is set when JWT uses alg=none."""
         spans = self._spans_for_request(
-            {"Authorization": f"Bearer {_JWT_NONE_ALG}"}
-        )
+            {"Authorization": f"Bearer {_JWT_NONE_ALG}"})
         metrics = self._get_metrics(spans)
         self.assertIn(
             "_dd.appsec.api.jwt.none_alg",
             metrics,
-            f"Expected _dd.appsec.api.jwt.none_alg in metrics; got metrics={metrics}",
+            f"Expected _dd.appsec.api.jwt.none_alg in metrics; got metrics={metrics!r}",
         )
 
     def test_none_alg_tag_absent_for_hs256(self):
         """api-001-130: _dd.appsec.api.jwt.none_alg is absent for a normal HS256 JWT."""
         spans = self._spans_for_request(
-            {"Authorization": f"Bearer {_JWT_HS256_NO_EXP_NO_AUD}"}
-        )
+            {"Authorization": f"Bearer {_JWT_HS256_NO_EXP_NO_AUD}"})
         metrics = self._get_metrics(spans)
         self.assertNotIn(
             "_dd.appsec.api.jwt.none_alg",
             metrics,
-            f"Expected _dd.appsec.api.jwt.none_alg to be absent; got metrics={metrics}",
+            f"Expected _dd.appsec.api.jwt.none_alg to be absent; got metrics={metrics!r}",
         )
