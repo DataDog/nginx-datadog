@@ -18,46 +18,17 @@ RUN wget https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_V
     grep -F "llvm-project-${LLVM_VERSION}.src.tar.xz" /CHECKSUMS | sha512sum --check - && \
     tar -xvf llvm-project-${LLVM_VERSION}.src.tar.xz
 
-COPY compiler-rt-musl-tls.diff /compiler-rt-musl-tls.diff
-RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /compiler-rt-musl-tls.diff
-
-# compiler-rt-musl-msghdr.diff: fixes ASAN's sendmsg/recvmsg interceptors on musl.
-# ASAN's __sanitizer_msghdr uses glibc's layout where msg_iovlen and msg_controllen
-# are 8-byte size_t; musl defines them as 4-byte int/socklen_t with explicit padding.
-COPY compiler-rt-musl-msghdr.diff /compiler-rt-musl-msghdr.diff
-RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /compiler-rt-musl-msghdr.diff
-
-COPY compiler-rt-musl-rlimit64.diff /compiler-rt-musl-rlimit64.diff
-RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /compiler-rt-musl-rlimit64.diff
-
-COPY compiler-rt-musl-stat.diff /compiler-rt-musl-stat.diff
-RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /compiler-rt-musl-stat.diff
-
-# libunwind-msan-unpoison-getcontext.diff: __unw_getcontext() is hand-written
-# assembly (UnwindRegistersSave.S) that stores CPU registers into its
-# unw_context_t output with no MSan instrumentation, leaving the shadow poisoned.
-# When a C++ exception unwinds, _Unwind_RaiseException reads that context and MSan
-# reports a false use-of-uninitialized-value (killing the worker under
-# abort_on_error=1). The patch calls __msan_unpoison() after each __unw_getcontext
-# call site. Only affects the MSan (third) build; the #if __has_feature guard
-# makes it a no-op for the baseline and ASan builds sharing this source tree.
-COPY libunwind-msan-unpoison-getcontext.diff /libunwind-msan-unpoison-getcontext.diff
-RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /libunwind-msan-unpoison-getcontext.diff
-
-# libunwind-msan-dwarfinstructions-unpoison.diff: MSan's poison_in_dtor=1
-# (the default) marks object fields as uninitialized when a destructor runs.
-# When C++ exception unwinding walks a frame whose stack contains such a
-# destroyed object, DwarfInstructions::getSavedRegister reads the DWARF-directed
-# saved register slot at that same address, triggering a false
-# use-of-uninitialized-value. Unpoison the address before each stack read.
-COPY libunwind-msan-dwarfinstructions-unpoison.diff /libunwind-msan-dwarfinstructions-unpoison.diff
-RUN cd llvm-project-${LLVM_VERSION}.src && patch -p1 < /libunwind-msan-dwarfinstructions-unpoison.diff
-
-COPY locale.h.diff /locale.h.diff
-RUN cd /usr/include && patch -p0 < /locale.h.diff
-
-COPY alltypes.h.diff /alltypes.h.diff
-RUN cd /usr/include && patch -p0 < /alltypes.h.diff
+COPY *.diff /
+RUN cd llvm-project-${LLVM_VERSION}.src && \
+    patch -p1 < /compiler-rt-musl-tls.diff && \
+    patch -p1 < /compiler-rt-musl-msghdr.diff && \
+    patch -p1 < /compiler-rt-musl-rlimit64.diff && \
+    patch -p1 < /compiler-rt-musl-stat.diff && \
+    patch -p1 < /libunwind-msan-unpoison-getcontext.diff && \
+    patch -p1 < /libunwind-msan-dwarfinstructions-unpoison.diff
+RUN cd /usr/include && \
+    patch -p0 < /locale.h.diff && \
+    patch -p0 < /alltypes.h.diff
 
 RUN cd llvm-project-${LLVM_VERSION}.src && mkdir -p build && cd build && \
     cmake -G Ninja \

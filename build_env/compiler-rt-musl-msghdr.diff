@@ -27,11 +27,17 @@ diff --git a/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.h 
 index 58244c9..df7dbd5 100644
 --- a/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.h
 +++ b/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.h
-@@ -456,6 +456,39 @@ struct __sanitizer_cmsghdr {
+@@ -456,6 +456,45 @@ struct __sanitizer_cmsghdr {
    int cmsg_level;
    int cmsg_type;
  };
 +#elif SANITIZER_MUSL
++// ASAN's __sanitizer_msghdr uses glibc's layout where msg_iovlen and
++// msg_controllen are 8-byte size_t; musl defines them as 4-byte int/socklen_t
++// with explicit padding. The interceptor reads 8 bytes at msg_controllen's
++// offset, picking up uninitialized padding as the high word and computing a
++// bogus ~81 GB length, which aborts with "CHECK failed: size <= 1ULL<<40".
++// This branch adds the correct 4-byte field widths for musl.
 +struct __sanitizer_msghdr {
 +  void *msg_name;
 +  unsigned msg_namelen;

@@ -93,7 +93,7 @@ build-nginx-msan-fast:
   variables:
     ARCH: "amd64"
     NGINX_VERSION: "1.31.1"
-    WAF: "OFF"
+    WAF: "ON"
 
 build-ingress-nginx-fast:
   extends:
@@ -197,7 +197,7 @@ test-nginx-msan-fast:
   variables:
     ARCH: "amd64"
     NGINX_VERSION: "1.31.1"
-    WAF: "OFF"
+    WAF: "ON"
 
 test-ingress-nginx-fast:
   extends:

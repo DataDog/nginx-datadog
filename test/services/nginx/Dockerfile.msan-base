@@ -28,8 +28,11 @@ RUN set -eux; \
     \
     msan_flags="-fsanitize=memory -fsanitize-memory-track-origins=2"; \
     clang_resource_dir=$(clang -print-resource-dir); \
-    dep_cflags="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g ${msan_flags} -resource-dir ${sysroot}/usr/lib/resource_dir -isystem ${clang_resource_dir}/include"; \
-    dep_ldflags="-fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind ${msan_flags}"; \
+    common_cflags="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g ${msan_flags}"; \
+    resource_flags="-resource-dir ${sysroot}/usr/lib/resource_dir -isystem ${clang_resource_dir}/include"; \
+    link_flags="-fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind"; \
+    dep_cflags="${common_cflags} ${resource_flags}"; \
+    dep_ldflags="${link_flags} ${msan_flags}"; \
     \
     # Download ALL sources before removing .so dev symlinks below.
     # wget links against the system libz.so.1 and libcrypto.so.3; those versioned
@@ -137,8 +140,8 @@ RUN set -eux; \
     # -----------------------------------------------------------------------
     cd /tmp; \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz"; \
-    cc_opt="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g ${msan_flags} -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
-    ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir ${msan_flags} -Wl,-rpath,/usr/msan/lib -Wl,-rpath,/usr/lib"; \
+    cc_opt="${common_cflags} -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
+    ld_opt="--target=${triple} --sysroot=${sysroot} ${link_flags} -resource-dir ${sysroot}/usr/lib/resource_dir ${msan_flags} -Wl,-rpath,/usr/msan/lib -Wl,-rpath,/usr/lib"; \
     cd "/tmp/nginx-${NGINX_VERSION}"; \
     patch -p1 < /nginx-msan-crossbuild-probes.patch; \
     NGX_MUSL_CROSSBUILD=YES NGX_MUSL_CROSSBUILD_ARCH="${ARCH}" ./configure \
