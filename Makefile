@@ -74,6 +74,7 @@ build-local-uwsgi-test-image:
 	docker build --progress=plain --platform $(DOCKER_PLATFORM) -t $(UWSGI_TEST_IMAGE):latest test/services/uwsgi
 
 # build-push-images-for-CI must be run, once, from a developer machine, to put in registry.ddbuild.io the needed Docker images.
+# Once done, update the sha256 digest in .gitlab/common.yml.
 .PHONY: build-push-images-for-CI
 build-push-images-for-CI: build-push-musl-toolchain build-push-test-image build-push-uwsgi-test-image
 
@@ -310,13 +311,6 @@ coverage:
 ifndef GITLAB_CI
 	$(error make coverage should be run only from GitLab CI)
 endif
-	apk add gcompat
-	wget https://binaries.ddbuild.io/dd-source/dd-sts/v0.1.5/dd-sts-tar.tar.gz
-	tar -vxzf dd-sts-tar.tar.gz
-	ls -l
-	install -m 0755 dd-sts-linux-amd64 /usr/local/bin/dd-sts
-	ls -l /usr/local/bin/dd-sts
-	/usr/local/bin/dd-sts debug
 	dd-sts debug
 	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
 	cd .musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests

@@ -1,8 +1,14 @@
-# Dockerfile for registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+# Dockerfile for registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain.
+# The Docker images are:
+#   - built by make build-push-images-for-CI;
+#   - used in .gitlab/common.yml.
 
 ARG MIRROR_REGISTRY=registry.ddbuild.io/ci/nginx-datadog/mirror/
 FROM ${MIRROR_REGISTRY}ghcr.io/astral-sh/uv:0.9.28 AS uv
 FROM ${MIRROR_REGISTRY}alpine:3.23.4 AS sysroot
+# When the base images are updated, mirror them:
+# docker buildx imagetools create -t registry.ddbuild.io/ci/nginx-datadog/mirror/alpine:3.23.4 docker.io/library/alpine:3.23.4
+# docker buildx imagetools create -t registry.ddbuild.io/ci/nginx-datadog/mirror/ghcr.io/astral-sh/uv:0.9.28 ghcr.io/astral-sh/uv:0.9.28
 
 ARG LLVM_VERSION=21.1.2
 ARG ARCH
@@ -221,10 +227,13 @@ COPY pyproject.toml .
 RUN uv sync
 ENV PATH="/.venv/bin:$PATH"
 
-RUN LINUX_ARCH=linux_$(echo ${ARCH} | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
-  wget -qO- https://releases.hashicorp.com/vault/1.21.2/vault_1.21.2_${LINUX_ARCH}.zip | busybox unzip - && \
-  chmod +x vault && mv vault /usr/local/bin/ && \
-  llvm-strip --strip-debug /usr/local/bin/vault
+# dd-sts
+# latest version is defined in https://github.com/DataDog/dd-source/blob/main/domains/seceng/sit/apps/apis/dd-sts/cmd/cli/version.bzl#L6
+RUN apk add --no-cache gcompat
+RUN LINUX_ARCH=linux-$(echo ${ARCH} | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
+  wget --quiet https://binaries.ddbuild.io/dd-source/dd-sts/v0.1.5/dd-sts-tar.tar.gz && \
+  tar -xzf dd-sts-tar.tar.gz && \
+  install -m 0755 dd-sts-${LINUX_ARCH} /usr/local/bin/dd-sts
 
 FROM scratch
 COPY --from=sysroot / /
