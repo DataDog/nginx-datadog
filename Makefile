@@ -310,15 +310,20 @@ coverage:
 ifndef GITLAB_CI
 	$(error make coverage should be run only from GitLab CI)
 endif
+	apk add gcompat
+	wget https://binaries.ddbuild.io/dd-source/dd-sts/v0.1.5/dd-sts-tar.tar.gz
+	tar -vxzf dd-sts-tar.tar.gz
+	ls -l
+	install -m 0755 dd-sts-linux-amd64 /usr/local/bin/dd-sts
+	ls -l /usr/local/bin/dd-sts
+	/usr/local/bin/dd-sts debug
+	dd-sts debug
 	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
 	cd .musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests
 	rm -f test/coverage_data.tar.gz
 	uv run --project test test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
 	tar -C .musl-build -xzf test/coverage_data.tar.gz
 	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
-	# datadog-ci package comes from https://www.npmjs.com/package/@datadog/datadog-ci?activeTab=versions
-	DD_API_KEY=$$(vault kv get -field=key kv/k8s/gitlab-runner/nginx-datadog/datadoghq-api-key); \
-	vault_status=$$?; \
-	if [ $$vault_status -ne 0 ]; then exit $$vault_status; fi; \
-	echo "Retrieved DD_API_KEY from Vault ($${#DD_API_KEY} bytes)"; \
-	DD_API_KEY="$$DD_API_KEY" npx --yes @datadog/datadog-ci@5.18.0 coverage upload --format=lcov .musl-build/coverage.lcov
+	# datadog-ci versions: https://github.com/DataDog/datadog-ci/releases
+	# datadog-ci packages: https://www.npmjs.com/package/@datadog/datadog-ci?activeTab=versions
+	dd-sts exchange --policy apm-sdks-api-key -- npx --yes @datadog/datadog-ci@5.18.0 coverage upload --format=lcov .musl-build/coverage.lcov

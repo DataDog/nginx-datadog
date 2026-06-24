@@ -271,6 +271,9 @@ coverage:
     BASE_IMAGE: "nginx:1.26.0"
     NGINX_VERSION: "1.26.0"
     WAF: "ON"
+  id_tokens:
+    DD_STS_OIDC_TOKEN:
+      aud: rapid-seceng-sit
   tags: ["docker-in-docker:$ARCH"]
   script:
     - make coverage
