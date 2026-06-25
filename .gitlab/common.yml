@@ -1,7 +1,7 @@
 variables:
   CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
   TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
-  MUSL_TOOLCHAIN_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:13cb0e881bdf0e14f17bbe0ae40c376bc57d54530781ac47895c660f0b2db743"
+  MUSL_TOOLCHAIN_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:af5dfa69cf9f4f66f2f87c6161c32f6839dda62560d396aa8f19d1ac6140e4dd"
   # To get the sha256 digest after running make build-push-images-for-CI :
   # docker buildx imagetools inspect registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain:latest
 

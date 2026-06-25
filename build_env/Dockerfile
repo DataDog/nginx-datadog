@@ -227,14 +227,6 @@ COPY pyproject.toml .
 RUN uv sync
 ENV PATH="/.venv/bin:$PATH"
 
-# dd-sts
-# latest version is defined in https://github.com/DataDog/dd-source/blob/main/domains/seceng/sit/apps/apis/dd-sts/cmd/cli/version.bzl#L6
-RUN apk add --no-cache gcompat
-RUN LINUX_ARCH=linux-$(echo ${ARCH} | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
-  wget --quiet https://binaries.ddbuild.io/dd-source/dd-sts/v0.1.5/dd-sts-tar.tar.gz && \
-  tar -xzf dd-sts-tar.tar.gz && \
-  install -m 0755 dd-sts-${LINUX_ARCH} /usr/local/bin/dd-sts
-
 FROM scratch
 COPY --from=sysroot / /
 ENV PATH="/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"

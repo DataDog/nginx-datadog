@@ -311,13 +311,20 @@ coverage:
 ifndef GITLAB_CI
 	$(error make coverage should be run only from GitLab CI)
 endif
-	dd-sts debug
+ifneq ($(ARCH),x86_64)
+	$(error make coverage supports only amd64)
+endif
 	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
 	cd .musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests
 	rm -f test/coverage_data.tar.gz
 	uv run --project test test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
 	tar -C .musl-build -xzf test/coverage_data.tar.gz
 	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
+	# dd-sts latest version: https://github.com/DataDog/dd-source/blob/main/domains/seceng/sit/apps/apis/dd-sts/cmd/cli/version.bzl#L6
+	apk add --no-cache gcompat
+	wget --quiet https://binaries.ddbuild.io/dd-source/dd-sts/v0.1.5/dd-sts-tar.tar.gz
+	tar -xzf dd-sts-tar.tar.gz
+	install -m 0755 dd-sts-linux-amd64 /usr/local/bin/dd-sts
 	# datadog-ci versions: https://github.com/DataDog/datadog-ci/releases
 	# datadog-ci packages: https://www.npmjs.com/package/@datadog/datadog-ci?activeTab=versions
 	dd-sts exchange --policy apm-sdks-api-key -- npx --yes @datadog/datadog-ci@5.18.0 coverage upload --format=lcov .musl-build/coverage.lcov
