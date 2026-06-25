@@ -1,8 +1,14 @@
-# Dockerfile for registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain
+# Dockerfile for registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain.
+# The Docker images are:
+#   - built by make build-push-images-for-CI;
+#   - used in .gitlab/common.yml.
 
 ARG MIRROR_REGISTRY=registry.ddbuild.io/ci/nginx-datadog/mirror/
 FROM ${MIRROR_REGISTRY}ghcr.io/astral-sh/uv:0.9.28 AS uv
 FROM ${MIRROR_REGISTRY}alpine:3.23.4 AS sysroot
+# When the base images are updated, mirror them:
+# docker buildx imagetools create -t registry.ddbuild.io/ci/nginx-datadog/mirror/alpine:3.23.4 docker.io/library/alpine:3.23.4
+# docker buildx imagetools create -t registry.ddbuild.io/ci/nginx-datadog/mirror/ghcr.io/astral-sh/uv:0.9.28 ghcr.io/astral-sh/uv:0.9.28
 
 ARG LLVM_VERSION=21.1.2
 ARG ARCH
@@ -220,11 +226,6 @@ COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml .
 RUN uv sync
 ENV PATH="/.venv/bin:$PATH"
-
-RUN LINUX_ARCH=linux_$(echo ${ARCH} | sed 's/x86_64/amd64/;s/aarch64/arm64/') && \
-  wget -qO- https://releases.hashicorp.com/vault/1.21.2/vault_1.21.2_${LINUX_ARCH}.zip | busybox unzip - && \
-  chmod +x vault && mv vault /usr/local/bin/ && \
-  llvm-strip --strip-debug /usr/local/bin/vault
 
 FROM scratch
 COPY --from=sysroot / /
