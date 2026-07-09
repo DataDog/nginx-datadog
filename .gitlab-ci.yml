@@ -64,6 +64,9 @@ macrobenchmarks:
   needs: []
   trigger:
     include: ".gitlab/benchmarks.yml"
+  # Forward the external S3 destination override to the benchmark child pipeline.
+  variables:
+    BP_EXTERNAL_S3_URL: $BP_EXTERNAL_S3_URL
   rules:
     - if: $NIGHTLY_BENCHMARKS || $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
       when: always
