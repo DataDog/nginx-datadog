@@ -17,6 +17,10 @@ include:
   - local: ".gitlab/one-pipeline.locked.yml"
 
 variables:
+  # Default so the benchmark trigger forwards an empty value on normal runs
+  # (an unset reference would forward the literal "$BP_EXTERNAL_S3_URL"). An
+  # external orchestrator overrides it to redirect benchmark uploads.
+  BP_EXTERNAL_S3_URL: ""
   OCI_PACKAGE_NAME: datadog-apm-library-nginx
   OCI_AGENT_REGISTRY_PACKAGE_NAME: apm-library-nginx-package
   AGENT_REPO_PRODUCT_NAME: auto_inject-nginx
