@@ -64,6 +64,10 @@ macrobenchmarks:
   needs: []
   trigger:
     include: ".gitlab/benchmarks.yml"
+    # Forward pipeline variables so an external orchestrator can pass
+    # BP_EXTERNAL_S3_URL down to override the S3 destination of benchmark results.
+    forward:
+      pipeline_variables: true
   rules:
     - if: $NIGHTLY_BENCHMARKS || $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
       when: always
