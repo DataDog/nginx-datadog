@@ -1,0 +1,56 @@
+{
+  "version": "2.1",
+  "metadata": {
+    "rules_version": "1.2.6"
+  },
+  "rules": [
+    {
+      "id": "main-response-status",
+      "name": "Match the main response status",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.status"
+              }
+            ],
+            "regex": "^200$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [
+        "values_only"
+      ]
+    },
+    {
+      "id": "auth-subrequest-status",
+      "name": "Match the auth subrequest status",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.response.status"
+              }
+            ],
+            "regex": "^204$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [
+        "values_only"
+      ]
+    }
+  ]
+}

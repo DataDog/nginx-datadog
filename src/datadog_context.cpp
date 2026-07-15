@@ -126,7 +126,7 @@ ngx_int_t DatadogContext::on_header_filter(ngx_http_request_t *request) {
 #endif
 
 #ifdef WITH_WAF
-  if (sec_ctx_ && trace) {
+  if (sec_ctx_ && trace && request == request->main) {
     dd::Span &span = trace->active_span();
     return sec_ctx_->header_filter(*request, span);
   }
