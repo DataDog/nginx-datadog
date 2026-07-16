@@ -57,8 +57,13 @@ static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent, void *child) noe
 
 using namespace datadog::nginx;
 
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
 constexpr datadog::nginx::directive module_directives[] = {
     WARN_DEPRECATED_COMMAND("datadog_enable", anywhere | NGX_CONF_NOARGS,
                             "Use datadog_tracing instead"),
@@ -93,7 +98,11 @@ constexpr datadog::nginx::directive module_directives[] = {
     ALIAS_COMMAND("datadog_agent_url", "opentelemetry_otlp_traces_endpoint",
                   NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1),
 };
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 static auto datadog_commands =
     generate_directives(tracing_directives, module_directives

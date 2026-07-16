@@ -119,6 +119,7 @@ include(./cmake/deps/rapidjson.cmake)
 include(./cmake/deps/cppcodec.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
+set_property(TARGET dd-trace-cpp-static PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if(ENABLE_ASAN OR ENABLE_MSAN)
   foreach(target_name IN ITEMS
