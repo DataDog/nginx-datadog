@@ -159,6 +159,28 @@ struct datadog_main_conf_t {
   // Bit 2: final WAF task (PolFinalWafCtx)
   ngx_int_t appsec_test_task_post_failure_mask{NGX_CONF_UNSET};
 
+  // (only nginx configuration: datadog_appsec_test_task_delay_ms)
+  // (Undocumented) For testing: artificially delay (via a blocking sleep) the
+  // execution of WAF tasks on the thread pool by this many milliseconds,
+  // right before the task's completion event is posted back to the main
+  // thread. This widens the window during which the task is known to still
+  // be in flight so tests can deterministically exercise asynchronous request
+  // termination.
+  ngx_int_t appsec_test_task_delay_ms{NGX_CONF_UNSET};
+
+  // (only nginx configuration:
+  // datadog_appsec_test_task_termination_delay_ms)
+  // (Undocumented) For testing: force-terminate a request this many
+  // milliseconds after a WAF task is submitted. Used with
+  // appsec_test_task_delay_ms to exercise nginx's asynchronous request
+  // termination path while a task is still running.
+  ngx_int_t appsec_test_task_termination_delay_ms{NGX_CONF_UNSET};
+
+  // (only nginx configuration: datadog_appsec_test_task_termination_mask)
+  // (Undocumented) For testing: bit mask selecting which WAF task types the
+  // forced-termination hook applies to. Uses the kTaskPostFailureMask* values.
+  ngx_int_t appsec_test_task_termination_mask{NGX_CONF_UNSET};
+
   // (only nginx configuration: datadog_appsec_stats_host_port)
   // (Undocumented) Host and port to send statsd stats to
   ngx_str_t appsec_stats_host_port = ngx_null_string;
