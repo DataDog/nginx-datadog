@@ -273,7 +273,7 @@ coverage:
     WAF: "ON"
   id_tokens:
     DD_STS_OIDC_TOKEN:
-      aud: rapid-seceng-sit
+      aud: dd-sts
   tags: ["docker-in-docker:$ARCH"]
   script:
     - make coverage
