@@ -10,6 +10,10 @@ FetchContent_MakeAvailable(Catch2)
 
 set(UNIT_TEST_SOURCES stub_nginx.c)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(APPEND UNIT_TEST_SOURCES nginx_package_abi.cpp)
+endif()
+
 if(NGINX_DATADOG_ASM_ENABLED)
     list(APPEND UNIT_TEST_SOURCES
         json.cpp multipart.cpp urlencoded.cpp test_limiter.cpp client_ip.cpp)

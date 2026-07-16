@@ -46,6 +46,23 @@ else()
   set(nginx_SOURCE_DIR ${NGINX_SRC_DIR})
 endif()
 
+set(NGINX_DEBIAN_UBUNTU_BUILD 0)
+set(NGINX_PACKAGE_ABI_FILE
+  "${nginx_SOURCE_DIR}/debian/libnginx-mod.abisubstvars")
+if(EXISTS "${NGINX_PACKAGE_ABI_FILE}")
+  file(READ "${NGINX_PACKAGE_ABI_FILE}" NGINX_PACKAGE_ABI_METADATA)
+  string(REGEX MATCH "nginx:abi=nginx-abi-[A-Za-z0-9.+:~_-]+"
+    NGINX_PACKAGE_ABI_DECLARATION
+    "${NGINX_PACKAGE_ABI_METADATA}")
+  if(NGINX_PACKAGE_ABI_DECLARATION STREQUAL "")
+    message(FATAL_ERROR
+      "Could not read the nginx package ABI from ${NGINX_PACKAGE_ABI_FILE}")
+  endif()
+  set(NGINX_DEBIAN_UBUNTU_BUILD 1)
+endif()
+message(STATUS
+  "nginx Debian/Ubuntu package build=[${NGINX_DEBIAN_UBUNTU_BUILD}]")
+
 set(module_file ${nginx_SOURCE_DIR}/objs/ngx_http_datadog_module_modules.c)
 set_source_files_properties(${module_file} PROPERTIES GENERATED TRUE)
 

@@ -225,6 +225,12 @@ target_sources(ngx_http_datadog_objs
     src/tracing_library.cpp
 )
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_compile_definitions(ngx_http_datadog_objs PRIVATE
+    DD_NGINX_DEBIAN_UBUNTU_BUILD=${NGINX_DEBIAN_UBUNTU_BUILD})
+  target_sources(ngx_http_datadog_objs PRIVATE src/nginx_package_abi.cpp)
+endif()
+
 if(NGINX_DATADOG_ASM_ENABLED)
   target_sources(ngx_http_datadog_objs
     PRIVATE
