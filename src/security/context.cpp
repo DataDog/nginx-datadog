@@ -609,14 +609,40 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
     }
   }
 
-  static void empty_handler_read(ngx_event_t *wev) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+  static void empty_handler_read(ngx_event_t *rev) {
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, rev->log, 0,
                    "PolFinalWafCtx: http empty handler (read)");
+
+    // Avoid a busy loop on level-triggered event backends, matching
+    // ngx_http_block_reading. PolTaskCtx::complete() re-arms the event after
+    // restoring the original handler.
+    if ((ngx_event_flags & NGX_USE_LEVEL_EVENT) && rev->active) {
+      if (ngx_del_event(rev, NGX_READ_EVENT, 0) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, rev->log, 0,
+                      "failed to suspend downstream read event");
+      } else {
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, rev->log, 0,
+                       "PolFinalWafCtx: suspended downstream read event");
+      }
+    }
   }
 
   static void empty_handler_write(ngx_event_t *wev) {
     ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
                    "PolFinalWafCtx: http empty handler (write)");
+
+    // Avoid a busy loop on level-triggered event backends, matching nginx's
+    // own direct empty-write-handler call sites. PolFinalWafCtx::complete()
+    // posts the event after restoring its original handler.
+    if ((ngx_event_flags & NGX_USE_LEVEL_EVENT) && wev->active) {
+      if (ngx_del_event(wev, NGX_WRITE_EVENT, 0) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, wev->log, 0,
+                      "failed to suspend downstream write event");
+      } else {
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                       "PolFinalWafCtx: suspended downstream write event");
+      }
+    }
   }
 
   static void empty_upstream_handler_read(ngx_event_t *wev) {
