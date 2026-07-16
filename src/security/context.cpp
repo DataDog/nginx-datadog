@@ -1,9 +1,11 @@
 #include "context.h"
 
 #include <atomic>
+#include <chrono>
 #include <climits>
 #include <optional>
 #include <stdexcept>
+#include <thread>
 #include <type_traits>
 #include <utility>
 
@@ -153,6 +155,7 @@ class PolTaskCtx {
     as_self().replace_handlers();
 
     req_.main->count++;
+    req_.main->blocked++;
 
     bool simulate_task_post_failure = false;
     auto *main_conf = static_cast<datadog_main_conf_t *>(
@@ -172,6 +175,7 @@ class PolTaskCtx {
       Stats::task_submission_failed();
 
       req_.main->count--;
+      req_.main->blocked--;
       as_self().restore_handlers();
 
       as_self().~Self();
@@ -179,6 +183,8 @@ class PolTaskCtx {
     }
 
     Stats::task_submitted();
+
+    maybe_schedule_test_termination(main_conf);
 
     ngx_log_debug2(NGX_LOG_DEBUG_HTTP, req_log(), 0,
                    "task %p submitted. Request refcount: %d", &get_task(),
@@ -203,6 +209,33 @@ class PolTaskCtx {
     static_cast<Self *>(self)->handle(tp_log);
   }
 
+  void maybe_schedule_test_termination(
+      datadog_main_conf_t *main_conf) noexcept {
+    if (main_conf &&
+        main_conf->appsec_test_task_termination_delay_ms != NGX_CONF_UNSET &&
+        main_conf->appsec_test_task_termination_delay_ms > 0 &&
+        main_conf->appsec_test_task_termination_mask != NGX_CONF_UNSET &&
+        (main_conf->appsec_test_task_termination_mask &
+         Self::get_task_failure_flag())) {
+      terminate_test_event_.handler = &PolTaskCtx::test_terminate_request;
+      terminate_test_event_.data = this;
+      terminate_test_event_.log = req_log();
+      ngx_add_timer(&terminate_test_event_,
+                    main_conf->appsec_test_task_termination_delay_ms);
+    }
+  }
+
+  // runs on the main thread; test-only forced-termination hook
+  static void test_terminate_request(ngx_event_t *evt) noexcept {
+    auto *self = static_cast<PolTaskCtx *>(evt->data);
+    ngx_connection_t *connection = self->req_.connection;
+
+    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, self->req_log(), 0,
+                   "test hook: terminating request while WAF task is active");
+    ngx_http_finalize_request(&self->req_, NGX_ERROR);
+    ngx_http_run_posted_requests(connection);
+  }
+
   // runs on the thread pool
   void handle(ngx_log_t *tp_log) noexcept {
     try {
@@ -211,6 +244,19 @@ class PolTaskCtx {
       block_spec_ = as_self().do_handle(*tp_log);
       // test long libddwaf call
       // ::usleep(2000000);
+
+      // For testing: artificially delay the completion of this task (see
+      // datadog_appsec_test_task_delay_ms). This is used to deterministically
+      // widen the window during which the task is known to still be in flight
+      // so tests can terminate the request before the completion handler runs.
+      auto *main_conf = static_cast<datadog_main_conf_t *>(
+          ngx_http_get_module_main_conf(&req_, ngx_http_datadog_module));
+      if (main_conf && main_conf->appsec_test_task_delay_ms != NGX_CONF_UNSET &&
+          main_conf->appsec_test_task_delay_ms > 0) {
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(main_conf->appsec_test_task_delay_ms));
+      }
+
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0, "after task %p main",
                     &get_task());
       ran_on_thread_.store(true, std::memory_order_release);
@@ -234,6 +280,16 @@ class PolTaskCtx {
   }
 
   void completion_handler_impl() noexcept {
+    if (terminate_test_event_.timer_set) {
+      ngx_del_timer(&terminate_test_event_);
+    }
+
+    // The task is no longer in flight now that its completion handler is
+    // running on the main thread; release the "blocked" reference that kept
+    // ngx_http_terminate_request() from force-freeing the request pool
+    // while the task ran on the thread pool.
+    req_.main->blocked--;
+
     as_self().restore_handlers();
 
     auto count = req_.main->count;
@@ -247,6 +303,21 @@ class PolTaskCtx {
     alignas(Self) char self_copy_storage[sizeof(Self)];
     std::memcpy(self_copy_storage, this, sizeof(Self));
     Self *self_copy = reinterpret_cast<Self *>(self_copy_storage);
+
+    if (req_.main->terminated) {
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
+                    "request was terminated while task %p was active; "
+                    "running the connection write handler",
+                    &get_task());
+
+      req_.main->count--;
+      ngx_event_t *write_event = req_.connection->write;
+      write_event->handler(write_event);
+
+      // The request pool may have been destroyed by the write handler.
+      self_copy->~Self();
+      return;
+    }
 
     if (count > 1) {
       // ngx_del_event(connection->read, NGX_READ_EVENT, 0) may've been called
@@ -322,6 +393,7 @@ class PolTaskCtx {
   ngx_http_event_handler_pt prev_read_evt_handler_;
   ngx_http_event_handler_pt prev_write_evt_handler_;
   std::atomic<bool> ran_on_thread_{false};
+  ngx_event_t terminate_test_event_{};
 };
 
 class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {

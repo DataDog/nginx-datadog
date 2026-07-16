@@ -645,6 +645,43 @@ class Orchestration:
         )
         return result.returncode, result.stdout
 
+    def send_nginx_request_until_close(self, request_text, port=80):
+        """Send a raw HTTP request and read until nginx closes the socket.
+
+        `request_text` must contain the full request, including its terminating
+        blank line. Returns the data received before the close. Connection,
+        send, and receive failures raise an exception.
+        """
+        script = f"""
+import socket
+import sys
+
+s = socket.create_connection(("nginx", {port}), timeout=5)
+try:
+    s.sendall({request_text!r}.encode())
+    chunks = []
+    while True:
+        chunk = s.recv(65536)
+        if not chunk:
+            break
+        chunks.append(chunk)
+    sys.stdout.buffer.write(b''.join(chunks))
+finally:
+    s.close()
+"""
+        command = docker_compose_command("exec", "-T", "--", "client",
+                                         "python3", "-c", script)
+        result = subprocess.run(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=child_env(),
+            encoding="utf8",
+            errors="replace",
+            check=True,
+        )
+        return result.stdout
+
     def send_nginx_http_request(
         self,
         path,
