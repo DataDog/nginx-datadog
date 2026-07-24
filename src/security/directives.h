@@ -115,6 +115,33 @@ constexpr directive kAppsecDirectives[] = {
     },
 
     {
+        "datadog_appsec_test_task_delay_ms",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_num_slot,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(datadog_main_conf_t, appsec_test_task_delay_ms),
+        nullptr,
+    },
+
+    {
+        "datadog_appsec_test_task_termination_delay_ms",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_num_slot,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(datadog_main_conf_t, appsec_test_task_termination_delay_ms),
+        nullptr,
+    },
+
+    {
+        "datadog_appsec_test_task_termination_mask",
+        NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
+        ngx_conf_set_num_slot,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(datadog_main_conf_t, appsec_test_task_termination_mask),
+        nullptr,
+    },
+
+    {
         "datadog_appsec_stats_host_port",
         NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1,
         ngx_conf_set_str_slot,
