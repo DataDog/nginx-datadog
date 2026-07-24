@@ -18,6 +18,9 @@
 #include "dd.h"
 #include "defer.h"
 #include "global_tracer.h"
+#if defined(__linux__)
+#include "nginx_package_abi.h"
+#endif
 #include "ngx_logger.h"
 #include "tracing/directives.h"
 #if defined(WITH_WAF)
@@ -54,8 +57,13 @@ static char *merge_datadog_loc_conf(ngx_conf_t *, void *parent, void *child) noe
 
 using namespace datadog::nginx;
 
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+#endif
 constexpr datadog::nginx::directive module_directives[] = {
     WARN_DEPRECATED_COMMAND("datadog_enable", anywhere | NGX_CONF_NOARGS,
                             "Use datadog_tracing instead"),
@@ -90,7 +98,11 @@ constexpr datadog::nginx::directive module_directives[] = {
     ALIAS_COMMAND("datadog_agent_url", "opentelemetry_otlp_traces_endpoint",
                   NGX_HTTP_MAIN_CONF | NGX_CONF_TAKE1),
 };
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 static auto datadog_commands =
     generate_directives(tracing_directives, module_directives
@@ -194,6 +206,18 @@ static int set_handler(ngx_log_t *log,
 
 static ngx_int_t datadog_master_process_post_config(
     ngx_cycle_t *cycle) noexcept {
+#if defined(__linux__)
+  if (datadog::nginx::package_abi::running_nginx_is_debian_or_ubuntu() &&
+      !datadog::nginx::package_abi::module_was_built_for_debian_or_ubuntu()) {
+    ngx_log_error(
+        NGX_LOG_EMERG, cycle->log, 0,
+        "nginx-datadog: refusing to load an upstream-built module into "
+        "Debian/Ubuntu nginx; rebuild the module against the distribution's "
+        "nginx-dev package or nginx source package");
+    return NGX_ERROR;
+  }
+#endif
+
   ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog status: enabled");
   ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0, "nginx-datadog version: %s (%s)",
                 datadog_semver_nginx_mod, datadog_build_id_nginx_mod);

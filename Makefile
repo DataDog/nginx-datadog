@@ -23,7 +23,12 @@ ifeq ($(ARCH),arm64)
 	ARCH := aarch64
 endif
 
-NGINX_SRC_DIR ?= $(PWD)/nginx
+NGINX_SRC_DIR ?=
+ifneq ($(strip $(NGINX_SRC_DIR)),)
+	NGINX_SRC_DIR_DOCKER_ARGS := \
+		--env NGINX_SRC_DIR=/mnt/nginx-src \
+		--mount "type=bind,source=$(abspath $(NGINX_SRC_DIR)),destination=/mnt/nginx-src"
+endif
 
 DOCKER_PLATFORM := linux/$(ARCH)
 ifeq ($(DOCKER_PLATFORM),linux/x86_64)
@@ -165,6 +170,7 @@ clean:
 .PHONY: build
 build: dd-trace-cpp-deps
 	cmake -B $(BUILD_DIR) -DNGINX_VERSION=$(NGINX_VERSION) \
+		-DNGINX_SRC_DIR="$(NGINX_SRC_DIR)" \
 		-DNGINX_COVERAGE=$(COVERAGE) -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DNGINX_DATADOG_ASM_ENABLED=$(WAF) -DNGINX_DATADOG_RUM_ENABLED=$(RUM) . \
 		-DBUILD_TESTING=$(BUILD_TESTING) $(CMAKE_PCRE_OPTIONS)\
 		&& cmake --build $(BUILD_DIR) -j $(MAKE_JOB_COUNT) -v
@@ -184,7 +190,7 @@ else
 		--env ARCH=$(ARCH) \
 		--env BUILD_TYPE=$(BUILD_TYPE) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
-		--env NGINX_SRC_DIR=$(NGINX_SRC_DIR) \
+		$(NGINX_SRC_DIR_DOCKER_ARGS) \
 		--env WAF=$(WAF) \
 		--env RUM=$(RUM) \
 		--env ASAN=$(ASAN) \
@@ -202,6 +208,7 @@ build-musl-aux build-musl-cov-aux:
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_VERSION="$(NGINX_VERSION)" \
+		-DNGINX_SRC_DIR="$(NGINX_SRC_DIR)" \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" . \
 		-DNGINX_DATADOG_RUM_ENABLED="$(RUM)" . \
 		-DNGINX_COVERAGE=$(COVERAGE) \

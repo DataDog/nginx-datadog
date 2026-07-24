@@ -119,6 +119,7 @@ include(./cmake/deps/rapidjson.cmake)
 include(./cmake/deps/cppcodec.cmake)
 
 add_subdirectory(./dd-trace-cpp EXCLUDE_FROM_ALL)
+set_property(TARGET dd-trace-cpp-static PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 if(ENABLE_ASAN OR ENABLE_MSAN)
   foreach(target_name IN ITEMS
@@ -224,6 +225,12 @@ target_sources(ngx_http_datadog_objs
     src/string_util.cpp
     src/tracing_library.cpp
 )
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  target_compile_definitions(ngx_http_datadog_objs PRIVATE
+    DD_NGINX_DEBIAN_UBUNTU_BUILD=${NGINX_DEBIAN_UBUNTU_BUILD})
+  target_sources(ngx_http_datadog_objs PRIVATE src/nginx_package_abi.cpp)
+endif()
 
 if(NGINX_DATADOG_ASM_ENABLED)
   target_sources(ngx_http_datadog_objs
