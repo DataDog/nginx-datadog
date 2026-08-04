@@ -28,7 +28,9 @@ stages:
   - build-all
   - test-all
   - assemble
-  - shared-pipeline
+  - shared-pipeline-build
+  - shared-pipeline-test
+  - shared-pipeline-publish
   - benchmarks
 
 requirements_json_test:
