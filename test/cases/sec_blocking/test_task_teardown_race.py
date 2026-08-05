@@ -43,7 +43,7 @@ class TestTaskTeardownRace(case.TestCase):
 
     def setUp(self):
         super().setUp()
-        waf_path = Path(__file__).parent / './conf/waf.json'
+        waf_path = Path(__file__).parent / 'conf/waf.json'
         waf_text = waf_path.read_text()
         self.orch.nginx_replace_file('/tmp/waf.json', waf_text)
 
