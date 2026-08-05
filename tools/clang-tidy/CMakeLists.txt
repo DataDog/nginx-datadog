@@ -7,7 +7,8 @@ find_package(Clang REQUIRED CONFIG)
 
 add_library(NginxDatadogClangTidy MODULE
   NginxDatadogModule.cpp
-  NginxLogFormatCheck.cpp)
+  NginxLogFormatCheck.cpp
+  NoNumberedNgxLogDebugCheck.cpp)
 
 target_compile_features(NginxDatadogClangTidy PRIVATE cxx_std_17)
 target_include_directories(NginxDatadogClangTidy PRIVATE

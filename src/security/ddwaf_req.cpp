@@ -260,8 +260,8 @@ bool handle_schema(ngx_log_t &log, const ddwaf_obj &obj, Func &&f) {
     return false;
   }
 
-  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, &log, 0,
-                 "ddwaf_req: handling attribute %V", &key);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, &log, 0, "ddwaf_req: handling attribute %V",
+                &key);
 
   rapidjson::StringBuffer buffer;
   JsonWriter w(buffer);
@@ -309,8 +309,8 @@ void handle_non_schema_attribute(ngx_log_t &log, const ddwaf_obj &obj,
     return;
   }
 
-  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, &log, 0,
-                 "ddwaf_req: handling non-schema attribute %V", &key);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, &log, 0,
+                "ddwaf_req: handling non-schema attribute %V", &key);
 
   std::variant<std::string_view, double> v;
   if (obj.is_numeric()) {

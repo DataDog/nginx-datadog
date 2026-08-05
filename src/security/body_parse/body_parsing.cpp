@@ -189,9 +189,9 @@ bool parse_body_req(ddwaf_obj &slot, const ngx_http_request_t &req,
     return parse_urlencoded(slot, chain, size, memres);
   }
 
-  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
-                 "unsupported content-type: %V",
-                 &req.headers_in.content_type->value);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                "unsupported content-type: %V",
+                &req.headers_in.content_type->value);
   return false;
 }
 

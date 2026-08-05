@@ -1,10 +1,13 @@
-# nginx log format clang-tidy check
+# nginx clang-tidy checks
 
-This directory contains an out-of-tree clang-tidy module with one check:
+This directory contains an out-of-tree clang-tidy module with these checks:
 
-- `nginx-datadog-ngx-log-format`
+- `nginx-datadog-ngx-log-format` validates literal nginx log format strings and
+  their arguments.
+- `nginx-datadog-no-numbered-ngx-log-debug` rejects the non-variadic
+  `ngx_log_debug0` ... `ngx_log_debug8` macros. Use `ngx_log_debug` instead.
 
-The check validates literal format strings passed to `ngx_log_error`,
+The format check validates literal format strings passed to `ngx_log_error`,
 `ngx_log_debug`, `ngx_log_debug0` ... `ngx_log_debug8`, and direct
 `ngx_log_error_core` calls.  It implements the format grammar used by nginx's
 `ngx_vslprintf` in `src/core/ngx_string.c`.

@@ -358,8 +358,8 @@ ngx_int_t BlockingService::block(BlockSpecification spec,
   req.lingering_close = 0;
 
   ngx_int_t res = ngx_http_send_header(&req);
-  ngx_log_debug1(NGX_LOG_DEBUG, req.connection->log, 0,
-                 "block(): status %i returned by ngx_http_send_header", res);
+  ngx_log_debug(NGX_LOG_DEBUG, req.connection->log, 0,
+                "block(): status %i returned by ngx_http_send_header", res);
   if (res != NGX_OK) {
     return res;
   }

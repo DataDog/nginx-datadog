@@ -286,9 +286,9 @@ bool parse_json(ddwaf_obj &slot, const ngx_http_request_t &req,
   ddwaf_obj *json_obj = handler.finish(req);
   if (res.IsError()) {
     if (json_obj) {
-      ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
-                     "json parsing failed after producing some output: %s",
-                     rapidjson::GetParseError_En(res.Code()));
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                    "json parsing failed after producing some output: %s",
+                    rapidjson::GetParseError_En(res.Code()));
     } else {
       ngx_log_error(NGX_LOG_NOTICE, req.connection->log, 0,
                     "json parsing failed without producing any output: %s",

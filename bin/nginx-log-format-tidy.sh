@@ -114,8 +114,8 @@ fi
 common_args=(
     -p "$build_dir"
     "-load=$plugin"
-    '-checks=-*,nginx-datadog-ngx-log-format'
-    '-warnings-as-errors=nginx-datadog-ngx-log-format'
+    '-checks=-*,nginx-datadog-*'
+    '-warnings-as-errors=nginx-datadog-*'
     "-header-filter=^$container_repo/src/.*"
     -quiet
     -extra-arg=-DNGX_DEBUG=1
