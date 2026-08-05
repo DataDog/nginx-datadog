@@ -9,6 +9,16 @@ include:
       when: never
     - when: on_success
 
+build-and-sign-ci-images:
+  stage: build-and-test-fast
+  resource_group: ci-images
+  trigger:
+    include: ".gitlab/build-ci-images.yml"
+    strategy: mirror
+  rules:
+    - when: manual
+      allow_failure: true
+
 build-formatter-image:
   extends: .build-and-test-fast
   image: registry.ddbuild.io/images/nydus:v2.3.8-dd

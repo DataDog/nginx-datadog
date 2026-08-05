@@ -1,0 +1,96 @@
+include:
+  - local: ".gitlab/common.yml"
+
+stages:
+  - build
+  - sign
+
+build-ci-images:
+  stage: build
+  image: registry.ddbuild.io/images/nydus:v2.3.8-dd
+  tags: ["docker-in-docker:$ARCH"]
+  interruptible: false
+  parallel:
+    matrix:
+      - ARCH: amd64
+        TOOLCHAIN_ARCH: x86_64
+      - ARCH: arm64
+        TOOLCHAIN_ARCH: aarch64
+  variables:
+    CI_ENABLE_CONTAINER_IMAGE_BUILDS: "true"
+  script:
+    - |
+      set -euo pipefail
+
+      daemon_arch=$(docker info --format '{{.Architecture}}')
+      if [ "$daemon_arch" != "$TOOLCHAIN_ARCH" ]; then
+        echo "Expected a $TOOLCHAIN_ARCH Docker daemon, got $daemon_arch" >&2
+        exit 1
+      fi
+
+      toolchain_image="$CI_REGISTRY/nginx_musl_toolchain"
+      docker build \
+        --provenance=false \
+        --sbom=false \
+        --progress=plain \
+        --platform "linux/$ARCH" \
+        --build-arg "ARCH=$TOOLCHAIN_ARCH" \
+        --tag "$toolchain_image:latest-$ARCH" \
+        build_env
+      docker push "$toolchain_image:latest-$ARCH"
+
+      test_image="$CI_REGISTRY/test"
+      docker build \
+        --provenance=false \
+        --sbom=false \
+        --progress=plain \
+        --platform "linux/$ARCH" \
+        --tag "$test_image:latest-$ARCH" \
+        test
+      docker push "$test_image:latest-$ARCH"
+
+      uwsgi_image="$CI_REGISTRY/uwsgi"
+      docker build \
+        --provenance=false \
+        --sbom=false \
+        --progress=plain \
+        --platform "linux/$ARCH" \
+        --tag "$uwsgi_image:latest-$ARCH" \
+        test/services/uwsgi
+      docker push "$uwsgi_image:latest-$ARCH"
+
+assemble-and-sign-ci-images:
+  stage: sign
+  image: registry.ddbuild.io/images/nydus:v2.3.8-dd
+  tags: ["docker-in-docker:amd64"]
+  interruptible: false
+  needs:
+    - build-ci-images
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  script:
+    - |
+      set -euo pipefail
+
+      for image_name in nginx_musl_toolchain test uwsgi; do
+        image="$CI_REGISTRY/$image_name"
+        docker buildx imagetools create \
+          --tag "$image:latest" \
+          "$image:latest-amd64" \
+          "$image:latest-arm64"
+
+        digest=$(crane digest "$image:latest")
+        ddsign sign "$image:latest@$digest"
+        ddsign verify "$image:latest@$digest"
+
+        case "$image_name" in
+          nginx_musl_toolchain) variable=MUSL_TOOLCHAIN_IMAGE ;;
+          test) variable=TEST_IMAGE ;;
+          uwsgi) variable=UWSGI_TEST_IMAGE ;;
+        esac
+        printf '%s=%s@%s\n' "$variable" "$image" "$digest" | tee -a ci-images.env
+      done
+  artifacts:
+    reports:
+      dotenv: ci-images.env
