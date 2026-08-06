@@ -29,6 +29,7 @@ build-ci-images:
       fi
 
       for image_name in nginx_musl_toolchain test uwsgi; do
+        extra_args=()
         case "$image_name" in
           nginx_musl_toolchain)
             context="build_env"
@@ -36,11 +37,9 @@ build-ci-images:
             ;;
           test)
             context="test"
-            extra_args=()
             ;;
           uwsgi)
             context="test/services/uwsgi"
-            extra_args=()
             ;;
         esac
 
