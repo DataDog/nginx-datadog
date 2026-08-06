@@ -110,6 +110,7 @@ class TestCase(unittest.TestCase):
         nginx_log_queue = self.orch.logs['nginx']
         deadline = time.monotonic() + timeout_secs
         crash_lines = []
+        observed_lines = []
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
@@ -118,10 +119,12 @@ class TestCase(unittest.TestCase):
                 line = nginx_log_queue.get(timeout=remaining)
             except queue.Empty:
                 break
+            observed_lines.append(line)
             if crash_re.search(line):
                 crash_lines.append(line.strip())
         self.assertEqual([], crash_lines,
                          f'nginx worker crashed: {crash_lines}')
+        return observed_lines
 
     def tearDown(self):
         end = time.monotonic()

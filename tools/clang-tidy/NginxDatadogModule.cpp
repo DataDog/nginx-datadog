@@ -1,4 +1,5 @@
 #include "NginxLogFormatCheck.h"
+#include "NoNumberedNgxLogDebugCheck.h"
 #include "clang-tidy/ClangTidyModule.h"
 #include "clang-tidy/ClangTidyModuleRegistry.h"
 
@@ -10,6 +11,8 @@ class NginxDatadogModule : public ClangTidyModule {
   void addCheckFactories(ClangTidyCheckFactories& CheckFactories) override {
     CheckFactories.registerCheck<NginxLogFormatCheck>(
         "nginx-datadog-ngx-log-format");
+    CheckFactories.registerCheck<NoNumberedNgxLogDebugCheck>(
+        "nginx-datadog-no-numbered-ngx-log-debug");
   }
 };
 

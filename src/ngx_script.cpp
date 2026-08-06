@@ -40,9 +40,9 @@ ngx_str_t NgxScript::run(ngx_http_request_t *request) const noexcept {
     return {0, nullptr};
   }
 
-  ngx_log_debug2(NGX_LOG_DEBUG_HTTP, request->connection->log, 0,
-                 "executing Datadog script \"%V\" for request %p", &pattern_,
-                 request);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, request->connection->log, 0,
+                "executing Datadog script \"%V\" for request %p", &pattern_,
+                request);
 
   // If the script has no variables, we can just return the pattern.
   if (!lengths_) return pattern_;

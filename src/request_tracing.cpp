@@ -189,8 +189,8 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   auto *tracer = global_tracer();
   if (!tracer) throw std::runtime_error{"no global tracer set"};
 
-  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-                 "starting Datadog request span for %p", request_);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
+                "starting Datadog request span for %p", request_);
 
   std::optional<std::string> service =
       common::eval_complex_value(loc_conf_->service_name, request_);
@@ -257,10 +257,9 @@ RequestTracing::RequestTracing(ngx_http_request_t *request,
   }
 
   if (loc_conf_->enable_locations) {
-    ngx_log_debug3(
-        NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-        "starting Datadog location span for \"%V\"(%p) in request %p",
-        &core_loc_conf->name, loc_conf_, request_);
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
+                  "starting Datadog location span for \"%V\"(%p) in request %p",
+                  &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
     config.service = service;
     config.environment = env;
@@ -281,10 +280,9 @@ void RequestTracing::on_change_block(ngx_http_core_loc_conf_t *core_loc_conf,
   loc_conf_ = loc_conf;
 
   if (loc_conf->enable_locations) {
-    ngx_log_debug3(
-        NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-        "starting Datadog location span for \"%V\"(%p) in request %p",
-        &core_loc_conf->name, loc_conf_, request_);
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
+                  "starting Datadog location span for \"%V\"(%p) in request %p",
+                  &core_loc_conf->name, loc_conf_, request_);
     dd::SpanConfig config;
     config.service =
         common::eval_complex_value(loc_conf_->service_name, request_);
@@ -317,9 +315,9 @@ void RequestTracing::on_exit_block(
   // available when a block is first entered, so set tags when the block is
   // exited instead.
   if (loc_conf_->enable_locations) {
-    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-                   "finishing Datadog location span for %p in request %p",
-                   loc_conf_, request_);
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
+                  "finishing Datadog location span for %p in request %p",
+                  loc_conf_, request_);
     add_script_tags(main_conf_->tags, request_, *span_);
     add_script_tags(loc_conf_->tags, request_, *span_);
     add_status_tags(request_, *span_);
@@ -348,8 +346,8 @@ void RequestTracing::on_log_request() {
   auto finish_timestamp = std::chrono::steady_clock::now();
   on_exit_block(finish_timestamp);
 
-  ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
-                 "finishing Datadog request span for %p", request_);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, request_->connection->log, 0,
+                "finishing Datadog request span for %p", request_);
   add_status_tags(request_, *request_span_);
   add_upstream_name(request_, *request_span_);
 

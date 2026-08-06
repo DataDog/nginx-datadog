@@ -1,9 +1,11 @@
 #include "context.h"
 
 #include <atomic>
+#include <chrono>
 #include <climits>
 #include <optional>
 #include <stdexcept>
+#include <thread>
 #include <type_traits>
 #include <utility>
 
@@ -153,6 +155,7 @@ class PolTaskCtx {
     as_self().replace_handlers();
 
     req_.main->count++;
+    req_.main->blocked++;
 
     bool simulate_task_post_failure = false;
     auto *main_conf = static_cast<datadog_main_conf_t *>(
@@ -172,6 +175,7 @@ class PolTaskCtx {
       Stats::task_submission_failed();
 
       req_.main->count--;
+      req_.main->blocked--;
       as_self().restore_handlers();
 
       as_self().~Self();
@@ -180,9 +184,11 @@ class PolTaskCtx {
 
     Stats::task_submitted();
 
-    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, req_log(), 0,
-                   "task %p submitted. Request refcount: %d", &get_task(),
-                   req_.main->count);
+    maybe_schedule_test_termination(main_conf);
+
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
+                  "task %p submitted. Request refcount: %d", &get_task(),
+                  req_.main->count);
 
     return true;
   }
@@ -203,6 +209,33 @@ class PolTaskCtx {
     static_cast<Self *>(self)->handle(tp_log);
   }
 
+  void maybe_schedule_test_termination(
+      datadog_main_conf_t *main_conf) noexcept {
+    if (main_conf &&
+        main_conf->appsec_test_task_termination_delay_ms != NGX_CONF_UNSET &&
+        main_conf->appsec_test_task_termination_delay_ms > 0 &&
+        main_conf->appsec_test_task_termination_mask != NGX_CONF_UNSET &&
+        (main_conf->appsec_test_task_termination_mask &
+         Self::get_task_failure_flag())) {
+      terminate_test_event_.handler = &PolTaskCtx::test_terminate_request;
+      terminate_test_event_.data = this;
+      terminate_test_event_.log = req_log();
+      ngx_add_timer(&terminate_test_event_,
+                    main_conf->appsec_test_task_termination_delay_ms);
+    }
+  }
+
+  // runs on the main thread; test-only forced-termination hook
+  static void test_terminate_request(ngx_event_t *evt) noexcept {
+    auto *self = static_cast<PolTaskCtx *>(evt->data);
+    ngx_connection_t *connection = self->req_.connection;
+
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, self->req_log(), 0,
+                  "test hook: terminating request while WAF task is active");
+    ngx_http_finalize_request(&self->req_, NGX_ERROR);
+    ngx_http_run_posted_requests(connection);
+  }
+
   // runs on the thread pool
   void handle(ngx_log_t *tp_log) noexcept {
     try {
@@ -211,6 +244,19 @@ class PolTaskCtx {
       block_spec_ = as_self().do_handle(*tp_log);
       // test long libddwaf call
       // ::usleep(2000000);
+
+      // For testing: artificially delay the completion of this task (see
+      // datadog_appsec_test_task_delay_ms). This is used to deterministically
+      // widen the window during which the task is known to still be in flight
+      // so tests can terminate the request before the completion handler runs.
+      auto *main_conf = static_cast<datadog_main_conf_t *>(
+          ngx_http_get_module_main_conf(&req_, ngx_http_datadog_module));
+      if (main_conf && main_conf->appsec_test_task_delay_ms != NGX_CONF_UNSET &&
+          main_conf->appsec_test_task_delay_ms > 0) {
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(main_conf->appsec_test_task_delay_ms));
+      }
+
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0, "after task %p main",
                     &get_task());
       ran_on_thread_.store(true, std::memory_order_release);
@@ -234,6 +280,16 @@ class PolTaskCtx {
   }
 
   void completion_handler_impl() noexcept {
+    if (terminate_test_event_.timer_set) {
+      ngx_del_timer(&terminate_test_event_);
+    }
+
+    // The task is no longer in flight now that its completion handler is
+    // running on the main thread; release the "blocked" reference that kept
+    // ngx_http_terminate_request() from force-freeing the request pool
+    // while the task ran on the thread pool.
+    req_.main->blocked--;
+
     as_self().restore_handlers();
 
     auto count = req_.main->count;
@@ -248,6 +304,21 @@ class PolTaskCtx {
     std::memcpy(self_copy_storage, this, sizeof(Self));
     Self *self_copy = reinterpret_cast<Self *>(self_copy_storage);
 
+    if (req_.main->terminated) {
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
+                    "request was terminated while task %p was active; "
+                    "running the connection write handler",
+                    &get_task());
+
+      req_.main->count--;
+      ngx_event_t *write_event = req_.connection->write;
+      write_event->handler(write_event);
+
+      // The request pool may have been destroyed by the write handler.
+      self_copy->~Self();
+      return;
+    }
+
     if (count > 1) {
       // ngx_del_event(connection->read, NGX_READ_EVENT, 0) may've been called
       // by ngx_http_block_reading
@@ -258,13 +329,13 @@ class PolTaskCtx {
                       &get_task());
       } else {
         req_.main->count--;
-        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, req_log(), 0,
-                       "calling complete on task %p", &get_task());
+        ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
+                      "calling complete on task %p", &get_task());
         as_self().complete();
         // req_ may be invalid at this point
       }
     } else {
-      ngx_log_debug1(
+      ngx_log_debug(
           NGX_LOG_DEBUG_HTTP, req_log(), 0,
           "skipping run of completion handler for task %p because "
           "we're the only reference to the request; finalizing instead",
@@ -304,8 +375,8 @@ class PolTaskCtx {
   Self &as_self() { return *static_cast<Self *>(this); }
 
   static void empty_write_handler(ngx_http_request_t *req) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req->connection->log, 0,
-                   "task wait empty handler");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req->connection->log, 0,
+                  "task wait empty handler");
 
     ngx_event_t *wev = req->connection->write;
 
@@ -322,6 +393,7 @@ class PolTaskCtx {
   ngx_http_event_handler_pt prev_read_evt_handler_;
   ngx_http_event_handler_pt prev_write_evt_handler_;
   std::atomic<bool> ran_on_thread_{false};
+  ngx_event_t terminate_test_event_{};
 };
 
 class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
@@ -336,8 +408,8 @@ class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
   }
 
   void complete() noexcept {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                   "completion handler of waf start task: start");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                  "completion handler of waf start task: start");
 
     bool const ran = ran_on_thread_.load(std::memory_order_acquire);
     if (ran && block_spec_) {
@@ -368,8 +440,8 @@ class Pol1stWafCtx : public PolTaskCtx<Pol1stWafCtx> {
     } else {
       req_.phase_handler++;  // move past us
       ngx_post_event(req_.connection->write, &ngx_posted_events);
-      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                     "completion handler of waf start task: normal finish");
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                    "completion handler of waf start task: normal finish");
     }
   }
 
@@ -390,8 +462,8 @@ bool Context::do_on_request_start(ngx_http_request_t &request, dd::Span &span) {
 
   stage st = stage_->load(std::memory_order_relaxed);
   if (st != stage::START) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                   "WAF context is not in the start stage. Internal redirect?");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                  "WAF context is not in the start stage. Internal redirect?");
     return false;
   }
 
@@ -493,8 +565,8 @@ class PolReqBodyWafCtx : public PolTaskCtx<PolReqBodyWafCtx> {
   }
 
   void complete() noexcept {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                   "completion handler of waf req post task: start");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                  "completion handler of waf req post task: start");
     bool const ran = ran_on_thread_.load(std::memory_order_acquire);
 
     if (ran && block_spec_) {
@@ -549,10 +621,10 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
 
   void complete() noexcept {
     bool const ran = ran_on_thread_.load(std::memory_order_acquire);
-    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                   "completion handler of waf req final task (ran: %s, "
-                   "blocked: %s): start",
-                   ran ? "true" : "false", block_spec_ ? "true" : "false");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                  "completion handler of waf req final task (ran: %s, "
+                  "blocked: %s): start",
+                  ran ? "true" : "false", block_spec_ ? "true" : "false");
 
     if (ran && block_spec_) {
       span_.set_tag("appsec.blocked"sv, "true"sv);
@@ -609,14 +681,40 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
     }
   }
 
-  static void empty_handler_read(ngx_event_t *wev) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
-                   "PolFinalWafCtx: http empty handler (read)");
+  static void empty_handler_read(ngx_event_t *rev) {
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, rev->log, 0,
+                  "PolFinalWafCtx: http empty handler (read)");
+
+    // Avoid a busy loop on level-triggered event backends, matching
+    // ngx_http_block_reading. PolTaskCtx::complete() re-arms the event after
+    // restoring the original handler.
+    if ((ngx_event_flags & NGX_USE_LEVEL_EVENT) && rev->active) {
+      if (ngx_del_event(rev, NGX_READ_EVENT, 0) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, rev->log, 0,
+                      "failed to suspend downstream read event");
+      } else {
+        ngx_log_debug(NGX_LOG_DEBUG_HTTP, rev->log, 0,
+                      "PolFinalWafCtx: suspended downstream read event");
+      }
+    }
   }
 
   static void empty_handler_write(ngx_event_t *wev) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
-                   "PolFinalWafCtx: http empty handler (write)");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                  "PolFinalWafCtx: http empty handler (write)");
+
+    // Avoid a busy loop on level-triggered event backends, matching nginx's
+    // own direct empty-write-handler call sites. PolFinalWafCtx::complete()
+    // posts the event after restoring its original handler.
+    if ((ngx_event_flags & NGX_USE_LEVEL_EVENT) && wev->active) {
+      if (ngx_del_event(wev, NGX_WRITE_EVENT, 0) != NGX_OK) {
+        ngx_log_error(NGX_LOG_ERR, wev->log, 0,
+                      "failed to suspend downstream write event");
+      } else {
+        ngx_log_debug(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                      "PolFinalWafCtx: suspended downstream write event");
+      }
+    }
   }
 
   static void empty_upstream_handler_read(ngx_event_t *wev) {
@@ -625,8 +723,8 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
         *static_cast<ngx_http_request_t *>(upstream_c.data);
     ngx_connection_t &downstream_c = *req.connection;
 
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, downstream_c.log, 0,
-                   "PolFinalWafCtx: http empty upstream read handler");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, downstream_c.log, 0,
+                  "PolFinalWafCtx: http empty upstream read handler");
 
     // avoid busy loop on level-triggered (see ngx_http_block_reading)
     if ((ngx_event_flags & NGX_USE_LEVEL_EVENT) && upstream_c.read->active) {
@@ -652,8 +750,8 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
     if (req_.upstream && req_.upstream->upgrade) {
       // the upstream read handler bypasses the downstream handlers and calls
       // connection->send directly. We need to neuter it
-      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
-                     "PolFinalWafCtx: replacing upstream read handler");
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_.connection->log, 0,
+                    "PolFinalWafCtx: replacing upstream read handler");
       auto &upstream_read_handler =
           req_.upstream->peer.connection->read->handler;
       orig_upstream_read_handler_ = upstream_read_handler;
@@ -673,8 +771,8 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
   void trigger_upstream_read() noexcept {
     ngx_connection_t &upstream_c = *req_.upstream->peer.connection;
 
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, req_log(), 0,
-                   "PolFinalWafCtx: triggering upstream read");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
+                  "PolFinalWafCtx: triggering upstream read");
 
     // re-arm after possible del_event
     ngx_handle_read_event(upstream_c.read, 0);
@@ -727,15 +825,15 @@ class PolFinalWafCtx : public PolTaskCtx<PolFinalWafCtx> {
 ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
                                           ngx_chain_t *in, dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
-  ngx_log_debug4(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                 "waf request body filter %s in chain. accumulated=%uz, "
-                 "copied=%uz, Stage: %d",
-                 in ? "with" : "without", filter_ctx_.out_total,
-                 filter_ctx_.copied_total, static_cast<int>(st));
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                "waf request body filter %s in chain. accumulated=%uz, "
+                "copied=%uz, Stage: %d",
+                in ? "with" : "without", filter_ctx_.out_total,
+                filter_ctx_.copied_total, static_cast<int>(st));
 
   if (st == stage::AFTER_BEGIN_WAF) {
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                   "first filter call, req refcount=%d", request.main->count);
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                  "first filter call, req refcount=%d", request.main->count);
     // buffer the request body during reading
     // https://github.com/nginx/nginx/commit/67d160bf25e02ba6679bb6c3b9cbdfeb29b759de
     // https://nginx.org/en/docs/dev/development_guide.html#http_request_body_filters
@@ -751,8 +849,8 @@ ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
       // preread call by ngx_http_read_client_request_body.
       // read and write handlers were not set yet, so don't launch the
       // waf now. We'll do it on the next call.
-      ngx_log_debug0(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                     "1st preread call, no waf task submission yet");
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                    "1st preread call, no waf task submission yet");
       st = transition_to_stage(stage::COLLECTING_ON_REQ_DATA_PREREAD);
     } else {
       st = transition_to_stage(stage::COLLECTING_ON_REQ_DATA);
@@ -786,15 +884,15 @@ ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
       }
 
       if (filter_ctx_.out_total == 0) {
-        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                       "no data to run WAF on");
+        ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                      "no data to run WAF on");
         transition_to_stage(stage::AFTER_ON_REQ_WAF);
         goto pass_downstream;
       }
 
-      ngx_log_debug2(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                     "running WAF on %uz bytes of data (found last: %s)",
-                     new_size, is_last ? "true" : "false");
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                    "running WAF on %uz bytes of data (found last: %s)",
+                    new_size, is_last ? "true" : "false");
 
       PolReqBodyWafCtx &task_ctx =
           PolReqBodyWafCtx::create(request, *this, span);
@@ -822,9 +920,9 @@ ngx_int_t Context::do_request_body_filter(ngx_http_request_t &request,
   } else if (st == stage::AFTER_ON_REQ_WAF ||
              st == stage::AFTER_ON_REQ_WAF_BLOCK) {
     if (filter_ctx_.out) {  // first call after WAF ended
-      ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                     "first filter call after WAF ended, req refcount=%d",
-                     request.main->count);
+      ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                    "first filter call after WAF ended, req refcount=%d",
+                    request.main->count);
       if (buffer_chain(filter_ctx_, RequestPool{request}, in, false) !=
           NGX_OK) {
         return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -1057,8 +1155,8 @@ Context *get_sec_ctx(ngx_http_request_t *random_data) noexcept {
 
 void Context::drain_buffered_data_write_handler(
     ngx_http_request_t *r) noexcept {
-  ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                 "drain_buffered_data_write_handler called");
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                "drain_buffered_data_write_handler called");
 
   Context *ctx = get_sec_ctx(r);
   if (!ctx) {
@@ -1084,8 +1182,8 @@ void Context::drain_buffered_data_write_handler(
   }
 
   if (wev->delayed || r->aio) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, wev->log, 0,
-                   "drain_buffered_data_write_handler: http writer delayed");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, wev->log, 0,
+                  "drain_buffered_data_write_handler: http writer delayed");
 
     if (!wev->delayed) {
       ngx_add_timer(wev, clcf->send_timeout);
@@ -1103,10 +1201,10 @@ void Context::drain_buffered_data_write_handler(
                 "ngx_http_output_filter");
   ngx_int_t rc = ngx_http_output_filter(r, NULL);
 
-  ngx_log_debug3(NGX_LOG_DEBUG_HTTP, c->log, 0,
-                 "drain_buffered_data_write_handler: http writer output "
-                 "filter: %i, \"%V?%V\"",
-                 rc, &r->uri, &r->args);
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, c->log, 0,
+                "drain_buffered_data_write_handler: http writer output "
+                "filter: %i, \"%V?%V\"",
+                rc, &r->uri, &r->args);
 
   if (rc == NGX_ERROR) {
     ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
@@ -1134,9 +1232,9 @@ void Context::drain_buffered_data_write_handler(
     return;
   }
 
-  ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                 "drain_buffered_header_write_handler: send_buffered_header "
-                 "succeeded; restoring handler and triggering write");
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
+                "drain_buffered_header_write_handler: send_buffered_header "
+                "succeeded; restoring handler and triggering write");
   r->write_event_handler = ctx->prev_req_write_evt_handler_;
   ngx_post_event(r->connection->write, &ngx_posted_events);
 }
@@ -1348,12 +1446,12 @@ Http2TemporarySendChain Http2TemporarySendChain::instance;
 ngx_int_t Context::do_header_filter(ngx_http_request_t &request,
                                     dd::Span &span) {
   auto st = stage_->load(std::memory_order_acquire);
-  ngx_log_debug4(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                 "waf header filter in stage %V, header_sent=%d, "
-                 "buf_header_data_(len,size)=(%uz,%uz)",
-                 to_ngx_str(st), request.header_sent,
-                 chain::length(header_filter_ctx_.out),
-                 chain::size(header_filter_ctx_.out));
+  ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                "waf header filter in stage %V, header_sent=%d, "
+                "buf_header_data_(len,size)=(%uz,%uz)",
+                to_ngx_str(st), request.header_sent,
+                chain::length(header_filter_ctx_.out),
+                chain::size(header_filter_ctx_.out));
 
   if (st != stage::AFTER_BEGIN_WAF && st != stage::AFTER_ON_REQ_WAF) {
     return ngx_http_next_header_filter(&request);
@@ -1466,10 +1564,10 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
       return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
-    ngx_log_debug2(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                   "waf output body filter: there are now %uz bytes of "
-                   "accumulated output data (%uz copied)",
-                   out_filter_ctx_.out_total, out_filter_ctx_.copied_total);
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                  "waf output body filter: there are now %uz bytes of "
+                  "accumulated output data (%uz copied)",
+                  out_filter_ctx_.out_total, out_filter_ctx_.copied_total);
 
     const bool start_waf =
         st == stage::COLLECTING_ON_RESP_DATA &&
@@ -1511,10 +1609,10 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
   if (st == stage::WAF_END_BLOCK_COMMIT) {
     // commit of body of blocking response
     assert(request.header_sent == 1);
-    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                   "waf output body filter: discarding %uz bytes of "
-                   "accumulated data and passing down blocking response data",
-                   out_filter_ctx_.out_total);
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                  "waf output body filter: discarding %uz bytes of "
+                  "accumulated data and passing down blocking response data",
+                  out_filter_ctx_.out_total);
     header_filter_ctx_.clear(RequestPool{request});
     out_filter_ctx_.clear(RequestPool{request});
 
@@ -1590,8 +1688,8 @@ std::optional<BlockSpecification> Context::run_waf_req_post(
                                 filter_ctx_.out_total, memres_);
 
   if (!success) {
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
-                   "failed to parse request body for WAF");
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
+                  "failed to parse request body for WAF");
     return std::nullopt;
   }
 
