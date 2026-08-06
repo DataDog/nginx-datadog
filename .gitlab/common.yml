@@ -7,6 +7,7 @@ variables:
   UWSGI_TEST_IMAGE: "$CI_REGISTRY/uwsgi@sha256:ee04b2d9841367c4247f01d0ba4a140894bdd16ba35c2f67dc8d1da9255ae1d3"
   # To get the sha256 digest after running make build-push-images-for-CI :
   # docker buildx imagetools inspect registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain:latest
+  NYDUS_IMAGE: "$REGISTRY/images/nydus:v2.3.8-dd"
 
 # Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
 # rewriting via CI job token. Defined as a hidden job (not global) so

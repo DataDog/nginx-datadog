@@ -7,7 +7,7 @@ stages:
 
 build-ci-images:
   stage: build
-  image: $REGISTRY/images/nydus:v2.3.8-dd
+  image: $NYDUS_IMAGE
   tags: ["docker-in-docker:$ARCH"]
   interruptible: false
   parallel:
@@ -61,7 +61,7 @@ build-ci-images:
 
 assemble-and-sign-ci-images:
   stage: sign
-  image: $REGISTRY/images/nydus:v2.3.8-dd
+  image: $NYDUS_IMAGE
   tags: ["docker-in-docker:amd64"]
   interruptible: false
   needs:
