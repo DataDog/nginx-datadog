@@ -1,12 +1,13 @@
 variables:
-  CI_REGISTRY: "registry.ddbuild.io/ci/nginx-datadog"
+  REGISTRY: "registry.ddbuild.io"
+  CI_REGISTRY: "$REGISTRY/ci/nginx-datadog"
   TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
-  MUSL_TOOLCHAIN_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain@sha256:75e497fa34d8afbb2ee583b242a8129581eb601968a82eb8a3bae5bf48178b75"
-  TEST_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/test@sha256:205560e0e734696e0eeaac735581317b2c45054b6ad64c7f9041e48559559e24"
-  UWSGI_TEST_IMAGE: "registry.ddbuild.io/ci/nginx-datadog/uwsgi@sha256:ee04b2d9841367c4247f01d0ba4a140894bdd16ba35c2f67dc8d1da9255ae1d3"
+  MUSL_TOOLCHAIN_IMAGE: "$CI_REGISTRY/nginx_musl_toolchain@sha256:75e497fa34d8afbb2ee583b242a8129581eb601968a82eb8a3bae5bf48178b75"
+  TEST_IMAGE: "$CI_REGISTRY/test@sha256:205560e0e734696e0eeaac735581317b2c45054b6ad64c7f9041e48559559e24"
+  UWSGI_TEST_IMAGE: "$CI_REGISTRY/uwsgi@sha256:ee04b2d9841367c4247f01d0ba4a140894bdd16ba35c2f67dc8d1da9255ae1d3"
   # To get the sha256 digest after running make build-push-images-for-CI :
   # docker buildx imagetools inspect registry.ddbuild.io/ci/nginx-datadog/nginx_musl_toolchain:latest
-
+  NYDUS_IMAGE: "$REGISTRY/images/nydus:v2.3.8-dd"
 
 # Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
 # rewriting via CI job token. Defined as a hidden job (not global) so

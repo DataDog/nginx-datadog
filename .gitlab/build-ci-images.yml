@@ -7,7 +7,7 @@ stages:
 
 build-ci-images:
   stage: build
-  image: registry.ddbuild.io/images/nydus:v2.3.8-dd
+  image: $NYDUS_IMAGE
   tags: ["docker-in-docker:$ARCH"]
   interruptible: false
   parallel:
@@ -28,40 +28,36 @@ build-ci-images:
         exit 1
       fi
 
-      toolchain_image="$CI_REGISTRY/nginx_musl_toolchain"
-      docker build \
-        --provenance=false \
-        --sbom=false \
-        --progress=plain \
-        --platform "linux/$ARCH" \
-        --build-arg "ARCH=$TOOLCHAIN_ARCH" \
-        --tag "$toolchain_image:latest-$ARCH" \
-        build_env
-      docker push "$toolchain_image:latest-$ARCH"
+      for image_name in nginx_musl_toolchain test uwsgi; do
+        extra_args=()
+        case "$image_name" in
+          nginx_musl_toolchain)
+            context="build_env"
+            extra_args=(--build-arg "ARCH=$TOOLCHAIN_ARCH")
+            ;;
+          test)
+            context="test"
+            ;;
+          uwsgi)
+            context="test/services/uwsgi"
+            ;;
+        esac
 
-      test_image="$CI_REGISTRY/test"
-      docker build \
-        --provenance=false \
-        --sbom=false \
-        --progress=plain \
-        --platform "linux/$ARCH" \
-        --tag "$test_image:latest-$ARCH" \
-        test
-      docker push "$test_image:latest-$ARCH"
-
-      uwsgi_image="$CI_REGISTRY/uwsgi"
-      docker build \
-        --provenance=false \
-        --sbom=false \
-        --progress=plain \
-        --platform "linux/$ARCH" \
-        --tag "$uwsgi_image:latest-$ARCH" \
-        test/services/uwsgi
-      docker push "$uwsgi_image:latest-$ARCH"
+        image="$CI_REGISTRY/$image_name"
+        docker build \
+          --provenance=false \
+          --sbom=false \
+          --progress=plain \
+          --platform "linux/$ARCH" \
+          "${extra_args[@]}" \
+          --tag "$image:latest-$ARCH" \
+          "$context"
+        docker push "$image:latest-$ARCH"
+      done
 
 assemble-and-sign-ci-images:
   stage: sign
-  image: registry.ddbuild.io/images/nydus:v2.3.8-dd
+  image: $NYDUS_IMAGE
   tags: ["docker-in-docker:amd64"]
   interruptible: false
   needs:
