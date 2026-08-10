@@ -139,7 +139,7 @@ bool is_debian_or_ubuntu_build(std::string_view version_info) noexcept {
   return true;
 }
 
-bool running_nginx_is_debian_or_ubuntu() noexcept {
+bool is_running_nginx_is_debian_or_ubuntu() noexcept {
   try {
     const auto version_info = running_nginx_version_info();
     return version_info && is_debian_or_ubuntu_build(*version_info);
@@ -148,7 +148,7 @@ bool running_nginx_is_debian_or_ubuntu() noexcept {
   }
 }
 
-bool module_was_built_for_debian_or_ubuntu() noexcept {
+bool is_module_built_for_debian_or_ubuntu() noexcept {
   return DD_NGINX_DEBIAN_UBUNTU_BUILD;
 }
 
