@@ -1,5 +1,20 @@
 #pragma once
 
+#if defined(__clang__)
+#define PRAGMA_PUSH_IGNORE_INVALID_OFFSETOF \
+  _Pragma("clang diagnostic push")          \
+      _Pragma("clang diagnostic ignored \"-Winvalid-offsetof\"")
+#define PRAGMA_POP_IGNORE_INVALID_OFFSETOF _Pragma("clang diagnostic pop")
+#elif defined(__GNUC__)
+#define PRAGMA_PUSH_IGNORE_INVALID_OFFSETOF \
+  _Pragma("GCC diagnostic push")            \
+      _Pragma("GCC diagnostic ignored \"-Winvalid-offsetof\"")
+#define PRAGMA_POP_IGNORE_INVALID_OFFSETOF _Pragma("GCC diagnostic pop")
+#else
+#define PRAGMA_PUSH_IGNORE_INVALID_OFFSETOF
+#define PRAGMA_POP_IGNORE_INVALID_OFFSETOF
+#endif
+
 extern "C" {
 #include <ngx_core.h>
 }
