@@ -1,10 +1,9 @@
-# Developing `nginx-datadog`
+# Contributing to the Datadog Nginx Module
 
-This document describes the development process for `nginx-datadog`.
-It is intended for anyone considering opening an issue or pull request.
+This document describes the development process for `nginx-datadog`. It is intended for anyone
+considering opening an issue or pull request.
 
-Building Locally
-----------------
+## Building Locally
 
 ```shell
 NGINX_VERSION=1.29.7 make build
@@ -12,7 +11,8 @@ NGINX_VERSION=1.29.7 make build
 
 The resulting Nginx module is `.build/ngx_http_datadog_module.so`.
 
-If you encounter some **difficulties** building the module on **MacOS**, please look at the [troubleshooting section](#Troubleshooting).
+If you encounter some difficulties building the module on **MacOS**, please look at the
+[troubleshooting section](#troubleshooting).
 
 The `build` target does the following:
 
@@ -23,8 +23,7 @@ The `build` target does the following:
 
 `make clean` deletes CMake's build directory.
 
-Testing
--------
+** Testing
 
 The `Makefile` contains two target for testing:
 
@@ -66,7 +65,8 @@ To run the tests using an OpenResty image:
 RESTY_VERSION=1.29.2.1 make test-openresty
 ```
 
-You can also specificy the OpenResty base image rather then the version using the `BASE_IMAGE` parameter.
+You can also specificy the OpenResty base image rather then the version using the `BASE_IMAGE`
+parameter.
 
 You can pass on arguments to test suites using:
 
@@ -76,17 +76,19 @@ TEST_ARGS="foo=bar" NGINX_VERSION=1.29.7 make test
 
 For more information on tests, see [test/README.md](test/README.md).
 
-Troubleshooting
-----------------
+## Troubleshooting
+
 ### fatal error: 'pcre2.h' file not found on MacOS
 
-If during the build of the module, you encounter this error, please ensure that pcre2 is installed on your device. If not, you can install it with:
+If during the build of the module, you encounter this error, please ensure that pcre2 is installed
+on your device. If not, you can install it with:
 
 ```shell
 brew install pcre2
 ```
 
-If the build still does not work, you can use the flag `PCRE2_PATH` to specify the pcre2 installation folder it:
+If the build still does not work, you can use the flag `PCRE2_PATH` to specify the pcre2
+installation folder it:
 
 ```shell
 PCRE2_PATH=/opt/homebrew/Cellar/pcre2/10.44 NGINX_VERSION=1.29.7 make build

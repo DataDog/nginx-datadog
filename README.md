@@ -36,8 +36,8 @@ tarball contains a single file, `ngx_http_datadog_module.so`, which is the Datad
 
 The naming convention is:
 
-* `ngx_http_datadog_module-<arch>-<version>.so.tgz` for builds without appsec support;
-* `ngx_http_datadog_module-appsec-<arch>-<version>.so.tgz` for builds with appsec support.
+- `ngx_http_datadog_module-<arch>-<version>.so.tgz` for builds without appsec support;
+- `ngx_http_datadog_module-appsec-<arch>-<version>.so.tgz` for builds with appsec support.
 
 > [!IMPORTANT] The AppSec variants require Nginx to have been built with `--threads` (thread
 > support).
@@ -53,12 +53,12 @@ Unless otherwise configured, `ngx_http_datadog_module` adds the following defaul
 
 ### Tracing
 
-* Connect to the Datadog agent at `http://localhost:8126`.
-* Create one span per request:
-  * Service name is "nginx".
-  * Operation name is "nginx.request".
-  * Resource name is `"$request_method $uri"`, e.g. "GET /api/book/0-345-24223-8/title".
-  * Includes multiple `http.*`
+- Connect to the Datadog agent at `http://localhost:8126`.
+- Create one span per request:
+  - Service name is "nginx".
+  - Operation name is "nginx.request".
+  - Resource name is `"$request_method $uri"`, e.g. "GET /api/book/0-345-24223-8/title".
+  - Includes multiple `http.*`
     [tags](https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203).
 
 Custom configuration can be specified via the [datadog\_*](doc/API.md) family of directives in
@@ -70,9 +70,9 @@ variables](https://github.com/DataDog/dd-trace-cpp/blob/main/include/datadog/env
 To enable AppSec, besides using the correct binary (the relase artifact with "-appsec") in the name,
 it's necessary to edit the Nginx configuration:
 
-* Set `datadog_appsec_enabled on;`.
-* Define one (or more thread pools).
-* Choose which thread pool AppSec will use, either on a global or a per-location
+- Set `datadog_appsec_enabled on;`.
+- Define one (or more thread pools).
+- Choose which thread pool AppSec will use, either on a global or a per-location
   basis.
 
 For more information, see [the documentation](doc/API.md).
@@ -94,10 +94,10 @@ git submodule update --init --recursive
 
 Before building the module, ensure your environment meets the following requirements:
 
-* Recent C and C++ toolchain (`clang` or `gcc/g++`) (must support at least some C++20 features).
-* Make.
-* CMake `v3.24` or newer.
-* Architecture is either `x86_64` or `arm64`.
+- Recent C and C++ toolchain (`clang` or `gcc/g++`) (must support at least some C++20 features).
+- Make.
+- CMake `v3.24` or newer.
+- Architecture is either `x86_64` or `arm64`.
 
 ### Building Using Docker
 
@@ -118,10 +118,10 @@ WAF=ON ARCH=x86_64 NGINX_VERSION=1.29.7 make build-musl
 
 Options:
 
-* `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
-* `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
-* `NGINX_VERSION=<version>`: Specify the Nginx version to build.
-* `ASAN=<ON|OFF>`: Whether to enable ASAN/UBSan
+- `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
+- `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
+- `NGINX_VERSION=<version>`: Specify the Nginx version to build.
+- `ASAN=<ON|OFF>`: Whether to enable ASAN/UBSan
 
 The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 
@@ -138,9 +138,9 @@ WAF=ON ARCH=x86_64 RESTY_VERSION=1.29.2.1 make build-openresty
 
 Options:
 
-* `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
-* `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
-* `RESTY_VERSION=<version>`: Specify the OpenResty version to build.
+- `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
+- `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
+- `RESTY_VERSION=<version>`: Specify the OpenResty version to build.
 
 The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 
@@ -157,9 +157,9 @@ WAF=ON ARCH=x86_64 INGRESS_NGINX_VERSION=1.15.1 make build-ingress-nginx
 
 Options:
 
-* `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
-* `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
-* `INGRESS_NGINX_VERSION=<version>`: Specify the version Ingress Nginx to build.
+- `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
+- `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
+- `INGRESS_NGINX_VERSION=<version>`: Specify the version Ingress Nginx to build.
 
 The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 
@@ -167,33 +167,33 @@ The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 
 Prerequisites:
 
-* Docker and Docker Compose v2
-* uv installed
+- Docker and Docker Compose v2
+- uv installed
 
 Option A: one-shot build + test (use on a clean tree)
 
-* NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= TEST_DEPENDENCY= make build-and-test
-  * WAF=ON to include AppSec tests
-  * To use a different base image (non-ASAN), set BASE_IMAGE, e.g. BASE_IMAGE=nginx:1.28.4-alpine
-* ASAN mode:
-  * ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= TEST_DEPENDENCY= make
+- NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= TEST_DEPENDENCY= make build-and-test
+  - WAF=ON to include AppSec tests
+  - To use a different base image (non-ASAN), set BASE_IMAGE, e.g. BASE_IMAGE=nginx:1.28.4-alpine
+- ASAN mode:
+  - ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= TEST_DEPENDENCY= make
     build-and-test
-  * BASE_IMAGE/--image are ignored in ASAN mode (runner builds its own ASAN base)
+  - BASE_IMAGE/--image are ignored in ASAN mode (runner builds its own ASAN base)
 
 Option B: iterate quickly after the first build (avoid rebuilds)
 
-* Build once:
-  * NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= make build-musl
-* Run all tests without rebuilding images:
-  * TEST_DEPENDENCY= make test
-* Run a specific test:
-  * TEST_ARGS="cases.path.to.module.TestClass.test_method" TEST_DEPENDENCY= make test
-  * Example: TEST_ARGS="--failfast
+- Build once:
+  - NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= make build-musl
+- Run all tests without rebuilding images:
+  - TEST_DEPENDENCY= make test
+- Run a specific test:
+  - TEST_ARGS="cases.path.to.module.TestClass.test_method" TEST_DEPENDENCY= make test
+  - Example: TEST_ARGS="--failfast
     cases.auth_requests.test_auth_requests.TestAuthRequests.test_auth_request_with_auth_token_is_successful"
     TEST_DEPENDENCY= make test
-* ASAN iteration:
-  * Build with ASAN: ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= make build-musl
-  * Test with ASAN flags: ASAN=ON ARCH=x86_64 TEST_DEPENDENCY= make test
+- ASAN iteration:
+  - Build with ASAN: ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= make build-musl
+  - Test with ASAN flags: ASAN=ON ARCH=x86_64 TEST_DEPENDENCY= make test
 
 See test/README.md and test/cases/README.md for details and advanced usage.
 
