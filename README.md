@@ -18,8 +18,8 @@ Management](https://docs.datadoghq.com/security/application_security) into Nginx
 load_module modules/ngx_http_datadog_module.so;
 ```
 
-Tracing is automatically added to all endpoints by default. For more information, see [the API
-documentation](doc/API.md).
+Tracing is automatically added to all endpoints by default. For more information, see the
+[Configuration documentation](doc/configurtion.md).
 
 ## Compatibility
 
@@ -61,8 +61,8 @@ Unless otherwise configured, `ngx_http_datadog_module` adds the following defaul
   - Includes multiple `http.*`
     [tags](https://github.com/DataDog/nginx-datadog/blob/535a291ce96d8ca80cb12b22febac1e138e45847/src/tracing_library.cpp#L187-L203).
 
-Custom configuration can be specified via the [datadog\_*](doc/API.md) family of directives in
-Nginx's configuration file, or via [environment
+Custom configuration can be specified via the [datadog\_*](doc/configuration.md) family of
+directives in Nginx's configuration file, or via [environment
 variables](https://github.com/DataDog/dd-trace-cpp/blob/main/include/datadog/environment.h).
 
 ## Enabling AppSec
@@ -75,7 +75,7 @@ it's necessary to edit the Nginx configuration:
 - Choose which thread pool AppSec will use, either on a global or a per-location
   basis.
 
-For more information, see [the documentation](doc/API.md).
+For more information, see the [Configuration documentation](doc/configuration.md).
 
 ## Building the Module
 
