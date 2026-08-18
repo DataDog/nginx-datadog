@@ -2,7 +2,7 @@
 
 ## Conventions
 
-Follow [docs/conventions.md](doc/conventions.md).
+Follow [doc/conventions.md](doc/conventions.md).
 
 ## Format
 
@@ -11,7 +11,7 @@ Follow [docs/conventions.md](doc/conventions.md).
 
 Rebuild formatter image after editing `Dockerfile.formatter` with `make build-formatter-image`.
 
-## Building Locally
+## Build Locally
 
 ```shell
 NGINX_VERSION=<version> make build
@@ -26,12 +26,12 @@ The `build` target does the following:
 
 - Download a source release of Nginx based on the `NGINX_VERSION` environment variable.
 - Initialize the source tree of `dd-trace-cpp` as a git submodule.
-- Initialize the source tree of `libddwaf`as a git submodule.
+- Initialize the source tree of `libddwaf` as a git submodule.
 - Build `dd-trace-cpp` and the Datadog Nginx module together using CMake.
 
 `make clean` deletes CMake's build directory.
 
-## Building in Docker
+## Build in Docker
 
 ```shell
 NGINX_VERSION=<version> make build-musl
@@ -39,7 +39,7 @@ NGINX_VERSION=<version> make build-musl
 
 Append `TOOLCHAIN_DEPENDENCY=` to skip local toolchain image rebuild.
 
-## Testing
+## Test
 
 The `Makefile` has two targets for testing:
 
@@ -64,10 +64,10 @@ By default, it will launch the test on the `nginx:${NGINX_VERSION}-alpine` Docke
 If you want to use another Nginx image you can use:
 
 ```shell
-BASE_IMAGE=nginx:<version>-alpine-slim make build-and-test
+NGINX_VERSION=<version> BASE_IMAGE=nginx:<version>-alpine-slim make build-and-test
 ```
 
-### Additional test options
+### Additional Test Options
 
 Append `TEST_DEPENDENCY=` to skip uwsgi test image rebuild.
 
@@ -80,16 +80,16 @@ WAF=ON NGINX_VERSION=<version> make build-and-test
 To run the tests using an OpenResty image:
 
 ```shell
-RESTY_VERSION=<version> make test-openresty
+RESTY_VERSION=<version> BASE_IMAGE=nginx:<version> make test-openresty
 ```
 
-You can also specificy the OpenResty base image rather then the version using the `BASE_IMAGE`
+You can also specify the OpenResty base image rather then the version using the `BASE_IMAGE`
 parameter.
 
 To build and run the tests with address sanitizer instrumentation:
 
 ```shell
-ASAN=ON NGINX_VERSION=<ver> make build-and-test
+ASAN=ON NGINX_VERSION=<version> make build-and-test
 ```
 
 You can pass on arguments to test suites using:
