@@ -1,5 +1,11 @@
 # Agent Instructions
 
+## Conventions
+
+Follow [docs/conventions.md](doc/conventions.md).
+
+## Format
+
 `make format` to format, `make lint` to check. Rebuild formatter image after editing `Dockerfile.formatter` with `make build-formatter-image`.
 
 ## Running tests

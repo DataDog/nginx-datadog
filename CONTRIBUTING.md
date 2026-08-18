@@ -1,7 +1,8 @@
 # Contributing to the Datadog Nginx Module
 
-This document describes the development process for `nginx-datadog`. It is intended for anyone
-considering opening an issue or pull request.
+## Conventions
+
+Follow [docs/conventions.md](doc/conventions.md).
 
 ## Building Locally
 
