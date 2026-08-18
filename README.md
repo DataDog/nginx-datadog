@@ -1,6 +1,6 @@
 # Datadog Nginx Module
 
-<img alt="Datadog Tracing Nginx" src="mascot.svg" height="200"/>
+<img alt="Datadog Nginx" src="mascot.svg" height="200"/>
 
 This repository contains the source code for the `ngx_http_datadog_module`, an Nginx module that
 integrates Datadog [APM](https://docs.datadoghq.com/tracing) and [Application Security
@@ -196,6 +196,11 @@ Option B: iterate quickly after the first build (avoid rebuilds)
   * Test with ASAN flags: ASAN=ON ARCH=x86_64 TEST_DEPENDENCY= make test
 
 See test/README.md and test/cases/README.md for details and advanced usage.
+
+## Security
+
+If you discover a security vulnerablity in this softwa Datadog Nginx Module, please refer to the
+[Security Policy](SECURITY.md).
 
 ## Acknowledgements
 
