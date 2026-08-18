@@ -61,7 +61,7 @@ environment variable.
 - **default**: (no value)
 - **context**: `http`, `server`, `location`
 
-Set the name of the environment within which nginx is running. Common values
+Set the name of the environment within which Nginx is running. Common values
 include `prod`, `dev`, and `staging`.
 May overwrite `DD_ENV` environment variable.
 
@@ -140,17 +140,17 @@ line 18.
 The `datadog_sample_rate` directive that applies, if any, is annotated in the request span as the
 `nginx.sample_rate_source` tag. The tag has the following format:
 
-```
+```nginx
 <nginx file path>:<line>#<dupe>
 ```
 
 For example,
 
-```
+```nginx
 /etc/nginx/nginx.conf:23#1
 ```
 
-- `<nginx file path>` is the path to the nginx configuration file that contains the
+- `<nginx file path>` is the path to the Nginx configuration file that contains the
   `datadog_sample_rate` directive.
 - `<line>` is the line number where the directive appears.
 - `<dupe>` is the one-based index of the directive among all `datadog_sample_rate` directives that
@@ -250,7 +250,7 @@ The location span is a span created in addition to the request span. See `datado
 - **default**: `on`
 - **context**: `http`, `server`, `location`
 
-If `on`, attempt to extract trace context from incoming requests. This way, nginx need not be the
+If `on`, attempt to extract trace context from incoming requests. This way, Nginx needs not be the
 beginning of the trace — it can inherit a parent span from the incoming request.
 
 If `off`, trace context will not be extracted from incoming requests. Nginx will start a new trace.
@@ -263,7 +263,7 @@ concern.
 - **default**: `tracecontext datadog`
 - **context**: `http`
 
-Set one or more trace propagation styles that nginx will use to extract trace context from incoming
+Set one or more trace propagation styles that Nginx will use to extract trace context from incoming
 requests and to inject trace context into outgoing requests.
 
 When extracting trace context from an incoming request, the specified styles will be tried in order,
@@ -364,7 +364,7 @@ http {
 
 AppSec runs its core logic in a separate thread in order to avoid blocking the main thread as much
 as possible. This directive controls the thread pool where the task is dispatched to. The thread
-pool must have been defined with the nginx
+pool must have been defined with the Nginx
 [`thread_pool`](https://nginx.org/en/docs/ngx_core_module.html#thread_pool) directive. If a request
 is not mapped to any thread pool, AppSec checks will not run.
 
@@ -446,15 +446,15 @@ alternative response ("blocking response").
 This check takes some time, and more of the response may become available and be sent down the
 output filter chain before a decision can be made. This setting controls the approximate maximum
 amount of memory that will be allocated in the interim. Beyond this, the ouput filter chain will
-stall. Note that nginx may still spill the response into a temporary file if configured to do so.
+stall. Note that Nginx may still spill the response into a temporary file if configured to do so.
 
 ## Variables
 
 Nginx defines [variables](https://nginx.org/en/docs/varindex.html) that may appear in various
-contexts in the nginx configuration and at runtime evaluate to values of interest, such as the
+contexts in the Nginx configuration and at runtime evaluate to values of interest, such as the
 request "User-Agent" header (`$http_user_agent`).
 
-The Datadog nginx module defines additional variables that provide information about the currently
+The Datadog Nginx module defines additional variables that provide information about the currently
 active trace.
 
 ### `datadog_trace_id`
@@ -543,7 +543,7 @@ must be one of the environment variables used to configure the Datadog tracer.
 If `<var>` is not one of the allowed variables, or if `<var>` is not defined in the environment,
 then the variable expands to a hyphen character (`-`) instead.
 
-This family of variables is used in the tests for the Datadog nginx module.
+This family of variables is used in the tests for the Datadog Nginx module.
 
 ### `datadog_auth_request_hook`
 

@@ -17,10 +17,10 @@ If you encounter some difficulties building the module on **MacOS**, please look
 
 The `build` target does the following:
 
-- Download a source release of nginx based on the `NGINX_VERSION` environment variable.
+- Download a source release of Nginx based on the `NGINX_VERSION` environment variable.
 - Initialize the source tree of `dd-trace-cpp` as a git submodule.
 - Initialize the source tree of `libddwaf`as a git submodule.
-- Build `dd-trace-cpp` and the Datadog nginx module together using CMake.
+- Build `dd-trace-cpp` and the Datadog Nginx module together using CMake.
 
 `make clean` deletes CMake's build directory.
 

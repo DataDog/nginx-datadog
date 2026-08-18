@@ -199,7 +199,7 @@ See test/README.md and test/cases/README.md for details and advanced usage.
 
 ## Security
 
-If you discover a security vulnerablity in this softwa Datadog Nginx Module, please refer to the
+If you discover a security vulnerablity in this softwa Datadog Nginx module, please refer to the
 [Security Policy](SECURITY.md).
 
 ## Acknowledgements

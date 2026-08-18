@@ -13,5 +13,5 @@ release](https://github.com/DataDog/nginx-datadog/releases).
 
 ## Reporting a Vulnerability
 
-If you discover a vulnerability in the Datadog Nginx Module (or any Datadog product for that matter)
+If you discover a vulnerability in the Datadog Nginx module (or any Datadog product for that matter)
 please submit details to the [security@datadoghq.com](mailto:security@datadoghq.com) email address.
