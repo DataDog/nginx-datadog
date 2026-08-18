@@ -1,11 +1,10 @@
-Credits
-=======
-Here are acknowledged contributions and prior art originating from outside this
-project's maintainers.
+# Credits
 
-`nginx-opentracing`
--------------------
-`nginx-datadog` is based heavily on [nginx-opentracing][1].  Development began
-by copying and modifying the source code of `nginx-opentracing`.
+Here are acknowledged contributions and prior art originating from outside this project's
+maintainers.
 
-[1]: https://github.com/opentracing-contrib/nginx-opentracing
+## `nginx-opentracing`
+
+`nginx-datadog` is based heavily on
+[nginx-opentracing](https://github.com/opentracing-contrib/nginx-opentracing).  Development began by
+copying and modifying the source code of `nginx-opentracing`.
