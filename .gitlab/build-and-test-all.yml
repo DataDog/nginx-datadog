@@ -62,6 +62,7 @@ build-nginx-all:
           - "1.31.1"
           - "1.31.2"
           - "1.31.3"
+          - "1.31.4"
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-all:
@@ -107,6 +108,7 @@ build-nginx-rum-all:
           - "1.31.1"
           - "1.31.2"
           - "1.31.3"
+          - "1.31.4"
         WAF: ["OFF"]
 
 build-ingress-nginx-all:
@@ -254,6 +256,10 @@ test-nginx-all:
         BASE_IMAGE: ["nginx:1.28.3", "nginx:1.28.3-alpine"]
         NGINX_VERSION: ["1.28.3"]
         WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["amazonlinux:2023.11.20260427.1"]
+        NGINX_VERSION: ["1.28.3"]
+        WAF: ["ON", "OFF"]
 
 # GitLab is not able to handle a matrix with more than 200 jobs!
 test-nginx-all-bis:
@@ -335,8 +341,8 @@ test-nginx-all-bis:
         NGINX_VERSION: ["1.31.3"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["amazonlinux:2023.11.20260427.1"]
-        NGINX_VERSION: ["1.28.3"]
+        BASE_IMAGE: ["nginx:1.31.4", "nginx:1.31.4-alpine"]
+        NGINX_VERSION: ["1.31.4"]
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-all:
@@ -484,6 +490,10 @@ test-nginx-rum-all:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.31.3"]
         NGINX_VERSION: ["1.31.3"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.4"]
+        NGINX_VERSION: ["1.31.4"]
         WAF: ["OFF"]
 
 test-ingress-nginx-all:
