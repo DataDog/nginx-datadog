@@ -27,8 +27,6 @@ build-nginx-all:
     matrix:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION:
-          - "1.25.1"
-          - "1.25.2"
           - "1.25.3"
           - "1.25.4"
           - "1.25.5"
@@ -74,8 +72,6 @@ build-nginx-rum-all:
     matrix:
       - ARCH: ["amd64", "arm64"]
         NGINX_VERSION:
-          - "1.25.1"
-          - "1.25.2"
           - "1.25.3"
           - "1.25.4"
           - "1.25.5"
@@ -190,14 +186,6 @@ test-nginx-all:
     - .test-nginx
   parallel:
     matrix:
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.25.1", "nginx:1.25.1-alpine"]
-        NGINX_VERSION: ["1.25.1"]
-        WAF: ["ON", "OFF"]
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.25.2", "nginx:1.25.2-alpine"]
-        NGINX_VERSION: ["1.25.2"]
-        WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.25.3", "nginx:1.25.3-alpine"]
         NGINX_VERSION: ["1.25.3"]
@@ -357,14 +345,6 @@ test-nginx-rum-all:
     - .test-nginx-rum
   parallel:
     matrix:
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.25.1"]
-        NGINX_VERSION: ["1.25.1"]
-        WAF: ["OFF"]
-      - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.25.2"]
-        NGINX_VERSION: ["1.25.2"]
-        WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.25.3"]
         NGINX_VERSION: ["1.25.3"]
