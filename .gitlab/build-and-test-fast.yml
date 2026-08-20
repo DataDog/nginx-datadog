@@ -85,6 +85,7 @@ build-nginx-fast:
           - "1.29.8"
           - "1.30.4"
           - "1.31.3"
+          - "1.31.4"
         WAF: ["ON", "OFF"]
 
 build-nginx-asan-fast:
@@ -93,7 +94,7 @@ build-nginx-asan-fast:
     - .build-nginx-asan
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.3"
+    NGINX_VERSION: "1.31.4"
     WAF: "ON"
 
 build-nginx-msan-fast:
@@ -102,7 +103,7 @@ build-nginx-msan-fast:
     - .build-nginx-msan
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.3"
+    NGINX_VERSION: "1.31.4"
     WAF: "ON"
 
 build-ingress-nginx-fast:
@@ -144,7 +145,7 @@ build-nginx-rum-fast:
           - "1.28.3"
           - "1.29.8"
           - "1.30.4"
-          - "1.31.3"
+          - "1.31.4"
         WAF: ["OFF"]
 
 test-nginx-fast:
@@ -183,6 +184,10 @@ test-nginx-fast:
         NGINX_VERSION: ["1.31.3"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.4", "nginx:1.31.4-alpine"]
+        NGINX_VERSION: ["1.31.4"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["amazonlinux:2023.11.20260427.1"]
         NGINX_VERSION: ["1.28.3"]
         WAF: ["ON", "OFF"]
@@ -195,7 +200,7 @@ test-nginx-asan-fast:
     - build-nginx-asan-fast
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.3"
+    NGINX_VERSION: "1.31.4"
     WAF: "ON"
 
 test-nginx-msan-fast:
@@ -206,7 +211,7 @@ test-nginx-msan-fast:
     - build-nginx-msan-fast
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.3"
+    NGINX_VERSION: "1.31.4"
     WAF: "ON"
 
 test-ingress-nginx-fast:
@@ -268,8 +273,8 @@ test-nginx-rum-fast:
         NGINX_VERSION: ["1.30.4"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.31.3"]
-        NGINX_VERSION: ["1.31.3"]
+        BASE_IMAGE: ["nginx:1.31.4"]
+        NGINX_VERSION: ["1.31.4"]
         WAF: ["OFF"]
 
 coverage:
