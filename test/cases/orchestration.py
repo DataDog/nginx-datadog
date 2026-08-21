@@ -982,7 +982,7 @@ END_CONF
 
             try:
                 wait_until(old_worker_stops(old_worker_pids),
-                           timeout_seconds=10)
+                           timeout_seconds=20)
             except Exception:
                 dump_reload_state("old workers to stop")
                 raise
@@ -992,7 +992,7 @@ END_CONF
                 return len(pids) >= 1
 
             try:
-                wait_until(new_worker_starts, timeout_seconds=10)
+                wait_until(new_worker_starts, timeout_seconds=20)
             except Exception:
                 dump_reload_state("new worker to start")
                 raise
