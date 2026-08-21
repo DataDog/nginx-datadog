@@ -304,20 +304,22 @@ class PolTaskCtx {
     std::memcpy(self_copy_storage, this, sizeof(Self));
     Self *self_copy = reinterpret_cast<Self *>(self_copy_storage);
 
+#if nginx_version >= 1025004
+    // The ngx_http_request_s.terminated flag was introduced in Nginx 1.25.4.
+    // TODO: remove this pre-compilation test when dropping support for 1.25.3.
     if (req_.main->terminated) {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req_log(), 0,
                     "request was terminated while task %p was active; "
                     "running the connection write handler",
                     &get_task());
-
       req_.main->count--;
       ngx_event_t *write_event = req_.connection->write;
       write_event->handler(write_event);
-
       // The request pool may have been destroyed by the write handler.
       self_copy->~Self();
       return;
     }
+#endif
 
     if (count > 1) {
       // ngx_del_event(connection->read, NGX_READ_EVENT, 0) may've been called
