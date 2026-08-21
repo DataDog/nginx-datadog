@@ -250,7 +250,7 @@ The location span is a span created in addition to the request span. See `datado
 - **default**: `on`
 - **context**: `http`, `server`, `location`
 
-If `on`, attempt to extract trace context from incoming requests. This way, Nginx needs not be the
+If `on`, attempt to extract trace context from incoming requests. This way, Nginx need not be the
 beginning of the trace — it can inherit a parent span from the incoming request.
 
 If `off`, trace context will not be extracted from incoming requests. Nginx will start a new trace.

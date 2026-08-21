@@ -58,10 +58,10 @@ When the main ingrees-nginx controller starts, the Nginx configuration must be u
 
 ## Interaction with OpenTelemetry
 
-By default, ingress-nginx includes an OpenTelemetry (oTel) module, which can be enabled via the
+By default, ingress-nginx includes an OpenTelemetry (OTel) module, which can be enabled via the
 `enable-opentelemetry: true` setting in the [ingress-nginx
 ConfigMap](https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/configmap/#enable-opentelemetry).
 However, if you are using `nginx-datadog` for tracing, we recommend **disabling** OpenTelemetry to
-prevent duplicate tracing data from both the oTel and Datadog modules.
+prevent duplicate tracing data from both the OTel and Datadog modules.
 
 To disable OpenTelemetry, set `enable-opentelemetry: false`.
