@@ -14,6 +14,7 @@ include:
   - local: ".gitlab/build-and-test-all.yml"
   - local: ".gitlab/build-and-test-fast.yml"
   - local: ".gitlab/ssi-package.yml"
+  - local: ".gitlab/ingress-image-publish.yml"
   - local: ".gitlab/one-pipeline.locked.yml"
 
 variables:
@@ -27,10 +28,12 @@ stages:
   - build-and-test-fast
   - build-all
   - test-all
+  - ingress-image-build
   - assemble
   - shared-pipeline-build
   - shared-pipeline-test
   - shared-pipeline-publish
+  - ingress-image-publish
   - benchmarks
 
 requirements_json_test:
