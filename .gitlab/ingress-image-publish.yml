@@ -43,7 +43,94 @@
 
 build-ingress-injection-images:
   extends: .ingress-image-source
-  dependencies: [build-ingress-nginx-all]
+  # Matrix jobs must be named explicitly for artifact dependencies.
+  dependencies:
+    - "build-ingress-nginx-all: [amd64, 1.10.0]"
+    - "build-ingress-nginx-all: [amd64, 1.10.1]"
+    - "build-ingress-nginx-all: [amd64, 1.10.2]"
+    - "build-ingress-nginx-all: [amd64, 1.10.3]"
+    - "build-ingress-nginx-all: [amd64, 1.10.4]"
+    - "build-ingress-nginx-all: [amd64, 1.10.5]"
+    - "build-ingress-nginx-all: [amd64, 1.10.6]"
+    - "build-ingress-nginx-all: [amd64, 1.11.0]"
+    - "build-ingress-nginx-all: [amd64, 1.11.1]"
+    - "build-ingress-nginx-all: [amd64, 1.11.2]"
+    - "build-ingress-nginx-all: [amd64, 1.11.3]"
+    - "build-ingress-nginx-all: [amd64, 1.11.4]"
+    - "build-ingress-nginx-all: [amd64, 1.11.5]"
+    - "build-ingress-nginx-all: [amd64, 1.11.6]"
+    - "build-ingress-nginx-all: [amd64, 1.11.7]"
+    - "build-ingress-nginx-all: [amd64, 1.11.8]"
+    - "build-ingress-nginx-all: [amd64, 1.12.0]"
+    - "build-ingress-nginx-all: [amd64, 1.12.1]"
+    - "build-ingress-nginx-all: [amd64, 1.12.2]"
+    - "build-ingress-nginx-all: [amd64, 1.12.3]"
+    - "build-ingress-nginx-all: [amd64, 1.12.4]"
+    - "build-ingress-nginx-all: [amd64, 1.12.5]"
+    - "build-ingress-nginx-all: [amd64, 1.12.6]"
+    - "build-ingress-nginx-all: [amd64, 1.12.7]"
+    - "build-ingress-nginx-all: [amd64, 1.12.8]"
+    - "build-ingress-nginx-all: [amd64, 1.13.0]"
+    - "build-ingress-nginx-all: [amd64, 1.13.1]"
+    - "build-ingress-nginx-all: [amd64, 1.13.2]"
+    - "build-ingress-nginx-all: [amd64, 1.13.3]"
+    - "build-ingress-nginx-all: [amd64, 1.13.4]"
+    - "build-ingress-nginx-all: [amd64, 1.13.5]"
+    - "build-ingress-nginx-all: [amd64, 1.13.6]"
+    - "build-ingress-nginx-all: [amd64, 1.13.7]"
+    - "build-ingress-nginx-all: [amd64, 1.13.8]"
+    - "build-ingress-nginx-all: [amd64, 1.13.9]"
+    - "build-ingress-nginx-all: [amd64, 1.14.0]"
+    - "build-ingress-nginx-all: [amd64, 1.14.1]"
+    - "build-ingress-nginx-all: [amd64, 1.14.2]"
+    - "build-ingress-nginx-all: [amd64, 1.14.3]"
+    - "build-ingress-nginx-all: [amd64, 1.14.4]"
+    - "build-ingress-nginx-all: [amd64, 1.14.5]"
+    - "build-ingress-nginx-all: [amd64, 1.15.0]"
+    - "build-ingress-nginx-all: [amd64, 1.15.1]"
+    - "build-ingress-nginx-all: [arm64, 1.10.0]"
+    - "build-ingress-nginx-all: [arm64, 1.10.1]"
+    - "build-ingress-nginx-all: [arm64, 1.10.2]"
+    - "build-ingress-nginx-all: [arm64, 1.10.3]"
+    - "build-ingress-nginx-all: [arm64, 1.10.4]"
+    - "build-ingress-nginx-all: [arm64, 1.10.5]"
+    - "build-ingress-nginx-all: [arm64, 1.10.6]"
+    - "build-ingress-nginx-all: [arm64, 1.11.0]"
+    - "build-ingress-nginx-all: [arm64, 1.11.1]"
+    - "build-ingress-nginx-all: [arm64, 1.11.2]"
+    - "build-ingress-nginx-all: [arm64, 1.11.3]"
+    - "build-ingress-nginx-all: [arm64, 1.11.4]"
+    - "build-ingress-nginx-all: [arm64, 1.11.5]"
+    - "build-ingress-nginx-all: [arm64, 1.11.6]"
+    - "build-ingress-nginx-all: [arm64, 1.11.7]"
+    - "build-ingress-nginx-all: [arm64, 1.11.8]"
+    - "build-ingress-nginx-all: [arm64, 1.12.0]"
+    - "build-ingress-nginx-all: [arm64, 1.12.1]"
+    - "build-ingress-nginx-all: [arm64, 1.12.2]"
+    - "build-ingress-nginx-all: [arm64, 1.12.3]"
+    - "build-ingress-nginx-all: [arm64, 1.12.4]"
+    - "build-ingress-nginx-all: [arm64, 1.12.5]"
+    - "build-ingress-nginx-all: [arm64, 1.12.6]"
+    - "build-ingress-nginx-all: [arm64, 1.12.7]"
+    - "build-ingress-nginx-all: [arm64, 1.12.8]"
+    - "build-ingress-nginx-all: [arm64, 1.13.0]"
+    - "build-ingress-nginx-all: [arm64, 1.13.1]"
+    - "build-ingress-nginx-all: [arm64, 1.13.2]"
+    - "build-ingress-nginx-all: [arm64, 1.13.3]"
+    - "build-ingress-nginx-all: [arm64, 1.13.4]"
+    - "build-ingress-nginx-all: [arm64, 1.13.5]"
+    - "build-ingress-nginx-all: [arm64, 1.13.6]"
+    - "build-ingress-nginx-all: [arm64, 1.13.7]"
+    - "build-ingress-nginx-all: [arm64, 1.13.8]"
+    - "build-ingress-nginx-all: [arm64, 1.13.9]"
+    - "build-ingress-nginx-all: [arm64, 1.14.0]"
+    - "build-ingress-nginx-all: [arm64, 1.14.1]"
+    - "build-ingress-nginx-all: [arm64, 1.14.2]"
+    - "build-ingress-nginx-all: [arm64, 1.14.3]"
+    - "build-ingress-nginx-all: [arm64, 1.14.4]"
+    - "build-ingress-nginx-all: [arm64, 1.14.5]"
+    - "build-ingress-nginx-all: [arm64, 1.15.0]"
+    - "build-ingress-nginx-all: [arm64, 1.15.1]"
   variables:
     INGRESS_IMAGE_RELEASE_MODE: release
   rules:
@@ -53,7 +140,13 @@ build-ingress-injection-images:
 # Run this before the matching dev publish job when testing the release path.
 build-ingress-injection-images-dev:
   extends: .ingress-image-source
-  dependencies: [build-ingress-nginx-fast]
+  dependencies:
+    - "build-ingress-nginx-fast: [amd64, 1.13.9]"
+    - "build-ingress-nginx-fast: [amd64, 1.14.5]"
+    - "build-ingress-nginx-fast: [amd64, 1.15.1]"
+    - "build-ingress-nginx-fast: [arm64, 1.13.9]"
+    - "build-ingress-nginx-fast: [arm64, 1.14.5]"
+    - "build-ingress-nginx-fast: [arm64, 1.15.1]"
   variables:
     INGRESS_IMAGE_RELEASE_MODE: dev
   rules:
@@ -100,7 +193,9 @@ build-ingress-injection-images-dev:
 
 publish-ingress-injection-images:
   extends: .ingress-image-publish
-  dependencies: [build-ingress-injection-images]
+  dependencies:
+    - "build-ingress-injection-images: [amd64]"
+    - "build-ingress-injection-images: [arm64]"
   variables:
     INGRESS_IMAGE_RELEASE_MODE: release
   rules:
@@ -109,7 +204,9 @@ publish-ingress-injection-images:
 
 publish-ingress-injection-images-dev:
   extends: .ingress-image-publish
-  dependencies: [build-ingress-injection-images-dev]
+  dependencies:
+    - "build-ingress-injection-images-dev: [amd64]"
+    - "build-ingress-injection-images-dev: [arm64]"
   variables:
     INGRESS_IMAGE_RELEASE_MODE: dev
   rules:
