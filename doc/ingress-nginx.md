@@ -1,4 +1,4 @@
-# Ingress-nginx Rupport for Datadog
+# Ingress-nginx Support for Datadog
 
 [Ingress-nginx](https://github.com/kubernetes/ingress-nginx) is one of the [Kubernetes ingress
 controller](https://kubernetes.io/docs/concepts/services-networking/ingress/) that uses Nginx as a
