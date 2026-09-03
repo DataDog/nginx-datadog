@@ -6,3 +6,4 @@ parent,nginx-opentracing,Apache 2.0,N/A
 vendored,rapidjson,MIT, "Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip."
 vendored,cppcodec,MIT,"Copyright (c) 2015 Topology Inc., Copyright (c) 2018 Jakob Petsovits, and others"
 vendored,zlib,Zlib,copyright (c) 1995-2025 Jean-loup Gailly and Mark Adler
+vendored,musl round,MIT,"Copyright © 2005-2020 Rich Felker, et al."
