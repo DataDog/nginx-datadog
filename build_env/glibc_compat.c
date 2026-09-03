@@ -1,11 +1,88 @@
 #include <dlfcn.h>
 #include <errno.h>
+#include <float.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #if defined(__linux__) && !defined(__GLIBC__)
+
+// Adapted from musl libc round.c at commit 9fa28ece75d8.
+// See musl-round.LICENSE.
+static inline void fp_force_evalf(float x)
+{
+    volatile float y;
+    y = x;
+}
+
+static inline void fp_force_eval(double x)
+{
+    volatile double y;
+    y = x;
+}
+
+static inline void fp_force_evall(long double x)
+{
+    volatile long double y;
+    y = x;
+}
+
+#    define FORCE_EVAL(x)                                                                    \
+        do {                                                                                 \
+            if (sizeof(x) == sizeof(float)) {                                                \
+                fp_force_evalf(x);                                                           \
+            } else if (sizeof(x) == sizeof(double)) {                                        \
+                fp_force_eval(x);                                                            \
+            } else {                                                                         \
+                fp_force_evall(x);                                                           \
+            }                                                                                \
+        } while (0)
+
+#    if FLT_EVAL_METHOD == 0 || FLT_EVAL_METHOD == 1
+#        define ROUND_EPS DBL_EPSILON
+#        define ROUND_EVAL_TYPE double
+#    elif FLT_EVAL_METHOD == 2
+#        define ROUND_EPS LDBL_EPSILON
+#        define ROUND_EVAL_TYPE long double
+#    endif
+
+static const ROUND_EVAL_TYPE round_to_integer = 1 / ROUND_EPS;
+
+double round(double x)
+{
+    union {
+        double f;
+        uint64_t i;
+    } value = {x};
+    int exponent = value.i >> 52 & 0x7ff;
+    ROUND_EVAL_TYPE adjustment;
+
+    if (exponent >= 0x3ff + 52) {
+        return x;
+    }
+    if (value.i >> 63) {
+        x = -x;
+    }
+    if (exponent < 0x3ff - 1) {
+        // Raise inexact if x is not zero.
+        FORCE_EVAL(x + round_to_integer);
+        return 0 * value.f;
+    }
+    adjustment = x + round_to_integer - round_to_integer - x;
+    if (adjustment > 0.5) {
+        adjustment = adjustment + x - 1;
+    } else if (adjustment <= -0.5) {
+        adjustment = adjustment + x + 1;
+    } else {
+        adjustment = adjustment + x;
+    }
+    if (value.i >> 63) {
+        adjustment = -adjustment;
+    }
+    return adjustment;
+}
 
 #    ifdef __x86_64__
 float ceilf(float x)

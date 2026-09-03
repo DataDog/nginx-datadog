@@ -201,8 +201,17 @@ else
 		make -C /mnt/repo $@-aux
 endif
 
+.PHONY: build-glibc-compat
+build-glibc-compat:
+	clang --sysroot /sysroot/$(ARCH)-none-linux-musl/ \
+		-fpie -O2 -fno-omit-frame-pointer -ggdb3 \
+		-c build_env/glibc_compat.c -o /tmp/glibc_compat.o
+	llvm-ar rcs /sysroot/$(ARCH)-none-linux-musl/usr/lib/libglibc_compat.a \
+		/tmp/glibc_compat.o
+	rm /tmp/glibc_compat.o
+
 .PHONY: build-musl-aux build-musl-cov-aux
-build-musl-aux build-musl-cov-aux:
+build-musl-aux build-musl-cov-aux: build-glibc-compat
 	cmake -B .musl-build \
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
@@ -242,7 +251,7 @@ else
 endif
 
 .PHONY: build-openresty-aux
-build-openresty-aux:
+build-openresty-aux: build-glibc-compat
 	cmake -B .openresty-build \
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
@@ -276,7 +285,7 @@ else
 endif
 
 .PHONY: build-musl-aux-ingress
-build-musl-aux-ingress:
+build-musl-aux-ingress: build-glibc-compat
 	cmake -B .musl-build \
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
