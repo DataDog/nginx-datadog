@@ -63,6 +63,7 @@ build-nginx-all:
           - "1.31.2"
           - "1.31.3"
           - "1.31.4"
+          - "1.31.5"
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-all:
@@ -109,6 +110,7 @@ build-nginx-rum-all:
           - "1.31.2"
           - "1.31.3"
           - "1.31.4"
+          - "1.31.5"
         WAF: ["OFF"]
 
 build-ingress-nginx-all:
@@ -344,6 +346,10 @@ test-nginx-all-bis:
         BASE_IMAGE: ["nginx:1.31.4", "nginx:1.31.4-alpine"]
         NGINX_VERSION: ["1.31.4"]
         WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.5", "nginx:1.31.5-alpine"]
+        NGINX_VERSION: ["1.31.5"]
+        WAF: ["ON", "OFF"]
 
 test-nginx-rum-all:
   extends:
@@ -494,6 +500,10 @@ test-nginx-rum-all:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.31.4"]
         NGINX_VERSION: ["1.31.4"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.5"]
+        NGINX_VERSION: ["1.31.5"]
         WAF: ["OFF"]
 
 test-ingress-nginx-all:
