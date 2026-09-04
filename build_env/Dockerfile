@@ -16,11 +16,11 @@ FROM ${BASE_IMAGE}
 
 ARG ARCH
 
-# Dependencies for nginx, shellcheck for CI, node for the coverage upload, and
-# docker clients for the test runner.
+# Dependencies for nginx, shellcheck for CI, node for the coverage upload,
+# docker clients for the test runner, and samurai as the Ninja build program.
 RUN apk --no-cache add \
     curl docker-cli-buildx docker-cli-compose nodejs npm openssl-dev pcre-dev \
-    pcre2-dev perl shellcheck zlib-dev
+    pcre2-dev perl samurai shellcheck zlib-dev
 
 # Old sysroot layout and resource_dir. The project Toolchain.cmake and test
 # Dockerfiles need them. See https://github.com/llvm/llvm-project/issues/60572.
@@ -33,7 +33,7 @@ RUN set -eux; \
     ln -s /lib ${SYSROOT}/; \
     GCC_DIR=$(dirname $(dirname $(gcc -print-libgcc-file-name))); \
     ln -sfn "$GCC_DIR" /usr/lib/resource_dir; \
-    ln -s /usr/lib/llvm21/lib/clang/21/lib/linux ${SYSROOT}/usr/lib/resource_dir/lib; \
+    ln -s /usr/lib/llvm21/lib/clang/21/lib ${SYSROOT}/usr/lib/resource_dir/lib; \
     GCC_VER=$(gcc -dumpfullversion); \
     GCC_DIR=/usr/lib/gcc/${ARCH}-alpine-linux-musl/${GCC_VER}; \
     mv ${GCC_DIR}/include/stdatomic.h ${GCC_DIR}/include/stdatomic.h_; \
