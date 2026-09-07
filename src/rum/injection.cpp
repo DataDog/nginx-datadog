@@ -25,6 +25,63 @@ bool is_html_content(ngx_str_t *content_type) {
   return content_type_sv.find("text/html") != content_type_sv.npos;
 }
 
+ngx_chain_t *create_chain_from_slices(
+    ngx_pool_t *pool, ngx_chain_t *template_chain,
+    std::span<const BytesSlice> slices) {
+  
+  if (slices.empty()) {
+    ngx_log_error(NGX_LOG_ERR, pool->log, 0,
+                  "RUM SDK injection failed: can't create chain from empty slices");
+    return nullptr;
+  }
+
+  size_t total_needed = 0;
+  for (const auto& slice : slices) {
+    total_needed += slice.length;
+  }
+
+  ngx_chain_t *cl = ngx_alloc_chain_link(pool);
+  if (cl == nullptr) {
+    ngx_log_error(NGX_LOG_ERR, pool->log, 0,
+                  "RUM SDK injection failed: could not allocate chain link");
+    return nullptr;
+  }
+
+  ngx_buf_t *buf = (ngx_buf_t *)ngx_calloc_buf(pool);
+  if (buf == nullptr) {
+    ngx_log_error(NGX_LOG_ERR, pool->log, 0,
+                  "RUM SDK injection failed: could not allocate buffer");
+    return nullptr;
+  }
+
+  buf->tag = (ngx_buf_tag_t)&ngx_http_datadog_module;
+  buf->memory = 1;
+  buf->start = (u_char *)ngx_pnalloc(pool, total_needed);
+  if (buf->start == nullptr) {
+    ngx_log_error(NGX_LOG_ERR, pool->log, 0,
+                  "RUM SDK injection failed: could not allocate memory for buffer");
+    return nullptr;
+  }
+  
+  buf->end = buf->start + total_needed;
+  buf->pos = buf->start;
+  buf->last = buf->pos;
+
+  buf->flush = template_chain->buf->flush;
+  buf->sync = template_chain->buf->sync;
+  buf->last_buf = template_chain->buf->last_buf;
+  buf->last_in_chain = template_chain->buf->last_in_chain;
+
+  for (const auto& slice : slices) {
+    buf->last = ngx_cpymem(buf->last, slice.start, slice.length);
+  }
+
+  cl->buf = buf;
+  cl->next = nullptr;
+
+  return cl;
+}
+
 }  // namespace
 
 InjectionHandler::InjectionHandler()
@@ -187,13 +244,33 @@ ngx_int_t InjectionHandler::on_body_filter(
   if (previous_chain->buf->last_buf && output_padding_) {
     state_ = state::failed;
     auto result = injector_end(injector_);
-    ngx_chain_t *injected_cl =
+
+    if (result.slices_length > 0) {
+      if(result.injected) {
+        state_ = state::injected;
+        ngx_chain_t *final_cl = create_chain_from_slices(
+            r->pool, previous_chain, 
+            std::span(result.slices, result.slices_length));
+
+            ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                      "RUM SDK injected successfully injected");
+
+        datadog::telemetry::counter::increment(
+            telemetry::injection_succeed,
+            telemetry::build_tags(cfg->rum_application_id_tag,
+                                  cfg->rum_remote_config_tag));
+
+        return output(r, final_cl, next_body_filter);
+      } else {
+        ngx_chain_t *injected_cl =
         inject(r->pool, previous_chain,
                std::span(result.slices, result.slices_length));
+        *current_chain = injected_cl;
+        current_chain = &injected_cl->next;
+      }
+    }
 
-    *current_chain = injected_cl;
-    current_chain = &injected_cl->next;
-
+    state_ = state::failed;
     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
                   "RUM SDK injection failed: no injection point found");
 
