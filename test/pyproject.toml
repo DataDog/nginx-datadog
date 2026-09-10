@@ -14,5 +14,5 @@ injection = ["pytest==8.4.2", "zstandard==0.25.0"]
 [tool.pytest.ini_options]
 xfail_strict = true
 markers = [
-    "stable_config: expected tracing gaps in Datadog stable configuration support",
+    "stable_config: Datadog stable configuration coverage",
 ]

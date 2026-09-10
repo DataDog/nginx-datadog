@@ -40,10 +40,10 @@ DOCKER_CONTEXT=orbstack make test-injection \
 
 Tests run serially. Do not use pytest-xdist. A full run covers all three modes;
 filtering is for local diagnosis. Skipped cases and unexpected passes fail the run.
-Stable-config cases are marked as strict xfails. Positive conditions have a
-30-second deadline. Negative checks follow graceful workload shutdown and observe
-a three-second quiet period while checking collector health. Readiness uses
-`/ready`; assertions match unique request URIs.
+Known stable-config gaps are marked as strict xfails. Positive conditions have a
+30-second deadline. Negative checks follow graceful workload shutdown and observe a
+three-second quiet period while checking collector health. Readiness uses `/ready`;
+assertions match unique request URIs.
 
 ## What gets installed
 
@@ -132,9 +132,13 @@ targeting rules, service tags, and tracing disablement. These cases follow the
 system-tests YAML shapes for `apm_configuration_default` and
 `apm_configuration_rules`.
 
-Each case uses `xfail(strict=True)`. The current missing C++ tracer feature is an
-expected failure. When support lands, an unexpected pass fails CI and requires
-removing the marker.
+RUM opt-out tests serve HTML while requiring a valid Nginx trace. They verify that
+`DD_RUM_ENABLED=false` in the environment leaves tracing active. The equivalent
+local and managed stable-config cases are strict expected failures until the Nginx
+RUM integration consumes that setting.
+
+Each known gap uses `xfail(strict=True)`. When support lands, an unexpected pass
+fails CI and requires removing the marker.
 
 ## Evidence and CI
 

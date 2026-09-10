@@ -8,6 +8,11 @@ from .harness import NGINX_VERSION, STABLE_CONFIG_PATHS, Workload, poll, trace_i
 stable_config_xfail = pytest.mark.xfail(
     reason="C++ tracer stable configuration support is not implemented",
     strict=True)
+rum_stable_config_xfail = pytest.mark.xfail(
+    reason=
+    "Nginx RUM does not consume DD_RUM_ENABLED from stable configuration",
+    strict=True)
+RUM_HTML = "<!doctype html><html><head><title>RUM opt out</title></head><body>tracing only</body></html>"
 
 
 def nginx_span(sandbox, uri, collector="a", service="injection-nginx"):
@@ -239,6 +244,53 @@ def test_stable_config_tracing_disabled(sandbox, workload, stable_config,
     application.assert_module()
     application.stop()
     sandbox.quiet(uri, "injection-nginx")
+
+
+@pytest.mark.stable_config
+def test_rum_disabled_by_environment(sandbox, workload, stable_config):
+    path = STABLE_CONFIG_PATHS[0]
+    content = stable_config(
+        path, {
+            "config_id": "nginx-rum-environment-opt-out",
+            "apm_configuration_default": {
+                "DD_RUM_ENABLED": True,
+                "DD_RUM_APPLICATION_ID": "stable-application",
+                "DD_RUM_CLIENT_TOKEN": "stable-token"
+            }
+        })
+    application = workload({"DD_RUM_ENABLED": "false"})
+    application.assert_file(path, content)
+    uri = f"{unique_uri()}.html"
+    body = application.request(uri, content=RUM_HTML)
+    application.assert_module()
+    application.stop()
+    nginx_span(sandbox, uri)
+    assert body == RUM_HTML
+    assert "datadog-rum.js" not in body
+
+
+@pytest.mark.stable_config
+@rum_stable_config_xfail
+@pytest.mark.parametrize("path", STABLE_CONFIG_PATHS, ids=("local", "managed"))
+def test_rum_disabled_by_stable_config(sandbox, workload, stable_config, path):
+    content = stable_config(
+        path, {
+            "config_id": "nginx-rum-stable-opt-out",
+            "apm_configuration_default": {
+                "DD_RUM_ENABLED": False,
+                "DD_RUM_APPLICATION_ID": "stable-application",
+                "DD_RUM_CLIENT_TOKEN": "stable-token"
+            }
+        })
+    application = workload()
+    application.assert_file(path, content)
+    uri = f"{unique_uri()}.html"
+    body = application.request(uri, content=RUM_HTML)
+    application.assert_module()
+    application.stop()
+    nginx_span(sandbox, uri)
+    assert body == RUM_HTML
+    assert "datadog-rum.js" not in body
 
 
 @pytest.mark.parametrize("routing", ["url", "host-port"])

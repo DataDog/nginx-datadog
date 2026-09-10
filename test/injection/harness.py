@@ -516,10 +516,15 @@ class Workload:
         self.sandbox.inner(*args, image, *command)
         self.containers.append(name)
 
-    def request(self, uri, headers=None, port=8080):
+    def request(self, uri, headers=None, port=8080, content=None):
         if uri.startswith("/static/"):
-            self.sandbox.host("sh", "-c", 'printf "injection test\\n" > "$1"',
-                              "sh", f"/srv/site{uri}")
+            self.sandbox.host(
+                "sh",
+                "-c",
+                'cat > "$1"',
+                "sh",
+                f"/srv/site{uri}",
+                input=content if content is not None else "injection test\n")
         args = [
             "curl", "--fail", "--silent", "--show-error", "--max-time", "3",
             "-w", "\n%{http_code}"
