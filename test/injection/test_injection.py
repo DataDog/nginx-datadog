@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from .harness import Workload, trace_id, unique_uri, UNSUPPORTED_IMAGE
+from .harness import NGINX_VERSION, Workload, poll, trace_id, unique_uri, UNSUPPORTED_IMAGE
 
 
 def nginx_span(sandbox, uri, collector="a", service="injection-nginx"):
@@ -263,14 +263,17 @@ def test_unavailable_module(sandbox_factory, mode, failure):
         sandbox.wait_spans(uri, "injection-backend")
         application.finish()
         sandbox.quiet(uri, "injection-nginx")
-        diagnostics = "\n".join(
-            path.read_text()
-            for path in application.directory.glob("nginx-*.log"))
-        if failure == "unsupported-version":
-            assert "1.20.2" in diagnostics, diagnostics
-        assert re.search(
-            r"nginx.*(not found|not supported|unsupported|missing|does not exist)|"
-            r"(not found|not supported|unsupported|missing|does not exist).*nginx",
-            diagnostics, re.IGNORECASE), diagnostics
+        diagnostics = poll(
+            lambda: [
+                event for event in sandbox.agent("/test/apmtelemetry")
+                if event.get("request_type") == "injection-metadata" and event.
+                get("application", {}).get("language_name") == "nginx"
+            ], "Nginx skipped-injection diagnostic")
+        version = "1.20.2" if failure == "unsupported-version" else NGINX_VERSION
+        for event in diagnostics:
+            assert event["application"]["language_version"] == version, event
+            assert event["payload"]["result"] == "abort", event
+            assert event["payload"]["result_reason"] == \
+                "the tracing library is not installed for the language", event
     finally:
         sandbox.close()
