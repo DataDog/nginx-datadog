@@ -8,6 +8,8 @@ import subprocess
 import time
 import uuid
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 WORKLOADS = Path(__file__).with_name("workloads")
 NGINX_VERSION = "1.31.5"
@@ -17,6 +19,10 @@ PYTHON_PACKAGE_VERSION = "4.14.0-1"
 AGENT_IMAGE = "ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.65.0"
 UNSUPPORTED_IMAGE = "nginx:1.20.2"
 MODES = ("host", "docker-debian", "docker-alpine")
+STABLE_CONFIG_PATHS = (
+    "/etc/datadog-agent/application_monitoring.yaml",
+    "/etc/datadog-agent/managed/datadog-agent/stable/application_monitoring.yaml",
+)
 LABEL = "com.datadog.nginx-injection"
 
 
@@ -382,6 +388,14 @@ class Sandbox:
         self.host("sh", "-c",
                   "find /opt/datadog-packages -name '*.db' -o -name '*json'")
 
+    def write_stable_config(self, path, configuration):
+        content = yaml.safe_dump(configuration, sort_keys=True)
+        self.host("mkdir", "-p", str(Path(path).parent))
+        self.host("sh", "-c", 'cat > "$1"', "sh", path, input=content)
+        name = path.removeprefix("/").replace("/", "-")
+        (self.artifacts / name).write_text(content)
+        return content
+
     def save(self, name):
         target = self.artifacts / name
         target.mkdir(exist_ok=True)
@@ -538,6 +552,13 @@ class Workload:
         assert any("worker process" in item["command"] for item in processes)
         for item in processes:
             assert len(item["modules"]) == int(loaded), item
+
+    def assert_file(self, path, content):
+        if self.sandbox.mode == "host":
+            actual = self.sandbox.host("cat", path)
+        else:
+            actual = self.sandbox.inner("exec", "nginx", "cat", path)
+        assert actual == content.rstrip(), actual
 
     def reload(self):
         before = self.evidence()

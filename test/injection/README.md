@@ -3,7 +3,8 @@
 These tests install the real Datadog injector and language packages into a disposable
 Linux host. They check HTTP responses, decoded spans, and Nginx → Flask parent links.
 The same cases run against host processes, a Debian Nginx container, and an Alpine
-Nginx container. Kubernetes and stable config are outside this suite.
+Nginx container. Kubernetes is outside this suite. Stable-config tracing cases are
+strict expected failures until the C++ tracer supports the feature.
 
 ## Run
 
@@ -38,10 +39,11 @@ DOCKER_CONTEXT=orbstack make test-injection \
 ```
 
 Tests run serially. Do not use pytest-xdist. A full run covers all three modes;
-filtering is for local diagnosis. Skipped cases fail the run. Positive conditions
-have a 30-second deadline. Negative checks follow graceful workload shutdown and
-observe a three-second quiet period while checking collector health. Readiness
-uses `/ready`; assertions match unique request URIs.
+filtering is for local diagnosis. Skipped cases and unexpected passes fail the run.
+Stable-config cases are marked as strict xfails. Positive conditions have a
+30-second deadline. Negative checks follow graceful workload shutdown and observe
+a three-second quiet period while checking collector health. Readiness uses
+`/ready`; assertions match unique request URIs.
 
 ## What gets installed
 
@@ -115,6 +117,24 @@ restores them in workers. No Nginx `env` directives are needed. Changing those
 values requires restarting the master or recreating the container; a graceful
 configuration reload retains the original values. This is separate from the
 official image's Nginx configuration templating and from Datadog stable config.
+
+## Stable config
+
+The suite writes stable configuration to both supported locations:
+
+- `/etc/datadog-agent/application_monitoring.yaml`
+- `/etc/datadog-agent/managed/datadog-agent/stable/application_monitoring.yaml`
+
+The Docker injector mounts existing files at those paths into ordinary workload
+containers. Tests assert that the file is visible to Nginx before checking default
+configuration, managed > environment > local precedence, environment-variable
+targeting rules, service tags, and tracing disablement. These cases follow the
+system-tests YAML shapes for `apm_configuration_default` and
+`apm_configuration_rules`.
+
+Each case uses `xfail(strict=True)`. The current missing C++ tracer feature is an
+expected failure. When support lands, an unexpected pass fails CI and requires
+removing the marker.
 
 ## Evidence and CI
 

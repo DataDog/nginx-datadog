@@ -3,7 +3,11 @@ import re
 
 import pytest
 
-from .harness import NGINX_VERSION, Workload, poll, trace_id, unique_uri, UNSUPPORTED_IMAGE
+from .harness import NGINX_VERSION, STABLE_CONFIG_PATHS, Workload, poll, trace_id, unique_uri, UNSUPPORTED_IMAGE
+
+stable_config_xfail = pytest.mark.xfail(
+    reason="C++ tracer stable configuration support is not implemented",
+    strict=True)
 
 
 def nginx_span(sandbox, uri, collector="a", service="injection-nginx"):
@@ -117,6 +121,124 @@ def test_environment_tags(sandbox, workload):
         "team": "nginx",
         "test": "injection"
     }
+
+
+@pytest.mark.stable_config
+@stable_config_xfail
+@pytest.mark.parametrize("path", STABLE_CONFIG_PATHS, ids=("local", "managed"))
+def test_stable_config_defaults(sandbox, workload, stable_config, path):
+    content = stable_config(
+        path, {
+            "config_id": "nginx-stable-defaults",
+            "apm_configuration_default": {
+                "DD_SERVICE": "stable-nginx",
+                "DD_ENV": "stable-env",
+                "DD_VERSION": "stable-version",
+                "DD_TAGS": "team:stable,test:configuration"
+            }
+        })
+    application = workload({"DD_SERVICE": None})
+    application.assert_file(path, content)
+    uri = unique_uri()
+    application.request(uri)
+    application.stop()
+    span = nginx_span(sandbox, uri, service=None)
+    assert span["service"] == "stable-nginx", span
+    assert {
+        key: span["meta"][key]
+        for key in ("env", "version", "team", "test")
+    } == {
+        "env": "stable-env",
+        "version": "stable-version",
+        "team": "stable",
+        "test": "configuration"
+    }
+
+
+@pytest.mark.stable_config
+@stable_config_xfail
+def test_stable_config_precedence(sandbox, workload, stable_config):
+    local = stable_config(
+        STABLE_CONFIG_PATHS[0], {
+            "config_id": "nginx-stable-local",
+            "apm_configuration_default": {
+                "DD_SERVICE": "local-service",
+                "DD_VERSION": "local-version"
+            }
+        })
+    managed = stable_config(
+        STABLE_CONFIG_PATHS[1], {
+            "config_id": "nginx-stable-managed",
+            "apm_configuration_default": {
+                "DD_SERVICE": "managed-service"
+            }
+        })
+    application = workload({
+        "DD_SERVICE": "environment-service",
+        "DD_ENV": "environment"
+    })
+    application.assert_file(STABLE_CONFIG_PATHS[0], local)
+    application.assert_file(STABLE_CONFIG_PATHS[1], managed)
+    uri = unique_uri()
+    application.request(uri)
+    application.stop()
+    span = nginx_span(sandbox, uri, service=None)
+    assert span["service"] == "managed-service", span
+    assert span["meta"]["env"] == "environment", span
+    assert span["meta"]["version"] == "local-version", span
+
+
+@pytest.mark.stable_config
+@stable_config_xfail
+def test_stable_config_targeting_rule(sandbox, workload, stable_config):
+    path = STABLE_CONFIG_PATHS[1]
+    content = stable_config(
+        path, {
+            "config_id":
+            "nginx-stable-rule",
+            "apm_configuration_rules": [{
+                "selectors": [{
+                    "origin": "environment_variables",
+                    "key": "STABLE_CONFIG_SELECTOR",
+                    "operator": "equals",
+                    "matches": ["true"]
+                }],
+                "configuration": {
+                    "DD_SERVICE": "targeted-service"
+                }
+            }]
+        })
+    application = workload({
+        "STABLE_CONFIG_SELECTOR": "true",
+        "DD_SERVICE": "environment-service"
+    })
+    application.assert_file(path, content)
+    uri = unique_uri()
+    application.request(uri)
+    application.stop()
+    span = nginx_span(sandbox, uri, service=None)
+    assert span["service"] == "targeted-service", span
+
+
+@pytest.mark.stable_config
+@stable_config_xfail
+@pytest.mark.parametrize("path", STABLE_CONFIG_PATHS, ids=("local", "managed"))
+def test_stable_config_tracing_disabled(sandbox, workload, stable_config,
+                                        path):
+    content = stable_config(
+        path, {
+            "config_id": "nginx-stable-disabled",
+            "apm_configuration_default": {
+                "DD_TRACE_ENABLED": False
+            }
+        })
+    application = workload()
+    application.assert_file(path, content)
+    uri = unique_uri()
+    application.request(uri)
+    application.assert_module()
+    application.stop()
+    sandbox.quiet(uri, "injection-nginx")
 
 
 @pytest.mark.parametrize("routing", ["url", "host-port"])

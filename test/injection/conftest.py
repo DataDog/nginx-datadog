@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from .harness import Docker, Images, MODES, Sandbox, Workload
+from .harness import Docker, Images, MODES, Sandbox, STABLE_CONFIG_PATHS, Workload
 
 
 def pytest_addoption(parser):
@@ -40,8 +40,7 @@ def pytest_collection_modifyitems(items):
 
 def pytest_sessionfinish(session, exitstatus):
     reporter = session.config.pluginmanager.getplugin("terminalreporter")
-    if reporter and (reporter.stats.get("skipped")
-                     or reporter.stats.get("xfailed")):
+    if reporter and reporter.stats.get("skipped"):
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
     if reporter and os.environ.get("GITLAB_CI") and reporter.stats.get(
             "deselected"):
@@ -96,3 +95,19 @@ def workload(sandbox, request):
     finally:
         for instance in created:
             instance.finish()
+
+
+@pytest.fixture
+def stable_config(sandbox):
+    written = set()
+
+    def write(path, configuration):
+        assert path in STABLE_CONFIG_PATHS
+        written.add(path)
+        return sandbox.write_stable_config(path, configuration)
+
+    try:
+        yield write
+    finally:
+        for path in written:
+            sandbox.host("rm", "-f", path)
