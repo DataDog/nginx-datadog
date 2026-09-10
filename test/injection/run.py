@@ -69,8 +69,8 @@ def main():
         example_up(docker, args, package)
         return 0
     command = [
-        sys.executable, "-m", "pytest", "test/injection", "-v",
-        "--strict-markers", "--injection-artifacts",
+        sys.executable, "-m", "pytest", "-c", "test/pyproject.toml",
+        "test/injection", "-v", "--strict-markers", "--injection-artifacts",
         str(docker.artifacts), f"--junitxml={docker.artifacts / 'junit.xml'}"
     ]
     if package:
