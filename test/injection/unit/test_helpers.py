@@ -1,13 +1,29 @@
 import hashlib
 import io
 import json
+import subprocess
+import sys
 import tarfile
 
 import pytest
 import zstandard
 
-from test.injection.harness import flatten, matching, trace_id, NGINX_VERSION
+from test.injection.harness import flatten, matching, trace_id, NGINX_VERSION, ROOT
 from test.injection.package import module_checksum
+
+
+def test_unittest_discovery_without_pytest():
+    result = subprocess.run([
+        sys.executable, "-S", "-c",
+        "import unittest; loader = unittest.TestLoader(); "
+        "suite = loader.discover('test/injection', top_level_dir='test'); "
+        "assert not loader.errors, loader.errors; "
+        "assert suite.countTestCases() == 0"
+    ],
+                            cwd=ROOT,
+                            text=True,
+                            capture_output=True)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_match_separate_trace_chunks():
