@@ -1,0 +1,98 @@
+import os
+from pathlib import Path
+import re
+
+import pytest
+
+from .harness import Docker, Images, MODES, Sandbox, Workload
+
+
+def pytest_addoption(parser):
+    group = parser.getgroup("injection")
+    group.addoption("--injection-mode", choices=MODES, action="append")
+    group.addoption("--injection-package",
+                    default=os.environ.get("INJECTION_PACKAGE"))
+    group.addoption("--injection-artifacts",
+                    default=os.environ.get("INJECTION_ARTIFACTS",
+                                           "test/injection/artifacts/latest"))
+
+
+def pytest_configure(config):
+    if os.environ.get("PYTEST_XDIST_WORKER") or getattr(
+            config.option, "numprocesses", 0):
+        raise pytest.UsageError("Injection acceptance tests must run serially")
+
+
+def pytest_generate_tests(metafunc):
+    if "mode" in metafunc.fixturenames:
+        metafunc.parametrize("mode",
+                             metafunc.config.getoption("--injection-mode")
+                             or MODES,
+                             scope="session")
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(items):
+    items.sort(
+        key=lambda item: MODES.index(item.callspec.params["mode"]) if hasattr(
+            item, "callspec") and "mode" in item.callspec.params else -1)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    reporter = session.config.pluginmanager.getplugin("terminalreporter")
+    if reporter and (reporter.stats.get("skipped")
+                     or reporter.stats.get("xfailed")):
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+    if reporter and os.environ.get("GITLAB_CI") and reporter.stats.get(
+            "deselected"):
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+@pytest.fixture(scope="session")
+def images(request):
+    docker = Docker(request.config.getoption("--injection-artifacts"))
+    built = Images(docker)
+    try:
+        yield built
+    finally:
+        built.close()
+
+
+@pytest.fixture(scope="session")
+def sandbox_factory(images, request):
+    package = request.config.getoption("--injection-package")
+    if package:
+        package = str(Path(package).resolve(strict=True))
+
+    def create(mode, name):
+        return Sandbox(images, mode, images.docker.artifacts / name, package)
+
+    return create
+
+
+@pytest.fixture(scope="session")
+def sandbox(sandbox_factory, mode):
+    instance = sandbox_factory(mode, mode)
+    try:
+        instance.start()
+        instance.install()
+        yield instance
+    finally:
+        instance.close()
+
+
+@pytest.fixture
+def workload(sandbox, request):
+    name = re.sub(r"[^a-zA-Z0-9_.-]", "_", request.node.name)
+    created = []
+
+    def start(nginx_env=None, backend_env=None, image=None):
+        instance = Workload(sandbox, name, nginx_env, backend_env, image)
+        created.append(instance)
+        return instance.start()
+
+    try:
+        yield start
+    finally:
+        for instance in created:
+            instance.finish()

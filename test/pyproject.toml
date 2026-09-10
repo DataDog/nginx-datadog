@@ -1,8 +1,12 @@
 [project]
 name = "nginx-datadog-test"
 version = "1.0.0"
+requires-python = ">=3.11"
 dependencies = [
     "PyYAML==6.0.2",
     "werkzeug==3.1.8",
     "yapf==0.43.0",
 ]
+
+[dependency-groups]
+injection = ["pytest==8.4.2", "zstandard==0.25.0"]
