@@ -516,7 +516,12 @@ class Workload:
         self.sandbox.inner(*args, image, *command)
         self.containers.append(name)
 
-    def request(self, uri, headers=None, port=8080, content=None):
+    def request(self,
+                uri,
+                headers=None,
+                port=8080,
+                content=None,
+                include_content_type=False):
         if uri.startswith("/static/"):
             self.sandbox.host(
                 "sh",
@@ -527,21 +532,31 @@ class Workload:
                 input=content if content is not None else "injection test\n")
         args = [
             "curl", "--fail", "--silent", "--show-error", "--max-time", "3",
-            "-w", "\n%{http_code}"
+            "-w",
+            "\n__DD_STATUS__%{http_code}\n__DD_CONTENT_TYPE__%{content_type}"
         ]
         for key, value in (headers or {}).items():
             args.extend(["-H", f"{key}: {value}"])
         response = self.sandbox.host(*args, f"http://127.0.0.1:{port}{uri}")
-        body, _, status = response.rpartition("\n")
+        body, marker, metadata = response.rpartition("__DD_STATUS__")
+        assert marker, response
+        body = body.removesuffix("\n")
+        status, marker, content_type = metadata.partition(
+            "\n__DD_CONTENT_TYPE__")
+        assert marker, response
         assert int(status) == (204 if port == 8080 and uri == "/ready" else
                                200), response
         if uri != "/ready":
             with (self.directory / "requests.jsonl").open("a") as output:
                 output.write(
                     json.dumps(
-                        dict(uri=uri, port=port, status=int(status),
+                        dict(uri=uri,
+                             port=port,
+                             status=int(status),
+                             content_type=content_type,
                              body=body)) + "\n")
-        return body or status
+        result = body or status
+        return (result, content_type) if include_content_type else result
 
     def evidence(self):
         data = json.loads(
@@ -626,6 +641,145 @@ class Workload:
     def finish(self):
         self.stop()
         self.sandbox.save(self.name)
+
+
+class SwarmWorkload(Workload):
+
+    def __init__(self, sandbox, name, nginx_env=None):
+        assert sandbox.mode == "docker-debian"
+        super().__init__(sandbox, name, nginx_env)
+        self.service = f"nginx-swarm-{uuid.uuid4().hex[:8]}"
+        self.service_created = False
+        self.swarm_created = False
+        self.task_container = None
+        self.task = None
+
+    def start(self):
+        assert not self.running
+        self.running = True
+        self.generation += 1
+        self.sandbox.load(self.image)
+        state = self.sandbox.inner("info", "--format",
+                                   "{{.Swarm.LocalNodeState}}")
+        assert state == "inactive", state
+        self.sandbox.inner("swarm", "init", "--advertise-addr", "eth0")
+        self.swarm_created = True
+        args = [
+            "service", "create", "--detach", "--no-resolve-image", "--name",
+            self.service, "--replicas", "1", "--network", "host",
+            "--restart-condition", "none", "--stop-signal", "SIGQUIT",
+            "--stop-grace-period", "30s", "--container-label", LABEL,
+            "--mount", "type=bind,source=/workload,target=/workload,readonly",
+            "--mount", "type=bind,source=/srv/site,target=/srv/site,readonly"
+        ]
+        for key, value in self.environment(self.nginx_env).items():
+            if value is not None:
+                args.extend(["--env", f"{key}={value}"])
+        self.sandbox.inner(*args, self.image, "nginx", "-c",
+                           "/workload/nginx.conf", "-g", "daemon off;")
+        self.service_created = True
+        poll(self.running_task, "running Nginx Swarm task")
+        self.task_container = poll(self.container_id,
+                                   "Nginx Swarm task container")
+        self.record_swarm("running")
+        poll(lambda: self.request("/ready"), "Nginx Swarm readiness")
+        return self
+
+    def running_task(self):
+        result = self.sandbox.inner("service",
+                                    "ps",
+                                    "--no-trunc",
+                                    "--format",
+                                    "{{.CurrentState}} {{.Error}}",
+                                    self.service,
+                                    check=False)
+        assert result.returncode == 0, result.stderr
+        states = result.stdout.strip()
+        assert not any(state in states
+                       for state in ("Failed", "Rejected")), states
+        return states if any(
+            line.startswith("Running")
+            for line in states.splitlines()) else None
+
+    def container_id(self):
+        containers = self.sandbox.inner(
+            "ps", "-q", "--filter",
+            f"label=com.docker.swarm.service.name={self.service}").splitlines(
+            )
+        return containers[0] if len(containers) == 1 else None
+
+    def record_swarm(self, state):
+        self.directory.joinpath(f"nodes-{state}.jsonl").write_text(
+            self.sandbox.inner("node", "ls", "--format", "{{json .}}") + "\n")
+        self.directory.joinpath(f"service-{state}.json").write_text(
+            self.sandbox.inner("service", "inspect", self.service) + "\n")
+        self.directory.joinpath(f"tasks-{state}.jsonl").write_text(
+            self.sandbox.inner("service", "ps", "--no-trunc", "--format",
+                               "{{json .}}", self.service) + "\n")
+        if self.task_container:
+            inspected = self.sandbox.inner("inspect",
+                                           self.task_container,
+                                           check=False)
+            if inspected.returncode == 0:
+                self.directory.joinpath(f"container-{state}.json").write_text(
+                    inspected.stdout)
+                self.task = json.loads(inspected.stdout)[0]
+
+    def assert_file(self, path, content):
+        actual = self.sandbox.inner("exec", self.task_container, "cat", path)
+        assert actual == content.rstrip(), actual
+
+    def stop(self):
+        if not self.running:
+            return
+        try:
+            if self.service_created:
+                self.evidence()
+                self.record_swarm("before-stop")
+                self.sandbox.inner("service", "scale", f"{self.service}=0")
+                poll(
+                    lambda: not json.loads(
+                        self.sandbox.host("python3", "/workload/processes.py")
+                    ), "Nginx Swarm graceful shutdown")
+                logs = self.sandbox.inner("service",
+                                          "logs",
+                                          "--raw",
+                                          self.service,
+                                          check=False)
+                self.directory.joinpath("service.log").write_text(logs.stdout +
+                                                                  logs.stderr)
+                self.record_swarm("stopped")
+        finally:
+            try:
+                if self.service_created:
+                    self.sandbox.inner("service",
+                                       "rm",
+                                       self.service,
+                                       check=False)
+                    self.service_created = False
+            finally:
+                if self.swarm_created:
+                    self.sandbox.inner("swarm",
+                                       "leave",
+                                       "--force",
+                                       check=False)
+                    self.swarm_created = False
+                self.running = False
+
+    def proof(self, uri, body, content_type, span):
+        labels = self.task["Config"]["Labels"]
+        data = {
+            "uri": uri,
+            "body": body,
+            "content_type": content_type,
+            "service": self.service,
+            "service_id": labels["com.docker.swarm.service.id"],
+            "task_id": labels["com.docker.swarm.task.id"],
+            "container_id": self.task_container,
+            "nginx_span": span,
+        }
+        self.directory.joinpath("swarm-proof.json").write_text(
+            json.dumps(data, indent=2))
 
 
 def unique_uri(proxy=False):

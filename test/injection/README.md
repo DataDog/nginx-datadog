@@ -3,8 +3,9 @@
 These tests install the real Datadog injector and language packages into a disposable
 Linux host. They check HTTP responses, decoded spans, and Nginx → Flask parent links.
 The same cases run against host processes, a Debian Nginx container, and an Alpine
-Nginx container. Kubernetes is outside this suite. Stable-config tracing cases are
-strict expected failures until the C++ tracer supports the feature.
+Nginx container. A focused smoke test also runs an ordinary Nginx service in a
+single-node Docker Swarm. Kubernetes is outside this suite. Stable-config tracing
+cases are strict expected failures until the C++ tracer supports the feature.
 
 ## Run
 
@@ -36,6 +37,13 @@ To investigate one case:
 DOCKER_CONTEXT=orbstack make test-injection \
   INJECTION_TEST_ARGS='--injection-mode docker-alpine -k test_proxy_trace_link -x' \
   INJECTION_ARTIFACTS=test/injection/artifacts/debug
+```
+
+To run the Swarm smoke test:
+
+```sh
+DOCKER_CONTEXT=orbstack make test-injection \
+  INJECTION_TEST_ARGS='--injection-mode docker-debian -k test_swarm_tracing_without_rum -x'
 ```
 
 Tests run serially. Do not use pytest-xdist. A full run covers all three modes;
@@ -136,6 +144,14 @@ RUM opt-out tests serve HTML while requiring a valid Nginx trace. They verify th
 `DD_RUM_ENABLED=false` in the environment leaves tracing active. The equivalent
 local and managed stable-config cases are strict expected failures until the Nginx
 RUM integration consumes that setting.
+
+The Swarm smoke test creates one service replica in the private Docker daemon. It
+uses the ordinary Nginx image and does not select a runtime or add Datadog Nginx
+directives. It requires a loaded module, one decoded Nginx span, and unchanged HTML
+when RUM injection is disabled. It records the Swarm node, service, task, container,
+logs, process map, and trace before removing the service. This test does not cover
+multi-node scheduling, overlay networking, routing mesh, rolling updates, or node
+failure.
 
 Each known gap uses `xfail(strict=True)`. When support lands, an unexpected pass
 fails CI and requires removing the marker.

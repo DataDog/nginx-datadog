@@ -4,7 +4,8 @@ import re
 
 import pytest
 
-from .harness import Docker, Images, MODES, Sandbox, STABLE_CONFIG_PATHS, Workload
+from .harness import (Docker, Images, MODES, Sandbox, STABLE_CONFIG_PATHS,
+                      SwarmWorkload, Workload)
 
 
 def pytest_addoption(parser):
@@ -25,6 +26,12 @@ def pytest_configure(config):
 
 def pytest_generate_tests(metafunc):
     if "mode" in metafunc.fixturenames:
+        explicitly_parameterized = any(
+            "mode" in marker.args[0].replace(",", " ").split()
+            for marker in metafunc.definition.iter_markers("parametrize")
+            if marker.args and isinstance(marker.args[0], str))
+        if explicitly_parameterized:
+            return
         metafunc.parametrize("mode",
                              metafunc.config.getoption("--injection-mode")
                              or MODES,
@@ -32,7 +39,20 @@ def pytest_generate_tests(metafunc):
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_collection_modifyitems(items):
+def pytest_collection_modifyitems(config, items):
+    selected_modes = config.getoption("--injection-mode")
+    deselected = []
+    selected = []
+    for item in items:
+        mode = item.callspec.params.get("mode") if hasattr(
+            item, "callspec") else None
+        if selected_modes and mode and mode not in selected_modes:
+            deselected.append(item)
+        else:
+            selected.append(item)
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+    items[:] = selected
     items.sort(
         key=lambda item: MODES.index(item.callspec.params["mode"]) if hasattr(
             item, "callspec") and "mode" in item.callspec.params else -1)
@@ -87,6 +107,23 @@ def workload(sandbox, request):
 
     def start(nginx_env=None, backend_env=None, image=None):
         instance = Workload(sandbox, name, nginx_env, backend_env, image)
+        created.append(instance)
+        return instance.start()
+
+    try:
+        yield start
+    finally:
+        for instance in created:
+            instance.finish()
+
+
+@pytest.fixture
+def swarm_workload(sandbox, request):
+    name = re.sub(r"[^a-zA-Z0-9_.-]", "_", request.node.name)
+    created = []
+
+    def start(nginx_env=None):
+        instance = SwarmWorkload(sandbox, name, nginx_env)
         created.append(instance)
         return instance.start()
 

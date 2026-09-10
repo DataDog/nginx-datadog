@@ -261,10 +261,13 @@ def test_rum_disabled_by_environment(sandbox, workload, stable_config):
     application = workload({"DD_RUM_ENABLED": "false"})
     application.assert_file(path, content)
     uri = f"{unique_uri()}.html"
-    body = application.request(uri, content=RUM_HTML)
+    body, content_type = application.request(uri,
+                                             content=RUM_HTML,
+                                             include_content_type=True)
     application.assert_module()
     application.stop()
     nginx_span(sandbox, uri)
+    assert content_type.startswith("text/html")
     assert body == RUM_HTML
     assert "datadog-rum.js" not in body
 
@@ -285,12 +288,37 @@ def test_rum_disabled_by_stable_config(sandbox, workload, stable_config, path):
     application = workload()
     application.assert_file(path, content)
     uri = f"{unique_uri()}.html"
-    body = application.request(uri, content=RUM_HTML)
+    body, content_type = application.request(uri,
+                                             content=RUM_HTML,
+                                             include_content_type=True)
     application.assert_module()
     application.stop()
     nginx_span(sandbox, uri)
+    assert content_type.startswith("text/html")
     assert body == RUM_HTML
     assert "datadog-rum.js" not in body
+
+
+@pytest.mark.parametrize("mode", ["docker-debian"], scope="session")
+def test_swarm_tracing_without_rum(sandbox, swarm_workload, mode):
+    application = swarm_workload({
+        "DD_SERVICE": "injection-swarm-nginx",
+        "DD_RUM_ENABLED": "false",
+        "DD_RUM_APPLICATION_ID": "swarm-application",
+        "DD_RUM_CLIENT_TOKEN": "swarm-token",
+    })
+    uri = f"{unique_uri()}.html"
+    body, content_type = application.request(uri,
+                                             content=RUM_HTML,
+                                             include_content_type=True)
+    application.assert_module()
+    application.stop()
+    span = nginx_span(sandbox, uri, service="injection-swarm-nginx")
+    assert content_type.startswith("text/html")
+    assert body == RUM_HTML
+    assert "datadog-rum.js" not in body
+    application.proof(uri, body, content_type, span)
+    sandbox.assert_injection_telemetry()
 
 
 @pytest.mark.parametrize("routing", ["url", "host-port"])
