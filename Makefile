@@ -290,6 +290,24 @@ build-musl-aux-ingress:
 
 # ----- Test
 
+INJECTION_SOURCE ?= published
+INJECTION_MODE ?= docker
+INJECTION_ARTIFACTS ?= test/injection/artifacts/latest
+INJECTION_PACKAGE_ARG = $(if $(INJECTION_PACKAGE),--package "$(INJECTION_PACKAGE)",)
+
+.PHONY: test-injection injection-example-up injection-example-down injection-example-request injection-example-traces
+test-injection:
+	uv run --project test --group injection python -m test.injection.run test \
+		--source "$(INJECTION_SOURCE)" $(INJECTION_PACKAGE_ARG) --artifacts "$(INJECTION_ARTIFACTS)" $(INJECTION_TEST_ARGS)
+
+injection-example-up:
+	uv run --project test --group injection python -m test.injection.run example-up \
+		--source "$(INJECTION_SOURCE)" $(INJECTION_PACKAGE_ARG) --mode "$(INJECTION_MODE)" --artifacts "$(INJECTION_ARTIFACTS)"
+
+injection-example-down injection-example-request injection-example-traces:
+	uv run --project test --group injection python -m test.injection.run $(patsubst injection-%,%,$@) \
+		--artifacts "$(INJECTION_ARTIFACTS)"
+
 .PHONY: build-and-test
 build-and-test: build-musl test
 
