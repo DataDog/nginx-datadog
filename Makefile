@@ -52,7 +52,7 @@ IN_DOCKER_OR_CI := $(shell if [ "$(IN_DOCKER)" = "true" ] || \
 
 # ----- Docker Images
 
-BUILD_IMAGE_DIGEST := sha256:6fbb23a5089853eea7cd26dfaeded4e6541027927016fb1ccdaf2d6713da5c26
+BUILD_IMAGE_DIGEST := sha256:6fbb23a5089853eea7cd26dfaeded4e6541027927016fb1ccdaf2d6713da5c26 # 1.0.5
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
 CI_TEST_IMAGE := $(CI_REGISTRY)/test
 UWSGI_TEST_IMAGE := $(CI_REGISTRY)/uwsgi
@@ -61,6 +61,8 @@ FORMATTER_IMAGE ?= nginx-datadog-formatter
 
 # On GitLab, we get the Docker images from registry.ddbuild.io.
 # Locally, we build them before using them in some targets via $(TEST_DEPENDENCY).
+# The build image repository is https://github.com/DataDog/musl-toolchain-glibc-support
+# Changes to it should be made there.
 ifdef GITLAB_CI
 	BUILD_IMAGE := registry.ddbuild.io/ci/musl-toolchain-glibc-support/musl-build-env@$(BUILD_IMAGE_DIGEST)
 	TEST_DEPENDENCY :=
