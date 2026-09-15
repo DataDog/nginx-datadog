@@ -23,9 +23,10 @@ Tracing is automatically added to all endpoints by default. For more information
 
 ## Compatibility
 
-> [!IMPORTANT] We provide support for Nginx versions up to their End Of Life, extended by one year.
-> [Aligned with the Nginx release cycle](https://docs.nginx.com/nginx/releases), this entails
-> support for the four most recent Nginx versions.
+> [!IMPORTANT]
+> We provide support for Nginx versions up to their End Of Life, extended by one year. [Aligned with
+> the Nginx release cycle](https://docs.nginx.com/nginx/releases), this entails support for the four
+> most recent Nginx versions.
 >
 > If you plan to add tracing features to an older Nginx version using our module, please check out
 > [the build section](#building-the-module) for guidance.
@@ -39,8 +40,8 @@ The naming convention is:
 - `ngx_http_datadog_module-<arch>-<version>.so.tgz` for builds without appsec support;
 - `ngx_http_datadog_module-appsec-<arch>-<version>.so.tgz` for builds with appsec support.
 
-> [!IMPORTANT] The AppSec variants require Nginx to have been built with `--threads` (thread
-> support).
+> [!IMPORTANT]
+> The AppSec variants require Nginx to have been built with `--threads` (thread support).
 
 Supported architectures (`<arch>`) are `amd64` and `arm64`.
 
@@ -104,12 +105,14 @@ Before building the module, ensure your environment meets the following requirem
 We recommend using Docker which greatly simplify the build process for various environments. Below
 are specific commands and options for different build targets.
 
-> [!IMPORTANT] Be sure to match the version of Nginx, OpenResty, or Ingress Nginx with the version
-> you are using in your environment to avoid compatibility issues.
+> [!IMPORTANT]
+> Be sure to match the version of Nginx, OpenResty, or Ingress Nginx with the version you are using
+> in your environment to avoid compatibility issues.
 
 #### Building for Nginx
 
-> [!NOTE] The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee
+> [!NOTE]
+> The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee
 > portability.
 
 ```shell
@@ -127,8 +130,9 @@ The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 
 ### Building for OpenResty Using Docker
 
-> [!NOTE] The `build-openresty` target builds against [musl](https://www.musl-libc.org/) to
-> guarantee portability.
+> [!NOTE]
+> The `build-openresty` target builds against [musl](https://www.musl-libc.org/) to guarantee
+> portability.
 
 To build the module for OpenResty:
 
@@ -146,8 +150,9 @@ The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
 
 ### Building for Ingress Nginx using Docker
 
-> [!NOTE] The `build-ingress-nginx` target builds against [musl](https://www.musl-libc.org/) to
-> guarantee portability.
+> [!NOTE]
+> The `build-ingress-nginx` target builds against [musl](https://www.musl-libc.org/) to guarantee
+> portability.
 
 To build the module for [Ingress Nginx](https://github.com/kubernetes/ingress-nginx):
 
