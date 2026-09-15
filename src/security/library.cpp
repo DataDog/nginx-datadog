@@ -715,6 +715,7 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
 
   if (conf.enable_status() ==
       FinalizedConfigSettings::enable_status::DISABLED) {
+    Library::set_active(false);
     ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                   "datadog security library is explicitly disabled");
     return std::nullopt;
