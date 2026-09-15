@@ -14,16 +14,16 @@ fi
 
 error_messages=''
 
-find src/ tools -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
+find src/ test/ tools/ -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    error_messages=$(printf '%s\nC++ formatter reported formatting differences in src/ or tools/ and returned error status %d.\n' "$error_messages" "$rc")
+    error_messages=$(printf '%s\nC++ formatter reported formatting differences in src/, test/, or tools/ and returned error status %d.\n' "$error_messages" "$rc")
 fi
 
-find bin/ -type f -name '*.py' -print0 | xargs -0 yapf --diff
+find bin/ test/ -type f -name '*.py' -print0 | xargs -0 yapf --diff
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    error_messages=$(printf '%s\nPython formatter reported formatting differences in bin/ and returned error status %d.\n' "$error_messages" "$rc")
+    error_messages=$(printf '%s\nPython formatter reported formatting differences in bin/ or test/ and returned error status %d.\n' "$error_messages" "$rc")
 fi
 
 yapf --recursive --diff "$@" "test/"

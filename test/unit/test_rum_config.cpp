@@ -1,6 +1,6 @@
-#include <catch2/catch_test_macros.hpp>
 #include <rapidjson/document.h>
 
+#include <catch2/catch_test_macros.hpp>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -48,8 +48,8 @@ TEST_CASE("parse_rum_version invalid inputs", "[rum][config]") {
 // ---------------------------------------------------------------------------
 
 TEST_CASE("parse_bool truthy values", "[rum][config]") {
-  for (const char* val : {"true", "TRUE", "True", "1", "yes", "YES", "on",
-                          "ON", "On"}) {
+  for (const char* val :
+       {"true", "TRUE", "True", "1", "yes", "YES", "on", "ON", "On"}) {
     SECTION(val) {
       auto result = rum::parse_bool(val);
       REQUIRE(result.has_value());
@@ -59,8 +59,8 @@ TEST_CASE("parse_bool truthy values", "[rum][config]") {
 }
 
 TEST_CASE("parse_bool falsy values", "[rum][config]") {
-  for (const char* val : {"false", "FALSE", "False", "0", "no", "NO", "off",
-                          "OFF", "Off"}) {
+  for (const char* val :
+       {"false", "FALSE", "False", "0", "no", "NO", "off", "OFF", "Off"}) {
     SECTION(val) {
       auto result = rum::parse_bool(val);
       REQUIRE(result.has_value());
@@ -87,7 +87,8 @@ TEST_CASE("make_rum_json_config with string fields", "[rum][config]") {
       {"clientToken", {"tok-456"}},
   };
 
-  auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+  auto json =
+      rum::make_rum_json_config(rum::default_rum_config_version, config);
   auto doc = parse_json(json);
 
   CHECK(doc["majorVersion"].GetInt() == 5);
@@ -102,7 +103,8 @@ TEST_CASE("make_rum_json_config with double fields", "[rum][config]") {
       {"sessionReplaySampleRate", {"50"}},
   };
 
-  auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+  auto json =
+      rum::make_rum_json_config(rum::default_rum_config_version, config);
   auto doc = parse_json(json);
 
   CHECK(doc["rum"]["sessionSampleRate"].GetDouble() == 75.5);
@@ -116,7 +118,8 @@ TEST_CASE("make_rum_json_config with bool fields", "[rum][config]") {
       {"trackUserInteractions", {"true"}},
   };
 
-  auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+  auto json =
+      rum::make_rum_json_config(rum::default_rum_config_version, config);
   auto doc = parse_json(json);
 
   CHECK(doc["rum"]["trackResources"].GetBool() == true);
@@ -126,25 +129,27 @@ TEST_CASE("make_rum_json_config with bool fields", "[rum][config]") {
 
 TEST_CASE("make_rum_json_config bool fields accept truthy variants",
           "[rum][config]") {
-  for (const char* truthy : {"true", "TRUE", "True", "1", "yes", "YES",
-                              "on", "ON"}) {
+  for (const char* truthy :
+       {"true", "TRUE", "True", "1", "yes", "YES", "on", "ON"}) {
     SECTION(std::string("trackResources=") + truthy) {
       std::unordered_map<std::string, std::vector<std::string>> config = {
           {"trackResources", {truthy}},
       };
-      auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+      auto json =
+          rum::make_rum_json_config(rum::default_rum_config_version, config);
       auto doc = parse_json(json);
       CHECK(doc["rum"]["trackResources"].GetBool() == true);
     }
   }
 
-  for (const char* falsy : {"false", "FALSE", "0", "no", "off",
-                             "anything_else"}) {
+  for (const char* falsy :
+       {"false", "FALSE", "0", "no", "off", "anything_else"}) {
     SECTION(std::string("trackResources=") + falsy) {
       std::unordered_map<std::string, std::vector<std::string>> config = {
           {"trackResources", {falsy}},
       };
-      auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+      auto json =
+          rum::make_rum_json_config(rum::default_rum_config_version, config);
       auto doc = parse_json(json);
       CHECK(doc["rum"]["trackResources"].GetBool() == false);
     }
@@ -160,7 +165,8 @@ TEST_CASE("make_rum_json_config skips entries with empty values vector",
       {"customField", {}},
   };
 
-  auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+  auto json =
+      rum::make_rum_json_config(rum::default_rum_config_version, config);
   auto doc = parse_json(json);
 
   CHECK(std::string(doc["rum"]["applicationId"].GetString()) == "app-123");
@@ -174,7 +180,8 @@ TEST_CASE("make_rum_json_config with multi-value array", "[rum][config]") {
       {"customField", {"val1", "val2", "val3"}},
   };
 
-  auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+  auto json =
+      rum::make_rum_json_config(rum::default_rum_config_version, config);
   auto doc = parse_json(json);
 
   REQUIRE(doc["rum"]["customField"].IsArray());
@@ -191,7 +198,8 @@ TEST_CASE("make_rum_json_config with invalid double falls back to string",
       {"sessionSampleRate", {"not-a-number"}},
   };
 
-  auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+  auto json =
+      rum::make_rum_json_config(rum::default_rum_config_version, config);
   auto doc = parse_json(json);
 
   // Invalid double values are passed as strings instead of crashing.
@@ -204,11 +212,11 @@ TEST_CASE("make_rum_json_config with invalid double falls back to string",
 TEST_CASE("make_rum_json_config with empty config", "[rum][config]") {
   std::unordered_map<std::string, std::vector<std::string>> config;
 
-  auto json = rum::make_rum_json_config(rum::default_rum_config_version, config);
+  auto json =
+      rum::make_rum_json_config(rum::default_rum_config_version, config);
   auto doc = parse_json(json);
 
   CHECK(doc["majorVersion"].GetInt() == 5);
   REQUIRE(doc.HasMember("rum"));
   CHECK(doc["rum"].ObjectEmpty());
 }
-
