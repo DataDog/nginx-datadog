@@ -58,12 +58,14 @@ build-nginx-all:
           - "1.30.2"
           - "1.30.3"
           - "1.30.4"
+          - "1.30.5"
           - "1.31.0"
           - "1.31.1"
           - "1.31.2"
           - "1.31.3"
           - "1.31.4"
           - "1.31.5"
+          - "1.31.6"
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-all:
@@ -105,12 +107,14 @@ build-nginx-rum-all:
           - "1.30.2"
           - "1.30.3"
           - "1.30.4"
+          - "1.30.5"
           - "1.31.0"
           - "1.31.1"
           - "1.31.2"
           - "1.31.3"
           - "1.31.4"
           - "1.31.5"
+          - "1.31.6"
         WAF: ["OFF"]
 
 build-ingress-nginx-all:
@@ -327,6 +331,10 @@ test-nginx-all-bis:
         NGINX_VERSION: ["1.30.4"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.30.5", "nginx:1.30.5-alpine"]
+        NGINX_VERSION: ["1.30.5"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.31.0", "nginx:1.31.0-alpine"]
         NGINX_VERSION: ["1.31.0"]
         WAF: ["ON", "OFF"]
@@ -349,6 +357,10 @@ test-nginx-all-bis:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.31.5", "nginx:1.31.5-alpine"]
         NGINX_VERSION: ["1.31.5"]
+        WAF: ["ON", "OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.6", "nginx:1.31.6-alpine"]
+        NGINX_VERSION: ["1.31.6"]
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-all:
@@ -482,6 +494,10 @@ test-nginx-rum-all:
         NGINX_VERSION: ["1.30.4"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.30.5"]
+        NGINX_VERSION: ["1.30.5"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.31.0"]
         NGINX_VERSION: ["1.31.0"]
         WAF: ["OFF"]
@@ -504,6 +520,10 @@ test-nginx-rum-all:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.31.5"]
         NGINX_VERSION: ["1.31.5"]
+        WAF: ["OFF"]
+      - ARCH: ["amd64", "arm64"]
+        BASE_IMAGE: ["nginx:1.31.6"]
+        NGINX_VERSION: ["1.31.6"]
         WAF: ["OFF"]
 
 test-ingress-nginx-all:
