@@ -15,21 +15,20 @@ if ! [ -e .clang-format ]; then
     exit 1
 fi
 
-error_messages=''
+lint_status=0
 
 find "${source_directories[@]}" -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    error_messages=$(printf '%s\nC++ formatter reported formatting differences and returned error status %d.\n' "$error_messages" "$rc")
+    >&2 echo 'C++ formatter check failed.'
+    lint_status=1
 fi
 
 find "${source_directories[@]}" -type f -name '*.py' -print0 | xargs -0 yapf --recursive --diff
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    error_messages=$(printf '%s\nPython formatter reported formatting differences and returned error status %d.\n' "$error_messages" "$rc")
+    >&2 echo 'Python formatter check failed.'
+    lint_status=1
 fi
 
-if [ -n "$error_messages" ]; then
-    >&2 echo "$error_messages"
-    exit 1
-fi
+exit "$lint_status"
