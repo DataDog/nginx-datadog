@@ -1,7 +1,10 @@
 #!/bin/bash
+# Print any discrepancies between the formatting of the code and the expected style. Collects all
+# errors before exiting (no set -e).
+
 set -o pipefail
-# Print any discrepancies between the formatting of the code and the expected
-# style. Collects all errors before exiting (no set -e).
+
+source_directories=(bin src test tools)
 
 if [ -L .clang-format ] && ! [ -e .clang-format ]; then
     >&2 echo '.clang-format is a broken symlink. Initialize the dd-trace-cpp submodule: git submodule update --init dd-trace-cpp'
@@ -12,27 +15,20 @@ if ! [ -e .clang-format ]; then
     exit 1
 fi
 
-error_messages=''
+lint_status=0
 
-find src/ test/ tools/ -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
+find "${source_directories[@]}" -type f \( -name '*.h' -o -name '*.cpp' -o -name '*.c' \) -print0 | xargs -0 clang-format-14 --Werror --dry-run --style=file
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    error_messages=$(printf '%s\nC++ formatter reported formatting differences in src/, test/, or tools/ and returned error status %d.\n' "$error_messages" "$rc")
+    >&2 echo 'C++ formatter check failed.'
+    lint_status=1
 fi
 
-find bin/ test/ -type f -name '*.py' -print0 | xargs -0 yapf --diff
+find "${source_directories[@]}" -type f -name '*.py' -print0 | xargs -0 yapf --recursive --diff
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    error_messages=$(printf '%s\nPython formatter reported formatting differences in bin/ or test/ and returned error status %d.\n' "$error_messages" "$rc")
+    >&2 echo 'Python formatter check failed.'
+    lint_status=1
 fi
 
-yapf --recursive --diff "$@" "test/"
-rc=$?
-if [ "$rc" -ne 0 ]; then
-    error_messages=$(printf '%s\nPython formatter reported formatting differences in test/ and returned error status %d.\n' "$error_messages" "$rc")
-fi
-
-if [ -n "$error_messages" ]; then
-    >&2 echo "$error_messages"
-    exit 1
-fi
+exit "$lint_status"
