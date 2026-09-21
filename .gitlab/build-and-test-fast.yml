@@ -16,10 +16,10 @@ build-and-sign-ci-images:
     include: ".gitlab/build-ci-images.yml"
     strategy: mirror
   rules:
-    - when: manual
-      allow_failure: true
-
+    - when: never
 build-formatter-image:
+  rules:
+    - when: never
   extends: .build-and-test-fast
   image: $NYDUS_IMAGE
   tags: ["docker-in-docker:amd64"]
@@ -40,6 +40,8 @@ build-formatter-image:
       dotenv: formatter-image.env
 
 lint:
+  rules:
+    - when: never
   extends: .build-and-test-fast
   needs:
     - build-formatter-image
@@ -49,6 +51,8 @@ lint:
     - make lint
 
 lint-nginx-log-format:
+  rules:
+    - when: never
   extends: .build-and-test-fast
   image: $NYDUS_IMAGE
   tags: ["docker-in-docker:amd64"]
@@ -60,6 +64,8 @@ lint-nginx-log-format:
     - bin/nginx-log-format-tidy.sh
 
 shellcheck:
+  rules:
+    - when: never
   extends: .build-and-test-fast
   image: $MUSL_TOOLCHAIN_IMAGE
   tags: ["arch:amd64"]
@@ -67,6 +73,8 @@ shellcheck:
     - find bin/ test/ example/ .gitlab/ -type f \( \( -executable -not -name '*.py' \) -o -name '*.sh' \) | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
 build-nginx-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .build-nginx
@@ -89,6 +97,8 @@ build-nginx-fast:
         WAF: ["ON", "OFF"]
 
 build-nginx-asan-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .build-nginx-asan
@@ -98,6 +108,8 @@ build-nginx-asan-fast:
     WAF: "ON"
 
 build-nginx-msan-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .build-nginx-msan
@@ -107,6 +119,8 @@ build-nginx-msan-fast:
     WAF: "ON"
 
 build-ingress-nginx-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .build-ingress-nginx
@@ -119,6 +133,8 @@ build-ingress-nginx-fast:
           - "1.15.1"
 
 build-openresty-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .build-openresty
@@ -132,6 +148,8 @@ build-openresty-fast:
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .build-nginx-rum
@@ -149,6 +167,8 @@ build-nginx-rum-fast:
         WAF: ["OFF"]
 
 test-nginx-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .test-nginx
@@ -193,6 +213,8 @@ test-nginx-fast:
         WAF: ["ON", "OFF"]
 
 test-nginx-asan-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .test-nginx-asan
@@ -204,6 +226,8 @@ test-nginx-asan-fast:
     WAF: "ON"
 
 test-nginx-msan-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .test-nginx-msan
@@ -215,6 +239,8 @@ test-nginx-msan-fast:
     WAF: "ON"
 
 test-ingress-nginx-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .test-ingress-nginx
@@ -228,6 +254,8 @@ test-ingress-nginx-fast:
           - "1.15.1"
 
 test-openresty-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .test-openresty
@@ -242,6 +270,8 @@ test-openresty-fast:
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-fast:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .test-nginx-rum
@@ -278,6 +308,8 @@ test-nginx-rum-fast:
         WAF: ["OFF"]
 
 coverage:
+  rules:
+    - when: never
   extends:
     - .build-and-test-fast
     - .build
