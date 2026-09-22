@@ -77,29 +77,37 @@ inline std::string_view lc_key(const ngx_table_elt_t &header) {
   return {reinterpret_cast<const char *>(header.lowcase_key), header.key.len};
 }
 
-inline bool req_key_equals_ci(const ngx_table_elt_t &header,
-                              std::string_view key) {
-#if NGX_DEBUG
-  for (std::size_t i = 0; i < key.length(); i++) {
-    if (std::tolower(key[i]) != key[i]) {
-      throw new std::invalid_argument("key must be lowercase");
+constexpr int ascii_tolower(int c) noexcept {
+  return (c >= 'A' && c <= 'Z') ? c - 'A' + 'a' : c;
+}
+
+class LcStringView : public std::string_view {
+ public:
+  struct UnsafeTag {};
+  constexpr LcStringView() noexcept = default;
+  consteval LcStringView(std::string_view sv) : std::string_view{sv} {
+    for (std::size_t i = 0; i < sv.length(); i++) {
+      if (ascii_tolower(sv[i]) != sv[i]) {
+        throw std::invalid_argument("key must be lowercase");
+      }
     }
   }
-#endif
+  // The caller must ensure the string is lowercase
+  LcStringView(std::string_view sv, UnsafeTag) : std::string_view{sv} {}
 
+  LcStringView(const LcStringView &other) = default;
+  LcStringView(LcStringView &&other) = default;
+  LcStringView &operator=(const LcStringView &other) = default;
+  LcStringView &operator=(LcStringView &&other) = default;
+  ~LcStringView() = default;
+};
+
+inline bool req_key_equals_ci(const ngx_table_elt_t &header, LcStringView key) {
   return key == lc_key(header);
 }
 
 inline bool resp_key_equals_ci(const ngx_table_elt_t &header,
-                               std::string_view key) {
-#if NGX_DEBUG
-  for (std::size_t i = 0; i < key.length(); i++) {
-    if (std::tolower(key[i]) != key[i]) {
-      throw new std::invalid_argument("key must be lowercase");
-    }
-  }
-#endif
-
+                               LcStringView key) {
   if (header.key.len != key.size()) {
     return false;
   }

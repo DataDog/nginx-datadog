@@ -259,9 +259,9 @@ static constexpr auto kPriorityHeaderArr =
         {"cf-connecting-ipv6"sv, parse_multiple_maybe_port},
     };
 
-std::optional<ngx_table_elt_t> get_request_header(const ngx_list_t &headers,
-                                                  std::string_view header_name,
-                                                  ngx_uint_t hash) {
+std::optional<ngx_table_elt_t> get_request_header(
+    const ngx_list_t &headers, dnsec::LcStringView header_name,
+    ngx_uint_t hash) {
   dnsec::NgnixHeaderIterable it{headers};
   auto maybe_header =
       std::find_if(it.begin(), it.end(), [header_name, hash](auto &&header) {
@@ -527,14 +527,14 @@ std::optional<IpAddr> parse_ip_address_maybe_port_pair(
 
 namespace datadog::nginx::security {
 
-ClientIp::ClientIp(std::optional<HashedStringView> configured_header,
+ClientIp::ClientIp(std::optional<HashedLcStringView> configured_header,
                    const ngx_http_request_t &request)
-    : configured_header_{configured_header}, request_{request} {}
+    : configured_header_{std::move(configured_header)}, request_{request} {}
 
 std::optional<std::string> ClientIp::resolve() const {
   if (configured_header_) {
     std::optional<ngx_table_elt_t> maybe_header =
-        get_request_header(request_.headers_in.headers, configured_header_->str,
+        get_request_header(request_.headers_in.headers, configured_header_->key,
                            configured_header_->hash);
 
     if (!maybe_header) {
