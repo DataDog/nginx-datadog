@@ -23,8 +23,8 @@ inline constexpr auto kConfigMaxDepth = 25;
 class OwnedDdwafHandle;
 class FinalizedConfigSettings;
 
-struct HashedLcStringView {
-  LcStringView key;
+struct HashedLowercaseStringView {
+  LowercaseStringView key;
   ngx_uint_t hash;
 };
 
@@ -53,7 +53,7 @@ class Library {
   static void set_active(bool value) noexcept;
   static bool active() noexcept;
 
-  static std::optional<HashedLcStringView> custom_ip_header();
+  static std::optional<HashedLowercaseStringView> custom_ip_header();
   static std::uint64_t waf_timeout();
 
   static std::vector<std::string_view> environment_variable_names();

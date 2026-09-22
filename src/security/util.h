@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iterator>
+#include <stdexcept>
 #include <string_view>
 
 #include "../string_util.h"
@@ -81,33 +82,38 @@ constexpr int ascii_tolower(int c) noexcept {
   return (c >= 'A' && c <= 'Z') ? c - 'A' + 'a' : c;
 }
 
-class LcStringView : public std::string_view {
+// Checks values at compile time by default.
+// Use WithRuntimeCheckTag for values known only at runtime.
+class LowercaseStringView : public std::string_view {
  public:
-  struct UnsafeTag {};
-  constexpr LcStringView() noexcept = default;
-  consteval LcStringView(std::string_view sv) : std::string_view{sv} {
-    for (std::size_t i = 0; i < sv.length(); i++) {
-      if (ascii_tolower(sv[i]) != sv[i]) {
-        throw std::invalid_argument("key must be lowercase");
+  struct WithRuntimeCheckTag {};
+  constexpr LowercaseStringView() noexcept = default;
+  consteval LowercaseStringView(std::string_view value)
+      : std::string_view{value} {
+    validate(value);
+  }
+  LowercaseStringView(std::string_view value, WithRuntimeCheckTag)
+      : std::string_view{value} {
+    validate(value);
+  }
+
+ private:
+  static constexpr void validate(std::string_view value) {
+    for (char character : value) {
+      if (ascii_tolower(character) != character) {
+        throw std::invalid_argument("string must be lowercase");
       }
     }
   }
-  // The caller must ensure the string is lowercase
-  LcStringView(std::string_view sv, UnsafeTag) : std::string_view{sv} {}
-
-  LcStringView(const LcStringView &other) = default;
-  LcStringView(LcStringView &&other) = default;
-  LcStringView &operator=(const LcStringView &other) = default;
-  LcStringView &operator=(LcStringView &&other) = default;
-  ~LcStringView() = default;
 };
 
-inline bool req_key_equals_ci(const ngx_table_elt_t &header, LcStringView key) {
+inline bool req_key_equals_ci(const ngx_table_elt_t &header,
+                              LowercaseStringView key) {
   return key == lc_key(header);
 }
 
 inline bool resp_key_equals_ci(const ngx_table_elt_t &header,
-                               LcStringView key) {
+                               LowercaseStringView key) {
   if (header.key.len != key.size()) {
     return false;
   }

@@ -260,7 +260,7 @@ static constexpr auto kPriorityHeaderArr =
     };
 
 std::optional<ngx_table_elt_t> get_request_header(
-    const ngx_list_t &headers, dnsec::LcStringView header_name,
+    const ngx_list_t &headers, dnsec::LowercaseStringView header_name,
     ngx_uint_t hash) {
   dnsec::NgnixHeaderIterable it{headers};
   auto maybe_header =
@@ -527,7 +527,7 @@ std::optional<IpAddr> parse_ip_address_maybe_port_pair(
 
 namespace datadog::nginx::security {
 
-ClientIp::ClientIp(std::optional<HashedLcStringView> configured_header,
+ClientIp::ClientIp(std::optional<HashedLowercaseStringView> configured_header,
                    const ngx_http_request_t &request)
     : configured_header_{std::move(configured_header)}, request_{request} {}
 
