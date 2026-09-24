@@ -65,25 +65,24 @@ CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
 UWSGI_TEST_IMAGE := $(CI_REGISTRY)/uwsgi
 
 FORMATTER_IMAGE ?= nginx-datadog-formatter
+EXTENDED_BUILD_IMAGE ?= nginx_musl_toolchain
 
 ifdef GITLAB_CI
 	MUSL_TOOLCHAIN_IMAGE ?= registry.ddbuild.io/ci/musl-toolchain-glibc-support/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
-	BUILD_IMAGE ?= $(NGINX_CI_BUILD_IMAGE)
-	TOOLCHAIN_DEPENDENCY :=
+	NGINX_BUILD_IMAGE ?= $(NGINX_CI_BUILD_IMAGE)
 	TEST_DEPENDENCY :=
 else
 	MUSL_TOOLCHAIN_IMAGE ?= public.ecr.aws/datadog/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
-	BUILD_IMAGE ?= nginx_musl_toolchain
-	TOOLCHAIN_DEPENDENCY := build-local-musl-toolchain
+	NGINX_BUILD_IMAGE ?= $(if $(filter ON,$(RUM)),$(EXTENDED_BUILD_IMAGE),$(MUSL_TOOLCHAIN_IMAGE))
 	TEST_DEPENDENCY := build-local-uwsgi-test-image
 endif
 export MUSL_TOOLCHAIN_IMAGE
 
-.PHONY: build-local-musl-toolchain
-build-local-musl-toolchain:
+.PHONY: build-extended-image
+build-extended-image:
 	docker build --progress=plain --platform $(DOCKER_PLATFORM) \
 		--build-arg MUSL_TOOLCHAIN_IMAGE=$(MUSL_TOOLCHAIN_IMAGE) \
-		--tag $(BUILD_IMAGE) build_env
+		--tag $(EXTENDED_BUILD_IMAGE) build_env
 
 .PHONY: build-local-uwsgi-test-image
 build-local-uwsgi-test-image:
@@ -164,7 +163,12 @@ build: dd-trace-cpp-deps
 	@echo 'build successful 👍'
 
 .PHONY: build-musl build-musl-cov
-build-musl build-musl-cov: $(TOOLCHAIN_DEPENDENCY)
+ifndef GITLAB_CI
+ifneq ($(filter ON,$(RUM)),)
+build-musl build-musl-cov: build-extended-image
+endif
+endif
+build-musl build-musl-cov:
 ifndef NGINX_VERSION
 	$(error NGINX_VERSION is not set. Please set the NGINX_VERSION environment variable)
 endif
@@ -184,7 +188,7 @@ else
 		--env COVERAGE=$(COVERAGE) \
 		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount "type=bind,source=$(dir $(lastword $(MAKEFILE_LIST))),destination=/mnt/repo" \
-		$(BUILD_IMAGE) \
+		$(NGINX_BUILD_IMAGE) \
 		make -C /mnt/repo $@-aux
 endif
 
@@ -208,7 +212,10 @@ build-musl-aux build-musl-cov-aux:
 NGINX_VERSION ?= $(if $(RESTY_VERSION),$(shell echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}'))
 BUILD_OPENRESTY_COMMAND := ./bin/openresty/build_openresty.sh && make build-openresty-aux
 .PHONY: build-openresty
-build-openresty: $(TOOLCHAIN_DEPENDENCY)
+ifndef GITLAB_CI
+build-openresty: build-extended-image
+endif
+build-openresty:
 ifndef RESTY_VERSION
 	$(error RESTY_VERSION is not set. Please set the RESTY_VERSION environment variable)
 endif
@@ -224,7 +231,7 @@ else
 		--env WAF=$(WAF) \
 		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount type=bind,source="$(PWD)",destination=/mnt/repo \
-		$(BUILD_IMAGE) \
+		$(EXTENDED_BUILD_IMAGE) \
 		bash -c "cd /mnt/repo && $(BUILD_OPENRESTY_COMMAND)"
 endif
 
@@ -241,7 +248,7 @@ build-openresty-aux:
 # --- Ingress Nginx
 
 .PHONY: build-ingress-nginx
-build-ingress-nginx: $(TOOLCHAIN_DEPENDENCY)
+build-ingress-nginx:
 ifndef INGRESS_NGINX_VERSION
 	$(error INGRESS_NGINX_VERSION is not set. Please set the INGRESS_NGINX_VERSION environment variable)
 endif
@@ -258,7 +265,7 @@ else
 		--env COVERAGE=$(COVERAGE) \
 		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
-		$(BUILD_IMAGE) \
+		$(MUSL_TOOLCHAIN_IMAGE) \
 		make -C /mnt/repo build-musl-aux-ingress
 endif
 
