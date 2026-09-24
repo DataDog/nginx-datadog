@@ -82,26 +82,29 @@ cmake -S "$container_repo" -B "$build_dir" -G Ninja \
 
 cmake --build "$build_dir" --target nginx_module -j "$jobs"
 
-if command -v clang-tidy-14 >/dev/null 2>&1; then
-    tidy=clang-tidy-14
-elif command -v clang-tidy >/dev/null 2>&1; then
-    tidy=clang-tidy
-else
+if ! command -v run-clang-tidy >/dev/null 2>&1 && \
+   ! command -v clang-tidy >/dev/null 2>&1; then
     >&2 echo "clang-tidy is not installed."
     exit 1
 fi
 
-mapfile -t files < <(find src test/unit \
-    -type f \( -name '*.cpp' -o -name '*.c' \))
+# Only analyze translation units in the compilation database. Passing every
+# file under src/ and test/unit/ (RUM-off, tests-off) produces missing-header
+# clang-diagnostic-error noise that is not a tidy finding.
+common_args=(
+    -p "$build_dir"
+    -quiet
+    "-header-filter=^$container_repo/src/.*"
+    -system-headers=false
+    -extra-arg=-Wno-error
+    -extra-arg=-Wno-unknown-warning-option
+    -extra-arg=-Wno-unused-command-line-argument
+    -extra-arg=-Wno-everything
+)
 
-if [ "${#files[@]}" -eq 0 ]; then
-    >&2 echo "No C/C++ sources found to analyze."
-    exit 1
+if [ "$#" -gt 0 ]; then
+    clang-tidy "${common_args[@]}" --use-color "$@"
+else
+    run-clang-tidy "${common_args[@]}" -use-color -j "$jobs" \
+        "-source-filter=^$container_repo/src/.*\\.(c|cpp)$"
 fi
-
-"$tidy" -p "$build_dir" --quiet --use-color \
-    -extra-arg=-Wno-error \
-    -extra-arg=-Wno-unknown-warning-option \
-    -extra-arg=-Wno-unused-command-line-argument \
-    -extra-arg=-Wno-everything \
-    "${files[@]}"

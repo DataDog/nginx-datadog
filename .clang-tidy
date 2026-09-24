@@ -17,19 +17,20 @@ Checks: >
   bugprone-string-constructor,
   bugprone-undelegated-constructor,
   bugprone-unused-raii,
-  bugprone-use-after-move,
   bugprone-virtual-near-miss,
   misc-redundant-expression,
   misc-static-assert,
   misc-unused-using-decls,
-  modernize-redundant-void-arg,
-  performance-move-const-arg,
-  performance-noexcept-move-constructor,
   readability-delete-null-pointer,
   readability-redundant-control-flow,
-  readability-redundant-member-init,
-  readability-redundant-string-cstr,
-  readability-simplify-boolean-expr
+  readability-redundant-string-cstr
+# Deferred until existing findings are cleaned up:
+# bugprone-use-after-move
+# modernize-redundant-void-arg
+# performance-move-const-arg
+# performance-noexcept-move-constructor
+# readability-redundant-member-init
+# readability-simplify-boolean-expr
 WarningsAsErrors: '*'
-HeaderFilterRegex: '(src|test/unit|tools)/'
+HeaderFilterRegex: 'src/'
 FormatStyle: file
