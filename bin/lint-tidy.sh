@@ -1,14 +1,18 @@
 #!/bin/bash
-# Run the shared clang-tidy baseline on first-party C++ sources.
-# Findings fail the check.
+# Run the pinned clang-tidy in a container.
 #
-# Locally this script re-execs in Docker (needs NGINX_VERSION).
-# In CI / already in the container it configures, builds the module so
-# generated nginx headers exist, then runs clang-tidy.
+# clang-tidy is not reproducible across versions, and compile_commands.json
+# points at the container sysroot. Local and CI both configure CMake and run
+# tidy inside alpine:3.23.4 with LLVM 19. Do not use a host compilation
+# database.
+#
+# Usage: NGINX_VERSION=<version> make lint-tidy
 
 set -eo pipefail
 
+# Bump these together. alpine:3.23.4 ships LLVM 19.
 alpine_version=3.23.4
+CLANG_TIDY_VERSION=19
 container_image=${NGINX_TIDY_IMAGE:-alpine:$alpine_version}
 container_repo=/repo
 default_build_root=".clang-tidy-build/alpine-$alpine_version"
@@ -43,14 +47,20 @@ fi
 
 apk add --no-cache \
     ca-certificates \
-    clang \
-    clang-extra-tools \
+    "clang~${CLANG_TIDY_VERSION}" \
+    "clang-extra-tools~${CLANG_TIDY_VERSION}" \
     cmake \
     git \
     ninja \
     pcre2-dev \
     python3 \
     zlib-dev
+
+tidy_major=$(clang-tidy --version | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p' | head -n 1)
+if [ "$tidy_major" != "$CLANG_TIDY_VERSION" ]; then
+    >&2 echo "clang-tidy ${tidy_major} is installed, but ${CLANG_TIDY_VERSION} is pinned."
+    exit 1
+fi
 
 jobs=${MAKE_JOB_COUNT:-}
 if [ -z "$jobs" ]; then

@@ -13,16 +13,19 @@ Rebuild formatter image after editing `Dockerfile.formatter` with `make build-fo
 
 ## Static Analysis
 
-C++ is analyzed with clang-tidy using the shared `.clang-tidy` baseline (kept in
-sync with `dd-trace-cpp` and `httpd-datadog`). Warnings are errors.
+C++ is analyzed with **clang-tidy-19** (pinned; alpine:3.23.4 / LLVM 19) using
+the shared `.clang-tidy` baseline. Warnings are errors.
+
+Do not run clang-tidy on the host. `compile_commands.json` must be produced by
+the same container that runs tidy.
 
 ```shell
 NGINX_VERSION=<version> make lint-tidy
 ```
 
-This runs `bin/lint-tidy.sh`, which uses Docker, configures CMake, builds the
-module so generated nginx headers exist, then runs clang-tidy. Set `WAF=ON`
-(the default in this script) to include AppSec sources.
+This runs `bin/lint-tidy.sh`, which re-execs in Docker, configures CMake, builds
+the module so generated nginx headers exist, then runs clang-tidy-19. Set
+`WAF=ON` (the default in this script) to include AppSec sources.
 
 The custom nginx log-format plugin is separate:
 
