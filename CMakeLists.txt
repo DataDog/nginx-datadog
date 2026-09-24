@@ -17,7 +17,7 @@ set(NGINX_VERSION "" CACHE STRING "The nginx version")
 if (NGINX_SRC_DIR STREQUAL "" AND NGINX_VERSION STREQUAL "")
   message(FATAL_ERROR "Set NGINX_SRC_DIR or, alternatively NGINX_VERSION")
 endif()
-option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
+option(NGINX_VERIFY_NEEDED "Verify dynamic library dependencies" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 option(ENABLE_FUZZERS "For building fuzzers" OFF)
 option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
@@ -352,9 +352,13 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   target_link_options(ngx_http_datadog_module PRIVATE "-Wl,-exported_symbols_list" "-Wl,${EXPORTED_SYMBOLS}")
 endif()
 
-if(NGINX_PATCH_AWAY_LIBC)
-  include(./cmake/patchelf.cmake)
-  patch_away_libc(ngx_http_datadog_module)
+if(NGINX_VERIFY_NEEDED AND NOT ENABLE_ASAN AND NOT ENABLE_MSAN)
+  find_program(READELF readelf REQUIRED)
+  add_custom_command(TARGET ngx_http_datadog_module POST_BUILD
+    COMMAND ${CMAKE_COMMAND}
+      -DREADELF=${READELF}
+      -DLIBRARY=$<TARGET_FILE:ngx_http_datadog_module>
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/verify-needed.cmake)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")

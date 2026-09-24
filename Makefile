@@ -190,9 +190,8 @@ endif
 
 .PHONY: build-musl-aux build-musl-cov-aux
 build-musl-aux build-musl-cov-aux:
-	cmake -B $(MUSL_BUILD_DIR) \
-		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
-		-DNGINX_PATCH_AWAY_LIBC=ON \
+	CC=musl-clang CXX=musl-clang++ cmake -B $(MUSL_BUILD_DIR) \
+		-DNGINX_VERIFY_NEEDED=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_VERSION="$(NGINX_VERSION)" \
 		-DNGINX_SRC_DIR="$(NGINX_SRC_DIR)" \
@@ -231,9 +230,8 @@ endif
 
 .PHONY: build-openresty-aux
 build-openresty-aux:
-	cmake -B .openresty-build \
-		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
-		-DNGINX_PATCH_AWAY_LIBC=ON \
+	CC=musl-clang CXX=musl-clang++ cmake -B .openresty-build \
+		-DNGINX_VERIFY_NEEDED=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_SRC_DIR=/tmp/openresty-${RESTY_VERSION}/build/nginx-${NGINX_VERSION} \
 		-DNGINX_DATADOG_FLAVOR="openresty" \
@@ -266,9 +264,8 @@ endif
 
 .PHONY: build-musl-aux-ingress
 build-musl-aux-ingress:
-	cmake -B .musl-build \
-		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
-		-DNGINX_PATCH_AWAY_LIBC=ON \
+	CC=musl-clang CXX=musl-clang++ cmake -B .musl-build \
+		-DNGINX_VERIFY_NEEDED=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DNGINX_SRC_DIR=nginx-controller-$(INGRESS_NGINX_VERSION) \
 		-DNGINX_DATADOG_ASM_ENABLED="$(WAF)" \

@@ -14,7 +14,10 @@ RUN apk add --no-cache \
       docker-cli-compose \
       nodejs \
       npm \
+      openssl-libs-static \
+      pcre2-static \
       shellcheck \
-      uv && \
+      uv \
+      zlib-static && \
     install-rum-build-tools && \
     rm -rf /root/.cargo/registry /root/.cargo/git
