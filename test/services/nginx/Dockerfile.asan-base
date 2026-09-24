@@ -16,7 +16,8 @@ RUN set -eux; \
     cd /tmp; \
     wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz"; \
-    cc_opt="-O1 -g -fsanitize=address,undefined -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
+    cc_opt="-O1 -g -fsanitize=address,undefined -DNGX_COMPAT=1"; \
+    cc_opt="$cc_opt -DNGX_HAVE_NONALIGNED=0 -Wno-error=sign-compare"; \
     ld_opt="-fsanitize=address,undefined,vptr"; \
     ld_opt="$ld_opt -fsanitize-link-c++-runtime"; \
     ld_opt="$ld_opt -Wl,-Bdynamic"; \
