@@ -70,6 +70,9 @@ build-nginx-module:
     DD_TRACE_DEBUG: "false"
     DD_RUNTIME_METRICS_ENABLED: "true"
 
+    # See https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
+
     DD_BENCHMARKS_NGINX_IMAGE_TAG: amd64-${NGINX_VERSION}
 
     K6_OPTIONS_NORMAL_OPERATION_RATE: 1000
