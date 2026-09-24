@@ -5,6 +5,7 @@
 #include <datadog/error.h>
 #include <datadog/expected.h>
 #include <datadog/span.h>
+#include <datadog/telemetry/product.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
 #include <rapidjson/document.h>
@@ -29,6 +30,7 @@ extern "C" {
 #endif
 #include "nginx_flavors.h"
 #include "string_util.h"
+#include "version.h"
 
 namespace datadog {
 namespace nginx {
@@ -120,6 +122,14 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   }
 
 #ifdef WITH_WAF
+  config.telemetry.products.emplace_back(
+      datadog::telemetry::Product{datadog::telemetry::Product::Name::appsec,
+                                  security::Library::active(),
+                                  datadog_semver_nginx_mod,
+                                  {},
+                                  {},
+                                  {}});
+
   const bool appsec_fully_disabled = (nginx_conf.appsec_enabled == 0);
   if (!appsec_fully_disabled) {
     const bool has_custom_ruleset = (nginx_conf.appsec_ruleset_file.len > 0);
