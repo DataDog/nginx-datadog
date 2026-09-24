@@ -13,6 +13,14 @@ WAF ?= OFF
 ASAN_TEST_ARG = $(if $(filter ON TRUE true 1 YES yes,$(ASAN)),--asan --arch $(ARCH),)
 MSAN_TEST_ARG = $(if $(filter ON TRUE true 1 YES yes,$(MSAN)),--msan --arch $(ARCH),)
 TEST_IMAGE_ARG = $(if $(filter ON TRUE true 1 YES yes,$(ASAN))$(filter ON TRUE true 1 YES yes,$(MSAN)),,--image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine})
+MUSL_CLANG_CONFIG = $(if $(filter ON TRUE true 1 YES yes,$(ASAN)),test/services/nginx/musl-clang-asan.conf,$(if $(filter ON TRUE true 1 YES yes,$(MSAN)),test/services/nginx/musl-clang-msan.conf,))
+MUSL_CLANG_CONFIG_ARG = $(if $(MUSL_CLANG_CONFIG),--volume "$(abspath $(MUSL_CLANG_CONFIG)):/etc/musl-clang.conf:ro",)
+ifdef GITLAB_CI
+MUSL_BUILD_DIR ?= .musl-build
+else
+MUSL_BUILD_SUFFIX = $(if $(filter ON TRUE true 1 YES yes,$(ASAN)),-asan,$(if $(filter ON TRUE true 1 YES yes,$(MSAN)),-msan,))
+MUSL_BUILD_DIR ?= .musl-build$(MUSL_BUILD_SUFFIX)
+endif
 
 ARCH ?= $(shell arch)
 # Normalize architecture names: CI uses amd64/arm64, build tools expect x86_64/aarch64
@@ -52,51 +60,34 @@ IN_DOCKER_OR_CI := $(shell if [ "$(IN_DOCKER)" = "true" ] || \
 
 # ----- Docker Images
 
-BUILD_IMAGE_DIGEST := sha256:6fbb23a5089853eea7cd26dfaeded4e6541027927016fb1ccdaf2d6713da5c26 # 1.0.5
+MUSL_TOOLCHAIN_IMAGE_DIGEST := $(shell sed -n 's/^  MUSL_TOOLCHAIN_IMAGE_DIGEST: "\([^"]*\)".*$$/\1/p' .gitlab/common.yml)
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
-CI_TEST_IMAGE := $(CI_REGISTRY)/test
 UWSGI_TEST_IMAGE := $(CI_REGISTRY)/uwsgi
 
 FORMATTER_IMAGE ?= nginx-datadog-formatter
 
-# On GitLab, we get the Docker images from registry.ddbuild.io.
-# Locally, we build them before using them in some targets via $(TEST_DEPENDENCY).
-# The build image repository is https://github.com/DataDog/musl-toolchain-glibc-support
-# Changes to it should be made there.
 ifdef GITLAB_CI
-	BUILD_IMAGE := registry.ddbuild.io/ci/musl-toolchain-glibc-support/musl-build-env@$(BUILD_IMAGE_DIGEST)
+	MUSL_TOOLCHAIN_IMAGE ?= registry.ddbuild.io/ci/musl-toolchain-glibc-support/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
+	BUILD_IMAGE ?= $(NGINX_CI_BUILD_IMAGE)
+	TOOLCHAIN_DEPENDENCY :=
 	TEST_DEPENDENCY :=
 else
-	BUILD_IMAGE := docker.io/datadog/musl-build-env@$(BUILD_IMAGE_DIGEST)
+	MUSL_TOOLCHAIN_IMAGE ?= public.ecr.aws/datadog/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
+	BUILD_IMAGE ?= nginx_musl_toolchain
+	TOOLCHAIN_DEPENDENCY := build-local-musl-toolchain
 	TEST_DEPENDENCY := build-local-uwsgi-test-image
 endif
+export MUSL_TOOLCHAIN_IMAGE
+
+.PHONY: build-local-musl-toolchain
+build-local-musl-toolchain:
+	docker build --progress=plain --platform $(DOCKER_PLATFORM) \
+		--build-arg MUSL_TOOLCHAIN_IMAGE=$(MUSL_TOOLCHAIN_IMAGE) \
+		--tag $(BUILD_IMAGE) build_env
 
 .PHONY: build-local-uwsgi-test-image
 build-local-uwsgi-test-image:
 	docker build --progress=plain --platform $(DOCKER_PLATFORM) -t $(UWSGI_TEST_IMAGE):latest test/services/uwsgi
-
-# build-push-images-for-CI must be run, once, from a developer machine, to put in registry.ddbuild.io the needed Docker images.
-# Once done, update the sha256 digest in .gitlab/common.yml.
-.PHONY: build-push-images-for-CI
-build-push-images-for-CI: build-push-test-image build-push-uwsgi-test-image
-
-.PHONY: build-push-test-image
-build-push-test-image:
-	$(call build-push-multiarch,$(CI_TEST_IMAGE),test)
-
-.PHONY: build-push-uwsgi-test-image
-build-push-uwsgi-test-image:
-	$(call build-push-multiarch,$(UWSGI_TEST_IMAGE),test/services/uwsgi)
-
-# $(1): image name, $(2): build context
-define build-push-multiarch
-	docker build --provenance=false --sbom=false --progress=plain --platform linux/amd64 --build-arg ARCH=x86_64 $(if $(filter environment command,$(origin MIRROR_REGISTRY)),--build-arg MIRROR_REGISTRY=$(MIRROR_REGISTRY),) -t $(1):latest-amd64 $(2)
-	docker push $(1):latest-amd64
-	docker build --provenance=false --sbom=false --progress=plain --platform linux/arm64 --build-arg ARCH=aarch64 $(if $(filter environment command,$(origin MIRROR_REGISTRY)),--build-arg MIRROR_REGISTRY=$(MIRROR_REGISTRY),) -t $(1):latest-arm64 $(2)
-	docker push $(1):latest-arm64
-	docker buildx imagetools create -t $(1):latest $(1):latest-amd64 $(1):latest-arm64
-endef
-
 
 # ----- Sources Dependencies, Format and Lint
 
@@ -158,6 +149,8 @@ clean:
 	rm -rf \
 		.build \
 		.musl-build \
+		.musl-build-asan \
+		.musl-build-msan \
 		.openresty-build
 
 .PHONY: build
@@ -171,7 +164,7 @@ build: dd-trace-cpp-deps
 	@echo 'build successful 👍'
 
 .PHONY: build-musl build-musl-cov
-build-musl build-musl-cov:
+build-musl build-musl-cov: $(TOOLCHAIN_DEPENDENCY)
 ifndef NGINX_VERSION
 	$(error NGINX_VERSION is not set. Please set the NGINX_VERSION environment variable)
 endif
@@ -189,6 +182,7 @@ else
 		--env ASAN=$(ASAN) \
 		--env MSAN=$(MSAN) \
 		--env COVERAGE=$(COVERAGE) \
+		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount "type=bind,source=$(dir $(lastword $(MAKEFILE_LIST))),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \
 		make -C /mnt/repo $@-aux
@@ -196,7 +190,7 @@ endif
 
 .PHONY: build-musl-aux build-musl-cov-aux
 build-musl-aux build-musl-cov-aux:
-	cmake -B .musl-build \
+	cmake -B $(MUSL_BUILD_DIR) \
 		-DCMAKE_TOOLCHAIN_FILE=/sysroot/$(ARCH)-none-linux-musl/Toolchain.cmake \
 		-DNGINX_PATCH_AWAY_LIBC=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
@@ -207,15 +201,15 @@ build-musl-aux build-musl-cov-aux:
 		-DNGINX_COVERAGE=$(COVERAGE) \
 		-DENABLE_ASAN="$(ASAN)" \
 		-DENABLE_MSAN="$(MSAN)" . \
-		&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
-		$(if $(filter build-musl-cov-aux,$@),&& cmake --build .musl-build -j $(MAKE_JOB_COUNT) -v --target unit_tests)
+		&& cmake --build $(MUSL_BUILD_DIR) -j $(MAKE_JOB_COUNT) -v --target ngx_http_datadog_module \
+		$(if $(filter build-musl-cov-aux,$@),&& cmake --build $(MUSL_BUILD_DIR) -j $(MAKE_JOB_COUNT) -v --target unit_tests)
 
 # --- OpenResty
 
 NGINX_VERSION ?= $(if $(RESTY_VERSION),$(shell echo $(RESTY_VERSION) | awk -F. '{print $$1"."$$2"."$$3}'))
 BUILD_OPENRESTY_COMMAND := ./bin/openresty/build_openresty.sh && make build-openresty-aux
 .PHONY: build-openresty
-build-openresty:
+build-openresty: $(TOOLCHAIN_DEPENDENCY)
 ifndef RESTY_VERSION
 	$(error RESTY_VERSION is not set. Please set the RESTY_VERSION environment variable)
 endif
@@ -229,6 +223,7 @@ else
 		--env RESTY_VERSION=$(RESTY_VERSION) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
 		--env WAF=$(WAF) \
+		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount type=bind,source="$(PWD)",destination=/mnt/repo \
 		$(BUILD_IMAGE) \
 		bash -c "cd /mnt/repo && $(BUILD_OPENRESTY_COMMAND)"
@@ -248,7 +243,7 @@ build-openresty-aux:
 # --- Ingress Nginx
 
 .PHONY: build-ingress-nginx
-build-ingress-nginx:
+build-ingress-nginx: $(TOOLCHAIN_DEPENDENCY)
 ifndef INGRESS_NGINX_VERSION
 	$(error INGRESS_NGINX_VERSION is not set. Please set the INGRESS_NGINX_VERSION environment variable)
 endif
@@ -263,6 +258,7 @@ else
 		--env INGRESS_NGINX_VERSION=$(INGRESS_NGINX_VERSION) \
 		--env WAF=$(WAF) \
 		--env COVERAGE=$(COVERAGE) \
+		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(BUILD_IMAGE) \
 		make -C /mnt/repo build-musl-aux-ingress
@@ -289,7 +285,7 @@ build-and-test: build-musl test
 .PHONY: test
 test: $(TEST_DEPENDENCY)
 	uv run --project test test/bin/run.py $(TEST_IMAGE_ARG) \
-		--module-path .musl-build/ngx_http_datadog_module.so $(ASAN_TEST_ARG) $(MSAN_TEST_ARG) -- \
+		--module-path $(MUSL_BUILD_DIR)/ngx_http_datadog_module.so $(ASAN_TEST_ARG) $(MSAN_TEST_ARG) -- \
 		--verbose $(TEST_ARGS)
 
 .PHONY: build-and-test-openresty
@@ -315,11 +311,11 @@ ifneq ($(ARCH),x86_64)
 	$(error make coverage supports only amd64)
 endif
 	COVERAGE=ON BUILD_TESTING=ON $(MAKE) build-musl-cov
-	cd .musl-build; LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests
+	cd $(MUSL_BUILD_DIR); LLVM_PROFILE_FILE=unit_tests.profraw test/unit/unit_tests
 	rm -f test/coverage_data.tar.gz
-	uv run --project test test/bin/run.py --image ${BASE_IMAGE} --module-path .musl-build/ngx_http_datadog_module.so -- --verbose --failfast
-	tar -C .musl-build -xzf test/coverage_data.tar.gz
-	cd .musl-build; llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
+	uv run --project test test/bin/run.py --image ${BASE_IMAGE} --module-path $(MUSL_BUILD_DIR)/ngx_http_datadog_module.so -- --verbose --failfast
+	tar -C $(MUSL_BUILD_DIR) -xzf test/coverage_data.tar.gz
+	cd $(MUSL_BUILD_DIR); llvm-profdata merge -sparse *.profraw -o default.profdata && llvm-cov export ./ngx_http_datadog_module.so -format=lcov -instr-profile=default.profdata -ignore-filename-regex=src/coverage_fixup\.c > coverage.lcov
 	# dd-sts latest version: https://github.com/DataDog/dd-source/blob/main/domains/seceng/sit/apps/apis/dd-sts/cmd/cli/version.bzl#L6
 	apk add --no-cache gcompat
 	wget --quiet https://binaries.ddbuild.io/dd-source/dd-sts/v0.1.5/dd-sts-tar.tar.gz
@@ -327,4 +323,4 @@ endif
 	install -m 0755 dd-sts-linux-amd64 /usr/local/bin/dd-sts
 	# datadog-ci versions: https://github.com/DataDog/datadog-ci/releases
 	# datadog-ci packages: https://www.npmjs.com/package/@datadog/datadog-ci?activeTab=versions
-	dd-sts exchange --policy apm-sdks-api-key -- npx --yes @datadog/datadog-ci@5.18.0 coverage upload --format=lcov .musl-build/coverage.lcov
+	dd-sts exchange --policy apm-sdks-api-key -- npx --yes @datadog/datadog-ci@5.18.0 coverage upload --format=lcov $(MUSL_BUILD_DIR)/coverage.lcov

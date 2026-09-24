@@ -1,0 +1,20 @@
+#!/bin/sh
+
+set -eu
+
+rust_version=1.94.0
+cbindgen_version=0.26.0
+
+# Alpine Rust needs libgcc_s.a, which this image lacks.
+rustup_script=$(mktemp)
+wget -qO "${rustup_script}" https://sh.rustup.rs
+sh "${rustup_script}" -yq --no-modify-path --profile minimal \
+  --default-toolchain "${rust_version}"
+rm "${rustup_script}"
+
+"${HOME}/.cargo/bin/cargo" install --quiet --locked cbindgen \
+  --version "${cbindgen_version}"
+
+for command_name in cargo cbindgen rustc rustup; do
+  ln -sf "${HOME}/.cargo/bin/${command_name}" "/usr/local/bin/${command_name}"
+done

@@ -30,7 +30,7 @@ endif()
 
 if(ENABLE_ASAN)
   set(NGINX_DATADOG_ASAN_COMPILE_OPTIONS -fsanitize=address,undefined)
-  set(NGINX_DATADOG_ASAN_LINK_OPTIONS -fsanitize=address,undefined -shared-libasan)
+  set(NGINX_DATADOG_ASAN_LINK_OPTIONS -fsanitize=address,undefined)
   set(NGINX_DATADOG_ASAN_CXX_DEFINITIONS
     $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE>)
 
@@ -271,9 +271,8 @@ endif()
 if(ENABLE_ASAN)
   target_compile_options(ngx_http_datadog_objs PUBLIC ${NGINX_DATADOG_ASAN_COMPILE_OPTIONS})
   target_compile_definitions(ngx_http_datadog_objs PUBLIC ${NGINX_DATADOG_ASAN_CXX_DEFINITIONS})
-  # INTERFACE so all consumers (ngx_http_datadog_module, unit_tests via the static lib) link
-  # the sanitizer runtime dynamically. -shared-libasan avoids two ASAN runtimes being loaded:
-  # without it executables get a static copy while libc++.so (ASAN-instrumented) loads the shared one.
+  # INTERFACE so all consumers (the module .so, unit_tests) carry the ASan flags
+  # at link time. The nginx executable provides the static ASan runtime.
   target_link_options(ngx_http_datadog_objs INTERFACE ${NGINX_DATADOG_ASAN_LINK_OPTIONS})
 endif()
 

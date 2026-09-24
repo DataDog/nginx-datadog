@@ -1,6 +1,8 @@
 /.build
 /.clang-tidy-build
 /.musl-build
+/.musl-build-asan
+/.musl-build-msan
 /.openresty-build
 /.vscode/
 

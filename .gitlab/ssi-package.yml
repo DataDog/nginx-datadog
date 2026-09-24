@@ -13,7 +13,7 @@ include:
 
 .ssi-assemble:
   extends: .git-config
-  image: $MUSL_TOOLCHAIN_IMAGE
+  image: $NGINX_CI_BUILD_IMAGE
   stage: assemble
   parallel:
     matrix:

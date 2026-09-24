@@ -1,16 +1,17 @@
-ARG TOOLCHAIN_IMAGE=nginx_musl_toolchain
+# check=skip=InvalidDefaultArgInFrom
+ARG TOOLCHAIN_IMAGE
 FROM ${TOOLCHAIN_IMAGE}
 
 ARG ARCH=aarch64
 ARG NGINX_VERSION
 # Versions pinned to what Alpine 3.23.4 ships in the toolchain image.
-ARG OPENSSL_VERSION=3.5.6
+ARG OPENSSL_VERSION=3.5.8
 ARG ZLIB_VERSION=1.3.2
-ARG PCRE2_VERSION=10.47
+ARG PCRE2_VERSION=10.48
 
+ENV MUSL_CLANG_SANITIZE=memory
 ENV MSAN_OPTIONS=halt_on_error=1:abort_on_error=1:fast_unwind_on_fatal=1
 
-COPY openssl-msan-auxv.patch /openssl-msan-auxv.patch
 COPY nginx-msan-crossbuild-probes.patch /nginx-msan-crossbuild-probes.patch
 
 RUN set -eux; \
@@ -18,26 +19,18 @@ RUN set -eux; \
       arm64) ARCH=aarch64 ;; \
       amd64) ARCH=x86_64 ;; \
     esac; \
-    sysroot="/sysroot/${ARCH}-none-linux-musl"; \
+    deps_root="/opt/msan-deps"; \
     triple="${ARCH}-none-linux-musl"; \
     addgroup -S nginx; \
     adduser -S -D -H -h /var/cache/nginx -s /sbin/nologin -G nginx nginx; \
-    mkdir -p /var/cache/nginx /var/log/nginx /run; \
-    mkdir -p "${sysroot}/usr/lib/resource_dir"; \
-    ln -sfn "/usr/lib/llvm21/lib/clang/21/include" "${sysroot}/usr/lib/resource_dir/include"; \
+    mkdir -p /var/cache/nginx /var/log/nginx /run "${deps_root}/include" "${deps_root}/lib"; \
     \
     msan_flags="-fsanitize=memory -fsanitize-memory-track-origins=2"; \
-    clang_resource_dir=$(clang -print-resource-dir); \
-    common_cflags="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g ${msan_flags}"; \
-    resource_flags="-resource-dir ${sysroot}/usr/lib/resource_dir -isystem ${clang_resource_dir}/include"; \
-    link_flags="-fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind"; \
-    dep_cflags="${common_cflags} ${resource_flags}"; \
-    dep_ldflags="${link_flags} ${msan_flags}"; \
+    common_cflags="-O1 -g ${msan_flags}"; \
+    dep_cflags="${common_cflags}"; \
+    dep_ldflags="${msan_flags}"; \
     \
-    # Download ALL sources before removing .so dev symlinks below.
-    # wget links against the system libz.so.1 and libcrypto.so.3; those versioned
-    # SONAME files are kept, but the -lz / -lssl linker dev symlinks are removed so
-    # nginx links the MSan-instrumented static archives instead.
+    # Download the sources before building the dependencies.
     cd /tmp; \
     wget -q "https://zlib.net/fossils/zlib-${ZLIB_VERSION}.tar.gz"; \
     wget -q "https://github.com/PhilipHazel/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.bz2"; \
@@ -45,32 +38,24 @@ RUN set -eux; \
     wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
     \
     # -----------------------------------------------------------------------
-    # zlib: cmake instead of zlib's configure — cmake never runs compiled test
-    # programs, avoiding the MSan personality(ADDR_NO_RANDOMIZE) seccomp issue.
+    # zlib: CMake does not run MSan-instrumented test programs here.
     # -----------------------------------------------------------------------
     tar -xzf "zlib-${ZLIB_VERSION}.tar.gz"; \
-    cmake -G Ninja \
+    cmake \
       -S "/tmp/zlib-${ZLIB_VERSION}" \
       -B "/tmp/zlib-${ZLIB_VERSION}/build" \
-      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-      -DCMAKE_INSTALL_PREFIX="${sysroot}/usr" \
-      -DCMAKE_INSTALL_LIBDIR=lib \
-      -DCMAKE_C_COMPILER=clang \
-      -DCMAKE_C_FLAGS="${dep_cflags}" \
-      -DCMAKE_EXE_LINKER_FLAGS="${dep_ldflags}" \
-      -DCMAKE_CROSSCOMPILING=TRUE \
-      -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
-      -DZLIB_BUILD_EXAMPLES=OFF; \
+      -DCMAKE_C_COMPILER=musl-clang \
+      -DCMAKE_C_FLAGS="${dep_cflags}"; \
     # Build only the static target. zlib 1.3.x cmake always defines both a
     # static (zlibstatic) and shared (zlib) target regardless of BUILD_SHARED_LIBS;
     # the shared link fails with -fsanitize=memory because clang tries to embed
     # the static MSan runtime into the .so, which is not supported.
     cmake --build "/tmp/zlib-${ZLIB_VERSION}/build" --target zlibstatic -j"$(nproc)"; \
     # zlibstatic has OUTPUT_NAME=z so the archive is libz.a. Install lib + headers.
-    install -m 644 "/tmp/zlib-${ZLIB_VERSION}/build/libz.a" "${sysroot}/usr/lib/"; \
+    install -m 644 "/tmp/zlib-${ZLIB_VERSION}/build/libz.a" "${deps_root}/lib/"; \
     install -m 644 "/tmp/zlib-${ZLIB_VERSION}/zlib.h" \
                    "/tmp/zlib-${ZLIB_VERSION}/build/zconf.h" \
-                   "${sysroot}/usr/include/"; \
+                   "${deps_root}/include/"; \
     rm -rf "/tmp/zlib-${ZLIB_VERSION}" "/tmp/zlib-${ZLIB_VERSION}.tar.gz"; \
     \
     # -----------------------------------------------------------------------
@@ -80,11 +65,11 @@ RUN set -eux; \
     cd /tmp; \
     tar -xjf "pcre2-${PCRE2_VERSION}.tar.bz2"; \
     cd "/tmp/pcre2-${PCRE2_VERSION}"; \
-    CC=clang CFLAGS="${dep_cflags}" LDFLAGS="${dep_ldflags}" \
+    CC=musl-clang CFLAGS="${dep_cflags}" LDFLAGS="${dep_ldflags}" \
       ./configure \
         --host="${triple}" \
-        --prefix="${sysroot}/usr" \
-        --libdir="${sysroot}/usr/lib" \
+        --prefix="${deps_root}" \
+        --libdir="${deps_root}/lib" \
         --enable-static \
         --disable-shared \
         --disable-jit \
@@ -95,13 +80,11 @@ RUN set -eux; \
         --disable-pcre2test-libedit; \
     make -j"$(nproc)"; \
     make install; \
-    rm -f "${sysroot}/usr/lib/libpcre2-8.so" "${sysroot}/usr/lib/libpcre2-posix.so"; \
     rm -rf "/tmp/pcre2-${PCRE2_VERSION}" "/tmp/pcre2-${PCRE2_VERSION}.tar.bz2"; \
     \
     # -----------------------------------------------------------------------
-    # OpenSSL: perl-based Configure does not exec instrumented programs.
-    # no-asm required: MSan cannot instrument hand-written assembly.
-    # auxv.patch removes the glibc-only guard around sys/auxv.h for musl.
+    # OpenSSL: Configure does not run instrumented programs.
+    # MSan cannot instrument hand-written assembly.
     # -----------------------------------------------------------------------
     cd /tmp; \
     tar -xzf "openssl-${OPENSSL_VERSION}.tar.gz"; \
@@ -111,24 +94,15 @@ RUN set -eux; \
       *)       ossl_target="linux-${ARCH}"; ossl_optflags="" ;; \
     esac; \
     cd "/tmp/openssl-${OPENSSL_VERSION}"; \
-    patch -p1 < /openssl-msan-auxv.patch; \
-    CC=clang ./Configure "$ossl_target" \
-      --prefix="${sysroot}/usr" \
+    CC=musl-clang ./Configure "$ossl_target" \
+      --prefix="${deps_root}" \
       --libdir=lib \
-      no-shared no-threads no-tests no-asm \
-      no-zlib no-async no-comp no-idea no-mdc2 no-rc5 no-ec2m no-ssl3 no-seed \
-      no-weak-ssl-ciphers \
+      no-shared no-tests no-asm \
       ${ossl_optflags} \
-      --target=${triple} --sysroot=${sysroot} \
-      -fno-omit-frame-pointer -O1 -g ${msan_flags} \
-      -isystem ${clang_resource_dir}/include \
-      -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind \
-      -resource-dir ${sysroot}/usr/lib/resource_dir; \
+      -O1 -g ${msan_flags}; \
     make -j"$(nproc)"; \
     make install_sw LIBDIR=lib; \
-    rm -f "${sysroot}/usr/lib/libssl.so" "${sysroot}/usr/lib/libcrypto.so"; \
-    rm -rf "/tmp/openssl-${OPENSSL_VERSION}" "/tmp/openssl-${OPENSSL_VERSION}.tar.gz" \
-           "/openssl-msan-auxv.patch"; \
+    rm -rf "/tmp/openssl-${OPENSSL_VERSION}" "/tmp/openssl-${OPENSSL_VERSION}.tar.gz"; \
     \
     # -----------------------------------------------------------------------
     # nginx: nginx-msan-crossbuild-probes.patch adds NGX_MUSL_CROSSBUILD guards to
@@ -140,8 +114,8 @@ RUN set -eux; \
     # -----------------------------------------------------------------------
     cd /tmp; \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz"; \
-    cc_opt="${common_cflags} -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
-    ld_opt="--target=${triple} --sysroot=${sysroot} ${link_flags} -resource-dir ${sysroot}/usr/lib/resource_dir ${msan_flags} -Wl,-rpath,/usr/msan/lib -Wl,-rpath,/usr/lib"; \
+    cc_opt="${common_cflags} -I${deps_root}/include -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
+    ld_opt="${msan_flags} -L${deps_root}/lib"; \
     cd "/tmp/nginx-${NGINX_VERSION}"; \
     patch -p1 < /nginx-msan-crossbuild-probes.patch; \
     NGX_MUSL_CROSSBUILD=YES NGX_MUSL_CROSSBUILD_ARCH="${ARCH}" ./configure \
@@ -172,7 +146,7 @@ RUN set -eux; \
       --with-http_gzip_static_module \
       --with-http_sub_module \
       --crossbuild="Linux:5.10.0:${ARCH}" \
-      --with-cc=clang \
+      --with-cc=musl-clang \
       --with-cc-opt="${cc_opt}" \
       --with-ld-opt="${ld_opt}"; \
     make -j"$(nproc)"; \

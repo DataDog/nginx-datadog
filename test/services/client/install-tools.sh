@@ -12,8 +12,19 @@ case "$(uname -m)" in
     ;;
 esac
 
-apk update
-apk add wget tar jq python3
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y --no-install-recommends \
+  ca-certificates \
+  curl \
+  jq \
+  netcat-openbsd \
+  python3 \
+  tar \
+  wget
+rm -rf /var/lib/apt/lists/*
+
+curl --version | grep -q 'ngtcp2/'
 
 # grpcurl is a self-contained binary (Go program)
 GRPCURL_TAR="grpcurl_1.8.6_linux_${ARCH}.tar.gz"

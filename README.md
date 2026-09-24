@@ -177,18 +177,18 @@ Prerequisites:
 
 Option A: one-shot build + test (use on a clean tree)
 
-- NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= TEST_DEPENDENCY= make build-and-test
+- NGINX_VERSION=1.31.1 TEST_DEPENDENCY= make build-and-test
   - WAF=ON to include AppSec tests
   - To use a different base image (non-ASAN), set BASE_IMAGE, e.g. BASE_IMAGE=nginx:1.28.4-alpine
 - ASAN mode:
-  - ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= TEST_DEPENDENCY= make
+  - ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TEST_DEPENDENCY= make
     build-and-test
   - BASE_IMAGE/--image are ignored in ASAN mode (runner builds its own ASAN base)
 
 Option B: iterate quickly after the first build (avoid rebuilds)
 
 - Build once:
-  - NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= make build-musl
+  - NGINX_VERSION=1.31.1 make build-musl
 - Run all tests without rebuilding images:
   - TEST_DEPENDENCY= make test
 - Run a specific test:
@@ -197,7 +197,7 @@ Option B: iterate quickly after the first build (avoid rebuilds)
     cases.auth_requests.test_auth_requests.TestAuthRequests.test_auth_request_with_auth_token_is_successful"
     TEST_DEPENDENCY= make test
 - ASAN iteration:
-  - Build with ASAN: ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= make build-musl
+  - Build with ASAN: ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 make build-musl
   - Test with ASAN flags: ASAN=ON ARCH=x86_64 TEST_DEPENDENCY= make test
 
 See test/README.md and test/cases/README.md for details and advanced usage.
