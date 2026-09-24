@@ -5,10 +5,10 @@ variables:
   # This is the source of truth for the toolchain image digest.
   MUSL_TOOLCHAIN_IMAGE_DIGEST: "sha256:fd1ab35b2a51538623740c499606a0f6240947b509b39bd1c754d7a5ee4b8c6b" # 1.0.6
   MUSL_TOOLCHAIN_IMAGE: "$REGISTRY/ci/musl-toolchain-glibc-support/musl-build-env@$MUSL_TOOLCHAIN_IMAGE_DIGEST"
-  NGINX_CI_BUILD_IMAGE_DIGEST: "sha256:1641b4e969f1cc768772e39d68cdf6b50b782b1af895e3133664114222e274ef"
+  NGINX_CI_BUILD_IMAGE_DIGEST: "sha256:00d96e01fd35110679621d9f1bdc94f3e0d3453d32b2e2c2d3ed30bf073f4a8c"
   NGINX_CI_BUILD_IMAGE: "$CI_REGISTRY/nginx_musl_toolchain@$NGINX_CI_BUILD_IMAGE_DIGEST"
-  TEST_IMAGE: "$CI_REGISTRY/test@sha256:c2b74881298cee9ac5cc96a381cc369323fad6bda07e2f578c66c20fbaf810b6"
-  UWSGI_TEST_IMAGE: "$CI_REGISTRY/uwsgi@sha256:d905c35e2471280cb1daeac016deda1d6f468e16fd7ae5013e2bd326b3ae5f35"
+  TEST_IMAGE: "$CI_REGISTRY/test@sha256:5d10033ef2df9b938b6b92a0dc312cf7c02377b314e38114f061d813b9c38dd3"
+  UWSGI_TEST_IMAGE: "$CI_REGISTRY/uwsgi@sha256:db8aeae2cbfd623bc7ed9fba852744450571d93babe9286323fade0e855d0892"
   NYDUS_IMAGE: "$REGISTRY/images/nydus:v2.3.8-dd"
 
 # Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
