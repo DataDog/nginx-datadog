@@ -24,8 +24,9 @@ NGINX_VERSION=<version> make lint-tidy
 ```
 
 This runs `bin/lint-tidy.sh`, which re-execs in Docker, configures CMake, builds
-the module so generated nginx headers exist, then runs clang-tidy-19. Set
-`WAF=ON` (the default in this script) to include AppSec sources.
+the module so generated nginx headers exist, then runs clang-tidy-19 on
+configured `src/` only (not `src/rum/`, `tools/`, tests, or vendored
+submodules). Set `WAF=ON` (the default) to include AppSec sources.
 
 The custom nginx log-format plugin is separate:
 

@@ -98,9 +98,41 @@ if ! command -v run-clang-tidy >/dev/null 2>&1 && \
     exit 1
 fi
 
-# Only analyze translation units in the compilation database. Passing every
-# file under src/ and test/unit/ (RUM-off, tests-off) produces missing-header
-# clang-diagnostic-error noise that is not a tidy finding.
+# Only first-party module sources that this CMake configure actually built.
+# RUM is off by default, so src/rum is excluded. Vendors (dd-trace-cpp,
+# libddwaf, deps/) and tools/ are never in this allow list.
+mapfile -t files < <(python3 - "$build_dir/compile_commands.json" "$container_repo" <<'PY'
+import json, os, sys
+db_path, root = sys.argv[1], sys.argv[2]
+includes = ("src/",)
+excludes = ("src/rum/",)
+seen = []
+for ent in json.load(open(db_path)):
+    path = ent.get("file") or ""
+    if not os.path.isabs(path):
+        path = os.path.normpath(os.path.join(ent.get("directory", root), path))
+    try:
+        rel = os.path.relpath(path, root)
+    except ValueError:
+        continue
+    if rel.startswith("..") or not rel.endswith((".c", ".cc", ".cpp", ".cxx")):
+        continue
+    if any(rel == e.rstrip("/") or rel.startswith(e) for e in excludes):
+        continue
+    if not any(rel.startswith(i) for i in includes):
+        continue
+    if path not in seen:
+        seen.append(path)
+for path in seen:
+    print(path)
+PY
+)
+
+if [ "${#files[@]}" -eq 0 ]; then
+    >&2 echo "No configured first-party sources (src/, excluding src/rum/) in $build_dir/compile_commands.json."
+    exit 1
+fi
+
 common_args=(
     -p "$build_dir"
     -quiet
@@ -115,6 +147,5 @@ common_args=(
 if [ "$#" -gt 0 ]; then
     clang-tidy "${common_args[@]}" --use-color "$@"
 else
-    run-clang-tidy "${common_args[@]}" -use-color -j "$jobs" \
-        "-source-filter=^$container_repo/src/.*\\.(c|cpp)$"
+    clang-tidy "${common_args[@]}" --use-color "${files[@]}"
 fi
