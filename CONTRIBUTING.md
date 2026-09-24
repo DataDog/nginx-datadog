@@ -13,8 +13,9 @@ Rebuild formatter image after editing `Dockerfile.formatter` with `make build-fo
 
 ## Static Analysis
 
-C++ is analyzed with **clang-tidy-19** (pinned; alpine:3.23.4 / LLVM 19) using
-the shared `.clang-tidy` baseline. Warnings are errors.
+C++ is analyzed with **clang-tidy-19** (pinned via Alpine's `clang19` /
+`clang19-extra-tools` packages on alpine:3.23.4; the image's default `clang`
+is LLVM 21) using the shared `.clang-tidy` baseline. Warnings are errors.
 
 Do not run clang-tidy on the host. `compile_commands.json` must be produced by
 the same container that runs tidy.
