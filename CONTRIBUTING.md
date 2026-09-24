@@ -6,10 +6,32 @@ Follow [doc/conventions.md](doc/conventions.md).
 
 ## Format
 
-- `make lint`: check format
-- `make format` fix format
+- `make lint`: check clang-format and Python format
+- `make format`: rewrite files to match
 
 Rebuild formatter image after editing `Dockerfile.formatter` with `make build-formatter-image`.
+
+## Static Analysis
+
+C++ is analyzed with clang-tidy using the shared `.clang-tidy` baseline (kept in
+sync with `dd-trace-cpp` and `httpd-datadog`). Warnings are errors.
+
+```shell
+NGINX_VERSION=<version> make lint-tidy
+```
+
+This runs `bin/lint-tidy.sh`, which uses Docker, configures CMake, builds the
+module so generated nginx headers exist, then runs clang-tidy. Set `WAF=ON`
+(the default in this script) to include AppSec sources.
+
+The custom nginx log-format plugin is separate:
+
+```shell
+NGINX_VERSION=<version> make lint-nginx-log-format
+```
+
+GitLab jobs `lint-tidy` and `lint-nginx-log-format` run the same scripts and
+fail the merge request pipeline on findings.
 
 ## Build Locally
 

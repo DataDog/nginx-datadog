@@ -1,3 +1,4 @@
+InheritParentConfig: true
 Checks: 'readability-identifier-naming'
 CheckOptions:
   - { key: readability-identifier-naming.NamespaceCase                  , value: lower_case   }

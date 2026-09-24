@@ -135,6 +135,10 @@ lint: ensure-formatter-image .clang-format
 lint-nginx-log-format:
 	bin/nginx-log-format-tidy.sh
 
+.PHONY: lint-tidy
+lint-tidy:
+	bin/lint-tidy.sh
+
 .PHONY: ensure-formatter-image
 ensure-formatter-image:
 ifeq ($(IN_DOCKER_OR_CI),false)

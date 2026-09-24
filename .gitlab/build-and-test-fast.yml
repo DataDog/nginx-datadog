@@ -59,6 +59,17 @@ lint-nginx-log-format:
   script:
     - bin/nginx-log-format-tidy.sh
 
+lint-tidy:
+  extends: .build-and-test-fast
+  image: $NYDUS_IMAGE
+  tags: ["docker-in-docker:amd64"]
+  variables:
+    WAF: "ON"
+    NGINX_VERSION: "1.31.1"
+    BUILD_TYPE: "Debug"
+  script:
+    - bin/lint-tidy.sh
+
 shellcheck:
   extends: .build-and-test-fast
   image: $MUSL_TOOLCHAIN_IMAGE
