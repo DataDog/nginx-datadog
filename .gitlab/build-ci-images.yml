@@ -89,5 +89,7 @@ assemble-and-sign-ci-images:
         printf '%s=%s@%s\n' "$variable" "$image" "$digest" | tee -a ci-images.env
       done
   artifacts:
+    paths:
+      - ci-images.env
     reports:
       dotenv: ci-images.env
