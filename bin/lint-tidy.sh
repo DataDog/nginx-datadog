@@ -1,10 +1,10 @@
 #!/bin/bash
-# Run the pinned clang-tidy in a container.
+# Run the pinned clang-tidy through CMake in a container.
 #
-# clang-tidy is not reproducible across versions, and compile_commands.json
-# points at the container sysroot. Local and CI both configure CMake and run
-# tidy inside alpine:3.23.4 with LLVM 19. Do not use a host compilation
-# database.
+# clang-tidy must use the same compiler, flags, and sysroot as the real
+# build. CMake's CXX_CLANG_TIDY on ngx_http_datadog_objs does that: it
+# invokes tidy with the exact compile line after `--`. Do not use a host
+# compilation database.
 #
 # Usage: NGINX_VERSION=<version> make lint-tidy
 
@@ -53,12 +53,22 @@ apk add --no-cache \
     git \
     ninja \
     pcre2-dev \
-    python3 \
     zlib-dev
 
 tidy_major=$(clang-tidy --version | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p' | head -n 1)
 if [ "$tidy_major" != "$CLANG_TIDY_VERSION" ]; then
     >&2 echo "clang-tidy ${tidy_major} is installed, but ${CLANG_TIDY_VERSION} is pinned."
+    exit 1
+fi
+
+export CC=clang
+export CXX=clang++
+
+compiler_major=$(clang++ -dumpversion | cut -d. -f1)
+if [ "$compiler_major" != "$CLANG_TIDY_VERSION" ]; then
+    >&2 echo "clang-tidy and the CMake compiler must both be LLVM ${CLANG_TIDY_VERSION}."
+    >&2 echo "  clang++: ${compiler_major}"
+    >&2 echo "  clang-tidy: ${tidy_major}"
     exit 1
 fi
 
@@ -73,14 +83,14 @@ build_type=${BUILD_TYPE:-Debug}
 waf=${WAF:-ON}
 rum=${RUM:-OFF}
 
-export CC=clang
-export CXX=clang++
-
 case "$build_dir" in
     /*) ;;
     *) build_dir="$container_repo/$build_dir" ;;
 esac
 
+# CXX_CLANG_TIDY is attached only to ngx_http_datadog_objs. Building
+# nginx_module compiles first-party src/ with the exact compile line
+# (RUM off by default, so src/rum/ is not a source of that target).
 cmake -S "$container_repo" -B "$build_dir" -G Ninja \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
@@ -88,64 +98,8 @@ cmake -S "$container_repo" -B "$build_dir" -G Ninja \
     -DBUILD_TESTING=OFF \
     -DCMAKE_BUILD_TYPE="$build_type" \
     -DNGINX_DATADOG_ASM_ENABLED="$waf" \
-    -DNGINX_DATADOG_RUM_ENABLED="$rum"
+    -DNGINX_DATADOG_RUM_ENABLED="$rum" \
+    -DNGINX_DATADOG_ENABLE_CLANG_TIDY=ON \
+    -DNGINX_DATADOG_CLANG_TIDY=clang-tidy
 
 cmake --build "$build_dir" --target nginx_module -j "$jobs"
-
-if ! command -v run-clang-tidy >/dev/null 2>&1 && \
-   ! command -v clang-tidy >/dev/null 2>&1; then
-    >&2 echo "clang-tidy is not installed."
-    exit 1
-fi
-
-# Only first-party module sources that this CMake configure actually built.
-# RUM is off by default, so src/rum is excluded. Vendors (dd-trace-cpp,
-# libddwaf, deps/) and tools/ are never in this allow list.
-mapfile -t files < <(python3 - "$build_dir/compile_commands.json" "$container_repo" <<'PY'
-import json, os, sys
-db_path, root = sys.argv[1], sys.argv[2]
-includes = ("src/",)
-excludes = ("src/rum/",)
-seen = []
-for ent in json.load(open(db_path)):
-    path = ent.get("file") or ""
-    if not os.path.isabs(path):
-        path = os.path.normpath(os.path.join(ent.get("directory", root), path))
-    try:
-        rel = os.path.relpath(path, root)
-    except ValueError:
-        continue
-    if rel.startswith("..") or not rel.endswith((".c", ".cc", ".cpp", ".cxx")):
-        continue
-    if any(rel == e.rstrip("/") or rel.startswith(e) for e in excludes):
-        continue
-    if not any(rel.startswith(i) for i in includes):
-        continue
-    if path not in seen:
-        seen.append(path)
-for path in seen:
-    print(path)
-PY
-)
-
-if [ "${#files[@]}" -eq 0 ]; then
-    >&2 echo "No configured first-party sources (src/, excluding src/rum/) in $build_dir/compile_commands.json."
-    exit 1
-fi
-
-common_args=(
-    -p "$build_dir"
-    -quiet
-    "-header-filter=^$container_repo/src/.*"
-    -system-headers=false
-    -extra-arg=-Wno-error
-    -extra-arg=-Wno-unknown-warning-option
-    -extra-arg=-Wno-unused-command-line-argument
-    -extra-arg=-Wno-everything
-)
-
-if [ "$#" -gt 0 ]; then
-    clang-tidy "${common_args[@]}" --use-color "$@"
-else
-    clang-tidy "${common_args[@]}" --use-color "${files[@]}"
-fi
