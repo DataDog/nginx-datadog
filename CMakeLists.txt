@@ -22,6 +22,9 @@ option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 option(ENABLE_FUZZERS "For building fuzzers" OFF)
 option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
 option(ENABLE_MSAN "Build with MemorySanitizer" OFF)
+option(NGINX_DATADOG_ENABLE_CLANG_TIDY "Run clang-tidy on first-party sources during build" OFF)
+set(NGINX_DATADOG_CLANG_TIDY "clang-tidy" CACHE STRING
+    "clang-tidy executable when NGINX_DATADOG_ENABLE_CLANG_TIDY is ON")
 set(NGINX_DATADOG_FLAVOR "nginx" CACHE STRING "NGINX flavor")
 
 if(ENABLE_ASAN AND ENABLE_MSAN)
@@ -199,6 +202,10 @@ target_sources(ngx_http_datadog_module PRIVATE ${CMAKE_BINARY_DIR}/version.cpp)
 
 add_library(ngx_http_datadog_objs OBJECT)
 set_target_properties(ngx_http_datadog_objs PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(NGINX_DATADOG_ENABLE_CLANG_TIDY)
+  set_property(TARGET ngx_http_datadog_objs PROPERTY CXX_CLANG_TIDY
+    "${NGINX_DATADOG_CLANG_TIDY};--quiet;--use-color")
+endif()
 target_compile_definitions(ngx_http_datadog_objs PUBLIC DD_NGINX_FLAVOR="${NGINX_DATADOG_FLAVOR}")
 target_sources(ngx_http_datadog_objs
   PRIVATE

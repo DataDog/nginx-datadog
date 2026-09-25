@@ -1,0 +1,36 @@
+# Shared clang-tidy baseline for dd-trace-cpp, httpd-datadog, and nginx-datadog.
+# Keep this file in sync across those repositories.
+Checks: >
+  -*,
+  bugprone-assert-side-effect,
+  bugprone-bool-pointer-implicit-conversion,
+  bugprone-copy-constructor-init,
+  bugprone-dangling-handle,
+  bugprone-forwarding-reference-overload,
+  bugprone-inaccurate-erase,
+  bugprone-infinite-loop,
+  bugprone-macro-repeated-side-effects,
+  bugprone-move-forwarding-reference,
+  bugprone-parent-virtual-call,
+  bugprone-posix-return,
+  bugprone-string-constructor,
+  bugprone-undelegated-constructor,
+  bugprone-unused-raii,
+  bugprone-virtual-near-miss,
+  misc-unused-using-decls,
+  readability-delete-null-pointer,
+  readability-redundant-control-flow,
+  readability-redundant-string-cstr
+# Deferred until existing findings are cleaned up:
+# bugprone-argument-comment
+# bugprone-use-after-move
+# misc-redundant-expression
+# misc-static-assert
+# modernize-redundant-void-arg
+# performance-move-const-arg
+# performance-noexcept-move-constructor
+# readability-redundant-member-init
+# readability-simplify-boolean-expr
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^src/'
+FormatStyle: file
