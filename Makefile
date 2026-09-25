@@ -73,7 +73,7 @@ ifdef GITLAB_CI
 	TEST_DEPENDENCY :=
 else
 	MUSL_TOOLCHAIN_IMAGE ?= public.ecr.aws/datadog/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
-	NGINX_BUILD_IMAGE ?= $(if $(filter ON,$(RUM)),$(EXTENDED_BUILD_IMAGE),$(MUSL_TOOLCHAIN_IMAGE))
+	NGINX_BUILD_IMAGE ?= $(if $(filter ON TRUE true 1 YES yes,$(RUM)),$(EXTENDED_BUILD_IMAGE),$(MUSL_TOOLCHAIN_IMAGE))
 	TEST_DEPENDENCY := build-local-uwsgi-test-image
 endif
 export MUSL_TOOLCHAIN_IMAGE
@@ -164,7 +164,7 @@ build: dd-trace-cpp-deps
 
 .PHONY: build-musl build-musl-cov
 ifndef GITLAB_CI
-ifneq ($(filter ON,$(RUM)),)
+ifneq ($(filter ON TRUE true 1 YES yes,$(RUM)),)
 build-musl build-musl-cov: build-extended-image
 endif
 endif
