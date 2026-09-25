@@ -17,7 +17,7 @@ set(NGINX_VERSION "" CACHE STRING "The nginx version")
 if (NGINX_SRC_DIR STREQUAL "" AND NGINX_VERSION STREQUAL "")
   message(FATAL_ERROR "Set NGINX_SRC_DIR or, alternatively NGINX_VERSION")
 endif()
-option(NGINX_PATCH_AWAY_LIBC "Patch away libc dependency" OFF)
+option(NGINX_VERIFY_NEEDED "Verify dynamic library dependencies" OFF)
 option(NGINX_COVERAGE "Add coverage instrumentation" OFF)
 option(ENABLE_FUZZERS "For building fuzzers" OFF)
 option(ENABLE_ASAN "Build with AddressSanitizer" OFF)
@@ -30,7 +30,7 @@ endif()
 
 if(ENABLE_ASAN)
   set(NGINX_DATADOG_ASAN_COMPILE_OPTIONS -fsanitize=address,undefined)
-  set(NGINX_DATADOG_ASAN_LINK_OPTIONS -fsanitize=address,undefined -shared-libasan)
+  set(NGINX_DATADOG_ASAN_LINK_OPTIONS -fsanitize=address,undefined)
   set(NGINX_DATADOG_ASAN_CXX_DEFINITIONS
     $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE>)
 
@@ -271,9 +271,8 @@ endif()
 if(ENABLE_ASAN)
   target_compile_options(ngx_http_datadog_objs PUBLIC ${NGINX_DATADOG_ASAN_COMPILE_OPTIONS})
   target_compile_definitions(ngx_http_datadog_objs PUBLIC ${NGINX_DATADOG_ASAN_CXX_DEFINITIONS})
-  # INTERFACE so all consumers (ngx_http_datadog_module, unit_tests via the static lib) link
-  # the sanitizer runtime dynamically. -shared-libasan avoids two ASAN runtimes being loaded:
-  # without it executables get a static copy while libc++.so (ASAN-instrumented) loads the shared one.
+  # INTERFACE so all consumers (the module .so, unit_tests) carry the ASan flags
+  # at link time. The nginx executable provides the static ASan runtime.
   target_link_options(ngx_http_datadog_objs INTERFACE ${NGINX_DATADOG_ASAN_LINK_OPTIONS})
 endif()
 
@@ -353,9 +352,13 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   target_link_options(ngx_http_datadog_module PRIVATE "-Wl,-exported_symbols_list" "-Wl,${EXPORTED_SYMBOLS}")
 endif()
 
-if(NGINX_PATCH_AWAY_LIBC)
-  include(./cmake/patchelf.cmake)
-  patch_away_libc(ngx_http_datadog_module)
+if(NGINX_VERIFY_NEEDED AND NOT ENABLE_ASAN AND NOT ENABLE_MSAN)
+  find_program(READELF readelf REQUIRED)
+  add_custom_command(TARGET ngx_http_datadog_module POST_BUILD
+    COMMAND ${CMAKE_COMMAND}
+      -DREADELF=${READELF}
+      -DLIBRARY=$<TARGET_FILE:ngx_http_datadog_module>
+      -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/verify-needed.cmake)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" AND CMAKE_SYSTEM_NAME STREQUAL "Linux")

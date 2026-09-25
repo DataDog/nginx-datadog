@@ -11,6 +11,31 @@ Follow [doc/conventions.md](doc/conventions.md).
 
 Rebuild formatter image after editing `Dockerfile.formatter` with `make build-formatter-image`.
 
+## Update CI Images
+
+The CI build, test, and uWSGI images are built for amd64 and arm64. CI uses image digests from
+`.gitlab/common.yml` so that each pipeline uses immutable images.
+
+To update the images:
+
+1. Update the relevant image source:
+   - `build_env/` for the Nginx build image.
+   - `test/Dockerfile` for the test image.
+   - `test/services/uwsgi/` for the uWSGI image.
+2. When updating the shared musl toolchain, update `MUSL_TOOLCHAIN_IMAGE_DIGEST` and its version
+   comment in `.gitlab/common.yml` before building the CI images.
+3. Push the changes to a branch.
+4. In the branch pipeline, run the manual `build-and-sign-ci-images` job. It builds both
+   architectures, publishes multi-architecture images, signs them, and verifies the signatures.
+5. Download the `ci-images.env` artifact from the `assemble-and-sign-ci-images` child-pipeline job,
+   or copy the variables from its log.
+6. Update `NGINX_CI_BUILD_IMAGE_DIGEST`, `TEST_IMAGE`, and `UWSGI_TEST_IMAGE` in
+   `.gitlab/common.yml` with the generated digests.
+7. Commit and push the digest updates. Verify that the new pipeline passes with the pinned images.
+
+The formatter image uses a separate flow. CI hashes `Dockerfile.formatter` and builds the image
+automatically when that hash is not already in the registry.
+
 ## Build Locally
 
 ```shell
@@ -36,8 +61,6 @@ The `build` target does the following:
 ```shell
 NGINX_VERSION=<version> make build-musl
 ```
-
-Append `TOOLCHAIN_DEPENDENCY=` to skip local toolchain image rebuild.
 
 ## Test
 

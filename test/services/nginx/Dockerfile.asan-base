@@ -1,28 +1,29 @@
-ARG TOOLCHAIN_IMAGE=nginx_musl_toolchain
+# check=skip=InvalidDefaultArgInFrom
+ARG TOOLCHAIN_IMAGE
 FROM ${TOOLCHAIN_IMAGE}
 
 ARG ARCH=aarch64
 ARG NGINX_VERSION
 
+ENV MUSL_CLANG_SANITIZE=address,undefined
+
+COPY ngx_http_copy_filter_ubsan.patch ngx_http_huff_encode_ubsan.patch /tmp/
+
 RUN set -eux; \
-    case "$ARCH" in \
-      arm64) ARCH=aarch64 ;; \
-      amd64) ARCH=x86_64 ;; \
-    esac; \
-    sysroot="/sysroot/${ARCH}-none-linux-musl"; \
-    triple="${ARCH}-none-linux-musl"; \
     addgroup -S nginx; \
     adduser -S -D -H -h /var/cache/nginx -s /sbin/nologin -G nginx nginx; \
     mkdir -p /var/cache/nginx /var/log/nginx /run; \
-    # Ensure clang builtin headers (e.g., stdatomic.h) are available under the sysroot resource_dir
-    mkdir -p "${sysroot}/usr/lib/resource_dir"; \
-    ln -sfn "/usr/lib/llvm21/lib/clang/21/include" "${sysroot}/usr/lib/resource_dir/include"; \
     cd /tmp; \
     wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz"; \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz"; \
-    cc_opt="--target=${triple} --sysroot=${sysroot} -fno-omit-frame-pointer -O1 -g -fsanitize=address -DNGX_COMPAT=1 -Wno-error=sign-compare"; \
-    ld_opt="--target=${triple} --sysroot=${sysroot} -fuse-ld=lld -rtlib=compiler-rt -unwindlib=libunwind -resource-dir ${sysroot}/usr/lib/resource_dir -fsanitize=address -shared-libasan -Wl,-rpath,/usr/lib/llvm21/lib/clang/21/lib/linux -Wl,-rpath,/usr/asan/lib"; \
+    cc_opt="-O1 -g -fsanitize=address,undefined -DNGX_COMPAT=1"; \
+    cc_opt="$cc_opt -DNGX_HAVE_NONALIGNED=0 -Wno-error=sign-compare"; \
+    ld_opt="-fsanitize=address,undefined,vptr"; \
+    ld_opt="$ld_opt -fsanitize-link-c++-runtime"; \
+    ld_opt="$ld_opt -Wl,-Bdynamic"; \
     cd "/tmp/nginx-${NGINX_VERSION}"; \
+    patch -p1 < /tmp/ngx_http_copy_filter_ubsan.patch; \
+    patch -p1 < /tmp/ngx_http_huff_encode_ubsan.patch; \
     ./configure \
       --prefix=/etc/nginx \
       --sbin-path=/usr/sbin/nginx \
@@ -50,12 +51,15 @@ RUN set -eux; \
       --with-http_realip_module \
       --with-http_gzip_static_module \
       --with-http_sub_module \
-      --with-cc=clang \
+      --with-cc=musl-clang \
       --with-cc-opt="$cc_opt" \
       --with-ld-opt="$ld_opt"; \
     make -j"$(nproc)"; \
     make install; \
-    rm -rf "/tmp/nginx-${NGINX_VERSION}" "/tmp/nginx-${NGINX_VERSION}.tar.gz"
+    rm -rf "/tmp/nginx-${NGINX_VERSION}" \
+      "/tmp/nginx-${NGINX_VERSION}.tar.gz" \
+      /tmp/ngx_http_copy_filter_ubsan.patch \
+      /tmp/ngx_http_huff_encode_ubsan.patch
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV ASAN_OPTIONS=halt_on_error=1:detect_leaks=0
