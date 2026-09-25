@@ -1,0 +1,66 @@
+.injection-tests:
+  extends: .test
+  stage: shared-pipeline-test
+  timeout: 30m
+  variables:
+    DOCKER_LOOPBACK_SIZE: 80G
+    DOCKER_LOOPBACK_PATH: ""
+    INJECTION_ARCH: $ARCH
+    INJECTION_ARTIFACTS: test/injection/artifacts/ci
+  script:
+    - uv run --project test --group injection python -m test.injection.run test
+  retry:
+    max: 2
+    when: [runner_system_failure, scheduler_failure, api_failure]
+  artifacts:
+    when: always
+    expire_in: 2 weeks
+    reports:
+      junit: test/injection/artifacts/ci/junit.xml
+    paths:
+      - test/injection/artifacts/ci/
+
+.injection-checkout:
+  extends: .injection-tests
+  variables:
+    INJECTION_SOURCE: checkout
+  rules:
+    - if: $SKIP_SHARED_PIPELINE == "true"
+      when: never
+    - if: $CI_COMMIT_BRANCH || $CI_COMMIT_TAG
+
+# Explicit needs work with GitLab versions before matrix expressions.
+injection-checkout-amd64:
+  extends: .injection-checkout
+  variables:
+    ARCH: amd64
+  needs:
+    - job: package-oci
+      parallel:
+        matrix:
+          - OS: linux
+            ARCH: amd64
+
+injection-checkout-arm64:
+  extends: .injection-checkout
+  variables:
+    ARCH: arm64
+  needs:
+    - job: package-oci
+      parallel:
+        matrix:
+          - OS: linux
+            ARCH: arm64
+
+injection-published:
+  extends: .injection-tests
+  needs: []
+  parallel:
+    matrix:
+      - ARCH: [amd64, arm64]
+  variables:
+    INJECTION_SOURCE: published
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - when: manual
+      allow_failure: true
