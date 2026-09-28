@@ -67,6 +67,9 @@ assertions match unique request URIs.
 | Flask / Gunicorn | 3.1.2 / 23.0.0 |
 | pytest | 8.4.2 |
 
+Checkout CI uses Nginx 1.31.6 because the fast RUM build packages that version.
+Set `INJECTION_NGINX_VERSION` to select another packaged version locally.
+
 The installer bootstrap uses Datadog's install-only pattern with agent installation
 disabled. Language packages and the pinned injector are installed with the installer's
 package commands. Host tests require the resulting `/etc/ld.so.preload`; Docker

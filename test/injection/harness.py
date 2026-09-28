@@ -12,7 +12,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKLOADS = Path(__file__).with_name("workloads")
-NGINX_VERSION = "1.31.5"
+NGINX_VERSION = os.environ.get("INJECTION_NGINX_VERSION", "1.31.5")
 INJECTOR_VERSION = "0.71.0-1"
 NGINX_PACKAGE_VERSION = "1.23.0-1"
 PYTHON_PACKAGE_VERSION = "4.14.0-1"
@@ -146,6 +146,8 @@ class Images:
                    "--platform",
                    f"linux/{self.arch}",
                    "--pull",
+                   "--build-arg",
+                   f"NGINX_VERSION={NGINX_VERSION}",
                    "--label",
                    LABEL,
                    "-t",
