@@ -24,6 +24,7 @@ apt-get install -y --no-install-recommends \
   wget
 rm -rf /var/lib/apt/lists/*
 
+# Check that curl supports HTTP/3.
 curl --version | grep -q 'ngtcp2/'
 
 # grpcurl is a self-contained binary (Go program)

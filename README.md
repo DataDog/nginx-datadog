@@ -126,7 +126,7 @@ Options:
 - `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
 - `NGINX_VERSION=<version>`: Specify the Nginx version to build.
 - `RUM=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) RUM injection. It cannot be enabled with AppSec.
-- `ASAN=<ON|OFF>`: Whether to enable ASAN/UBSan
+- `ASAN=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) ASAN/UBSan.
 
 The Nginx module will be generated at `.musl-build/ngx_http_datadog_module.so`.
 
@@ -216,7 +216,7 @@ ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 make build-and-test
 
 `BASE_IMAGE` is ignored in ASAN mode because the test runner builds an instrumented Nginx image.
 
-See test/README.md and test/cases/README.md for details and advanced usage.
+See [test](test/README.md) and [test/cases](test/cases/README.md) for details and advanced usage.
 
 ## Security
 

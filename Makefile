@@ -10,17 +10,14 @@ MAKE_JOB_COUNT ?= $(shell nproc)
 PWD ?= $(shell pwd)
 RUM ?= OFF
 WAF ?= OFF
-ASAN_TEST_ARG = $(if $(filter ON TRUE true 1 YES yes,$(ASAN)),--asan --arch $(ARCH),)
-MSAN_TEST_ARG = $(if $(filter ON TRUE true 1 YES yes,$(MSAN)),--msan --arch $(ARCH),)
-TEST_IMAGE_ARG = $(if $(filter ON TRUE true 1 YES yes,$(ASAN))$(filter ON TRUE true 1 YES yes,$(MSAN)),,--image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine})
-MUSL_CLANG_CONFIG = $(if $(filter ON TRUE true 1 YES yes,$(ASAN)),test/services/nginx/musl-clang-asan.conf,$(if $(filter ON TRUE true 1 YES yes,$(MSAN)),test/services/nginx/musl-clang-msan.conf,))
-MUSL_CLANG_CONFIG_ARG = $(if $(MUSL_CLANG_CONFIG),--volume "$(abspath $(MUSL_CLANG_CONFIG)):/etc/musl-clang.conf:ro",)
-ifdef GITLAB_CI
-MUSL_BUILD_DIR ?= .musl-build
-else
-MUSL_BUILD_SUFFIX = $(if $(filter ON TRUE true 1 YES yes,$(ASAN)),-asan,$(if $(filter ON TRUE true 1 YES yes,$(MSAN)),-msan,))
+is_true = $(filter ON TRUE true 1 YES yes,$(1))
+SANITIZER = $(if $(call is_true,$(ASAN)),asan,$(if $(call is_true,$(MSAN)),msan))
+ASAN_TEST_ARG = $(if $(call is_true,$(ASAN)),--asan --arch $(ARCH))
+MSAN_TEST_ARG = $(if $(call is_true,$(MSAN)),--msan --arch $(ARCH))
+TEST_IMAGE_ARG = $(if $(SANITIZER),,--image $${BASE_IMAGE:-nginx:$(NGINX_VERSION)-alpine})
+MUSL_CLANG_CONFIG = $(if $(SANITIZER),test/services/nginx/musl-clang-$(SANITIZER).conf)
+MUSL_BUILD_SUFFIX = $(if $(SANITIZER),-$(SANITIZER))
 MUSL_BUILD_DIR ?= .musl-build$(MUSL_BUILD_SUFFIX)
-endif
 
 ARCH ?= $(shell arch)
 # Normalize architecture names: CI uses amd64/arm64, build tools expect x86_64/aarch64
@@ -61,6 +58,9 @@ IN_DOCKER_OR_CI := $(shell if [ "$(IN_DOCKER)" = "true" ] || \
 # ----- Docker Images
 
 MUSL_TOOLCHAIN_IMAGE_DIGEST := $(shell sed -n 's/^  MUSL_TOOLCHAIN_IMAGE_DIGEST: "\([^"]*\)".*$$/\1/p' .gitlab/common.yml)
+ifeq ($(MUSL_TOOLCHAIN_IMAGE_DIGEST),)
+$(error MUSL_TOOLCHAIN_IMAGE_DIGEST not found in .gitlab/common.yml)
+endif
 CI_REGISTRY := registry.ddbuild.io/ci/nginx-datadog
 UWSGI_TEST_IMAGE := $(CI_REGISTRY)/uwsgi
 
@@ -68,12 +68,10 @@ FORMATTER_IMAGE ?= nginx-datadog-formatter
 EXTENDED_BUILD_IMAGE ?= nginx_musl_toolchain
 
 ifdef GITLAB_CI
-	MUSL_TOOLCHAIN_IMAGE ?= registry.ddbuild.io/ci/musl-toolchain-glibc-support/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
-	NGINX_BUILD_IMAGE ?= $(NGINX_CI_BUILD_IMAGE)
 	TEST_DEPENDENCY :=
 else
 	MUSL_TOOLCHAIN_IMAGE ?= public.ecr.aws/datadog/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
-	NGINX_BUILD_IMAGE ?= $(if $(filter ON TRUE true 1 YES yes,$(RUM)),$(EXTENDED_BUILD_IMAGE),$(MUSL_TOOLCHAIN_IMAGE))
+	NGINX_BUILD_IMAGE ?= $(if $(call is_true,$(RUM)),$(EXTENDED_BUILD_IMAGE),$(MUSL_TOOLCHAIN_IMAGE))
 	TEST_DEPENDENCY := build-local-uwsgi-test-image
 endif
 export MUSL_TOOLCHAIN_IMAGE
@@ -164,7 +162,7 @@ build: dd-trace-cpp-deps
 
 .PHONY: build-musl build-musl-cov
 ifndef GITLAB_CI
-ifneq ($(filter ON TRUE true 1 YES yes,$(RUM)),)
+ifneq ($(call is_true,$(RUM)),)
 build-musl build-musl-cov: build-extended-image
 endif
 endif
@@ -186,7 +184,6 @@ else
 		--env ASAN=$(ASAN) \
 		--env MSAN=$(MSAN) \
 		--env COVERAGE=$(COVERAGE) \
-		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount "type=bind,source=$(dir $(lastword $(MAKEFILE_LIST))),destination=/mnt/repo" \
 		$(NGINX_BUILD_IMAGE) \
 		make -C /mnt/repo $@-aux
@@ -194,6 +191,7 @@ endif
 
 .PHONY: build-musl-aux build-musl-cov-aux
 build-musl-aux build-musl-cov-aux:
+	$(if $(MUSL_CLANG_CONFIG),cp $(MUSL_CLANG_CONFIG) /etc/musl-clang.conf)
 	CC=musl-clang CXX=musl-clang++ cmake -B $(MUSL_BUILD_DIR) \
 		-DNGINX_VERIFY_NEEDED=ON \
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
@@ -229,7 +227,6 @@ else
 		--env RESTY_VERSION=$(RESTY_VERSION) \
 		--env NGINX_VERSION=$(NGINX_VERSION) \
 		--env WAF=$(WAF) \
-		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount type=bind,source="$(PWD)",destination=/mnt/repo \
 		$(EXTENDED_BUILD_IMAGE) \
 		bash -c "cd /mnt/repo && $(BUILD_OPENRESTY_COMMAND)"
@@ -263,7 +260,6 @@ else
 		--env INGRESS_NGINX_VERSION=$(INGRESS_NGINX_VERSION) \
 		--env WAF=$(WAF) \
 		--env COVERAGE=$(COVERAGE) \
-		$(MUSL_CLANG_CONFIG_ARG) \
 		--mount "type=bind,source=$(PWD),destination=/mnt/repo" \
 		$(MUSL_TOOLCHAIN_IMAGE) \
 		make -C /mnt/repo build-musl-aux-ingress

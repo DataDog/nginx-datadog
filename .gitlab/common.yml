@@ -47,12 +47,10 @@ variables:
     RUM: "OFF"
     ASAN: "ON"
     BUILD_TYPE: "Debug"
-  before_script:
-    - cp test/services/nginx/musl-clang-asan.conf /etc/musl-clang.conf
   script:
     - make build-musl-aux
     - mkdir -p artifacts-asan/$ARCH/$NGINX_VERSION/$WAF
-    - cp .musl-build/ngx_http_datadog_module.so* artifacts-asan/$ARCH/$NGINX_VERSION/$WAF/
+    - cp .musl-build-asan/ngx_http_datadog_module.so* artifacts-asan/$ARCH/$NGINX_VERSION/$WAF/
   artifacts:
     paths:
       - artifacts-asan/$ARCH/$NGINX_VERSION/$WAF/
@@ -62,12 +60,10 @@ variables:
   variables:
     RUM: "OFF"
     MSAN: "ON"
-  before_script:
-    - cp test/services/nginx/musl-clang-msan.conf /etc/musl-clang.conf
   script:
     - make build-musl-aux
     - mkdir -p artifacts-msan/$ARCH/$NGINX_VERSION/$WAF
-    - cp .musl-build/ngx_http_datadog_module.so* artifacts-msan/$ARCH/$NGINX_VERSION/$WAF/
+    - cp .musl-build-msan/ngx_http_datadog_module.so* artifacts-msan/$ARCH/$NGINX_VERSION/$WAF/
   artifacts:
     paths:
       - artifacts-msan/$ARCH/$NGINX_VERSION/$WAF/
