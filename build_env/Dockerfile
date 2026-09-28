@@ -15,6 +15,7 @@ RUN apk add --no-cache \
       nodejs \
       npm \
       openssl-libs-static \
+      pcre-static \
       pcre2-static \
       shellcheck \
       uv \
