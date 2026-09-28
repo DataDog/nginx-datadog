@@ -14,13 +14,13 @@ extern "C" {
 namespace datadog::nginx::security {
 class ClientIp {
  public:
-  ClientIp(std::optional<HashedStringView> configured_header,
+  ClientIp(std::optional<HashedLowercaseStringView> configured_header,
            const ngx_http_request_t &request);
 
   std::optional<std::string> resolve() const;
 
  private:
-  std::optional<HashedStringView> configured_header_;  // lc
+  std::optional<HashedLowercaseStringView> configured_header_;
   const ngx_http_request_t &request_;
 };
 }  // namespace datadog::nginx::security

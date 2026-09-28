@@ -406,11 +406,11 @@ class FinalizedConfigSettings {
 
   auto ruleset_file() const { return non_empty_or_nullopt(ruleset_file_); }
 
-  std::optional<HashedStringView> custom_ip_header() const {
+  std::optional<HashedLowercaseStringView> custom_ip_header() const {
     if (custom_ip_header_.empty()) {
       return std::nullopt;
     }
-    return {{custom_ip_header_, custom_ip_header_hash_}};
+    return {{custom_ip_header_lowercase_key_, custom_ip_header_hash_}};
   };
 
   auto blocked_template_json() const {
@@ -481,6 +481,7 @@ class FinalizedConfigSettings {
   enum enable_status enable_status_;
   std::string ruleset_file_;
   std::string custom_ip_header_;
+  LowercaseStringView custom_ip_header_lowercase_key_;
   ngx_uint_t custom_ip_header_hash_;
   std::string blocked_template_json_;
   std::string blocked_template_html_;
@@ -539,6 +540,8 @@ FinalizedConfigSettings::FinalizedConfigSettings(
     custom_ip_header_ = normalize_configured_header(
         get_env_str(evs, "DD_TRACE_CLIENT_IP_HEADER"sv).value_or(""));
   }
+  custom_ip_header_lowercase_key_ = LowercaseStringView{
+      custom_ip_header_, LowercaseStringView::WithRuntimeCheckTag{}};
   custom_ip_header_hash_ = ngx_hash_ce(custom_ip_header_);
 
   if (ngx_conf.appsec_waf_timeout_ms == 0 ||
@@ -882,7 +885,7 @@ std::shared_ptr<OwnedDdwafHandle> Library::get_handle() {
   return {};
 }
 
-std::optional<HashedStringView> Library::custom_ip_header() {
+std::optional<HashedLowercaseStringView> Library::custom_ip_header() {
   return config_settings_->custom_ip_header();
 }
 

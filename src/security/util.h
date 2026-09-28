@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstring>
 #include <iterator>
+#include <stdexcept>
 #include <string_view>
 
 #include "../string_util.h"
@@ -77,29 +78,42 @@ inline std::string_view lc_key(const ngx_table_elt_t &header) {
   return {reinterpret_cast<const char *>(header.lowcase_key), header.key.len};
 }
 
-inline bool req_key_equals_ci(const ngx_table_elt_t &header,
-                              std::string_view key) {
-#if NGX_DEBUG
-  for (std::size_t i = 0; i < key.length(); i++) {
-    if (std::tolower(key[i]) != key[i]) {
-      throw new std::invalid_argument("key must be lowercase");
+constexpr int ascii_tolower(int c) noexcept {
+  return (c >= 'A' && c <= 'Z') ? c - 'A' + 'a' : c;
+}
+
+// Checks values at compile time by default.
+// Use WithRuntimeCheckTag for values known only at runtime.
+class LowercaseStringView : public std::string_view {
+ public:
+  struct WithRuntimeCheckTag {};
+  constexpr LowercaseStringView() noexcept = default;
+  consteval LowercaseStringView(std::string_view value)
+      : std::string_view{value} {
+    validate(value);
+  }
+  LowercaseStringView(std::string_view value, WithRuntimeCheckTag)
+      : std::string_view{value} {
+    validate(value);
+  }
+
+ private:
+  static constexpr void validate(std::string_view value) {
+    for (char character : value) {
+      if (ascii_tolower(character) != character) {
+        throw std::invalid_argument("string must be lowercase");
+      }
     }
   }
-#endif
+};
 
+inline bool req_key_equals_ci(const ngx_table_elt_t &header,
+                              LowercaseStringView key) {
   return key == lc_key(header);
 }
 
 inline bool resp_key_equals_ci(const ngx_table_elt_t &header,
-                               std::string_view key) {
-#if NGX_DEBUG
-  for (std::size_t i = 0; i < key.length(); i++) {
-    if (std::tolower(key[i]) != key[i]) {
-      throw new std::invalid_argument("key must be lowercase");
-    }
-  }
-#endif
-
+                               LowercaseStringView key) {
   if (header.key.len != key.size()) {
     return false;
   }

@@ -51,10 +51,11 @@ shared volume that will be accessible by the main ingress-nginx container.
 When the main ingrees-nginx controller starts, the Nginx configuration must be updated with the
 `load_module` directive, allowing it to load the Datadog module seamlessly.
 
-> [!WARNING] We provide a specific init container **for each ingress-nginx controller version**
-> start with `v1.10.0`. This is crucial because **each** init container must match the underlying
-> Nginx version. Be sure to choose the version of the Datadog init container matching your
-> ingress-nginx version to ensure compatibility.
+> [!WARNING]
+> We provide a specific init container **for each ingress-nginx controller version** start with
+> `v1.10.0`. This is crucial because **each** init container must match the underlying Nginx
+> version. Be sure to choose the version of the Datadog init container matching your ingress-nginx
+> version to ensure compatibility.
 
 ## Interaction with OpenTelemetry
 

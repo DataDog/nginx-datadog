@@ -61,10 +61,10 @@ lint-nginx-log-format:
 
 shellcheck:
   extends: .build-and-test-fast
-  image: $MUSL_TOOLCHAIN_IMAGE
+  image: $NGINX_CI_BUILD_IMAGE
   tags: ["arch:amd64"]
   script:
-    - find bin/ test/ example/ .gitlab/ -type f \( \( -executable -not -name '*.py' \) -o -name '*.sh' \) | xargs shellcheck --exclude SC1071,SC1091,SC2317
+    - find bin/ build_env/ test/ example/ .gitlab/ -type f \( \( -executable -not -name '*.py' \) -o -name '*.sh' \) | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
 build-nginx-fast:
   extends:
@@ -83,9 +83,9 @@ build-nginx-fast:
           - "1.27.5"
           - "1.28.3"
           - "1.29.8"
-          - "1.30.4"
+          - "1.30.5"
           - "1.31.3"
-          - "1.31.5"
+          - "1.31.6"
         WAF: ["ON", "OFF"]
 
 build-nginx-asan-fast:
@@ -94,7 +94,7 @@ build-nginx-asan-fast:
     - .build-nginx-asan
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.5"
+    NGINX_VERSION: "1.31.6"
     WAF: "ON"
 
 build-nginx-msan-fast:
@@ -103,7 +103,7 @@ build-nginx-msan-fast:
     - .build-nginx-msan
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.5"
+    NGINX_VERSION: "1.31.6"
     WAF: "ON"
 
 build-ingress-nginx-fast:
@@ -126,6 +126,7 @@ build-openresty-fast:
     matrix:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION:
+          - "1.25.3.2"
           - "1.27.1.2"
           - "1.29.2.5"
           - "1.31.1.1"
@@ -144,8 +145,8 @@ build-nginx-rum-fast:
           - "1.27.5"
           - "1.28.3"
           - "1.29.8"
-          - "1.30.4"
-          - "1.31.5"
+          - "1.30.5"
+          - "1.31.6"
         WAF: ["OFF"]
 
 test-nginx-fast:
@@ -176,16 +177,16 @@ test-nginx-fast:
         NGINX_VERSION: ["1.29.8"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.30.4", "nginx:1.30.4-alpine"]
-        NGINX_VERSION: ["1.30.4"]
+        BASE_IMAGE: ["nginx:1.30.5", "nginx:1.30.5-alpine"]
+        NGINX_VERSION: ["1.30.5"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.31.3", "nginx:1.31.3-alpine"]
         NGINX_VERSION: ["1.31.3"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.31.5", "nginx:1.31.5-alpine"]
-        NGINX_VERSION: ["1.31.5"]
+        BASE_IMAGE: ["nginx:1.31.6", "nginx:1.31.6-alpine"]
+        NGINX_VERSION: ["1.31.6"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["amazonlinux:2023.11.20260427.1"]
@@ -200,7 +201,7 @@ test-nginx-asan-fast:
     - build-nginx-asan-fast
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.5"
+    NGINX_VERSION: "1.31.6"
     WAF: "ON"
 
 test-nginx-msan-fast:
@@ -211,7 +212,7 @@ test-nginx-msan-fast:
     - build-nginx-msan-fast
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.5"
+    NGINX_VERSION: "1.31.6"
     WAF: "ON"
 
 test-ingress-nginx-fast:
@@ -236,6 +237,7 @@ test-openresty-fast:
     matrix:
       - ARCH: ["amd64", "arm64"]
         RESTY_VERSION:
+          - "1.25.3.2"
           - "1.27.1.2"
           - "1.29.2.5"
           - "1.31.1.1"
@@ -269,12 +271,12 @@ test-nginx-rum-fast:
         NGINX_VERSION: ["1.29.8"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.30.4"]
-        NGINX_VERSION: ["1.30.4"]
+        BASE_IMAGE: ["nginx:1.30.5"]
+        NGINX_VERSION: ["1.30.5"]
         WAF: ["OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.31.5"]
-        NGINX_VERSION: ["1.31.5"]
+        BASE_IMAGE: ["nginx:1.31.6"]
+        NGINX_VERSION: ["1.31.6"]
         WAF: ["OFF"]
 
 coverage:

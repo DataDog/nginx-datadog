@@ -23,9 +23,10 @@ Tracing is automatically added to all endpoints by default. For more information
 
 ## Compatibility
 
-> [!IMPORTANT] We provide support for Nginx versions up to their End Of Life, extended by one year.
-> [Aligned with the Nginx release cycle](https://docs.nginx.com/nginx/releases), this entails
-> support for the four most recent Nginx versions.
+> [!IMPORTANT]
+> We provide support for Nginx versions up to their End Of Life, extended by one year. [Aligned with
+> the Nginx release cycle](https://docs.nginx.com/nginx/releases), this entails support for the four
+> most recent Nginx versions.
 >
 > If you plan to add tracing features to an older Nginx version using our module, please check out
 > [the build section](#building-the-module) for guidance.
@@ -39,8 +40,8 @@ The naming convention is:
 - `ngx_http_datadog_module-<arch>-<version>.so.tgz` for builds without appsec support;
 - `ngx_http_datadog_module-appsec-<arch>-<version>.so.tgz` for builds with appsec support.
 
-> [!IMPORTANT] The AppSec variants require Nginx to have been built with `--threads` (thread
-> support).
+> [!IMPORTANT]
+> The AppSec variants require Nginx to have been built with `--threads` (thread support).
 
 Supported architectures (`<arch>`) are `amd64` and `arm64`.
 
@@ -104,13 +105,16 @@ Before building the module, ensure your environment meets the following requirem
 We recommend using Docker which greatly simplify the build process for various environments. Below
 are specific commands and options for different build targets.
 
-> [!IMPORTANT] Be sure to match the version of Nginx, OpenResty, or Ingress Nginx with the version
-> you are using in your environment to avoid compatibility issues.
+> [!IMPORTANT]
+> Be sure to match the version of Nginx, OpenResty, or Ingress Nginx with the version you are using
+> in your environment to avoid compatibility issues.
 
 #### Building for Nginx
 
-> [!NOTE] The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee
-> portability.
+> [!NOTE]
+> The `build-musl` target builds against [musl](https://www.musl-libc.org/) to guarantee
+> portability. Tracing and AppSec builds use the pinned shared toolchain image directly. RUM
+> injection builds create the extended build image because they also require Rust and `cbindgen`.
 
 ```shell
 WAF=ON ARCH=x86_64 NGINX_VERSION=1.29.7 make build-musl
@@ -121,14 +125,16 @@ Options:
 - `WAF=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) AppSec.
 - `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
 - `NGINX_VERSION=<version>`: Specify the Nginx version to build.
-- `ASAN=<ON|OFF>`: Whether to enable ASAN/UBSan
+- `RUM=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) RUM injection. It cannot be enabled with AppSec.
+- `ASAN=<ON|OFF>`: Enable (`ON`) or disable (`OFF`) ASAN/UBSan.
 
-The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
+The Nginx module will be generated at `.musl-build/ngx_http_datadog_module.so`.
 
 ### Building for OpenResty Using Docker
 
-> [!NOTE] The `build-openresty` target builds against [musl](https://www.musl-libc.org/) to
-> guarantee portability.
+> [!NOTE]
+> The `build-openresty` target builds against [musl](https://www.musl-libc.org/) to guarantee
+> portability.
 
 To build the module for OpenResty:
 
@@ -142,12 +148,13 @@ Options:
 - `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
 - `RESTY_VERSION=<version>`: Specify the OpenResty version to build.
 
-The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
+The Nginx module will be generated at `.openresty-build/ngx_http_datadog_module.so`.
 
 ### Building for Ingress Nginx using Docker
 
-> [!NOTE] The `build-ingress-nginx` target builds against [musl](https://www.musl-libc.org/) to
-> guarantee portability.
+> [!NOTE]
+> The `build-ingress-nginx` target builds against [musl](https://www.musl-libc.org/) to guarantee
+> portability.
 
 To build the module for [Ingress Nginx](https://github.com/kubernetes/ingress-nginx):
 
@@ -161,7 +168,7 @@ Options:
 - `ARCH=<x86_64|aarch64>`: Specify the CPU architecture.
 - `INGRESS_NGINX_VERSION=<version>`: Specify the version Ingress Nginx to build.
 
-The Nginx module will be generated at `.musl-build\ngx_http_datadog_module.so`.
+The Nginx module will be generated at `.musl-build/ngx_http_datadog_module.so`.
 
 ## Running tests
 
@@ -170,32 +177,46 @@ Prerequisites:
 - Docker and Docker Compose v2
 - uv installed
 
-Option A: one-shot build + test (use on a clean tree)
+To build the module and run all integration tests:
 
-- NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= TEST_DEPENDENCY= make build-and-test
-  - WAF=ON to include AppSec tests
-  - To use a different base image (non-ASAN), set BASE_IMAGE, e.g. BASE_IMAGE=nginx:1.28.4-alpine
-- ASAN mode:
-  - ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= TEST_DEPENDENCY= make
-    build-and-test
-  - BASE_IMAGE/--image are ignored in ASAN mode (runner builds its own ASAN base)
+```shell
+NGINX_VERSION=1.31.1 make build-and-test
+```
 
-Option B: iterate quickly after the first build (avoid rebuilds)
+Set `WAF=ON` to build with AppSec and run the AppSec tests. To test against another Nginx image,
+set `BASE_IMAGE`, for example `BASE_IMAGE=nginx:1.28.4-alpine`.
 
-- Build once:
-  - NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= make build-musl
-- Run all tests without rebuilding images:
-  - TEST_DEPENDENCY= make test
-- Run a specific test:
-  - TEST_ARGS="cases.path.to.module.TestClass.test_method" TEST_DEPENDENCY= make test
-  - Example: TEST_ARGS="--failfast
-    cases.auth_requests.test_auth_requests.TestAuthRequests.test_auth_request_with_auth_token_is_successful"
-    TEST_DEPENDENCY= make test
-- ASAN iteration:
-  - Build with ASAN: ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 TOOLCHAIN_DEPENDENCY= make build-musl
-  - Test with ASAN flags: ASAN=ON ARCH=x86_64 TEST_DEPENDENCY= make test
+To run the tests again using the existing module:
 
-See test/README.md and test/cases/README.md for details and advanced usage.
+```shell
+NGINX_VERSION=1.31.1 make test
+```
+
+For RUM development, build and test once, then use the existing module for later test runs. This
+avoids rebuilding the extended build image:
+
+```shell
+RUM=ON NGINX_VERSION=1.31.1 make build-and-test
+RUM=ON NGINX_VERSION=1.31.1 make test
+```
+
+Use `TEST_ARGS` to run a specific test:
+
+```shell
+NGINX_VERSION=1.31.1 \
+  TEST_ARGS="cases.auto_propagation.test_http.TestHTTP.test_auto_propagation" \
+  make test
+```
+
+To build and test with ASAN/UBSan:
+
+```shell
+ASAN=ON ARCH=x86_64 NGINX_VERSION=1.31.1 make build-and-test
+```
+
+`BASE_IMAGE` is ignored in ASAN mode because the test runner builds an instrumented Nginx image.
+
+See [test](test/README.md) and [test/cases](test/cases/README.md) for details and advanced usage.
 
 ## Security
 

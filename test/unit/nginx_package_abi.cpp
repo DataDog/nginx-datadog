@@ -1,8 +1,7 @@
-#include <catch2/catch_test_macros.hpp>
-
-#include <string>
-
 #include "nginx_package_abi.h"
+
+#include <catch2/catch_test_macros.hpp>
+#include <string>
 
 namespace package_abi = datadog::nginx::package_abi;
 
@@ -44,8 +43,9 @@ TEST_CASE("require the complete Debian package fingerprint") {
   CHECK_FALSE(package_abi::is_debian_or_ubuntu_build(
       std::string{build_path} + " --prefix=/usr/share/nginx"));
   CHECK_FALSE(package_abi::is_debian_or_ubuntu_build(
-      std::string{build_path} + " --prefix=/usr/share/nginx "
-                               "--modules-path=/usr/lib/nginx/modules"));
+      std::string{build_path} +
+      " --prefix=/usr/share/nginx "
+      "--modules-path=/usr/lib/nginx/modules"));
 }
 
 TEST_CASE("do not identify an upstream nginx build as Debian or Ubuntu") {
