@@ -56,6 +56,13 @@ def pytest_collection_modifyitems(config, items):
     items.sort(
         key=lambda item: MODES.index(item.callspec.params["mode"]) if hasattr(
             item, "callspec") and "mode" in item.callspec.params else -1)
+    if not config.getoption("--injection-package"):
+        for item in items:
+            if item.originalname == "test_rum_disabled_by_stable_config":
+                item.add_marker(
+                    pytest.mark.xfail(
+                        reason=
+                        "Published Nginx package lacks stable RUM opt-out"))
 
 
 def pytest_sessionfinish(session, exitstatus):

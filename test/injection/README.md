@@ -1,11 +1,12 @@
-# Nginx injection acceptance tests
+# Nginx Injection Acceptance Tests
 
-These tests install the real Datadog injector and language packages into a disposable
-Linux host. They check HTTP responses, decoded spans, and Nginx → Flask parent links.
-The same cases run against host processes, a Debian Nginx container, and an Alpine
-Nginx container. A focused smoke test also runs an ordinary Nginx service in a
-single-node Docker Swarm. Kubernetes is outside this suite. Stable-config tracing
-cases are strict expected failures until the C++ tracer supports the feature.
+These tests verify that Datadog APM auto-instrumentation activates Nginx tracing
+and links Nginx spans to Flask spans. They install `datadog-apm-inject` and the
+language packages on a disposable Linux host, then check HTTP responses and
+decoded spans from host processes and Debian and Alpine containers. A focused
+smoke test covers a single-node Docker Swarm service. Kubernetes is outside this
+suite. Stable config tracing cases remain expected failures until the C++ tracer
+supports them.
 
 ## Run
 
@@ -17,11 +18,11 @@ DOCKER_CONTEXT=orbstack make test-injection INJECTION_SOURCE=checkout
 make test-injection INJECTION_PACKAGE=/path/to/package.tar
 ```
 
-The Docker daemon must support privileged Linux containers. Orb uses its native ARM64
-architecture. `DOCKER_CONTEXT` and `DOCKER_HOST` also work with remote daemons; the
-harness transfers files with Docker copy/exec and streams images with save/load.
-It never needs a local bind mount or access to a remote daemon's published ports.
-`INJECTION_ARCH=arm64` or `amd64` enforces the expected daemon architecture.
+The Docker daemon must support privileged Linux containers. The harness detects its
+architecture; CI runs on both amd64 and arm64. Set `INJECTION_ARCH=arm64` or
+`amd64` to check the detected value. `DOCKER_CONTEXT` and `DOCKER_HOST` also work
+with remote daemons. The harness transfers files and images through Docker without
+local bind mounts or published ports.
 
 Published packages need access to `install.datadoghq.com`, Docker Hub, and GHCR.
 Checkout builds also need access to the repository's private toolchain and packaging
@@ -53,7 +54,7 @@ Known stable-config gaps are marked as strict xfails. Positive conditions have a
 three-second quiet period while checking collector health. Readiness uses `/ready`;
 assertions match unique request URIs.
 
-## What gets installed
+## What Gets Installed
 
 | Component | Pin |
 | --- | --- |
@@ -93,12 +94,17 @@ make injection-example-traces
 make injection-example-down
 ```
 
-`docker-alpine` selects Alpine. `INJECTION_SOURCE=checkout` and `INJECTION_PACKAGE`
-work for examples too. The state file records the Docker context, so later commands
-use the same daemon. Keep `INJECTION_ARTIFACTS` consistent between commands.
-Requests run through `docker exec` and return the backend's echoed propagation
-headers. The traces command prints the test agent's decoded traces. Shutdown flushes
-the workloads and saves diagnostics before removing the example resources.
+The examples use the same package and daemon settings as the tests:
+
+- `INJECTION_MODE=docker-alpine` selects Alpine.
+- `INJECTION_SOURCE=checkout` builds this checkout; `INJECTION_PACKAGE` selects a
+  package file.
+- Use the same `INJECTION_ARTIFACTS` path for every command. Its state file records
+  the Docker context so later commands reach the same daemon.
+
+The request command returns the backend's echoed propagation headers. The traces
+command prints decoded traces. Shutdown flushes workloads, saves diagnostics, and
+removes the example resources.
 
 Set these variables on `injection-example-up` to change the Nginx environment:
 
@@ -126,7 +132,7 @@ values requires restarting the master or recreating the container; a graceful
 configuration reload retains the original values. This is separate from the
 official image's Nginx configuration templating and from Datadog stable config.
 
-## Stable config
+## Stable Config
 
 The suite writes stable configuration to both supported locations:
 
@@ -141,9 +147,9 @@ system-tests YAML shapes for `apm_configuration_default` and
 `apm_configuration_rules`.
 
 RUM opt-out tests serve HTML while requiring a valid Nginx trace. They verify that
-`DD_RUM_ENABLED=false` in the environment leaves tracing active. The equivalent
-local and managed stable-config cases are strict expected failures until the Nginx
-RUM integration consumes that setting.
+`DD_RUM_ENABLED=false` in the environment or in local and managed stable config
+leaves tracing active. Stable config opt-out cases run on checkout packages and
+remain expected failures for the published package until it includes this change.
 
 The Swarm smoke test creates one service replica in the private Docker daemon. It
 uses the ordinary Nginx image and does not select a runtime or add Datadog Nginx
@@ -153,18 +159,21 @@ logs, process map, and trace before removing the service. This test does not cov
 multi-node scheduling, overlay networking, routing mesh, rolling updates, or node
 failure.
 
-Each known gap uses `xfail(strict=True)`. When support lands, an unexpected pass
-fails CI and requires removing the marker.
+Known gaps use `xfail`. The project enables strict expected failures globally, so
+an unexpected pass fails CI and requires removing the marker.
 
 ## Evidence and CI
 
-Artifacts default to `test/injection/artifacts/latest/`. They include JUnit,
-resolved image IDs/digests, package manifest digests, installer version/output,
-module checksums, daemon configuration, process maps, workload logs, injection
-telemetry, request responses, and decoded traces from both collectors. Missing
-required evidence fails the run. Failure cleanup also copies raw daemon/workload
-logs. The suite removes only its own containers, Docker data volumes, and generated
-image tags; it never prunes the daemon.
+Artifacts default to `test/injection/artifacts/latest/`. They include:
+
+- JUnit results and resolved image IDs and digests.
+- Package manifest digests, installer output and version, and module checksums.
+- Daemon configuration, process maps, and workload logs.
+- Injection telemetry, HTTP responses, and decoded traces from both collectors.
+
+Missing required evidence fails the run. Failure cleanup also copies raw daemon and
+workload logs. The suite removes only its own containers, Docker data volumes, and
+generated image tags; it never prunes the daemon.
 
 `.gitlab/injection-tests.yml` extends the existing `.test` runner setup. Checkout
 jobs consume the architecture-matched Linux `package-oci` artifact on branches

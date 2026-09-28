@@ -12,7 +12,7 @@ from .harness import Docker, Images, MODES, ROOT, Sandbox, Workload, unique_uri
 from .package import build, module_checksum
 
 
-def main():
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("action",
                         choices=("test", "example-up", "example-down",
@@ -30,16 +30,18 @@ def main():
                         default=os.environ.get(
                             "INJECTION_ARTIFACTS",
                             "test/injection/artifacts/latest"))
-    args, extra = parser.parse_known_args()
-    os.chdir(ROOT)
-    docker = Docker(args.artifacts)
-    if args.action.startswith("example-") and args.action != "example-up":
-        return existing_example(docker, args.action)
+    return parser.parse_known_args()
+
+
+def detect_arch(docker):
     info = json.loads(docker.run("info", "--format", "{{json .}}"))
-    arch = {
+    return {
         "aarch64": "arm64",
         "x86_64": "amd64"
     }.get(info["Architecture"], info["Architecture"])
+
+
+def resolve_package(args, docker, arch):
     package = Path(args.package).resolve(strict=True) if args.package else None
     if not package and args.source == "checkout" and os.environ.get(
             "GITLAB_CI"):
@@ -50,21 +52,32 @@ def main():
         package = packages[0]
     if not package and args.source == "checkout":
         package = build(docker, arch)
+    return package
+
+
+def record_package(docker, package, arch):
+    (docker.artifacts / "input-package.json").write_text(
+        json.dumps(
+            {
+                "path": str(package),
+                "package_sha256": hashlib.sha256(
+                    package.read_bytes()).hexdigest(),
+                "module_sha256": module_checksum(package, arch),
+                "architecture": arch
+            },
+            indent=2))
+
+
+def main():
+    args, extra = parse_args()
+    os.chdir(ROOT)
+    docker = Docker(args.artifacts)
+    if args.action.startswith("example-") and args.action != "example-up":
+        return existing_example(docker, args.action)
+    arch = detect_arch(docker)
+    package = resolve_package(args, docker, arch)
     if package:
-        checksum = module_checksum(package, arch)
-        (docker.artifacts / "input-package.json").write_text(
-            json.dumps(
-                {
-                    "path":
-                    str(package),
-                    "package_sha256":
-                    hashlib.sha256(package.read_bytes()).hexdigest(),
-                    "module_sha256":
-                    checksum,
-                    "architecture":
-                    arch
-                },
-                indent=2))
+        record_package(docker, package, arch)
     if args.action == "example-up":
         example_up(docker, args, package)
         return 0

@@ -496,8 +496,9 @@ class Workload:
         }
 
     def start_host(self, service, command, overrides):
-        script = f"echo $$ > /tmp/{service}-launcher.pid; exec {shlex.join(command)} " \
-                 f"> /evidence/{service}.log 2>&1"
+        script = f"exec {shlex.join(command)} > /evidence/{service}.log 2>&1"
+        if service == "backend":
+            script = f"echo $$ > /tmp/{service}-launcher.pid; {script}"
         self.sandbox.host("sh",
                           "-c",
                           script,
@@ -600,43 +601,47 @@ class Workload:
     def stop(self):
         if not self.running:
             return
-        sandbox = self.sandbox
         self.evidence()
-        if sandbox.mode == "host":
-            sandbox.host("sh", "-c",
-                         "kill -QUIT $(cat /tmp/injection-nginx.pid)")
-            poll(
-                lambda: not json.loads(
-                    sandbox.host("python3", "/workload/processes.py")),
-                "Nginx graceful shutdown")
-            sandbox.host("sh", "-c",
-                         "kill -TERM $(cat /tmp/backend-launcher.pid)")
-            poll(
-                lambda: sandbox.host(
-                    "sh",
-                    "-c",
-                    "kill -0 $(cat /tmp/backend-launcher.pid)",
-                    check=False).returncode != 0, "Flask graceful shutdown")
-            for name in ("nginx", "backend"):
-                self.directory.joinpath(
-                    f"{name}-{self.generation}.log").write_text(
-                        sandbox.host("cat", f"/evidence/{name}.log"))
+        if self.sandbox.mode == "host":
+            self._stop_host()
         else:
-            for name in reversed(self.containers):
-                sandbox.inner("stop", "--signal",
-                              "SIGQUIT" if name == "nginx" else "SIGTERM",
-                              "--time", "30", name)
-                state = json.loads(
-                    sandbox.inner("inspect", "--format", "{{json .State}}",
-                                  name))
-                assert state["ExitCode"] == 0, state
-                logs = sandbox.inner("logs", name, check=False)
-                self.directory.joinpath(
-                    f"{name}-{self.generation}.log").write_text(logs.stdout +
-                                                                logs.stderr)
-                sandbox.inner("rm", name)
-            self.containers.clear()
+            self._stop_docker()
         self.running = False
+
+    def _stop_host(self):
+        sandbox = self.sandbox
+        sandbox.host("sh", "-c", "kill -QUIT $(cat /tmp/injection-nginx.pid)")
+        poll(
+            lambda: not json.loads(
+                sandbox.host("python3", "/workload/processes.py")),
+            "Nginx graceful shutdown")
+        sandbox.host("sh", "-c", "kill -TERM $(cat /tmp/backend-launcher.pid)")
+        poll(
+            lambda: sandbox.host("sh",
+                                 "-c",
+                                 "kill -0 $(cat /tmp/backend-launcher.pid)",
+                                 check=False).returncode != 0,
+            "Flask graceful shutdown")
+        for name in ("nginx", "backend"):
+            self.directory.joinpath(
+                f"{name}-{self.generation}.log").write_text(
+                    sandbox.host("cat", f"/evidence/{name}.log"))
+
+    def _stop_docker(self):
+        sandbox = self.sandbox
+        for name in reversed(self.containers):
+            sandbox.inner("stop", "--signal",
+                          "SIGQUIT" if name == "nginx" else "SIGTERM",
+                          "--time", "30", name)
+            state = json.loads(
+                sandbox.inner("inspect", "--format", "{{json .State}}", name))
+            assert state["ExitCode"] == 0, state
+            logs = sandbox.inner("logs", name, check=False)
+            self.directory.joinpath(
+                f"{name}-{self.generation}.log").write_text(logs.stdout +
+                                                            logs.stderr)
+            sandbox.inner("rm", name)
+        self.containers.clear()
 
     def finish(self):
         self.stop()

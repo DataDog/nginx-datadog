@@ -6,12 +6,7 @@ import pytest
 from .harness import NGINX_VERSION, STABLE_CONFIG_PATHS, Workload, poll, trace_id, unique_uri, UNSUPPORTED_IMAGE
 
 stable_config_xfail = pytest.mark.xfail(
-    reason="C++ tracer stable configuration support is not implemented",
-    strict=True)
-rum_stable_config_xfail = pytest.mark.xfail(
-    reason=
-    "Nginx RUM does not consume DD_RUM_ENABLED from stable configuration",
-    strict=True)
+    reason="C++ tracer stable configuration support is not implemented")
 RUM_HTML = "<!doctype html><html><head><title>RUM opt out</title></head><body>tracing only</body></html>"
 
 
@@ -273,7 +268,6 @@ def test_rum_disabled_by_environment(sandbox, workload, stable_config):
 
 
 @pytest.mark.stable_config
-@rum_stable_config_xfail
 @pytest.mark.parametrize("path", STABLE_CONFIG_PATHS, ids=("local", "managed"))
 def test_rum_disabled_by_stable_config(sandbox, workload, stable_config, path):
     content = stable_config(
@@ -415,22 +409,45 @@ def test_injection_opt_out(sandbox, workload):
 
 def test_reload_and_restart(sandbox, workload):
     application = workload({
-        "DD_ENV": "restart-test",
-        "DD_VERSION": "restart-version"
+        "DD_ENV": "before-restart",
+        "DD_VERSION": "before-version"
     })
     uris = []
-    for action in (lambda: None, application.reload, lambda:
-                   (application.stop(), application.start())):
+    for action in (lambda: None, application.reload):
         action()
         application.assert_module()
         uri = unique_uri()
-        uris.append(uri)
+        uris.append((uri, "before-restart", "before-version"))
         application.request(uri)
     application.stop()
-    for uri in uris:
+
+    application.nginx_env.update({
+        "DD_ENV": "after-restart",
+        "DD_VERSION": "after-version"
+    })
+    application.start()
+    application.assert_module()
+    uri = unique_uri()
+    uris.append((uri, "after-restart", "after-version"))
+    application.request(uri)
+    application.stop()
+
+    for uri, expected_env, expected_version in uris:
         span = nginx_span(sandbox, uri)
-        assert span["meta"]["env"] == "restart-test"
-        assert span["meta"]["version"] == "restart-version"
+        assert span["meta"]["env"] == expected_env
+        assert span["meta"]["version"] == expected_version
+
+
+def _install_unsupported_host_nginx(sandbox, image):
+    sandbox.load(image)
+    sandbox.inner("create", "--runtime=runc", "--name", "old-nginx", image)
+    sandbox.inner("cp", "old-nginx:/usr/sbin/nginx", "/tmp/unsupported-nginx")
+    dependencies = sandbox.inner("run", "--rm", "--runtime=runc", image, "ldd",
+                                 "/usr/sbin/nginx")
+    for library in re.findall(r"=> (/\S+)", dependencies):
+        if sandbox.host("test", "-e", library, check=False).returncode:
+            sandbox.inner("cp", "-L", f"old-nginx:{library}", library)
+    sandbox.host("cp", "/tmp/unsupported-nginx", "/usr/sbin/nginx")
 
 
 @pytest.mark.parametrize("failure", ["missing-package", "unsupported-version"])
@@ -445,19 +462,7 @@ def test_unavailable_module(sandbox_factory, mode, failure):
                                          if mode == "docker-alpine" else "")
             sandbox.images.pull(image)
             if mode == "host":
-                sandbox.load(image)
-                sandbox.inner("create", "--runtime=runc", "--name",
-                              "old-nginx", image)
-                sandbox.inner("cp", "old-nginx:/usr/sbin/nginx",
-                              "/tmp/unsupported-nginx")
-                dependencies = sandbox.inner("run", "--rm", "--runtime=runc",
-                                             image, "ldd", "/usr/sbin/nginx")
-                for library in re.findall(r"=> (/\S+)", dependencies):
-                    if sandbox.host("test", "-e", library,
-                                    check=False).returncode:
-                        sandbox.inner("cp", "-L", f"old-nginx:{library}",
-                                      library)
-                sandbox.host("cp", "/tmp/unsupported-nginx", "/usr/sbin/nginx")
+                _install_unsupported_host_nginx(sandbox, image)
         application = Workload(sandbox, failure, image=image).start()
         uri = unique_uri(True)
         application.request(uri)

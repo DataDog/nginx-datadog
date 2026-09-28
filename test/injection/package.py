@@ -66,64 +66,80 @@ def module_checksum(archive, arch):
         return checksums[0]
 
 
+def _build_image():
+    settings = yaml.safe_load(
+        (ROOT / ".gitlab/common.yml").read_text())["variables"]
+    image = settings["NGINX_CI_BUILD_IMAGE"]
+    for name in ("CI_REGISTRY", "REGISTRY", "NGINX_CI_BUILD_IMAGE_DIGEST"):
+        image = image.replace(f"${name}", settings[name])
+    return image
+
+
+def _include_source(member):
+    parts = PurePosixPath(member.name).parts
+    return None if any(part in (".git", ".venv", "artifacts", "__pycache__",
+                                ".pytest_cache") for part in parts) else member
+
+
+def _copy_checkout(docker, builder):
+    tracked = subprocess.check_output(["git", "ls-files", "-z"],
+                                      cwd=ROOT).decode().split("\0")
+    with tempfile.TemporaryDirectory() as temporary:
+        archive = Path(temporary) / "checkout.tar"
+        with tarfile.open(archive, "w") as sources:
+            for name in filter(None, tracked):
+                sources.add(ROOT / name, arcname=name, filter=_include_source)
+        docker.run("cp", archive, f"{builder}:/tmp/checkout.tar")
+    docker.run("exec", builder, "mkdir", "/checkout")
+    docker.run("exec", builder, "tar", "-xf", "/tmp/checkout.tar", "-C",
+               "/checkout")
+
+
+def _build_module(docker, builder, arch):
+    normalized = {"amd64": "x86_64", "arm64": "aarch64"}[arch]
+    docker.run("exec",
+               "-w",
+               "/checkout",
+               builder,
+               "make",
+               "build-musl-aux",
+               f"ARCH={normalized}",
+               f"NGINX_VERSION={NGINX_VERSION}",
+               "RUM=ON",
+               "WAF=OFF",
+               "MAKE_JOB_COUNT=8",
+               timeout=1200)
+
+
+def _package_sources(docker, builder, output):
+    sources = output / "sources"
+    module_dir = sources / "nginx" / NGINX_VERSION
+    module_dir.mkdir(parents=True, exist_ok=True)
+    docker.run("cp",
+               f"{builder}:/checkout/.musl-build/ngx_http_datadog_module.so",
+               module_dir)
+    commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
+                                     cwd=ROOT,
+                                     text=True).strip()
+    version = f"0.0.1-{commit}"
+    (sources / "version").write_text(version + "\n")
+    return sources, version
+
+
 def build(docker, arch):
     subprocess.run(["git", "submodule", "update", "--init", "--recursive"],
                    cwd=ROOT,
                    check=True)
-    settings = yaml.safe_load(
-        (ROOT / ".gitlab/common.yml").read_text())["variables"]
-    toolchain = settings["MUSL_TOOLCHAIN_IMAGE"].replace(
-        "$CI_REGISTRY", "registry.ddbuild.io/ci/nginx-datadog")
-    docker.run("pull", "--platform", f"linux/{arch}", toolchain)
+    image = _build_image()
+    docker.run("pull", "--platform", f"linux/{arch}", image)
     builder = docker.run("run", "-d", "--cpus", "6", "--platform",
-                         f"linux/{arch}", "--label", LABEL, toolchain, "sleep",
+                         f"linux/{arch}", "--label", LABEL, image, "sleep",
                          "infinity")
     output = Path(tempfile.mkdtemp(prefix="package-", dir=docker.artifacts))
     try:
-        with tempfile.TemporaryDirectory() as temporary:
-            archive = Path(temporary) / "checkout.tar"
-            tracked = subprocess.check_output(["git", "ls-files", "-z"],
-                                              cwd=ROOT).decode().split("\0")
-            with tarfile.open(archive, "w") as sources:
-                for name in filter(None, tracked):
-
-                    def include(member):
-                        parts = PurePosixPath(member.name).parts
-                        return None if any(part in (".git", ".venv",
-                                                    "artifacts", "__pycache__",
-                                                    ".pytest_cache")
-                                           for part in parts) else member
-
-                    sources.add(ROOT / name, arcname=name, filter=include)
-            docker.run("cp", archive, f"{builder}:/tmp/checkout.tar")
-        docker.run("exec", builder, "mkdir", "/checkout")
-        docker.run("exec", builder, "tar", "-xf", "/tmp/checkout.tar", "-C",
-                   "/checkout")
-        normalized = {"amd64": "x86_64", "arm64": "aarch64"}[arch]
-        docker.run("exec",
-                   "-w",
-                   "/checkout",
-                   builder,
-                   "make",
-                   "build-musl-aux",
-                   f"ARCH={normalized}",
-                   f"NGINX_VERSION={NGINX_VERSION}",
-                   "RUM=ON",
-                   "WAF=OFF",
-                   "MAKE_JOB_COUNT=8",
-                   timeout=1200)
-        sources = output / "sources"
-        module_dir = sources / "nginx" / NGINX_VERSION
-        module_dir.mkdir(parents=True, exist_ok=True)
-        docker.run(
-            "cp",
-            f"{builder}:/checkout/.musl-build/ngx_http_datadog_module.so",
-            module_dir)
-        commit = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT,
-            text=True).strip()
-        version = f"0.0.1-{commit}"
-        (sources / "version").write_text(version + "\n")
+        _copy_checkout(docker, builder)
+        _build_module(docker, builder, arch)
+        sources, version = _package_sources(docker, builder, output)
         return assemble(docker, arch, sources, version, output)
     finally:
         docker.run("rm", "-f", "-v", builder)
