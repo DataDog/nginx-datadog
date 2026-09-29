@@ -132,6 +132,17 @@ SnippetPtr make_stable_config_snippet(const char* overlay_json) {
       snippet_cleanup);
 }
 
+// True when the config or DD_RUM_ENABLED asks for RUM.
+// An unknown DD_RUM_ENABLED value counts as a request.
+bool rum_requested(const datadog::nginx::datadog_loc_conf_t& loc_conf) {
+  if (loc_conf.rum_enable) {
+    return true;
+  }
+  const char* raw = std::getenv("DD_RUM_ENABLED");
+  std::string_view env = raw != nullptr ? raw : "";
+  return !env.empty() && parse_bool(env).value_or(true);
+}
+
 void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
                            const rum_config_map& config) {
   loc_conf->rum_remote_config_tag = "remote_config_used:false";
@@ -226,11 +237,9 @@ void try_build_snippet_from_stable_config(
     auto snippet = make_stable_config_snippet(nullptr);
 
     if (snippet == nullptr || snippet->error_code) {
-      const char* enabled = std::getenv("DD_RUM_ENABLED");
+      // No stable config and nobody asked for RUM: nothing to warn about.
       if (snippet != nullptr && snippet->error_code == no_stable_config_error &&
-          !loc_conf->rum_enable &&
-          (enabled == nullptr || enabled[0] == '\0' ||
-           parse_bool(enabled) == false)) {
+          !rum_requested(*loc_conf)) {
         return;
       }
       ngx_log_error(NGX_LOG_WARN, cf->log, 0,
