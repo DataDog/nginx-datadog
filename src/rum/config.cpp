@@ -109,7 +109,7 @@ std::optional<int> parse_rum_version(std::string_view config_version) {
 namespace {
 
 constexpr std::size_t err_buf_size = 256;
-// SDK error 10 means no matching stable config.
+// SDK error 10: stable config has no RUM keys, not even DD_RUM_ENABLED.
 constexpr int no_stable_config_error = 10;
 
 template <typename... Args>
