@@ -829,7 +829,11 @@ finally:
                 return log_lines
             log_lines.append(line)
 
-    def nginx_test_config(self, nginx_conf_text, file_name, extra_env=None):
+    def nginx_test_config(
+            self,
+            nginx_conf_text: str,
+            file_name: str,
+            extra_env: dict[str, str] | None = None) -> tuple[int, list[str]]:
         """Test an nginx configuration.
 
         Write the specified `nginx_conf_text` to a file in the nginx
