@@ -16,7 +16,8 @@ GitLab CI configuration for the benchmarks that run on the
 
 Add it to `FLAKY_BENCHMARKS_REGEX` in `.benchmarks` in `benchmarks.yml`.
 
-The benchmark still runs and reports, but doesn't fail the gate.
+The benchmark still runs and reports, but doesn't fail the `check-slo-breaches` performance
+quality gate (SLO-based).
 
 - The regex matches anywhere in the scenario name.
     - `normal_operation` quarantines every `normal_operation` scenario, across both
