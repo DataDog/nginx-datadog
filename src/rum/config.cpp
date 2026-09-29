@@ -109,6 +109,8 @@ std::optional<int> parse_rum_version(std::string_view config_version) {
 namespace {
 
 constexpr std::size_t err_buf_size = 256;
+// SDK error 10 means no matching stable config.
+constexpr int no_stable_config_error = 10;
 
 template <typename... Args>
 char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
@@ -224,6 +226,11 @@ void try_build_snippet_from_stable_config(
     auto snippet = make_stable_config_snippet(nullptr);
 
     if (snippet == nullptr || snippet->error_code) {
+      const char* enabled = std::getenv("DD_RUM_ENABLED");
+      if (snippet != nullptr && snippet->error_code == no_stable_config_error &&
+          !loc_conf->rum_enable && (enabled == nullptr || enabled[0] == '\0')) {
+        return;
+      }
       ngx_log_error(NGX_LOG_WARN, cf->log, 0,
                     "nginx-datadog: failed to create RUM snippet from "
                     "stable config: %s",
