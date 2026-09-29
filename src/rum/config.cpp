@@ -228,7 +228,9 @@ void try_build_snippet_from_stable_config(
     if (snippet == nullptr || snippet->error_code) {
       const char* enabled = std::getenv("DD_RUM_ENABLED");
       if (snippet != nullptr && snippet->error_code == no_stable_config_error &&
-          !loc_conf->rum_enable && (enabled == nullptr || enabled[0] == '\0')) {
+          !loc_conf->rum_enable &&
+          (enabled == nullptr || enabled[0] == '\0' ||
+           parse_bool(enabled) == false)) {
         return;
       }
       ngx_log_error(NGX_LOG_WARN, cf->log, 0,

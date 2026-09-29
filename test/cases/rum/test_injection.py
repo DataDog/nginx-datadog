@@ -254,6 +254,26 @@ class TestRUMInjection(case.TestCase):
             any("failed to create RUM snippet" in line for line in lines),
             lines)
 
+        for value in ("false", "0", "no", "off"):
+            status, lines = self.orch.nginx_test_config(
+                config,
+                f"rum_{value}_unconfigured.conf",
+                extra_env={"DD_RUM_ENABLED": value})
+            self.assertEqual(0, status, lines)
+            self.assertFalse(
+                any("failed to create RUM snippet" in line for line in lines),
+                lines)
+
+        for value in ("true", "invalid"):
+            status, lines = self.orch.nginx_test_config(
+                config,
+                f"rum_{value}_unconfigured.conf",
+                extra_env={"DD_RUM_ENABLED": value})
+            self.assertEqual(0, status, lines)
+            self.assertTrue(
+                any("failed to create RUM snippet" in line for line in lines),
+                lines)
+
         enabled = config.replace(
             "datadog_tracing off;",
             "datadog_tracing off;\n        datadog_rum on;")
