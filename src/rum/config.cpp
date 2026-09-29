@@ -247,11 +247,9 @@ void resolve_rum_enable_from_env(ngx_conf_t* cf,
                                  datadog::nginx::datadog_loc_conf_t* loc_conf) {
   const char* raw = std::getenv("DD_RUM_ENABLED");
   if (raw == nullptr || raw[0] == '\0') {
-    // Auto-enable when a snippet is available (from a directive, parent
-    // inheritance, or stable config) so users don't have to set
-    // DD_RUM_ENABLED explicitly alongside their RUM configuration.
     if (loc_conf->rum_snippet != nullptr) {
-      loc_conf->rum_enable = 1;
+      loc_conf->rum_enable =
+          loc_conf->rum_snippet->rum_enabled == RUM_ENABLED_FALSE ? 0 : 1;
     }
     return;
   }

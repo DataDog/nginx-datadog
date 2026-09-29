@@ -104,6 +104,9 @@ TEST_ARGS="cases.package.module.TestClass.test_method" NGINX_VERSION=<version> m
 
 For more information on tests, see [test/README.md](test/README.md).
 
+For installer-based host and Docker acceptance tests and runnable examples, see
+[test/injection/README.md](test/injection/README.md).
+
 ## Update CI Images
 
 The CI build, test, and uWSGI images are built for amd64 and arm64. CI uses image digests from

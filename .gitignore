@@ -1,11 +1,14 @@
+*.so*
+.DS_Store
 /.build
 /.clang-tidy-build
 /.musl-build
 /.musl-build-asan
 /.musl-build-msan
 /.openresty-build
+/.pytest_cache/
 /.vscode/
-
+/test/.pytest_cache/
+/test/.venv/
+/test/injection/artifacts/
 __pycache__/
-.DS_Store
-*.so*
