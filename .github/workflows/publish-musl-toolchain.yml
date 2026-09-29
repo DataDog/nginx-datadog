@@ -1,0 +1,52 @@
+name: Publish musl toolchain to GHCR
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .gitlab/common.yml
+      - .github/workflows/publish-musl-toolchain.yml
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: checkout
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+      - name: Login to GHCR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Install crane
+        shell: bash
+        run: |
+          archive="$RUNNER_TEMP/go-containerregistry_Linux_x86_64.tar.gz"
+          curl -fsSL \
+            https://github.com/google/go-containerregistry/releases/download/v0.20.3/go-containerregistry_Linux_x86_64.tar.gz \
+            -o "$archive"
+          printf '%s  %s\n' \
+            36c67a932f489b3f2724b64af90b599a8ef2aa7b004872597373c0ad694dc059 \
+            "$archive" | sha256sum -c -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" crane
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      - name: Copy pinned toolchain
+        shell: bash
+        run: |
+          digest=$(sed -n 's/^  MUSL_TOOLCHAIN_IMAGE_DIGEST: "\([^"]*\)".*$/\1/p' .gitlab/common.yml)
+          test -n "$digest"
+          source="public.ecr.aws/datadog/musl-build-env@$digest"
+          mirror="ghcr.io/datadog/nginx-datadog/musl-build-env:${digest/:/-}"
+          if existing=$(crane digest "$mirror" 2>/dev/null); then
+            test "$existing" = "$digest"
+          else
+            crane copy "$source" "$mirror"
+          fi
+          test "$(crane digest "$mirror")" = "$digest"
+          echo "Published $mirror@$digest"

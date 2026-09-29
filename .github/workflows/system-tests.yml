@@ -12,6 +12,9 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     env:
       ARCH: x86_64
       # The Nginx version must match the one in System Tests, in
@@ -29,6 +32,24 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to GHCR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Select musl toolchain image
+        shell: bash
+        run: |
+          digest=$(sed -n 's/^  MUSL_TOOLCHAIN_IMAGE_DIGEST: "\([^"]*\)".*$/\1/p' .gitlab/common.yml)
+          test -n "$digest"
+          mirror="ghcr.io/datadog/nginx-datadog/musl-build-env@$digest"
+          if docker manifest inspect "$mirror" >/dev/null 2>&1; then
+            echo "MUSL_TOOLCHAIN_IMAGE=$mirror" >> "$GITHUB_ENV"
+          else
+            echo "::warning::GHCR toolchain image is unavailable; using public ECR"
+            echo "MUSL_TOOLCHAIN_IMAGE=public.ecr.aws/datadog/musl-build-env@$digest" >> "$GITHUB_ENV"
+          fi
       - name: build
         run: 'make build-musl'
         env:
