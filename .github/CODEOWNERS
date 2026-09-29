@@ -1,7 +1,7 @@
-# The last matching line wins, so @DataDog/apm-proxy is listed on every line
-# to keep it as an owner of all files.
 * @DataDog/apm-proxy
+# The last matching line wins, so @DataDog/apm-proxy is listed again
+# as a secondary owner of the RUM paths.
 src/rum @DataDog/injection-platform @DataDog/apm-proxy
-src/security/ @DataDog/asm-cpp @DataDog/apm-proxy
-test/cases/baggage_span_tags @DataDog/apm-sdk-capabilities-cpp @DataDog/apm-proxy
+src/security/ @DataDog/asm-cpp
+test/cases/baggage_span_tags @DataDog/apm-sdk-capabilities-cpp
 test/cases/rum @DataDog/injection-platform @DataDog/apm-proxy
