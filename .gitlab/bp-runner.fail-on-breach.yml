@@ -1,5 +1,17 @@
 # Measurements from: https://benchmarking.us1.prod.dog/benchmarks?projectId=8
 # Thresholds guidance: https://datadoghq.atlassian.net/wiki/x/LgI1LgE
+#
+# p50 raised from 0.122 to 0.126 ms following a persistent +3.4% shift observed
+# starting with pipeline 140553788 (2026-09-28 13:39 UTC). Post-shift daily-mean
+# p50 stabilised at ~0.123 ms with 90% CI upper bounds up to 123.685 µs across
+# six consecutive matched runs; throughput was unaffected.
+# Evidence:
+# https://gitlab.ddbuild.io/DataDog/apm-reliability/nginx-datadog/-/jobs/2085294589
+# https://gitlab.ddbuild.io/DataDog/apm-reliability/nginx-datadog/-/jobs/2086161863
+# https://gitlab.ddbuild.io/DataDog/apm-reliability/nginx-datadog/-/jobs/2087791446
+# https://gitlab.ddbuild.io/DataDog/apm-reliability/nginx-datadog/-/jobs/2088668144
+# https://gitlab.ddbuild.io/DataDog/apm-reliability/nginx-datadog/-/jobs/2088790411
+# https://gitlab.ddbuild.io/DataDog/apm-reliability/nginx-datadog/-/jobs/2089008535
 
 experiments:
   - name: Run SLO breach check
@@ -13,5 +25,5 @@ experiments:
               - throughput > 3700 op/s
           - name: normal_operation/only-tracing
             thresholds:
-              - threshold: agg_http_req_duration_p50 < 0.122 ms
+              - threshold: agg_http_req_duration_p50 < 0.126 ms
                 warning_range: 2
