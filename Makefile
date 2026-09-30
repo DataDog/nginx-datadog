@@ -70,7 +70,7 @@ EXTENDED_BUILD_IMAGE ?= nginx_musl_toolchain
 ifdef GITLAB_CI
 	TEST_DEPENDENCY :=
 else
-	MUSL_TOOLCHAIN_IMAGE ?= public.ecr.aws/datadog/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
+	MUSL_TOOLCHAIN_IMAGE ?= registry.datadoghq.com/musl-build-env@$(MUSL_TOOLCHAIN_IMAGE_DIGEST)
 	NGINX_BUILD_IMAGE ?= $(if $(call is_true,$(RUM)),$(EXTENDED_BUILD_IMAGE),$(MUSL_TOOLCHAIN_IMAGE))
 	TEST_DEPENDENCY := build-local-uwsgi-test-image
 endif
