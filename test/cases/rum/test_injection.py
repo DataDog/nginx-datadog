@@ -245,6 +245,38 @@ window.DD_RUM.onReady(function() {
 class TestRUMInjection(case.TestCase):
     requires_rum = True
 
+    def test_unconfigured_rum_logs_only_when_enabled(self):
+        config = self._read_conf("rum_stable_config_only.conf")
+        self.assertFalse(self._is_snippet_failure_logged(config))
+        for value in ("false", "0", "no", "off"):
+            with self.subTest(DD_RUM_ENABLED=value):
+                self.assertFalse(
+                    self._is_snippet_failure_logged(config,
+                                                    {"DD_RUM_ENABLED": value}))
+        for value in ("true", "invalid"):
+            with self.subTest(DD_RUM_ENABLED=value):
+                self.assertTrue(
+                    self._is_snippet_failure_logged(config,
+                                                    {"DD_RUM_ENABLED": value}))
+
+        # The `datadog_rum` directive wins over DD_RUM_ENABLED.
+        enabled = self._read_conf("rum_stable_config_on.conf")
+        self.assertTrue(self._is_snippet_failure_logged(enabled))
+        disabled = self._read_conf("rum_stable_config_off.conf")
+        self.assertFalse(
+            self._is_snippet_failure_logged(disabled,
+                                            {"DD_RUM_ENABLED": "true"}))
+
+    def _is_snippet_failure_logged(
+            self,
+            config: str,
+            extra_env: dict[str, str] | None = None) -> bool:
+        status, lines = self.orch.nginx_test_config(config,
+                                                    "rum_unconfigured.conf",
+                                                    extra_env=extra_env)
+        self.assertEqual(0, status, lines)
+        return any("failed to create RUM snippet" in line for line in lines)
+
     def _read_conf(self, conf_file):
         return (Path(__file__).parent / "conf" / conf_file).read_text()
 
