@@ -109,6 +109,10 @@ std::optional<int> parse_rum_version(std::string_view config_version) {
 namespace {
 
 constexpr std::size_t err_buf_size = 256;
+// SDK error 10: stable config has no RUM keys, not even DD_RUM_ENABLED.
+// The SDK is internal. Its error codes are listed on `Snippet` in
+// deps/inject-browser-sdk/lib/inject-browser-sdk-ffi/src/snippet.rs.
+constexpr int no_stable_config_error = 10;
 
 template <typename... Args>
 char* conf_err(ngx_conf_t* cf, const char* fmt, Args... args) {
@@ -128,6 +132,27 @@ SnippetPtr make_stable_config_snippet(const char* overlay_json) {
   return SnippetPtr(
       snippet_create_from_stable_config(rum_language, false, overlay_json),
       snippet_cleanup);
+}
+
+// DD_RUM_ENABLED, or nullopt when unset or empty.
+std::optional<std::string_view> get_rum_enabled_env() {
+  const char* raw = std::getenv("DD_RUM_ENABLED");
+  if (raw == nullptr || raw[0] == '\0') {
+    return std::nullopt;
+  }
+  return raw;
+}
+
+// True when RUM is asked for. A `datadog_rum` directive wins.
+// Without one, DD_RUM_ENABLED decides.
+// An unknown DD_RUM_ENABLED value counts as a request.
+bool is_rum_requested(const datadog::nginx::datadog_loc_conf_t& loc_conf,
+                      bool rum_enable_unset) {
+  if (!rum_enable_unset) {
+    return loc_conf.rum_enable;
+  }
+  auto env = get_rum_enabled_env();
+  return env.has_value() && parse_bool(*env).value_or(true);
 }
 
 void apply_rum_config_tags(datadog::nginx::datadog_loc_conf_t* loc_conf,
@@ -219,11 +244,17 @@ char* on_datadog_rum_config(ngx_conf_t* cf, ngx_command_t* command,
 }
 
 void try_build_snippet_from_stable_config(
-    ngx_conf_t* cf, datadog::nginx::datadog_loc_conf_t* loc_conf) {
+    ngx_conf_t* cf, datadog::nginx::datadog_loc_conf_t* loc_conf,
+    bool rum_enable_unset) {
   try {
     auto snippet = make_stable_config_snippet(nullptr);
 
     if (snippet == nullptr || snippet->error_code) {
+      // No stable config and nobody asked for RUM: nothing to warn about.
+      if (snippet != nullptr && snippet->error_code == no_stable_config_error &&
+          !is_rum_requested(*loc_conf, rum_enable_unset)) {
+        return;
+      }
       ngx_log_error(NGX_LOG_WARN, cf->log, 0,
                     "nginx-datadog: failed to create RUM snippet from "
                     "stable config: %s",
@@ -245,8 +276,8 @@ void try_build_snippet_from_stable_config(
 
 void resolve_rum_enable_from_env(ngx_conf_t* cf,
                                  datadog::nginx::datadog_loc_conf_t* loc_conf) {
-  const char* raw = std::getenv("DD_RUM_ENABLED");
-  if (raw == nullptr || raw[0] == '\0') {
+  auto raw = get_rum_enabled_env();
+  if (!raw.has_value()) {
     // Auto-enable when a snippet is available (from a directive, parent
     // inheritance, or stable config) so users don't have to set
     // DD_RUM_ENABLED explicitly alongside their RUM configuration.
@@ -256,12 +287,12 @@ void resolve_rum_enable_from_env(ngx_conf_t* cf,
     return;
   }
 
-  auto parsed = parse_bool(raw);
+  auto parsed = parse_bool(*raw);
   if (!parsed.has_value()) {
     ngx_log_error(NGX_LOG_WARN, cf->log, 0,
-                  "nginx-datadog: unrecognized DD_RUM_ENABLED value '%s'; "
+                  "nginx-datadog: unrecognized DD_RUM_ENABLED value '%*s'; "
                   "expected true/false/1/0/yes/no/on/off",
-                  raw);
+                  raw->size(), raw->data());
     return;
   }
 
@@ -296,7 +327,7 @@ char* datadog_rum_merge_loc_config(ngx_conf_t* cf,
   }
 
   if (child->rum_snippet == nullptr) {
-    try_build_snippet_from_stable_config(cf, child);
+    try_build_snippet_from_stable_config(cf, child, rum_enable_unset);
   }
 
   if (rum_enable_unset) {
