@@ -1,7 +1,7 @@
 # Benchmarks
 
-GitLab CI configuration for the benchmarks that run on the
-[Benchmarking Platform](https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/2419261562/Benchmarking+Platform).
+This describes the GitLab CI configuration for the benchmarks that run on the
+[Benchmarking Platform](https://datadoghq.atlassian.net/wiki/x/egAzk).
 
 ## Layout
 
@@ -12,7 +12,7 @@ GitLab CI configuration for the benchmarks that run on the
     - Steps live in the `cpp/nginx` branch of
       [benchmarking-platform](https://github.com/DataDog/benchmarking-platform).
 
-## Marking a benchmark as flaky
+## Marking a Benchmark as Flaky
 
 Add it to `FLAKY_BENCHMARKS_REGEX` in `.benchmarks` in `benchmarks.yml`.
 
@@ -29,4 +29,4 @@ FLAKY_BENCHMARKS_REGEX: "^high_load--only-tracing--nginx-utilization$"
 ```
 
 Open a ticket to fix or remove it. See
-[Flaky Benchmarks Monitoring](https://datadoghq.atlassian.net/wiki/spaces/APMINT/pages/7223313012/Flaky+Benchmarks+Monitoring).
+[Flaky Benchmarks Monitoring](https://datadoghq.atlassian.net/wiki/x/dAKLrgE).
