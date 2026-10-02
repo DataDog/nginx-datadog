@@ -6,10 +6,38 @@ Follow [doc/conventions.md](doc/conventions.md).
 
 ## Format
 
-- `make lint`: check format
-- `make format` fix format
+- `make lint`: check clang-format and Python format
+- `make format`: rewrite files to match
 
 Rebuild formatter image after editing `Dockerfile.formatter` with `make build-formatter-image`.
+
+## Static Analysis
+
+C++ is analyzed with **clang-tidy-19** (pinned via Alpine's `clang19` /
+`clang19-extra-tools` packages on alpine:3.23.4; the image's default `clang`
+is LLVM 21) using the shared `.clang-tidy` baseline. Warnings are errors.
+
+Do not run clang-tidy on the host. `compile_commands.json` must be produced by
+the same container that runs tidy.
+
+```shell
+NGINX_VERSION=<version> make lint-tidy
+```
+
+This runs `bin/lint-tidy.sh`, which re-execs in Docker, configures CMake with
+`NGINX_DATADOG_ENABLE_CLANG_TIDY`, and builds `nginx_module`. CMake invokes
+clang-tidy-19 with the exact compile line on `ngx_http_datadog_objs` only
+(not `src/rum/` unless `RUM=ON`, and not `tools/`, tests, or vendored
+submodules). Set `WAF=ON` (the default) to include AppSec sources.
+
+The custom nginx log-format plugin is separate:
+
+```shell
+NGINX_VERSION=<version> make lint-nginx-log-format
+```
+
+GitLab jobs `lint-tidy` and `lint-nginx-log-format` run the same scripts and
+fail the merge request pipeline on findings.
 
 ## Build Locally
 
