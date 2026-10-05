@@ -706,7 +706,7 @@ std::string FinalizedConfigSettings::normalize_configured_header(
 
 std::unique_ptr<UpdateableWafInstance> upd_waf_instance{
     new UpdateableWafInstance{}};
-std::atomic<bool> Library::active_{true};
+std::atomic<bool> Library::active_{false};
 std::unique_ptr<FinalizedConfigSettings> Library::config_settings_;
 ngx_shm_zone_t *Library::api_security_shm_zone_ = nullptr;
 std::unique_ptr<SharedApiSecurityLimiter> Library::shared_api_security_limiter_;
