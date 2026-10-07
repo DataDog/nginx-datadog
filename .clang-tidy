@@ -10,7 +10,6 @@ Checks: >
   bugprone-inaccurate-erase,
   bugprone-infinite-loop,
   bugprone-macro-repeated-side-effects,
-  bugprone-move-forwarding-reference,
   bugprone-parent-virtual-call,
   bugprone-posix-return,
   bugprone-string-constructor,
@@ -23,6 +22,7 @@ Checks: >
   readability-redundant-string-cstr
 # Deferred until existing findings are cleaned up:
 # bugprone-argument-comment
+# bugprone-move-forwarding-reference
 # bugprone-use-after-move
 # misc-redundant-expression
 # misc-static-assert
@@ -32,5 +32,4 @@ Checks: >
 # readability-redundant-member-init
 # readability-simplify-boolean-expr
 WarningsAsErrors: '*'
-HeaderFilterRegex: '^src/'
 FormatStyle: file

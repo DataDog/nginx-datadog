@@ -1,10 +1,8 @@
 #!/bin/bash
-# Run the pinned clang-tidy through CMake in a container.
+# Run clang-tidy in the CI container.
 #
-# clang-tidy must use the same compiler, flags, and sysroot as the real
-# build. CMake's CXX_CLANG_TIDY on ngx_http_datadog_objs does that: it
-# invokes tidy with the exact compile line after `--`. Do not use a host
-# compilation database.
+# Configures CMake, builds nginx_module so generated headers exist, then
+# run-clang-tidy -p on src/ so tidy uses that compile_commands.json.
 #
 # Usage: NGINX_VERSION=<version> make lint-tidy
 
@@ -25,11 +23,6 @@ fi
 
 if [ "$NGINX_TIDY_IN_CONTAINER" != "1" ]; then
     repo_root=$(git rev-parse --show-toplevel)
-
-    if ! command -v docker >/dev/null 2>&1; then
-        >&2 echo 'docker is required to run clang-tidy.'
-        exit 1
-    fi
 
     exec docker run --rm -t \
         -e NGINX_TIDY_IN_CONTAINER=1 \
@@ -54,46 +47,20 @@ apk add --no-cache \
     git \
     ninja \
     pcre2-dev \
+    python3 \
     zlib-dev
 
-first_cmd() {
-    for candidate in "$@"; do
-        if [ -x "$candidate" ]; then
-            echo "$candidate"
-            return 0
-        fi
-        if command -v "$candidate" >/dev/null 2>&1; then
-            command -v "$candidate"
-            return 0
-        fi
-    done
-    return 1
-}
-
-llvm_bin="/usr/lib/llvm${CLANG_TIDY_VERSION}/bin"
-c_compiler=$(first_cmd \
-    "clang-${CLANG_TIDY_VERSION}" \
-    "${llvm_bin}/clang")
-compiler=$(first_cmd \
-    "clang++-${CLANG_TIDY_VERSION}" \
-    "${llvm_bin}/clang++")
-tidy=$(first_cmd \
-    "clang-tidy-${CLANG_TIDY_VERSION}" \
-    "${llvm_bin}/clang-tidy")
-if [ -z "$compiler" ] || [ -z "$tidy" ] || [ -z "$c_compiler" ]; then
-    >&2 echo "clang-${CLANG_TIDY_VERSION} / clang-tidy-${CLANG_TIDY_VERSION} not found after apk add."
-    exit 1
+# Alpine LLVM layout (no hyphen).
+llvm_bin=/usr/lib/llvm${CLANG_TIDY_VERSION}/bin
+clang_tidy=$llvm_bin/clang-tidy
+run_clang_tidy=$llvm_bin/run-clang-tidy
+if [ ! -x "$run_clang_tidy" ] && [ -x /usr/bin/run-clang-tidy ]; then
+    # Alpine ships the runner unversioned; -clang-tidy-binary stays pinned.
+    run_clang_tidy=/usr/bin/run-clang-tidy
 fi
 
-export CC="$c_compiler"
-export CXX="$compiler"
-
-tidy_major=$("$tidy" --version | sed -n 's/.*version \([0-9][0-9]*\).*/\1/p' | head -n 1)
-compiler_major=$("$compiler" -dumpversion | cut -d. -f1)
-if [ "$compiler_major" != "$CLANG_TIDY_VERSION" ] || [ "$tidy_major" != "$CLANG_TIDY_VERSION" ]; then
-    >&2 echo "clang-tidy and the CMake compiler must both be LLVM ${CLANG_TIDY_VERSION}."
-    >&2 echo "  $compiler: ${compiler_major}"
-    >&2 echo "  $tidy: ${tidy_major}"
+if [ ! -x "$clang_tidy" ] || [ ! -x "$run_clang_tidy" ]; then
+    >&2 echo "$llvm_bin/clang-tidy is required (pinned)."
     exit 1
 fi
 
@@ -113,18 +80,50 @@ case "$build_dir" in
     *) build_dir="$container_repo/$build_dir" ;;
 esac
 
-# CXX_CLANG_TIDY is attached only to ngx_http_datadog_objs. Building
-# nginx_module compiles first-party src/ with the exact compile line
-# (RUM off by default, so src/rum/ is not a source of that target).
-cmake -S "$container_repo" -B "$build_dir" -G Ninja \
-    -DCMAKE_C_COMPILER="$c_compiler" \
-    -DCMAKE_CXX_COMPILER="$compiler" \
+# Generated nginx headers are required before tidy can parse src/.
+CC=$llvm_bin/clang CXX=$llvm_bin/clang++ cmake -S "$container_repo" -B "$build_dir" \
+    -G Ninja \
+    --fresh \
+    -DCMAKE_C_COMPILER="$llvm_bin/clang" \
+    -DCMAKE_CXX_COMPILER="$llvm_bin/clang++" \
     -DNGINX_VERSION="$nginx_version" \
     -DBUILD_TESTING=OFF \
     -DCMAKE_BUILD_TYPE="$build_type" \
     -DNGINX_DATADOG_ASM_ENABLED="$waf" \
-    -DNGINX_DATADOG_RUM_ENABLED="$rum" \
-    -DNGINX_DATADOG_ENABLE_CLANG_TIDY=ON \
-    -DNGINX_DATADOG_CLANG_TIDY="$tidy"
+    -DNGINX_DATADOG_RUM_ENABLED="$rum"
 
 cmake --build "$build_dir" --target nginx_module -j "$jobs"
+
+python3 - "$build_dir/compile_commands.json" "$container_repo" "$llvm_bin" <<'PY'
+import json, os, sys
+db_path, root, llvm_bin = sys.argv[1], sys.argv[2], sys.argv[3]
+verified_source_count = 0
+for entry in json.load(open(db_path)):
+    path = entry.get("file") or ""
+    if not os.path.isabs(path):
+        path = os.path.normpath(os.path.join(entry.get("directory", root), path))
+    relative_path = os.path.relpath(path, root)
+    if not relative_path.startswith("src/") or relative_path.startswith("src/rum/"):
+        continue
+    if not relative_path.endswith((".c", ".cc", ".cpp", ".cxx")):
+        continue
+    command = entry.get("command") or ""
+    if llvm_bin not in command:
+        sys.stderr.write(
+            "BUILD_DIR was not configured with the pinned clang; refusing to run tidy.\n"
+            "  missing " + llvm_bin + " in " + relative_path + "\n"
+        )
+        sys.exit(1)
+    verified_source_count += 1
+if verified_source_count == 0:
+    sys.stderr.write("No src/ entries in " + db_path + ".\n")
+    sys.exit(1)
+PY
+
+if ! echo '#include <string>' | "$llvm_bin/clang++" -x c++ - -fsyntax-only; then
+    >&2 echo "C++ headers are not usable with $llvm_bin/clang++; refusing to run tidy."
+    exit 1
+fi
+
+"$run_clang_tidy" -p "$build_dir" -clang-tidy-binary "$clang_tidy" \
+    -header-filter "^$container_repo/src/" -quiet "^$container_repo/src/"
