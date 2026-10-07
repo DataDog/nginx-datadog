@@ -98,7 +98,7 @@ For example, to run one test:
 TEST_ARGS="cases.package.module.TestClass.test_method" NGINX_VERSION=<version> make test
 ```
 
-For more information on tests, see [test/README.md](test/README.md).
+For more information on tests, see [test/README.md](../test/README.md).
 
 ## Update CI Images
 
