@@ -283,7 +283,7 @@ class UpdateableWafInstance {
             Diagnostics &diagnostics);
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle() {
-    return std::atomic_load_explicit(&cur_handle_, std::memory_order_acquire);
+    return cur_handle_.load(std::memory_order_acquire);
   }
 
   [[nodiscard]] bool add_or_update_config(std::string_view path,
@@ -305,7 +305,7 @@ class UpdateableWafInstance {
   OwnedDdwafBuilder builder_;
   dnsec::ddwaf_owned_map default_ruleset_;
 
-  std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle_;
+  std::atomic<std::shared_ptr<dnsec::OwnedDdwafHandle>> cur_handle_;
 };
 
 [[nodiscard]] bool UpdateableWafInstance::init(
@@ -364,7 +364,7 @@ class UpdateableWafInstance {
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> new_sp =
       std::make_shared<dnsec::OwnedDdwafHandle>(new_instance);
-  std::atomic_store_explicit(&cur_handle_, new_sp, std::memory_order::release);
+  cur_handle_.store(new_sp, std::memory_order::release);
 
   return true;
 }
