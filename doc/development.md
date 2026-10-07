@@ -1,4 +1,4 @@
-# Development Tools and Procedures for the Datadog Nginx Module
+# Datadog Nginx Module Development Processes
 
 ## Format
 
