@@ -83,8 +83,9 @@ def build_sanitizer_nginx_base(arch: str, sanitizer: str) -> str:
 
     arch = normalize_arch(arch)
     tag = f"nginx-datadog-{sanitizer}-nginx:{nginx_version}-{arch}"
-    toolchain_image = os.environ.get("MUSL_TOOLCHAIN_IMAGE",
-                                     "nginx_musl_toolchain")
+    toolchain_image = os.environ.get("MUSL_TOOLCHAIN_IMAGE")
+    if not toolchain_image:
+        raise SystemExit(f"--{sanitizer} requires MUSL_TOOLCHAIN_IMAGE")
     nginx_service_dir = os.path.join(PROJECT_DIR, "test", "services", "nginx")
 
     dockerfile = os.path.join(nginx_service_dir,

@@ -829,7 +829,11 @@ finally:
                 return log_lines
             log_lines.append(line)
 
-    def nginx_test_config(self, nginx_conf_text, file_name):
+    def nginx_test_config(
+            self,
+            nginx_conf_text: str,
+            file_name: str,
+            extra_env: dict[str, str] | None = None) -> tuple[int, list[str]]:
         """Test an nginx configuration.
 
         Write the specified `nginx_conf_text` to a file in the nginx
@@ -856,8 +860,12 @@ exit "$rcode"
 """
         # "-T" means "don't allocate a TTY".  This is necessary to avoid the
         # error "the input device is not a TTY".
-        command = docker_compose_command("exec", "-T", "--", "nginx",
-                                         "/bin/sh")
+        env_args = []
+        if extra_env is not None:
+            for key, value in extra_env.items():
+                env_args.extend(("--env", f"{key}={value}"))
+        command = docker_compose_command("exec", "-T", *env_args, "--",
+                                         "nginx", "/bin/sh")
         result = subprocess.run(
             command,
             input=script,
