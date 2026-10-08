@@ -28,7 +28,7 @@ build-nginx-module:
     - if: $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
       interruptible: false
     - interruptible: true
-  image: $MUSL_TOOLCHAIN_IMAGE
+  image: $NGINX_CI_BUILD_IMAGE
   variables:
     WAF: OFF
     COVERAGE: OFF
@@ -69,6 +69,9 @@ build-nginx-module:
     # Benchmark's env variables. Modify to tweak benchmark parameters.
     DD_TRACE_DEBUG: "false"
     DD_RUNTIME_METRICS_ENABLED: "true"
+
+    # See https://datadoghq.atlassian.net/wiki/x/dAKLrgE for more details.
+    FLAKY_BENCHMARKS_REGEX: ""
 
     DD_BENCHMARKS_NGINX_IMAGE_TAG: amd64-${NGINX_VERSION}
 

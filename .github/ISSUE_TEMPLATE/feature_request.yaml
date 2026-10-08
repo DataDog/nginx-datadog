@@ -5,30 +5,28 @@ labels: feature-request
 body:
   - type: textarea
     attributes:
-      label: Describe the goal of the feature
-      description: A clear and concise goal of what you want to happen.
+      label: Feature Goal
+      description: A clear and concise goal of what you want to achieve.
     validations:
       required: true
 
   - type: textarea
     attributes:
-      label: Is your feature request related to a problem?
-      description: |
-        Please add a clear and concise description of your problem.
-        E.g. I'm unable to instrument my database queries...
+      label: Related Problem
+      description: If applicable, a clear and concise description of the problem.
     validations:
       required: false
 
   - type: textarea
     attributes:
-      label: Describe alternatives you've considered
-      description: A clear and concise description of any alternative solutions or features you've considered
+      label: Considered Alternatives
+      description: A clear and concise description of any alternative solutions or features you considered.
     validations:
       required: false
 
   - type: textarea
     attributes:
-      label: Additional context
-      description: Add any other context or screenshots about the feature request here
+      label: Additional Context
+      description: Any other relevant context or screenshots.
     validations:
       required: false

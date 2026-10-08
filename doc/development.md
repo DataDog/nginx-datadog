@@ -1,56 +1,11 @@
-# Contributing to the Datadog Nginx Module
+# Datadog Nginx Module Development Processes
 
-## Documentation
+## Format
 
-Refer to the [documentation](doc) to learn about the development processes for the Datadog Nginx
-Module. In particular, review:
+- `make lint`: check format (C++ and Python code)
+- `make format` fix format (C++ and Python code)
 
-- [Conventions](doc/conventions.md)
-- [Development Processes](doc/development.md)
-
-- `make check-format`: check clang-format and Python format
-- `make format`: rewrite files to match
-
-## Contribution Guidelines
-
-When authoring a Pull Request (PR), you must follow these rules:
-
-- You are the author, regardless of the tools you use.
-  - Labels and signatures that mention tools are forbidden. Do not shift responsibility. Take
-    ownership.
-- Before submitting a PR, you must review every line in detail.
-- A PR that is not humanly reviewable will be rejected. The criteria are:
-  - The diff must be of reasonable size (usually less than 300 lines).
-  - The PR description:
-    - Must be written manually. Slightly imperfect wording is better than a long, unclear or
-      cluttered description.
-    - Must state the objective, and, unless obvious, the context and a high-level explanation.
-    - Must explain what changed and why, but without restating implementation details.
-    - Must not contain irrelevant details.
-  - No long comments (unless truly needed).
-  - No useless comments.
-- The code must be clean. Notably (in addition to the above):
-  - Short and focused functions (usually less than 20 lines, and less if possible).
-  - Meaningful and understandable names. Avoid abbreviations; favor explicit names, even if long.
-  - No code duplication.
-- The PR must address only one concern.
-- The PR must not include unrelated changes, unless truly tiny. Major cleanup, reformatting or
-  reorganization must go in dedicated PRs.
-- The PR must include tests that are easy to relate to the behavior they verify.
-- The tests must focus on important behavior, not exhaustively cover minor details unlikely to
-  break.
-- The PR must have verifiable claims (such as test results).
-- Commits must be in a logical and reviewable order.
-- Commits message must be short and straight to the point (usually less than 3 lines).
-
-## Pull Request Hygiene
-
-```shell
-NGINX_VERSION=<version> make lint
-```
-
-GitLab job `lint` runs the same script and fails the merge request pipeline on
-findings.
+Rebuild formatter image after editing `Dockerfile.formatter` with `make build-formatter-image`.
 
 ## Build Locally
 
@@ -78,7 +33,19 @@ The `build` target does the following:
 NGINX_VERSION=<version> make build-musl
 ```
 
-Append `TOOLCHAIN_DEPENDENCY=` to skip local toolchain image rebuild.
+## Static Analysis
+
+C++ code is analyzed with Clang Tidy. Run it with:
+
+```shell
+NGINX_VERSION=<version> make lint-tidy
+```
+
+The custom Nginx log-format plugin is separate:
+
+```shell
+NGINX_VERSION=<version> make lint-nginx-log-format
+```
 
 ## Test
 
@@ -145,7 +112,32 @@ For example, to run one test:
 TEST_ARGS="cases.package.module.TestClass.test_method" NGINX_VERSION=<version> make test
 ```
 
-For more information on tests, see [test/README.md](test/README.md).
+For more information on tests, see [test/README.md](../test/README.md).
+
+## Update CI Images
+
+The CI build, test, and uWSGI images are built for amd64 and arm64. CI uses image digests from
+`.gitlab/common.yml` so that each pipeline uses immutable images.
+
+To update the images:
+
+1. Update the relevant image source:
+   - `build_env/` for the Nginx build image.
+   - `test/Dockerfile` for the test image.
+   - `test/services/uwsgi/` for the uWSGI image.
+2. When updating the shared musl toolchain, update `MUSL_TOOLCHAIN_IMAGE_DIGEST` and its version
+   comment in `.gitlab/common.yml` before building the CI images.
+3. Push the changes to a branch.
+4. In the branch pipeline, run the manual `build-and-sign-ci-images` job. It builds both
+   architectures, publishes multi-architecture images, signs them, and verifies the signatures.
+5. Download the `ci-images.env` artifact from the `assemble-and-sign-ci-images` child-pipeline job,
+   or copy the variables from its log.
+6. Update `NGINX_CI_BUILD_IMAGE_DIGEST`, `TEST_IMAGE`, and `UWSGI_TEST_IMAGE` in
+   `.gitlab/common.yml` with the generated digests.
+7. Commit and push the digest updates. Verify that the new pipeline passes with the pinned images.
+
+The formatter image uses a separate flow. CI hashes `Dockerfile.formatter` and builds the image
+automatically when that hash is not already in the registry.
 
 ## Troubleshooting
 
@@ -164,7 +156,3 @@ installation folder it:
 ```shell
 PCRE2_PATH=/opt/homebrew/Cellar/pcre2/10.44 NGINX_VERSION=<version> make build
 ```
-
-- Draft PRs are not reviewed (unless explicitly requested).
-- PRs not updated within one month of the latest review will be converted to drafts.
-- Draft PRs not updated within three months will be closed.
