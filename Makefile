@@ -127,17 +127,13 @@ endif
 format: ensure-formatter-image .clang-format
 	$(FORMATTER_RUN) bin/format.sh
 
+.PHONY: check-format
+check-format: ensure-formatter-image .clang-format
+	$(FORMATTER_RUN) bin/check-format.sh
+
 .PHONY: lint
-lint: ensure-formatter-image .clang-format
-	$(FORMATTER_RUN) bin/lint.sh
-
-.PHONY: lint-nginx-log-format
-lint-nginx-log-format:
-	bin/nginx-log-format-tidy.sh
-
-.PHONY: lint-tidy
-lint-tidy:
-	bin/lint-tidy.sh
+lint:
+	bin/lint.sh
 
 .PHONY: ensure-formatter-image
 ensure-formatter-image:

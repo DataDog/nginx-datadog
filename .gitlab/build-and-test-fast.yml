@@ -39,16 +39,16 @@ build-formatter-image:
     reports:
       dotenv: formatter-image.env
 
-lint:
+check-format:
   extends: .build-and-test-fast
   needs:
     - build-formatter-image
   image: $FORMATTER_IMAGE_TAG
   tags: ["arch:amd64"]
   script:
-    - make lint
+    - make check-format
 
-lint-nginx-log-format:
+lint:
   extends: .build-and-test-fast
   image: $NYDUS_IMAGE
   tags: ["docker-in-docker:amd64"]
@@ -57,18 +57,7 @@ lint-nginx-log-format:
     NGINX_VERSION: "1.31.1"
     BUILD_TYPE: "Debug"
   script:
-    - bin/nginx-log-format-tidy.sh
-
-lint-tidy:
-  extends: .build-and-test-fast
-  image: $NYDUS_IMAGE
-  tags: ["docker-in-docker:amd64"]
-  variables:
-    WAF: "ON"
-    NGINX_VERSION: "1.31.1"
-    BUILD_TYPE: "Debug"
-  script:
-    - bin/lint-tidy.sh
+    - bin/lint.sh
 
 shellcheck:
   extends: .build-and-test-fast

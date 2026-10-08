@@ -6,7 +6,7 @@ Follow [doc/conventions.md](doc/conventions.md).
 
 ## Format
 
-- `make lint`: check clang-format and Python format
+- `make check-format`: check clang-format and Python format
 - `make format`: rewrite files to match
 
 Rebuild formatter image after editing `Dockerfile.formatter` with `make build-formatter-image`.
@@ -16,17 +16,11 @@ Rebuild formatter image after editing `Dockerfile.formatter` with `make build-fo
 C++ code is analyzed with Clang Tidy. Run it with the following command:
 
 ```shell
-NGINX_VERSION=<version> make lint-tidy
+NGINX_VERSION=<version> make lint
 ```
 
-The custom nginx log-format plugin is separate:
-
-```shell
-NGINX_VERSION=<version> make lint-nginx-log-format
-```
-
-GitLab jobs `lint-tidy` and `lint-nginx-log-format` run the same scripts and
-fail the merge request pipeline on findings.
+GitLab job `lint` runs the same script and fails the merge request pipeline on
+findings.
 
 ## Build Locally
 
