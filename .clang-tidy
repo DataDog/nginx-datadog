@@ -2,6 +2,7 @@
 # Keep this file in sync across those repositories.
 Checks: >
   -*,
+  -clang-diagnostic-deprecated-declarations,
   bugprone-assert-side-effect,
   bugprone-bool-pointer-implicit-conversion,
   bugprone-copy-constructor-init,
@@ -21,6 +22,7 @@ Checks: >
   readability-redundant-control-flow,
   readability-redundant-string-cstr
 # Deferred until existing findings are cleaned up:
+# clang-diagnostic-deprecated-declarations
 # bugprone-argument-comment
 # bugprone-move-forwarding-reference
 # bugprone-use-after-move
