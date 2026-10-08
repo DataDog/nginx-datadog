@@ -12,7 +12,7 @@ set -eo pipefail
 # Bump these together. alpine:3.23's default clang is 21; install the
 # versioned LLVM 19 packages so tidy stays on 19.
 alpine_version=3.23.4
-CLANG_TIDY_VERSION=19
+llvm_version=19
 container_image=${NGINX_LINT_IMAGE:-alpine:$alpine_version}
 container_repo=/repo
 default_build_root=".clang-tidy-build/alpine-$alpine_version"
@@ -31,7 +31,7 @@ if [ "${NGINX_LINT_IN_CONTAINER:-}" != "1" ]; then
         -e BUILD_TYPE \
         -e MAKE_JOB_COUNT \
         -e NGINX_CONF_ARGS \
-        -e NGINX_LOG_FORMAT_TIDY_BUILD_DIR \
+        -e NGINX_LINT_PLUGIN_BUILD_DIR \
         -e NGINX_VERSION \
         -e RUM \
         -e WAF \
@@ -39,20 +39,20 @@ if [ "${NGINX_LINT_IN_CONTAINER:-}" != "1" ]; then
         -w "$container_repo" \
         "$container_image" \
         sh -c 'apk add --no-cache bash >/dev/null && exec bash "$@"' \
-        _ "$container_repo/bin/lint.sh" "$@"
+        _ "$container_repo/bin/lint.sh"
 fi
 
 apk add --no-cache \
     ca-certificates \
-    "clang${CLANG_TIDY_VERSION}" \
-    "clang${CLANG_TIDY_VERSION}-dev" \
-    "clang${CLANG_TIDY_VERSION}-extra-tools" \
-    "clang${CLANG_TIDY_VERSION}-static" \
+    "clang${llvm_version}" \
+    "clang${llvm_version}-dev" \
+    "clang${llvm_version}-extra-tools" \
+    "clang${llvm_version}-static" \
     cmake \
     git \
-    "llvm${CLANG_TIDY_VERSION}-dev" \
-    "llvm${CLANG_TIDY_VERSION}-gtest" \
-    "llvm${CLANG_TIDY_VERSION}-static" \
+    "llvm${llvm_version}-dev" \
+    "llvm${llvm_version}-gtest" \
+    "llvm${llvm_version}-static" \
     make \
     ninja \
     pcre2-dev \
@@ -61,7 +61,7 @@ apk add --no-cache \
     zlib-dev
 
 # Alpine LLVM layout (no hyphen).
-llvm_bin=/usr/lib/llvm${CLANG_TIDY_VERSION}/bin
+llvm_bin=/usr/lib/llvm${llvm_version}/bin
 clang_tidy=$llvm_bin/clang-tidy
 run_clang_tidy=$llvm_bin/run-clang-tidy
 if [ ! -x "$run_clang_tidy" ] && [ -x /usr/bin/run-clang-tidy ]; then
@@ -80,7 +80,7 @@ if [ -z "$jobs" ]; then
 fi
 
 build_dir=${BUILD_DIR:-$default_build_root/project}
-plugin_build_dir=${NGINX_LOG_FORMAT_TIDY_BUILD_DIR:-$default_build_root/plugin}
+plugin_build_dir=${NGINX_LINT_PLUGIN_BUILD_DIR:-$default_build_root/plugin}
 nginx_version=$NGINX_VERSION
 build_type=${BUILD_TYPE:-Debug}
 waf=${WAF:-ON}
@@ -97,7 +97,7 @@ case "$plugin_build_dir" in
 esac
 
 # Generated nginx headers are required before tidy can parse src/.
-CC=$llvm_bin/clang CXX=$llvm_bin/clang++ cmake -S "$container_repo" -B "$build_dir" \
+cmake -S "$container_repo" -B "$build_dir" \
     -G Ninja \
     --fresh \
     -DCMAKE_C_COMPILER="$llvm_bin/clang" \
@@ -141,15 +141,27 @@ if ! echo '#include <string>' | "$llvm_bin/clang++" -x c++ - -fsyntax-only; then
     exit 1
 fi
 
-"$run_clang_tidy" -p "$build_dir" -clang-tidy-binary "$clang_tidy" \
-    -header-filter "^$container_repo/src/" -quiet "^$container_repo/src/"
+common_args=(
+    -p "$build_dir"
+    -clang-tidy-binary "$clang_tidy"
+    "-header-filter=^$container_repo/src/"
+    "-source-filter=^$container_repo/src/"
+    -quiet
+    -use-color
+    -j "$jobs"
+    -extra-arg=-Wno-error=deprecated-declarations
+)
+
+shorten_paths() {
+    perl -pe 's#^(\[\s*\d+/\d+\]\[[^]]+\]) .*/repo/(src/\S+)$#$1 $2#'
+}
+
+lint_status=0
+"$run_clang_tidy" "${common_args[@]}" | shorten_paths || lint_status=1
 
 llvm_config=$llvm_bin/llvm-config
 if [ ! -x "$llvm_config" ]; then
-    llvm_config=$(command -v "llvm-config-${CLANG_TIDY_VERSION}")
-fi
-if [ -z "$llvm_config" ] || [ ! -x "$llvm_config" ]; then
-    >&2 echo "llvm-config-${CLANG_TIDY_VERSION} is required to build the log-format plugin."
+    >&2 echo "$llvm_config is required to build the log-format plugin."
     exit 1
 fi
 llvm_cmake_dir=$("$llvm_config" --cmakedir)
@@ -169,13 +181,9 @@ if ! [ -e "$plugin" ]; then
 fi
 
 plugin_args=(
-    -p "$build_dir"
-    -clang-tidy-binary "$clang_tidy"
     "-load=$plugin"
     '-checks=-*,nginx-datadog-*'
     '-warnings-as-errors=nginx-datadog-*'
-    "-header-filter=^$container_repo/src/.*"
-    -quiet
     -extra-arg=-DNGX_DEBUG=1
     -extra-arg=-Wno-error
     -extra-arg=-Wno-everything
@@ -183,10 +191,5 @@ plugin_args=(
     -extra-arg=-Wno-unused-command-line-argument
 )
 
-if [ "$#" -gt 0 ]; then
-    "$clang_tidy" "${plugin_args[@]}" --use-color -system-headers=false "$@"
-else
-    "$run_clang_tidy" "${plugin_args[@]}" -use-color -j "$jobs" \
-        "-source-filter=^$container_repo/src/.*\\.(c|cpp)$" \
-        | perl -pe 's#^(\[\s*\d+/\d+\]\[[^]]+\]) .*/repo/(src/\S+)$#$1 $2#'
-fi
+"$run_clang_tidy" "${common_args[@]}" "${plugin_args[@]}" | shorten_paths || lint_status=1
+exit "$lint_status"
