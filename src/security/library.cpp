@@ -283,7 +283,9 @@ class UpdateableWafInstance {
             Diagnostics &diagnostics);
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle() {
-    return cur_handle_.load(std::memory_order_acquire);
+    // libc++ in the ASan sysroot has no std::atomic<std::shared_ptr<T>>.
+    // NOLINTNEXTLINE(clang-diagnostic-deprecated-declarations)
+    return std::atomic_load_explicit(&cur_handle_, std::memory_order_acquire);
   }
 
   [[nodiscard]] bool add_or_update_config(std::string_view path,
@@ -305,7 +307,7 @@ class UpdateableWafInstance {
   OwnedDdwafBuilder builder_;
   dnsec::ddwaf_owned_map default_ruleset_;
 
-  std::atomic<std::shared_ptr<dnsec::OwnedDdwafHandle>> cur_handle_;
+  std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle_;
 };
 
 [[nodiscard]] bool UpdateableWafInstance::init(
@@ -364,7 +366,8 @@ class UpdateableWafInstance {
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> new_sp =
       std::make_shared<dnsec::OwnedDdwafHandle>(new_instance);
-  cur_handle_.store(new_sp, std::memory_order::release);
+  // NOLINTNEXTLINE(clang-diagnostic-deprecated-declarations)
+  std::atomic_store_explicit(&cur_handle_, new_sp, std::memory_order::release);
 
   return true;
 }
