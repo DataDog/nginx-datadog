@@ -15,7 +15,7 @@ The format check validates literal format strings passed to `ngx_log_error`,
 Build and run it with:
 
 ```sh
-BUILD_DIR=.build bin/nginx-log-format-tidy.sh
+BUILD_DIR=.build bin/lint.sh
 ```
 
 The build directory must contain `compile_commands.json` and generated nginx

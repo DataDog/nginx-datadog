@@ -2,8 +2,8 @@
 
 ## Format
 
-- `make lint`: check format
-- `make format` fix format
+- `make check-format`: check format (C++ and Python code)
+- `make format`: fix format (C++ and Python code)
 
 Rebuild formatter image after editing `Dockerfile.formatter` with `make build-formatter-image`.
 
@@ -31,6 +31,15 @@ The `build` target does the following:
 
 ```shell
 NGINX_VERSION=<version> make build-musl
+```
+
+## Static Analysis
+
+C++ code is analyzed with Clang Tidy (stock checks and the nginx log-format
+plugin). Run it with:
+
+```shell
+NGINX_VERSION=<version> make lint
 ```
 
 ## Test
