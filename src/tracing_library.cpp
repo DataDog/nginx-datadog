@@ -5,6 +5,7 @@
 #include <datadog/error.h>
 #include <datadog/expected.h>
 #include <datadog/span.h>
+#include <datadog/telemetry/product.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
 #include <rapidjson/document.h>
@@ -29,6 +30,7 @@ extern "C" {
 #endif
 #include "nginx_flavors.h"
 #include "string_util.h"
+#include "version.h"
 
 namespace datadog {
 namespace nginx {
@@ -47,6 +49,34 @@ inline constexpr std::string_view integration_name_from_flavor(
   static_assert(true, "unknown NGINX flavor");
   std::abort();
 }
+
+#ifdef WITH_WAF
+namespace {
+
+void configure_appsec(const datadog_main_conf_t &nginx_conf,
+                      dd::TracerConfig &config) {
+  config.telemetry.products.emplace_back(datadog::telemetry::Product{
+      .name = datadog::telemetry::Product::Name::appsec,
+      .enabled = security::Library::active(),
+      .version = datadog_semver_nginx_mod,
+      .error_code = {},
+      .error_message = {},
+      .configurations = {}});
+
+  const bool appsec_fully_disabled = (nginx_conf.appsec_enabled == 0);
+  if (!appsec_fully_disabled) {
+    const bool has_custom_ruleset = (nginx_conf.appsec_ruleset_file.len > 0);
+    const bool appsec_enabling_explicit =
+        (nginx_conf.appsec_enabled != NGX_CONF_UNSET);
+    security::register_with_remote_cfg(
+        config.agent,
+        !has_custom_ruleset,         // no custom ruleset => ruleset via rem cfg
+        !appsec_enabling_explicit);  // no explicit => control via rem cfg
+  }
+}
+
+}  // namespace
+#endif
 
 dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
     const datadog_main_conf_t &nginx_conf, std::shared_ptr<dd::Logger> logger) {
@@ -120,16 +150,7 @@ dd::Expected<dd::Tracer> TracingLibrary::make_tracer(
   }
 
 #ifdef WITH_WAF
-  const bool appsec_fully_disabled = (nginx_conf.appsec_enabled == 0);
-  if (!appsec_fully_disabled) {
-    const bool has_custom_ruleset = (nginx_conf.appsec_ruleset_file.len > 0);
-    const bool appsec_enabling_explicit =
-        (nginx_conf.appsec_enabled != NGX_CONF_UNSET);
-    security::register_with_remote_cfg(
-        config.agent,
-        !has_custom_ruleset,         // no custom ruleset => ruleset via rem cfg
-        !appsec_enabling_explicit);  // no explicit => control via rem cfg
-  }
+  configure_appsec(nginx_conf, config);
 #endif
 
   auto final_config = dd::finalize_config(config);
