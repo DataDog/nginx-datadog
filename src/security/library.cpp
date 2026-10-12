@@ -24,6 +24,7 @@ extern "C" {
 #include "ddwaf_obj.h"
 #include "stats.h"
 #include "util.h"
+#include "version.h"
 
 extern "C" {
 #define INCBIN_SILENCE_BITCODE_WARNING
@@ -812,6 +813,16 @@ void Library::set_active(bool value) noexcept {
 
 bool Library::active() noexcept {
   return active_.load(std::memory_order_relaxed);
+}
+
+datadog::telemetry::Product make_appsec_telemetry_product(bool enabled) {
+  return datadog::telemetry::Product{
+      .name = datadog::telemetry::Product::Name::appsec,
+      .enabled = enabled,
+      .version = datadog_semver_nginx_mod,
+      .error_code = {},
+      .error_message = {},
+      .configurations = {}};
 }
 
 [[nodiscard]] bool Library::update_waf_config(std::string_view path,

@@ -3,7 +3,6 @@
 #include <datadog/remote_config/capability.h>
 #include <datadog/remote_config/product.h>
 #include <datadog/string_view.h>
-#include <datadog/telemetry/product.h>
 #include <datadog/telemetry/telemetry.h>
 #include <ddwaf.h>
 #include <rapidjson/document.h>
@@ -21,7 +20,6 @@
 #include "ddwaf_obj.h"
 #include "library.h"
 #include "ngx_logger.h"
-#include "version.h"
 
 namespace rc = datadog::remote_config;
 namespace dnsec = datadog::nginx::security;
@@ -263,13 +261,8 @@ class AsmFeaturesListener : public ProductListener<AsmFeaturesListener> {
     }
 
     dnsec::Library::set_active(new_state);
-    datadog::telemetry::capture_product_change(datadog::telemetry::Product{
-        .name = datadog::telemetry::Product::Name::appsec,
-        .enabled = new_state,
-        .version = datadog_semver_nginx_mod,
-        .error_code = {},
-        .error_message = {},
-        .configurations = {}});
+    datadog::telemetry::capture_product_change(
+        dnsec::make_appsec_telemetry_product(new_state));
   };
 
   void on_revert_impl(const ParsedConfigKey &key) {
