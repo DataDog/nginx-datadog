@@ -141,7 +141,9 @@ class TestSecRemoteConfig(case.TestCase):
         appsec = self.wait_for_appsec_product_change(30)
         self.assertTrue(appsec['enabled'])
 
-        self.drop_cfg()
+        # Do not use drop_cfg(): waiting for the remote config ack
+        # discards the telemetry lines sent in the meantime.
+        self.apply_cfg({})
         appsec = self.wait_for_appsec_product_change(30)
         self.assertFalse(appsec['enabled'])
 
