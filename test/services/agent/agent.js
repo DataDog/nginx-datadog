@@ -68,9 +68,17 @@ const requestListener = (() => {
             response.writeHead(200);
             response.end();
         });
+    } else if (request.url === '/telemetry/proxy/api/v2/apmtelemetry') {
+      let body = [];
+      request.on('data', chunk => {
+        body.push(chunk);
+      }).on('end', () => {
+        body = Buffer.concat(body).toString().replace(/\n/g, '');
+        console.log("Telemetry request: " + body);
+        response.writeHead(202);
+        response.end();
+      });
     } else {
-      // The agent also supports telemetry endpoints.
-      // But we don't servet those here.
       response.writeHead(404);
       response.end();
       return;

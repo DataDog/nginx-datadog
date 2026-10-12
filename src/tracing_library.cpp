@@ -5,7 +5,6 @@
 #include <datadog/error.h>
 #include <datadog/expected.h>
 #include <datadog/span.h>
-#include <datadog/telemetry/product.h>
 #include <datadog/tracer.h>
 #include <datadog/tracer_config.h>
 #include <rapidjson/document.h>
@@ -30,7 +29,6 @@ extern "C" {
 #endif
 #include "nginx_flavors.h"
 #include "string_util.h"
-#include "version.h"
 
 namespace datadog {
 namespace nginx {
@@ -55,13 +53,8 @@ namespace {
 
 void configure_appsec(const datadog_main_conf_t &nginx_conf,
                       dd::TracerConfig &config) {
-  config.telemetry.products.emplace_back(datadog::telemetry::Product{
-      .name = datadog::telemetry::Product::Name::appsec,
-      .enabled = security::Library::active(),
-      .version = datadog_semver_nginx_mod,
-      .error_code = {},
-      .error_message = {},
-      .configurations = {}});
+  config.telemetry.products.emplace_back(
+      security::make_appsec_telemetry_product(security::Library::active()));
 
   const bool appsec_fully_disabled = (nginx_conf.appsec_enabled == 0);
   if (!appsec_fully_disabled) {
