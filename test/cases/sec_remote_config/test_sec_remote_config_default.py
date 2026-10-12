@@ -123,6 +123,28 @@ class TestSecRemoteConfig(case.TestCase):
             '/', headers={'User-agent': 'dd-test-scanner-log-block'})
         self.assertEqual(200, code)
 
+    def wait_for_appsec_product_change(self, timeout_secs):
+        line = self.orch.wait_for_log_message(
+            'agent',
+            'Telemetry request: .*"app-product-change"',
+            timeout_secs=timeout_secs)
+        batch = json.loads(line.split(': ', 1)[1])
+        change = next(msg for msg in batch['payload']
+                      if msg['request_type'] == 'app-product-change')
+        return change['payload']['products']['appsec']
+
+    def test_remote_activation_telemetry(self):
+        self.apply_cfg({
+            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            '{"asm":{"enabled":true}}'
+        })
+        appsec = self.wait_for_appsec_product_change(30)
+        self.assertTrue(appsec['enabled'])
+
+        self.drop_cfg()
+        appsec = self.wait_for_appsec_product_change(30)
+        self.assertFalse(appsec['enabled'])
+
     def test_waf_data(self):
         version = self.apply_cfg({
             'datadog/2/ASM_FEATURES/asm_features_activation/config':
