@@ -134,6 +134,8 @@ class TestSecRemoteConfig(case.TestCase):
         return change['payload']['products']['appsec']
 
     def test_remote_activation_telemetry(self):
+        # Drop telemetry lines left by earlier tests.
+        self.orch.sync_service('agent')
         self.apply_cfg({
             'datadog/2/ASM_FEATURES/asm_features_activation/config':
             '{"asm":{"enabled":true}}'
