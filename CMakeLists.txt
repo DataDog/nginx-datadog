@@ -200,6 +200,29 @@ target_sources(ngx_http_datadog_module PRIVATE ${CMAKE_BINARY_DIR}/version.cpp)
 add_library(ngx_http_datadog_objs OBJECT)
 set_target_properties(ngx_http_datadog_objs PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(ngx_http_datadog_objs PUBLIC DD_NGINX_FLAVOR="${NGINX_DATADOG_FLAVOR}")
+
+include(CheckCXXSourceCompiles)
+set(_saved_required_flags "${CMAKE_REQUIRED_FLAGS}")
+if(ENABLE_ASAN)
+  list(JOIN NGINX_DATADOG_ASAN_COMPILE_OPTIONS " " _asan_flags)
+  string(APPEND CMAKE_REQUIRED_FLAGS " ${_asan_flags}")
+endif()
+check_cxx_source_compiles([=[
+#include <atomic>
+#include <memory>
+int main() {
+  std::atomic<std::shared_ptr<int>> a;
+  a.store(std::make_shared<int>(1), std::memory_order::release);
+  (void)a.load(std::memory_order_acquire);
+}
+]=] NGINX_DATADOG_HAS_ATOMIC_SHARED_PTR)
+set(CMAKE_REQUIRED_FLAGS "${_saved_required_flags}")
+unset(_saved_required_flags)
+unset(_asan_flags)
+if(NGINX_DATADOG_HAS_ATOMIC_SHARED_PTR)
+  target_compile_definitions(ngx_http_datadog_objs
+    PRIVATE NGINX_DATADOG_HAS_ATOMIC_SHARED_PTR)
+endif()
 target_sources(ngx_http_datadog_objs
   PRIVATE
     src/common/variable.cpp
