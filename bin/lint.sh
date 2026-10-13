@@ -102,6 +102,8 @@ cmake -S "$container_repo" -B "$build_dir" \
     --fresh \
     -DCMAKE_C_COMPILER="$llvm_bin/clang" \
     -DCMAKE_CXX_COMPILER="$llvm_bin/clang++" \
+    -DCMAKE_C_FLAGS=-DNGINX_DATADOG_LINT \
+    -DCMAKE_CXX_FLAGS=-DNGINX_DATADOG_LINT \
     -DNGINX_VERSION="$nginx_version" \
     -DBUILD_TESTING=OFF \
     -DCMAKE_BUILD_TYPE="$build_type" \
@@ -110,9 +112,9 @@ cmake -S "$container_repo" -B "$build_dir" \
 
 cmake --build "$build_dir" --target nginx_module -j "$jobs"
 
-python3 - "$build_dir/compile_commands.json" "$container_repo" "$llvm_bin" <<'PY'
+python3 - "$build_dir/compile_commands.json" "$container_repo" <<'PY'
 import json, os, sys
-db_path, root, llvm_bin = sys.argv[1], sys.argv[2], sys.argv[3]
+db_path, root = sys.argv[1], sys.argv[2]
 verified_source_count = 0
 for entry in json.load(open(db_path)):
     path = entry.get("file") or ""
@@ -124,10 +126,10 @@ for entry in json.load(open(db_path)):
     if not relative_path.endswith((".c", ".cc", ".cpp", ".cxx")):
         continue
     command = entry.get("command") or ""
-    if llvm_bin not in command:
+    if "-DNGINX_DATADOG_LINT" not in command:
         sys.stderr.write(
-            "BUILD_DIR was not configured with the pinned clang; refusing to run tidy.\n"
-            "  missing " + llvm_bin + " in " + relative_path + "\n"
+            "BUILD_DIR was not configured by bin/lint.sh; refusing to run tidy.\n"
+            "  missing -DNGINX_DATADOG_LINT in " + relative_path + "\n"
         )
         sys.exit(1)
     verified_source_count += 1
