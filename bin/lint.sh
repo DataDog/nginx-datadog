@@ -119,7 +119,7 @@ for entry in json.load(open(db_path)):
     if not os.path.isabs(path):
         path = os.path.normpath(os.path.join(entry.get("directory", root), path))
     relative_path = os.path.relpath(path, root)
-    if not relative_path.startswith("src/") or relative_path.startswith("src/rum/"):
+    if not relative_path.startswith("src/"):
         continue
     if not relative_path.endswith((".c", ".cc", ".cpp", ".cxx")):
         continue
