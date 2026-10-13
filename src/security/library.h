@@ -39,8 +39,8 @@ class Library {
   static constexpr std::string_view kObfuscatorConfigPath =
       "datadog/0/NONE/none/obfuscator";
 
-  static std::optional<ddwaf_owned_map> initialize_security_library(
-      const datadog_main_conf_t &conf);
+  // Returns false if the security library is disabled
+  static bool initialize_security_library(const datadog_main_conf_t &conf);
 
   // Initialize shared memory zone for API security rate limiter
   static ngx_int_t initialize_api_security_shared_memory(ngx_conf_t *cf);
