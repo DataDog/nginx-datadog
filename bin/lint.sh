@@ -152,6 +152,7 @@ common_args=(
     -quiet
     -use-color
     -j "$jobs"
+    -extra-arg=-Wno-error=deprecated-declarations
 )
 
 shorten_paths() {

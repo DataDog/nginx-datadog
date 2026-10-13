@@ -284,11 +284,7 @@ class UpdateableWafInstance {
             Diagnostics &diagnostics);
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle() {
-#ifdef NGINX_DATADOG_HAS_ATOMIC_SHARED_PTR
-    return cur_handle_.load(std::memory_order_acquire);
-#else
     return std::atomic_load_explicit(&cur_handle_, std::memory_order_acquire);
-#endif
   }
 
   [[nodiscard]] bool add_or_update_config(std::string_view path,
@@ -310,11 +306,7 @@ class UpdateableWafInstance {
   OwnedDdwafBuilder builder_;
   dnsec::ddwaf_owned_map default_ruleset_;
 
-#ifdef NGINX_DATADOG_HAS_ATOMIC_SHARED_PTR
-  std::atomic<std::shared_ptr<dnsec::OwnedDdwafHandle>> cur_handle_;
-#else
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle_;
-#endif
 };
 
 [[nodiscard]] bool UpdateableWafInstance::init(
@@ -373,11 +365,7 @@ class UpdateableWafInstance {
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> new_sp =
       std::make_shared<dnsec::OwnedDdwafHandle>(new_instance);
-#ifdef NGINX_DATADOG_HAS_ATOMIC_SHARED_PTR
-  cur_handle_.store(new_sp, std::memory_order::release);
-#else
   std::atomic_store_explicit(&cur_handle_, new_sp, std::memory_order::release);
-#endif
 
   return true;
 }
