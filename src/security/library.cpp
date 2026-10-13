@@ -24,6 +24,7 @@ extern "C" {
 #include "ddwaf_obj.h"
 #include "stats.h"
 #include "util.h"
+#include "version.h"
 
 extern "C" {
 #define INCBIN_SILENCE_BITCODE_WARNING
@@ -706,7 +707,7 @@ std::string FinalizedConfigSettings::normalize_configured_header(
 
 std::unique_ptr<UpdateableWafInstance> upd_waf_instance{
     new UpdateableWafInstance{}};
-std::atomic<bool> Library::active_{true};
+std::atomic<bool> Library::active_{false};
 std::unique_ptr<FinalizedConfigSettings> Library::config_settings_;
 ngx_shm_zone_t *Library::api_security_shm_zone_ = nullptr;
 std::unique_ptr<SharedApiSecurityLimiter> Library::shared_api_security_limiter_;
@@ -718,6 +719,7 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
 
   if (conf.enable_status() ==
       FinalizedConfigSettings::enable_status::DISABLED) {
+    Library::set_active(false);
     ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                   "datadog security library is explicitly disabled");
     return std::nullopt;
@@ -811,6 +813,16 @@ void Library::set_active(bool value) noexcept {
 
 bool Library::active() noexcept {
   return active_.load(std::memory_order_relaxed);
+}
+
+datadog::telemetry::Product make_appsec_telemetry_product(bool enabled) {
+  return datadog::telemetry::Product{
+      .name = datadog::telemetry::Product::Name::appsec,
+      .enabled = enabled,
+      .version = datadog_semver_nginx_mod,
+      .error_code = {},
+      .error_message = {},
+      .configurations = {}};
 }
 
 [[nodiscard]] bool Library::update_waf_config(std::string_view path,
