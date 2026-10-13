@@ -97,6 +97,7 @@ case "$plugin_build_dir" in
 esac
 
 # Generated nginx headers are required before tidy can parse src/.
+# nginx_headers runs ./configure only; it does not compile nginx_module.
 cmake -S "$container_repo" -B "$build_dir" \
     -G Ninja \
     --fresh \
@@ -110,7 +111,7 @@ cmake -S "$container_repo" -B "$build_dir" \
     -DNGINX_DATADOG_ASM_ENABLED="$waf" \
     -DNGINX_DATADOG_RUM_ENABLED="$rum"
 
-cmake --build "$build_dir" --target nginx_module -j "$jobs"
+cmake --build "$build_dir" --target nginx_headers -j "$jobs"
 
 python3 - "$build_dir/compile_commands.json" "$container_repo" <<'PY'
 import json, os, sys
