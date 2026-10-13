@@ -66,7 +66,7 @@ struct __attribute__((__may_alias__)) ddwaf_obj : ddwaf_object {
 
   template <typename T>
   T numeric_val() const {
-    static constexpr auto min = std::numeric_limits<T>::min();
+    static constexpr auto min = std::numeric_limits<T>::lowest();
     static constexpr auto max = std::numeric_limits<T>::max();
     if (type == DDWAF_OBJ_SIGNED) {
       if constexpr (std::is_unsigned_v<T>) {
