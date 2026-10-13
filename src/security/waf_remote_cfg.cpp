@@ -3,6 +3,7 @@
 #include <datadog/remote_config/capability.h>
 #include <datadog/remote_config/product.h>
 #include <datadog/string_view.h>
+#include <datadog/telemetry/telemetry.h>
 #include <ddwaf.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
@@ -260,6 +261,8 @@ class AsmFeaturesListener : public ProductListener<AsmFeaturesListener> {
     }
 
     dnsec::Library::set_active(new_state);
+    datadog::telemetry::capture_product_change(
+        dnsec::make_appsec_telemetry_product(new_state));
   };
 
   void on_revert_impl(const ParsedConfigKey &key) {
