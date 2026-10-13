@@ -48,14 +48,14 @@ TEST_CASE("response headers: the first copy of a repeated header is deleted",
   stub.add_header("X-Dup", "c");
 
   dnsec::DdwafMemres memres;
-  ddwaf_object *data =
+  dnsec::ddwaf_obj &data =
       dnsec::collect_response_data(stub.request, nullptr, 0, false, memres);
 
-  dnsec::ddwaf_map_obj root{*data};
-  auto headers = root.get_opt<dnsec::ddwaf_map_obj>(
+  const dnsec::ddwaf_map_obj &root = dnsec::cast(data);
+  const auto *headers = root.get_opt<dnsec::ddwaf_map_obj>(
       "server.response.headers.no_cookies"sv);
   REQUIRE(headers);
-  auto values = headers->get_opt<dnsec::ddwaf_arr_obj>("x-dup"sv);
+  const auto *values = headers->get_opt<dnsec::ddwaf_arr_obj>("x-dup"sv);
   REQUIRE(values);
   REQUIRE(values->size() == 2);
   CHECK(values->at<dnsec::ddwaf_str_obj>(0).value() == "b");

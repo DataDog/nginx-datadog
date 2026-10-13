@@ -19,6 +19,7 @@ if(NGINX_DATADOG_ASM_ENABLED)
         json.cpp multipart.cpp urlencoded.cpp test_limiter.cpp client_ip.cpp
         collection.cpp
         ddwaf_obj.cpp
+        waf_input_budget.cpp
         util.cpp)
 endif()
 

@@ -2,6 +2,7 @@
 
 #include "managed_chain.h"
 #include "security/body_parse/body_parsing.h"
+#include "security/util.h"
 
 extern "C" {
 #include <ngx_http.h>
@@ -13,8 +14,9 @@ using dnsec::ddwaf_obj;
 using namespace std::literals::string_view_literals;
 
 namespace {
-std::optional<ddwaf_obj> parse(std::vector<std::string_view> parts,
-                               dnsec::DdwafMemres &memres) {
+std::optional<ddwaf_obj> parse(
+    std::vector<std::string_view> parts, dnsec::DdwafMemres &memres,
+    std::size_t budget_limit = dnsec::WafInputBudget::kDefaultLimit) {
   static ngx_log_t log{};
   static ngx_connection_t empty_conn{.log = &log};
   static ngx_table_elt_t content_type = {
@@ -24,8 +26,9 @@ std::optional<ddwaf_obj> parse(std::vector<std::string_view> parts,
   ddwaf_obj slot;
 
   test::ManagedChain chain{parts};
-  bool success = datadog::nginx::security::parse_body_req(slot, req, chain,
-                                                          chain.size(), memres);
+  dnsec::WafInputBudget budget{budget_limit};
+  bool success = datadog::nginx::security::parse_body_req(
+      slot, req, chain, chain.size(), budget, memres);
 
   if (!success) {
     return std::nullopt;
@@ -49,13 +52,13 @@ TEST_CASE("urlencoded simple key-pair", "[urlencoded]") {
   auto slot = parse(parts, memres);
 
   REQUIRE((slot && slot->is_map()));
-  dnsec::ddwaf_map_obj value{*slot};
+  const dnsec::ddwaf_map_obj &value = dnsec::cast(*slot);
   CHECK(value.size() == 1);
 
   auto maybe_value = value.get_opt("key");
   REQUIRE(maybe_value);
   REQUIRE(maybe_value->is_string());
-  CHECK(maybe_value->string_val_unchecked() == "value");
+  CHECK(maybe_value->string_val() == "value");
 }
 
 TEST_CASE("urlencoded repeated key", "[urlencoded]") {
@@ -65,7 +68,7 @@ TEST_CASE("urlencoded repeated key", "[urlencoded]") {
   auto slot = parse(parts, memres);
 
   REQUIRE((slot && slot->is_map()));
-  dnsec::ddwaf_map_obj value{*slot};
+  const dnsec::ddwaf_map_obj &value = dnsec::cast(*slot);
   REQUIRE(value.size() == 2);
 
   auto key_values = value.get_opt("key");
@@ -73,18 +76,18 @@ TEST_CASE("urlencoded repeated key", "[urlencoded]") {
 
   REQUIRE(key_values);
   REQUIRE(key_values->is_array());
-  dnsec::ddwaf_arr_obj key_arr{*key_values};
+  const dnsec::ddwaf_arr_obj &key_arr = dnsec::cast(*key_values);
   CHECK(key_arr.size() == 3);
-  CHECK(key_arr.at_unchecked(0).string_val_unchecked() == "value1");
-  CHECK(key_arr.at_unchecked(1).string_val_unchecked() == "value2");
-  CHECK(key_arr.at_unchecked(2).string_val_unchecked() == "value3");
+  CHECK(key_arr.at_unchecked(0).string_val() == "value1");
+  CHECK(key_arr.at_unchecked(1).string_val() == "value2");
+  CHECK(key_arr.at_unchecked(2).string_val() == "value3");
 
   REQUIRE(foo_values);
   REQUIRE(foo_values->is_array());
-  dnsec::ddwaf_arr_obj foo_arr{*foo_values};
+  const dnsec::ddwaf_arr_obj &foo_arr = dnsec::cast(*foo_values);
   CHECK(foo_arr.size() == 2);
-  CHECK(foo_arr.at_unchecked(0).string_val_unchecked() == "bar1");
-  CHECK(foo_arr.at_unchecked(1).string_val_unchecked() == "bar2");
+  CHECK(foo_arr.at_unchecked(0).string_val() == "bar1");
+  CHECK(foo_arr.at_unchecked(1).string_val() == "bar2");
 }
 
 TEST_CASE("url plus decoding", "[urlencoded]") {
@@ -93,10 +96,10 @@ TEST_CASE("url plus decoding", "[urlencoded]") {
   auto slot = parse(parts, memres);
 
   REQUIRE((slot && slot->is_map()));
-  auto maybe_value = dnsec::ddwaf_map_obj{*slot}.get_opt("key  ");
+  auto maybe_value = dnsec::cast<dnsec::ddwaf_map_obj>(*slot).get_opt("key  ");
   REQUIRE(maybe_value);
   REQUIRE(maybe_value->is_string());
-  CHECK(maybe_value->string_val_unchecked() == "value  ");
+  CHECK(maybe_value->string_val() == "value  ");
 }
 
 TEST_CASE("multiple equal signs", "[urlencoded]") {
@@ -105,10 +108,10 @@ TEST_CASE("multiple equal signs", "[urlencoded]") {
   auto slot = parse(parts, memres);
 
   REQUIRE((slot && slot->is_map()));
-  auto maybe_value = dnsec::ddwaf_map_obj{*slot}.get_opt("key");
+  auto maybe_value = dnsec::cast<dnsec::ddwaf_map_obj>(*slot).get_opt("key");
   REQUIRE(maybe_value);
   REQUIRE(maybe_value->is_string());
-  CHECK(maybe_value->string_val_unchecked() == "value=value");
+  CHECK(maybe_value->string_val() == "value=value");
 }
 
 TEST_CASE("no equal sign", "[urlencoded]") {
@@ -117,15 +120,15 @@ TEST_CASE("no equal sign", "[urlencoded]") {
   auto slot = parse(parts, memres);
 
   REQUIRE((slot && slot->is_map()));
-  auto maybe_value = dnsec::ddwaf_map_obj{*slot}.get_opt("key");
+  auto maybe_value = dnsec::cast<dnsec::ddwaf_map_obj>(*slot).get_opt("key");
   REQUIRE(maybe_value);
   REQUIRE(maybe_value->is_array());
-  dnsec::ddwaf_arr_obj value_arr{*maybe_value};
+  const dnsec::ddwaf_arr_obj &value_arr = dnsec::cast(*maybe_value);
   CHECK(value_arr.size() == 2);
   REQUIRE(value_arr.at(0).is_string());
-  CHECK(value_arr.at(0).string_val_unchecked() == "");
+  CHECK(value_arr.at(0).string_val() == "");
   REQUIRE(value_arr.at(1).is_string());
-  CHECK(value_arr.at(1).string_val_unchecked() == "value2");
+  CHECK(value_arr.at(1).string_val() == "value2");
 }
 
 TEST_CASE("empty key", "[urlencoded]") {
@@ -134,8 +137,71 @@ TEST_CASE("empty key", "[urlencoded]") {
   auto slot = parse(parts, memres);
 
   REQUIRE((slot && slot->is_map()));
-  auto maybe_value = dnsec::ddwaf_map_obj{*slot}.get_opt("");
+  auto maybe_value = dnsec::cast<dnsec::ddwaf_map_obj>(*slot).get_opt("");
   REQUIRE(maybe_value);
   REQUIRE(maybe_value->is_string());
-  CHECK(maybe_value->string_val_unchecked() == "value");
+  CHECK(maybe_value->string_val() == "value");
+}
+
+TEST_CASE("urlencoded keys keep the input order", "[urlencoded]") {
+  std::vector parts = {"b=1&a=2&b=3"sv};
+  dnsec::DdwafMemres memres;
+  auto slot = parse(parts, memres);
+
+  REQUIRE((slot && slot->is_map()));
+  const dnsec::ddwaf_map_obj &map = dnsec::cast(*slot);
+  REQUIRE(map.size() == 2);
+  CHECK(map.at_unchecked(0).key() == "b");
+  CHECK(map.at_unchecked(1).key() == "a");
+}
+
+TEST_CASE("urlencoded budget", "[urlencoded]") {
+  // costs: map 4; "a" 5; array 4; "1" 5; "3" 5; "b" 5; "2" 3 (31 in total)
+  std::vector parts = {"a=1&b=2&a=3"sv};
+
+  SECTION("everything fits") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 31);
+    REQUIRE((slot && slot->is_map()));
+    CHECK(dnsec::cast<dnsec::ddwaf_map_obj>(*slot).size() == 2);
+  }
+
+  SECTION("no room for a key") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 26);
+    REQUIRE((slot && slot->is_map()));
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*slot);
+    REQUIRE(map.size() == 1);
+    CHECK(map.get<dnsec::ddwaf_arr_obj>("a").size() == 2);
+  }
+
+  SECTION("no room for any byte of a key: the entry is dropped") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 27);
+    REQUIRE((slot && slot->is_map()));
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*slot);
+    REQUIRE(map.size() == 1);
+    CHECK(map.at_unchecked(0).key() == "a");
+  }
+
+  SECTION("no room for the value: the key is kept") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 29);
+    REQUIRE((slot && slot->is_map()));
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*slot);
+    REQUIRE(map.size() == 2);
+    CHECK(map.at_unchecked(1).key() == "b");
+    CHECK(map.at_unchecked(1).val.is_null());
+  }
+
+  SECTION("array elements are dropped") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 18);
+    REQUIRE((slot && slot->is_map()));
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*slot);
+    REQUIRE(map.size() == 1);
+    auto &arr = map.get<dnsec::ddwaf_arr_obj>("a");
+    REQUIRE(arr.size() == 1);
+    CHECK(arr.at_unchecked(0).string_val() == "1");
+  }
 }

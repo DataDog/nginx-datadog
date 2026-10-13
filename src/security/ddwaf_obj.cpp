@@ -23,10 +23,11 @@ void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc,
       ddwaf_map_obj &obj_map = object.make_map(obj.MemberCount(), memres);
       size_t i = 0;
       for (auto &kv : obj) {
-        std::string_view const key = kv.name.GetString();
-        ddwaf_obj &element = obj_map.at_unchecked(i++);
-        element.set_key(key, memres);
-        json_to_obj_impl(memres, element, kv.value, max_depth - 1);
+        std::string_view const key{kv.name.GetString(),
+                                   kv.name.GetStringLength()};
+        ddwaf_kv_obj &entry = obj_map.at_unchecked(i++);
+        entry.set_key(key, memres);
+        json_to_obj_impl(memres, entry.val, kv.value, max_depth - 1);
       }
       break;
     }
@@ -68,6 +69,7 @@ void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc,
       break;
   }
 }
+
 }  // namespace impl
 
 ddwaf_owned_obj<ddwaf_obj> json_to_object(

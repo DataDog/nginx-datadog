@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <concepts>
+#include <cstddef>
 #include <cstdlib>
 #include <memory>
 #include <unordered_map>
@@ -14,6 +16,17 @@ extern "C" {
 }
 
 namespace datadog::nginx::security {
+
+// Defined in ddwaf_obj.h, which includes this header
+struct ddwaf_kv_obj;
+
+// Types with the layout of a ddwaf_object. The arena never runs
+// destructors, so they must be trivially destructible.
+template <typename T>
+concept DdwafObjLike = std::is_standard_layout_v<T> &&
+                           std::is_trivially_destructible_v<T> &&
+                           sizeof(T) == sizeof(ddwaf_object) &&
+                       alignof(T) == alignof(ddwaf_object);
 
 class DdwafMemres {
   static inline constexpr std::size_t kMinObjSegSize = 20;
@@ -27,29 +40,28 @@ class DdwafMemres {
   DdwafMemres &operator=(DdwafMemres &&) = default;
   ~DdwafMemres() = default;
 
-  template <typename T = ddwaf_object>
+  template <DdwafObjLike T>
   T *allocate_objects(std::size_t num_objects) {
-    // NOLINTNEXTLINE(misc-redundant-expression)
-    static_assert(sizeof(T) == sizeof(ddwaf_object) &&
-                      alignof(T) == alignof(ddwaf_object),
-                  "T must have size and alignment of ddwaf_object");
-    static_assert(std::is_standard_layout<T>::value, "T must be a POD type");
-    static_assert(std::is_base_of<ddwaf_object, T>::value,
-                  "T must be derived from ddwaf_object");
-
     if (num_objects == 0) {
       return nullptr;
     }
-
-    if (objects_stored_ + num_objects >= cur_object_seg_size_) {
-      std::size_t const size = std::max(kMinObjSegSize, num_objects);
-      new_objects_segment(size);
-    }
-    auto *p = allocs_object_.back().get() + (objects_stored_);
-
-    objects_stored_ += num_objects;
-    // keep braces, some code depends on this being zero-initialized:
+    void *p = allocate_object_storage(num_objects);
+    // ddwaf_obj's default constructor gives each object the type
+    // DDWAF_OBJ_INVALID (0). Its other bytes are indeterminate.
     return new (p) T[num_objects]{};  // NOLINT(cppcoreguidelines-owning-memory)
+  }
+
+  // A map entry (key + value) takes the space of two objects.
+  // A template only because ddwaf_kv_obj is incomplete here; ddwaf_obj.h
+  // checks its layout.
+  template <std::same_as<ddwaf_kv_obj> KV>
+  KV *allocate_kvs(std::size_t num_entries) {
+    if (num_entries == 0) {
+      return nullptr;
+    }
+    void *p = allocate_object_storage(2 * num_entries);
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    return new (p) KV[num_entries]{};
   }
 
   char *allocate_string(size_t len) {
@@ -74,9 +86,24 @@ class DdwafMemres {
   }
 
  private:
+  // Raw storage for num_objects objects. The caller creates them.
+  void *allocate_object_storage(std::size_t num_objects) {
+    if (objects_stored_ + num_objects >= cur_object_seg_size_) {
+      std::size_t const size = std::max(kMinObjSegSize, num_objects);
+      new_objects_segment(size);
+    }
+    std::byte *p =
+        allocs_object_.back().get() + objects_stored_ * sizeof(ddwaf_object);
+    objects_stored_ += num_objects;
+    return p;
+  }
+
   void new_objects_segment(size_t num_objects) {
-    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-    allocs_object_.emplace_back(new ddwaf_object[num_objects]);
+    // new[] aligns to at least __STDCPP_DEFAULT_NEW_ALIGNMENT__
+    static_assert(__STDCPP_DEFAULT_NEW_ALIGNMENT__ >= alignof(ddwaf_object));
+    allocs_object_.emplace_back(
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        new std::byte[num_objects * sizeof(ddwaf_object)]);
     cur_object_seg_size_ = num_objects;
     objects_stored_ = 0;
   }
@@ -90,7 +117,8 @@ class DdwafMemres {
 
   std::size_t cur_object_seg_size_{0};  // in num objects
   std::size_t cur_string_seg_size_{0};  // in bytes
-  std::vector<std::unique_ptr<ddwaf_object[]>> allocs_object_;
+  // std::byte arrays provide storage for the objects created in them
+  std::vector<std::unique_ptr<std::byte[]>> allocs_object_;
   std::vector<std::unique_ptr<char[]>> allocs_string_;
   std::size_t objects_stored_{0};
   std::size_t strings_stored_{0};
@@ -100,8 +128,7 @@ class DdwafMemres {
  * A pool of ddwaf object vectors of sizes in powers in two. Used when the
  * sizes of arrays or maps are not known in advance.
  */
-template <typename DdwafObjType>
-requires std::is_base_of_v<ddwaf_object, DdwafObjType>
+template <DdwafObjLike DdwafObjType>
 class DdwafObjArrPool {
  public:
   DdwafObjArrPool(DdwafMemres &memres) : memres_{memres} {}

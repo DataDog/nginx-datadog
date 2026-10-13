@@ -4,9 +4,16 @@
 #include <rapidjson/reader.h>
 
 #include <algorithm>
+#include <cstring>
+#include <memory>
+#include <new>
+#include <optional>
+#include <string_view>
+#include <version>
 
 #include "../ddwaf_memres.h"
 #include "../ddwaf_obj.h"
+#include "../waf_input_budget.h"
 
 extern "C" {
 #include <ngx_core.h>
@@ -18,6 +25,9 @@ namespace {
 
 namespace dnsec = datadog::nginx::security;
 using dnsec::ddwaf_obj;
+
+dnsec::ddwaf_kv_obj *slots_to_entries(ddwaf_obj *slots,
+                                      std::size_t num_entries);
 
 /* Adapt a nginx chain to a rapidjson input.
  * see https://rapidjson.org/classrapidjson_1_1_stream.html */
@@ -91,13 +101,14 @@ class RapidNgxChainInputStream {
 };
 
 /* Rapidjson event handler for serializing into ddwaf_obj, allowing for
- * truncated input */
+ * truncated input. Returning false stops the parsing. */
 class ToDdwafObjHandler
     : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>,
                                           ToDdwafObjHandler> {
  public:
-  ToDdwafObjHandler(ddwaf_obj &slot, dnsec::DdwafMemres &memres)
-      : pool_{memres}, memres_{memres}, bufs_{{&slot, 0, 1}} {}
+  ToDdwafObjHandler(ddwaf_obj &slot, dnsec::WafInputBudget &budget,
+                    dnsec::DdwafMemres &memres)
+      : pool_{memres}, budget_{budget}, memres_{memres}, bufs_{{&slot, 0, 1}} {}
 
   ddwaf_obj *finish(const ngx_http_request_t &req) {
     if (bufs_.size() != 1) {
@@ -129,106 +140,148 @@ class ToDdwafObjHandler
   }
 
   bool Null() {
-    get_slot().make_null();
-    return true;
+    return add_scalar([](ddwaf_obj &obj) { obj.make_null(); });
   }
 
   bool Bool(bool b) {
-    get_slot().make_bool(b);
-    return true;
+    return add_scalar([b](ddwaf_obj &obj) { obj.make_bool(b); });
   }
 
   bool Int(int i) {
-    get_slot().make_number(i);
-    return true;
+    return add_scalar([i](ddwaf_obj &obj) { obj.make_number(i); });
   }
 
   bool Uint(unsigned u) {
-    get_slot().make_number(u);
-    return true;
+    return add_scalar([u](ddwaf_obj &obj) { obj.make_number(u); });
   }
 
   bool Int64(int64_t i) {
-    get_slot().make_number(i);
-    return true;
+    return add_scalar([i](ddwaf_obj &obj) { obj.make_number(i); });
   }
 
   bool Uint64(uint64_t u) {
-    get_slot().make_number(u);
-    return true;
+    return add_scalar([u](ddwaf_obj &obj) { obj.make_number(u); });
   }
 
   bool Double(double d) {
-    get_slot().make_number(d);
-    return true;
+    return add_scalar([d](ddwaf_obj &obj) { obj.make_number(d); });
   }
 
-  bool String(const char *str, rapidjson::SizeType length, bool copy) {
-    std::string_view sv{str, length};
-    get_slot().make_string(sv, memres_);
-    return true;
+  bool String(const char *str, rapidjson::SizeType length, bool /*copy*/) {
+    return add_string({str, length});
   }
 
-  bool Key(const char *str, rapidjson::SizeType length, bool copy) {
-    std::string_view sv{str, length};
-    get_slot_for_key().set_key(sv, memres_);
-
-    return true;
+  bool Key(const char *str, rapidjson::SizeType length, bool /*copy*/) {
+    // keys and values take consecutive slots: key, value, key, value...
+    return add_string({str, length});
   }
 
-  bool StartObject() {
-    push_map();
-    return true;
-  }
+  bool StartObject() { return start_container(ContainerType::MAP); }
 
   bool EndObject(rapidjson::SizeType /*memberCount*/) {
-    pop_container();
+    end_container();
     return true;
   }
 
-  bool StartArray() {
-    push_array();
-    return true;
-  }
+  bool StartArray() { return start_container(ContainerType::ARRAY); }
 
   bool EndArray(rapidjson::SizeType /*elementCount*/) {
-    pop_container();
+    end_container();
     return true;
   }
 
  private:
+  enum class ContainerType { MAP, ARRAY };
+
   dnsec::DdwafObjArrPool<ddwaf_obj> pool_;
+  dnsec::WafInputBudget &budget_;
   dnsec::DdwafMemres &memres_;
+  // > 0 while inside a container that is too deep: we drop its contents
+  std::size_t skipped_depth_{0};
   struct Buf {
     ddwaf_obj *ptr;
     std::size_t len;
     std::size_t cap;
-    bool key_last;
 
-    auto cur_obj() -> ddwaf_obj & {
+    auto cur_obj() const -> ddwaf_obj & {
       assert(len > 0);
       return ptr[len - 1];
     }
   };
   std::vector<Buf> bufs_{{nullptr, 0, 0}};
 
-  ddwaf_obj &get_slot() { return do_get_slot(false); }
+  // Whether the next slot is an array element or a map key.
+  bool next_is_element() const {
+    if (bufs_.size() == 1) {
+      return false;  // top-level value
+    }
+    bool const in_map = bufs_[bufs_.size() - 2].cur_obj().is_map();
+    return !in_map || bufs_.back().len % 2 == 0;
+  }
 
-  ddwaf_obj &get_slot_for_key() { return do_get_slot(true); }
+  // Returns false to stop the parsing.
+  template <typename Make>
+  bool add_scalar(Make make) {
+    if (skipped_depth_ > 0) {
+      return true;  // inside a too-deep container: drop it
+    }
+    if (!budget_.charge_scalar(next_is_element())) {
+      return false;  // budget exhausted
+    }
+    make(get_slot());
+    return true;
+  }
 
-  ddwaf_obj &do_get_slot(bool for_key) {
+  bool add_string(std::string_view str) {
+    if (skipped_depth_ > 0) {
+      return true;
+    }
+    std::optional<std::string_view> kept =
+        budget_.charge_string(str, next_is_element());
+    if (!kept) {
+      return false;
+    }
+    get_slot().make_string(*kept, memres_);
+    return true;
+  }
+
+  bool start_container(ContainerType type) {
+    if (skipped_depth_ > 0) {
+      skipped_depth_++;
+      return true;
+    }
+    if (!budget_.charge_container(next_is_element())) {
+      return false;
+    }
+    // bufs_ has one entry for the top level, plus one per open container
+    if (bufs_.size() > dnsec::WafInputBudget::kMaxContainerDepth) {
+      // too deep: keep the container, but empty
+      if (type == ContainerType::MAP) {
+        get_slot().make_map(nullptr, 0);
+      } else {
+        get_slot().make_array(nullptr, 0);
+      }
+      skipped_depth_ = 1;
+      return true;
+    }
+    if (type == ContainerType::MAP) {
+      push_map();
+    } else {
+      push_array();
+    }
+    return true;
+  }
+
+  void end_container() {
+    if (skipped_depth_ > 0) {
+      skipped_depth_--;
+      return;
+    }
+    pop_container();
+  }
+
+  ddwaf_obj &get_slot() {
     auto &buf = bufs_.back();
-    assert(!for_key || !buf.key_last);  // no two keys in succession
-    if (buf.key_last) {
-      auto &ret = buf.cur_obj();
-      buf.key_last = false;
-      return ret;
-    }
-
-    if (for_key) {
-      buf.key_last = true;
-    }
-
     if (buf.len < buf.cap) {
       buf.len++;
       return buf.ptr[buf.len - 1];
@@ -242,34 +295,63 @@ class ToDdwafObjHandler
     return buf.cur_obj();
   }
 
+  // Open a new buffer for the container's contents. Its slot in the parent
+  // gets an empty array or map. This is how we remember the container type
+  // while it is open. pop_container then fills the slot with the contents.
   void push_array() {
-    auto &slot = get_slot();
-    slot.type = DDWAF_OBJ_ARRAY;
+    get_slot().make_array(nullptr, 0);
     bufs_.emplace_back(Buf{nullptr, 0, 0});
   }
 
   void push_map() {
-    auto &slot = get_slot();
-    slot.type = DDWAF_OBJ_MAP;
+    get_slot().make_map(nullptr, 0);
     bufs_.emplace_back(Buf{nullptr, 0, 0});
   }
 
   void pop_container() {
-    Buf buf_arr = bufs_.back();
+    bool const is_map = bufs_[bufs_.size() - 2].cur_obj().is_map();
+    if (is_map && bufs_.back().len % 2 != 0) {
+      // truncated input: keep the last key, with a null value
+      get_slot().make_null();
+    }
+    Buf buf_inner = bufs_.back();
     bufs_.pop_back();
-    auto &buf_cont = bufs_.back();
-    ddwaf_obj &slot = buf_cont.cur_obj();
-    slot.nbEntries = buf_arr.len;
-    slot.array = buf_arr.ptr;
+    ddwaf_obj &slot = bufs_.back().cur_obj();
+    if (is_map) {
+      // a map buffer holds key, value, key, value...
+      dnsec::ddwaf_kv_obj *entries =
+          slots_to_entries(buf_inner.ptr, buf_inner.len / 2);
+      slot.make_map(entries, buf_inner.len / 2);
+    } else {
+      slot.make_array(buf_inner.ptr, buf_inner.len);
+    }
   }
 };
+
+// Turns key and value slots into map entries with the same contents. The
+// slots stop existing; only the entries can be used afterwards.
+dnsec::ddwaf_kv_obj *slots_to_entries(ddwaf_obj *slots,
+                                      std::size_t num_entries) {
+  if (num_entries == 0) {
+    return nullptr;
+  }
+#ifdef __cpp_lib_start_lifetime_as
+  return std::start_lifetime_as_array<dnsec::ddwaf_kv_obj>(slots, num_entries);
+#else
+  // Before C++23: memmove creates the entries in place, keeping the bytes.
+  // launder gives us a pointer to them.
+  void *storage =
+      std::memmove(slots, slots, num_entries * sizeof(dnsec::ddwaf_kv_obj));
+  return std::launder(static_cast<dnsec::ddwaf_kv_obj *>(storage));
+#endif
+}
 
 }  // namespace
 
 namespace datadog::nginx::security {
 
 bool parse_json(ddwaf_obj &slot, const ngx_http_request_t &req,
-                const ngx_chain_t &chain, size_t limit,
+                const ngx_chain_t &chain, size_t limit, WafInputBudget &budget,
                 dnsec::DdwafMemres &memres) {
   // be as permissive as possible
   static constexpr unsigned parse_flags =
@@ -278,13 +360,16 @@ bool parse_json(ddwaf_obj &slot, const ngx_http_request_t &req,
       rapidjson::kParseTrailingCommasFlag | rapidjson::kParseCommentsFlag |
       rapidjson::kParseIterativeFlag;
 
-  ToDdwafObjHandler handler{slot, memres};
+  ToDdwafObjHandler handler{slot, budget, memres};
   rapidjson::Reader reader;
   RapidNgxChainInputStream is{&chain, limit};
   rapidjson::ParseResult res =
       reader.Parse<parse_flags, RapidNgxChainInputStream>(is, handler);
   ddwaf_obj *json_obj = handler.finish(req);
-  if (res.IsError()) {
+  if (budget.exhausted()) {
+    ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
+                  "json body truncated: input budget exhausted");
+  } else if (res.IsError()) {
     if (json_obj) {
       ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
                     "json parsing failed after producing some output: %s",

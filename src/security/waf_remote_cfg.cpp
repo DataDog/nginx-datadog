@@ -115,7 +115,7 @@ class CurrentAppSecConfig {
  public:
   void set_config(const ParsedConfigKey &key,
                   const dnsec::ddwaf_map_obj &new_config) {
-    dnsec::Library::Diagnostics diag{{}};
+    dnsec::Library::Diagnostics diag;
     bool res =
         dnsec::Library::update_waf_config(key.full_key(), new_config, diag);
 
