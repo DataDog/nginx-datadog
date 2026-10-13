@@ -1,5 +1,6 @@
 #pragma once
 
+#include <datadog/telemetry/product.h>
 #include <ddwaf.h>
 
 #include <atomic>
@@ -85,5 +86,7 @@ class OwnedDdwafHandle
  public:
   using FreeableResource::FreeableResource;
 };
+
+datadog::telemetry::Product make_appsec_telemetry_product(bool enabled);
 
 }  // namespace datadog::nginx::security
