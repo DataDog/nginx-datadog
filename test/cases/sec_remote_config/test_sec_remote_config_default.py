@@ -123,6 +123,36 @@ class TestSecRemoteConfig(case.TestCase):
             '/', headers={'User-agent': 'dd-test-scanner-log-block'})
         self.assertEqual(200, code)
 
+    def wait_for_appsec_product_change(self, timeout_secs):
+        line = self.orch.wait_for_log_message(
+            'agent',
+            'Telemetry request: .*"app-product-change"',
+            timeout_secs=timeout_secs)
+        batch = json.loads(line.split(': ', 1)[1])
+        change = next(msg for msg in batch['payload']
+                      if msg['request_type'] == 'app-product-change')
+        return change['payload']['products']['appsec']
+
+    def test_remote_activation_telemetry(self):
+        conf_path = Path(__file__).parent / './conf/http_telemetry.conf'
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_path.read_text(), conf_path.name)
+        self.assertEqual(0, status, log_lines)
+        # Drop telemetry lines left by earlier tests.
+        self.orch.sync_service('agent')
+        self.apply_cfg({
+            'datadog/2/ASM_FEATURES/asm_features_activation/config':
+            '{"asm":{"enabled":true}}'
+        })
+        appsec = self.wait_for_appsec_product_change(5)
+        self.assertTrue(appsec['enabled'])
+
+        # Do not use drop_cfg(): waiting for the remote config ack
+        # discards the telemetry lines sent in the meantime.
+        self.apply_cfg({})
+        appsec = self.wait_for_appsec_product_change(5)
+        self.assertFalse(appsec['enabled'])
+
     def test_waf_data(self):
         version = self.apply_cfg({
             'datadog/2/ASM_FEATURES/asm_features_activation/config':
