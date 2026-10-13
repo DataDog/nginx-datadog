@@ -715,8 +715,7 @@ std::unique_ptr<FinalizedConfigSettings> Library::config_settings_;
 ngx_shm_zone_t *Library::api_security_shm_zone_ = nullptr;
 std::unique_ptr<SharedApiSecurityLimiter> Library::shared_api_security_limiter_;
 
-std::optional<ddwaf_owned_map> Library::initialize_security_library(
-    const datadog_main_conf_t &ngx_conf) {
+bool Library::initialize_security_library(const datadog_main_conf_t &ngx_conf) {
   config_settings_ = std::make_unique<FinalizedConfigSettings>(ngx_conf);
   const FinalizedConfigSettings &conf = *config_settings_;  // just an alias;
 
@@ -725,7 +724,7 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
     Library::set_active(false);
     ngx_log_error(NGX_LOG_INFO, ngx_cycle->log, 0,
                   "datadog security library is explicitly disabled");
-    return std::nullopt;
+    return false;
   }
 
   ddwaf_set_log_cb(ddwaf_log,
@@ -804,7 +803,7 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
   Library::set_active(conf.enable_status() ==
                       FinalizedConfigSettings::enable_status::ENABLED);
 
-  return ruleset;
+  return true;
 }
 
 void Library::set_active(bool value) noexcept {

@@ -36,8 +36,9 @@ class Library {
   static constexpr std::string_view kBundledRuleset =
       "datadog/0/NONE/none/bundled_rule_data";
 
-  static std::optional<ddwaf_owned_map> initialize_security_library(
-      const datadog_main_conf_t &conf);
+  // Returns false if appsec is explicitly disabled. Returns true otherwise,
+  // even if appsec stays inactive until remote config enables it.
+  static bool initialize_security_library(const datadog_main_conf_t &conf);
 
   // Initialize shared memory zone for API security rate limiter
   static ngx_int_t initialize_api_security_shared_memory(ngx_conf_t *cf);

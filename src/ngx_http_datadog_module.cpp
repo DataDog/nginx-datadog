@@ -355,10 +355,8 @@ static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
 
 #ifdef WITH_WAF
   try {
-    std::optional<security::ddwaf_owned_map> initial_waf_cfg =
-        security::Library::initialize_security_library(*main_conf);
-    if (initial_waf_cfg) {
-      security::register_default_config(std::move(*initial_waf_cfg), logger);
+    if (security::Library::initialize_security_library(*main_conf)) {
+      security::init_remote_cfg_service(logger);
     }
   } catch (const std::exception &e) {
     ngx_log_error(NGX_LOG_ERR, cycle->log, 0,
