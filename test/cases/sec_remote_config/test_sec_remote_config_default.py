@@ -134,19 +134,23 @@ class TestSecRemoteConfig(case.TestCase):
         return change['payload']['products']['appsec']
 
     def test_remote_activation_telemetry(self):
+        conf_path = Path(__file__).parent / './conf/http_telemetry.conf'
+        status, log_lines = self.orch.nginx_replace_config(
+            conf_path.read_text(), conf_path.name)
+        self.assertEqual(0, status, log_lines)
         # Drop telemetry lines left by earlier tests.
         self.orch.sync_service('agent')
         self.apply_cfg({
             'datadog/2/ASM_FEATURES/asm_features_activation/config':
             '{"asm":{"enabled":true}}'
         })
-        appsec = self.wait_for_appsec_product_change(30)
+        appsec = self.wait_for_appsec_product_change(5)
         self.assertTrue(appsec['enabled'])
 
         # Do not use drop_cfg(): waiting for the remote config ack
         # discards the telemetry lines sent in the meantime.
         self.apply_cfg({})
-        appsec = self.wait_for_appsec_product_change(30)
+        appsec = self.wait_for_appsec_product_change(5)
         self.assertFalse(appsec['enabled'])
 
     def test_waf_data(self):
