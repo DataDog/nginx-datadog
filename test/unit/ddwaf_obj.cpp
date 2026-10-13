@@ -53,3 +53,12 @@ TEST_CASE("containers over 65535 elements are large", "[ddwaf_obj]") {
   CHECK(map_obj.o.type == DDWAF_OBJ_LARGE_MAP);
   CHECK(map.size() == 70000);
 }
+
+TEST_CASE("numeric_val<double> accepts zero and negative values",
+          "[ddwaf_obj]") {
+  ddwaf_obj obj;
+  CHECK(obj.make_number(int64_t{0}).numeric_val<double>() == 0.0);
+  CHECK(obj.make_number(int64_t{-5}).numeric_val<double>() == -5.0);
+  CHECK(obj.make_number(0.0).numeric_val<double>() == 0.0);
+  CHECK(obj.make_number(-2.5).numeric_val<double>() == -2.5);
+}
