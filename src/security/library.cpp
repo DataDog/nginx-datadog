@@ -40,16 +40,6 @@ namespace dnsec = datadog::nginx::security;
 
 namespace {
 
-static constexpr ddwaf_config kBaseWafConfig{
-    .limits =
-        {
-            .max_container_size = 256,
-            .max_container_depth = 20,
-            .max_string_length = 4096,
-        },
-    .free_fn = nullptr,
-};
-
 auto parse_rule_json(std::string_view json) -> dnsec::ddwaf_owned_map {
   rapidjson::Document document;
   rapidjson::ParseResult const result =
@@ -126,6 +116,7 @@ int ddwaf_log_level_to_nginx(DDWAF_LOG_LEVEL level) noexcept {
       return NGX_LOG_WARN;
     case DDWAF_LOG_ERROR:
       return NGX_LOG_ERR;
+    case DDWAF_LOG_OFF:
     default:
       return NGX_LOG_NOTICE;
   }
@@ -166,6 +157,9 @@ void ddwaf_log(DDWAF_LOG_LEVEL level, const char *function, const char *file,
 
 std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &,
                                         std::string_view);
+std::size_t array_size_or_zero(const dnsec::ddwaf_map_obj &map,
+                               std::string_view key);
+
 std::string ddwaf_diagnostics_to_str(const dnsec::ddwaf_map_obj &top) {
   std::string ret;
   ret += ddwaf_subdiagnostics_to_str(top, "rules"sv);
@@ -179,20 +173,22 @@ std::string ddwaf_diagnostics_to_str(const dnsec::ddwaf_map_obj &top) {
   return ret;
 }
 
+std::size_t array_size_or_zero(const dnsec::ddwaf_map_obj &map,
+                               std::string_view key) {
+  const auto *arr = map.get_opt<dnsec::ddwaf_arr_obj>(key);
+  return arr ? arr->size() : 0;
+}
+
 std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &top,
                                         std::string_view key) {
-  auto maybe_rm = top.get_opt<dnsec::ddwaf_map_obj>(key);
+  const auto *maybe_rm = top.get_opt<dnsec::ddwaf_map_obj>(key);
   if (!maybe_rm) {
     return "no diagnostics for " + std::string{key};
   }
 
-  dnsec::ddwaf_map_obj &m = *maybe_rm;
-  std::size_t loaded_count = m.get_opt<dnsec::ddwaf_arr_obj>("loaded"sv)
-                                 .value_or(dnsec::ddwaf_arr_obj{})
-                                 .size();
-  std::size_t failed_count = m.get_opt<dnsec::ddwaf_arr_obj>("failed"sv)
-                                 .value_or(dnsec::ddwaf_arr_obj{})
-                                 .size();
+  const dnsec::ddwaf_map_obj &m = *maybe_rm;
+  std::size_t loaded_count = array_size_or_zero(m, "loaded"sv);
+  std::size_t failed_count = array_size_or_zero(m, "failed"sv);
 
   std::string ret{key};
   ret += "{loaded(";
@@ -201,10 +197,10 @@ std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &top,
   ret += std::to_string(failed_count);
   ret += ") errors(";
 
-  auto errors = m.get_opt<dnsec::ddwaf_map_obj>("errors"sv);
+  const auto *errors = m.get_opt<dnsec::ddwaf_map_obj>("errors"sv);
   if (errors) {
     bool first = true;
-    for (auto &&err_kp : *errors) {
+    for (const dnsec::ddwaf_kv_obj &err_kp : *errors) {
       if (!first) {
         ret += ", ";
       } else {
@@ -214,7 +210,8 @@ std::string ddwaf_subdiagnostics_to_str(const dnsec::ddwaf_map_obj &top,
       ret += err_kp.key();  // error message
       ret += " => [";
       bool first = true;
-      for (auto &&v : dnsec::ddwaf_arr_obj{err_kp}) {
+      for (const dnsec::ddwaf_obj &v :
+           dnsec::ddwaf_obj::cast<dnsec::ddwaf_arr_obj>(err_kp.val)) {
         if (!first) {
           ret += ", ";
         } else {
@@ -242,9 +239,11 @@ class OwnedDdwafBuilder
   OwnedDdwafBuilder()
       : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
             nullptr} {}
-  explicit OwnedDdwafBuilder(ddwaf_config &config)
-      : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
-            ddwaf_builder_init(&config)} {}
+  static OwnedDdwafBuilder create() {
+    OwnedDdwafBuilder builder;
+    builder.resource = ddwaf_builder_init();
+    return builder;
+  }
   OwnedDdwafBuilder(OwnedDdwafBuilder &&oth)
       : dnsec::FreeableResource<ddwaf_builder, DdwafBuilderFreeFunctor>{
             std::move(oth)} {}
@@ -257,8 +256,10 @@ class OwnedDdwafBuilder
   bool add_or_update_config(std::string_view path,
                             const dnsec::ddwaf_map_obj &ruleset,
                             dnsec::Library::Diagnostics &diags) {
+    // libddwaf overwrites the diagnostics without freeing them
+    ddwaf_object_destroy(&diags.get().o, ddwaf_get_default_allocator());
     return ddwaf_builder_add_or_update_config(get(), path.data(), path.size(),
-                                              &ruleset, &diags.get());
+                                              &ruleset.raw(), &diags.get().o);
   }
 
   bool remove_config(std::string_view path) {
@@ -280,8 +281,9 @@ class UpdateableWafInstance {
  public:
   using Diagnostics = dnsec::Library::Diagnostics;
 
-  bool init(dnsec::ddwaf_owned_map default_ruleset, ddwaf_config &config,
-            Diagnostics &diagnostics);
+  bool init(dnsec::ddwaf_owned_map default_ruleset,
+            std::string_view obfuscation_key_regex,
+            std::string_view obfuscation_value_regex, Diagnostics &diagnostics);
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle() {
     std::lock_guard guard{cur_handle_mutex_};
@@ -299,6 +301,9 @@ class UpdateableWafInstance {
   [[nodiscard]] bool live() { return builder_; }
 
  private:
+  void add_obfuscator_config(std::string_view key_regex,
+                             std::string_view value_regex);
+
   bool has_bundled_data() const {
     return builder_.count_config_paths(dnsec::Library::kBundledRuleset) > 0;
   }
@@ -312,16 +317,18 @@ class UpdateableWafInstance {
 };
 
 [[nodiscard]] bool UpdateableWafInstance::init(
-    dnsec::ddwaf_owned_map default_ruleset, ddwaf_config &config,
-    Diagnostics &diagnostics) {
+    dnsec::ddwaf_owned_map default_ruleset,
+    std::string_view obfuscation_key_regex,
+    std::string_view obfuscation_value_regex, Diagnostics &diagnostics) {
   assert(!live());
-  OwnedDdwafBuilder builder{config};
+  OwnedDdwafBuilder builder = OwnedDdwafBuilder::create();
   if (!builder) {
     return false;
   }
 
   builder_ = std::move(builder);
   default_ruleset_ = std::move(default_ruleset);
+  add_obfuscator_config(obfuscation_key_regex, obfuscation_value_regex);
 
   bool res = update(diagnostics);
   if (!res) {
@@ -329,6 +336,28 @@ class UpdateableWafInstance {
   }
 
   return res;
+}
+
+// libddwaf v2 takes the obfuscator regexes as a config, not at builder init.
+// An empty regex disables obfuscation for that side, as in v1.
+void UpdateableWafInstance::add_obfuscator_config(
+    std::string_view key_regex, std::string_view value_regex) {
+  dnsec::ddwaf_owned_map config;
+  dnsec::DdwafMemres &memres = config.memres();
+  dnsec::ddwaf_kv_obj &obfuscator =
+      config.get().make_map(1, memres).at_unchecked(0);
+  obfuscator.set_key("obfuscator"sv);
+  dnsec::ddwaf_map_obj &regexes = obfuscator.val.make_map(2, memres);
+  regexes.at_unchecked(0).set_key("key_regex"sv).val.make_string(key_regex);
+  regexes.at_unchecked(1).set_key("value_regex"sv).val.make_string(value_regex);
+
+  Diagnostics diags{{}};
+  std::lock_guard guard{builder_mutex_};
+  if (!builder_.add_or_update_config(dnsec::Library::kObfuscatorConfigPath,
+                                     config.get(), diags)) {
+    ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
+                  "failed to configure the WAF obfuscator");
+  }
 }
 
 [[nodiscard]] bool UpdateableWafInstance::add_or_update_config(
@@ -728,32 +757,27 @@ std::optional<ddwaf_owned_map> Library::initialize_security_library(
     return std::nullopt;
   }
 
-  ddwaf_set_log_cb(ddwaf_log,
-                   ngx_log_level_to_ddwaf(ngx_cycle->log->log_level));
-
-  ddwaf_config waf_config = kBaseWafConfig;
-  waf_config.obfuscator.key_regex = conf.obfuscation_key_regex().c_str();
-
-  waf_config.obfuscator.value_regex =
-      conf.appsec_obfuscation_value_regex().c_str();
+  if (!ddwaf_set_log_cb(ddwaf_log,
+                        ngx_log_level_to_ddwaf(ngx_cycle->log->log_level))) {
+    ngx_log_error(NGX_LOG_WARN, ngx_cycle->log, 0,
+                  "failed to set the libddwaf log callback");
+  }
 
   ddwaf_owned_map ruleset = read_ruleset(conf.ruleset_file());
 
   Diagnostics diag{{}};
-  bool res = upd_waf_instance->init(std::move(ruleset), waf_config, diag);
+  bool res =
+      upd_waf_instance->init(std::move(ruleset), conf.obfuscation_key_regex(),
+                             conf.appsec_obfuscation_value_regex(), diag);
   if (!res) {
     throw std::runtime_error{"creation of original WAF handle failed: " +
                              ddwaf_diagnostics_to_str(diag.get())};
   }
 
   if (ngx_cycle->log->log_level >= NGX_LOG_INFO) {
+    const auto *rules = diag.get().get_opt<dnsec::ddwaf_map_obj>("rules"sv);
     std::size_t num_loaded_rules =
-        diag.get()
-            .get_opt<dnsec::ddwaf_map_obj>("rules")
-            .value_or(dnsec::ddwaf_map_obj{})
-            .get_opt<dnsec::ddwaf_arr_obj>("loaded"sv)
-            .value_or(dnsec::ddwaf_arr_obj{})
-            .size();
+        rules ? array_size_or_zero(*rules, "loaded"sv) : 0;
     ngx_str_t source;
     if (auto rsf = conf.ruleset_file()) {
       source = ngx_stringv(*rsf);

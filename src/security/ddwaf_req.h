@@ -44,6 +44,8 @@ class DdwafContext {
   bool report_matches(const std::function<void(std::string_view)>& f);
 
  private:
+  void collect_attributes(ngx_log_t& log, const ddwaf_map_obj& attributes);
+
   struct DdwafContextFreeFunctor {
     void operator()(ddwaf_context ctx) { ddwaf_context_destroy(ctx); }
   };

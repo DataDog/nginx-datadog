@@ -149,8 +149,11 @@ if(NGINX_DATADOG_ASM_ENABLED)
     enable_nginx_datadog_msan(libddwaf_objects)
   endif()
 
-  # get libddwaf version
-  file(READ "./libddwaf/version" LIBDDWAF_VERSION)
+  # get libddwaf version (set by libddwaf/cmake/version.cmake)
+  get_directory_property(LIBDDWAF_VERSION DIRECTORY libddwaf DEFINITION version)
+  if(NOT LIBDDWAF_VERSION)
+    message(FATAL_ERROR "could not determine libddwaf version")
+  endif()
 
   # get rules version
   file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/src/security/recommended.json ASM_RULES REGEX "rules_version")

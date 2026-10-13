@@ -35,6 +35,9 @@ class Library {
 
   static constexpr std::string_view kBundledRuleset =
       "datadog/0/NONE/none/bundled_rule_data";
+  // must not contain /ASM_DD/ (see the bundled ruleset handling)
+  static constexpr std::string_view kObfuscatorConfigPath =
+      "datadog/0/NONE/none/obfuscator";
 
   static std::optional<ddwaf_owned_map> initialize_security_library(
       const datadog_main_conf_t &conf);

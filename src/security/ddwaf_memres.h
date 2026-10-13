@@ -15,6 +15,12 @@ extern "C" {
 
 namespace datadog::nginx::security {
 
+// Types with the layout of a ddwaf_object
+template <typename T>
+concept DdwafObjLike = std::is_standard_layout_v<T> &&
+                           sizeof(T) == sizeof(ddwaf_object) &&
+                       alignof(T) == alignof(ddwaf_object);
+
 class DdwafMemres {
   static inline constexpr std::size_t kMinObjSegSize = 20;
   static inline constexpr std::size_t kMinStrSegSize = 512;
@@ -27,16 +33,8 @@ class DdwafMemres {
   DdwafMemres &operator=(DdwafMemres &&) = default;
   ~DdwafMemres() = default;
 
-  template <typename T = ddwaf_object>
+  template <DdwafObjLike T = ddwaf_object>
   T *allocate_objects(std::size_t num_objects) {
-    // NOLINTNEXTLINE(misc-redundant-expression)
-    static_assert(sizeof(T) == sizeof(ddwaf_object) &&
-                      alignof(T) == alignof(ddwaf_object),
-                  "T must have size and alignment of ddwaf_object");
-    static_assert(std::is_standard_layout<T>::value, "T must be a POD type");
-    static_assert(std::is_base_of<ddwaf_object, T>::value,
-                  "T must be derived from ddwaf_object");
-
     if (num_objects == 0) {
       return nullptr;
     }
@@ -50,6 +48,21 @@ class DdwafMemres {
     objects_stored_ += num_objects;
     // keep braces, some code depends on this being zero-initialized:
     return new (p) T[num_objects]{};  // NOLINT(cppcoreguidelines-owning-memory)
+  }
+
+  // A map entry (key + value) takes the space of two objects.
+  template <typename KV>
+  KV *allocate_kvs(std::size_t num_entries) {
+    static_assert(std::is_standard_layout_v<KV> &&
+                      sizeof(KV) == 2 * sizeof(ddwaf_object) &&
+                      alignof(KV) == alignof(ddwaf_object),
+                  "KV must have the layout of two ddwaf_objects");
+    if (num_entries == 0) {
+      return nullptr;
+    }
+    ddwaf_object *p = allocate_objects<ddwaf_object>(2 * num_entries);
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    return new (p) KV[num_entries]{};
   }
 
   char *allocate_string(size_t len) {
@@ -100,8 +113,7 @@ class DdwafMemres {
  * A pool of ddwaf object vectors of sizes in powers in two. Used when the
  * sizes of arrays or maps are not known in advance.
  */
-template <typename DdwafObjType>
-requires std::is_base_of_v<ddwaf_object, DdwafObjType>
+template <DdwafObjLike DdwafObjType>
 class DdwafObjArrPool {
  public:
   DdwafObjArrPool(DdwafMemres &memres) : memres_{memres} {}

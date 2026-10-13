@@ -1681,13 +1681,14 @@ ngx_int_t Context::do_output_body_filter(ngx_http_request_t &request,
 
 std::optional<BlockSpecification> Context::run_waf_req_post(
     ngx_http_request_t &request, dd::Span &span) {
-  ddwaf_obj input;
-  ddwaf_map_obj &input_map = input.make_map(1, memres_);
-  ddwaf_obj &entry = input_map.at_unchecked(0);
+  // libddwaf borrows the input until the context is destroyed
+  ddwaf_obj *input = memres_.allocate_objects<ddwaf_obj>(1);
+  ddwaf_kv_obj &entry = input->make_map(1, memres_).at_unchecked(0);
   entry.set_key("server.request.body"sv);
 
-  bool success = parse_body_req(entry, request, *filter_ctx_.out,
-                                filter_ctx_.out_total, memres_);
+  WafInputBudget budget;
+  bool success = parse_body_req(entry.val, request, *filter_ctx_.out,
+                                filter_ctx_.out_total, budget, memres_);
 
   if (!success) {
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,
@@ -1696,7 +1697,7 @@ std::optional<BlockSpecification> Context::run_waf_req_post(
   }
 
   auto &&log = *request.connection->log;
-  auto [_, block_spec] = waf_ctx_->run(log, input);
+  auto [_, block_spec] = waf_ctx_->run(log, input->raw());
   return block_spec;
 }
 
