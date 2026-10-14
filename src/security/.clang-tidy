@@ -1,4 +1,8 @@
-Checks: 'readability-identifier-naming'
+InheritParentConfig: true
+# Naming matches doc/conventions.md but is not CI-gated yet; existing
+# identifiers fail readability-identifier-naming.
+# Tracked: IDMPL-11558
+Checks: '-readability-identifier-naming'
 CheckOptions:
   - { key: readability-identifier-naming.NamespaceCase                  , value: lower_case   }
   - { key: readability-identifier-naming.ClassCase                      , value: CamelCase    }

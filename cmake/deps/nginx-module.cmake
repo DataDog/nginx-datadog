@@ -73,6 +73,8 @@ add_custom_command(
   COMMENT "Configuring nginx")
 
 target_sources(nginx_module PRIVATE ${module_file})
+# ./configure also writes objs/ngx_auto_config.h; lint only needs that.
+add_custom_target(nginx_headers DEPENDS ${module_file})
 
 target_include_directories(nginx_module
   SYSTEM
