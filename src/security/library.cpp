@@ -350,7 +350,7 @@ class UpdateableWafInstance {
 }
 
 [[nodiscard]] bool UpdateableWafInstance::update(Diagnostics &diags) {
-  std::lock_guard builder_mut_guard{builder_mutex_};
+  std::lock_guard builder_mutex_guard{builder_mutex_};
 
   if (builder_.count_config_paths("/ASM_DD/"sv) == 0) {
     // need to add bundled_data first
