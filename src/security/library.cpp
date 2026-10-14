@@ -303,7 +303,7 @@ class UpdateableWafInstance {
     return builder_.count_config_paths(dnsec::Library::kBundledRuleset) > 0;
   }
 
-  std::mutex builder_mut_;
+  std::mutex builder_mutex_;
   OwnedDdwafBuilder builder_;
   dnsec::ddwaf_owned_map default_ruleset_;
 
@@ -334,7 +334,7 @@ class UpdateableWafInstance {
 [[nodiscard]] bool UpdateableWafInstance::add_or_update_config(
     std::string_view path, const dnsec::ddwaf_map_obj &ruleset,
     Diagnostics &diagnostics) {
-  std::lock_guard guard{builder_mut_};
+  std::lock_guard guard{builder_mutex_};
 
   if (has_bundled_data() && path.find("/ASM_DD/"sv) != std::string_view::npos) {
     // need to remove bundled_data first
@@ -345,12 +345,12 @@ class UpdateableWafInstance {
 }
 
 [[nodiscard]] bool UpdateableWafInstance::remove_config(std::string_view path) {
-  std::lock_guard guard{builder_mut_};
+  std::lock_guard guard{builder_mutex_};
   return builder_.remove_config(path);
 }
 
 [[nodiscard]] bool UpdateableWafInstance::update(Diagnostics &diags) {
-  std::lock_guard builder_mut_guard{builder_mut_};
+  std::lock_guard builder_mut_guard{builder_mutex_};
 
   if (builder_.count_config_paths("/ASM_DD/"sv) == 0) {
     // need to add bundled_data first
