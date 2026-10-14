@@ -284,7 +284,8 @@ class UpdateableWafInstance {
             Diagnostics &diagnostics);
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle() {
-    return std::atomic_load_explicit(&cur_handle_, std::memory_order_acquire);
+    std::lock_guard guard{cur_handle_mutex_};
+    return cur_handle_;
   }
 
   [[nodiscard]] bool add_or_update_config(std::string_view path,
@@ -307,6 +308,7 @@ class UpdateableWafInstance {
   dnsec::ddwaf_owned_map default_ruleset_;
 
   std::shared_ptr<dnsec::OwnedDdwafHandle> cur_handle_;
+  std::mutex cur_handle_mutex_;
 };
 
 [[nodiscard]] bool UpdateableWafInstance::init(
@@ -348,7 +350,7 @@ class UpdateableWafInstance {
 }
 
 [[nodiscard]] bool UpdateableWafInstance::update(Diagnostics &diags) {
-  std::lock_guard guard{builder_mut_};
+  std::lock_guard builder_mut_guard{builder_mut_};
 
   if (builder_.count_config_paths("/ASM_DD/"sv) == 0) {
     // need to add bundled_data first
@@ -363,9 +365,10 @@ class UpdateableWafInstance {
     return false;
   }
 
-  std::shared_ptr<dnsec::OwnedDdwafHandle> new_sp =
+  std::shared_ptr<dnsec::OwnedDdwafHandle> new_handle =
       std::make_shared<dnsec::OwnedDdwafHandle>(new_instance);
-  std::atomic_store_explicit(&cur_handle_, new_sp, std::memory_order::release);
+  std::lock_guard cur_handle_mutex_guard{cur_handle_mutex_};
+  cur_handle_.swap(new_handle);
 
   return true;
 }
