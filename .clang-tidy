@@ -1,6 +1,6 @@
 # Shared clang-tidy baseline for dd-trace-cpp, httpd-datadog, and nginx-datadog.
 # Keep this file in sync across those repositories.
-# Removed in this instance: -clang-diagnostic-deprecated-declarations
+# Local divergence: clang-diagnostic-deprecated-declarations is enabled here.
 Checks: >
   -*,
   bugprone-assert-side-effect,
