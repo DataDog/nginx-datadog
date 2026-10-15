@@ -32,7 +32,8 @@ std::optional<ddwaf_obj> parse(
   }
   test::ManagedChain chain{parts};
   dnsec::WafInputBudget budget{budget_limit};
-  bool success = parse_multipart(slot, req, *ct, chain, budget, memres);
+  bool success =
+      parse_multipart(slot, req, *ct, chain, chain.size(), budget, memres);
 
   if (!success) {
     return std::nullopt;

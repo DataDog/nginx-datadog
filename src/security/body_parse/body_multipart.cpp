@@ -134,7 +134,8 @@ namespace datadog::nginx::security {
 
 bool parse_multipart(ddwaf_obj &slot, const ngx_http_request_t &req,
                      HttpContentType &ct, const ngx_chain_t &chain,
-                     WafInputBudget &budget, DdwafMemres &memres) {
+                     std::size_t size, WafInputBudget &budget,
+                     DdwafMemres &memres) {
   if (ct.boundary.size() == 0) {
     ngx_log_error(NGX_LOG_NOTICE, req.connection->log, 0,
                   "multipart boundary is invalid: %s", ct.boundary.c_str());
@@ -142,7 +143,7 @@ bool parse_multipart(ddwaf_obj &slot, const ngx_http_request_t &req,
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,
                   "multipart boundary: %s", ct.boundary.c_str());
   }
-  NgxChainInputStream stream{&chain};
+  NgxChainInputStream stream{&chain, size};
 
   auto consume_line = bind_consume_line(ct);
 

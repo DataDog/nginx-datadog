@@ -1686,9 +1686,11 @@ std::optional<BlockSpecification> Context::run_waf_req_post(
   ddwaf_kv_obj &entry = input->make_map(1, memres_).at_unchecked(0);
   entry.set_key("server.request.body"sv);
 
+  // the last chunk may take us well past kMaxFilterData
+  std::size_t const body_size = std::min(filter_ctx_.out_total, kMaxFilterData);
   WafInputBudget budget;
-  bool success = parse_body_req(entry.val, request, *filter_ctx_.out,
-                                filter_ctx_.out_total, budget, memres_);
+  bool success = parse_body_req(entry.val, request, *filter_ctx_.out, body_size,
+                                budget, memres_);
 
   if (!success) {
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, request.connection->log, 0,

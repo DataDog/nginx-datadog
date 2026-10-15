@@ -214,7 +214,7 @@ bool parse_body_req(ddwaf_obj &slot, const ngx_http_request_t &req,
       return false;
     }
 
-    return parse_multipart(slot, req, *ct, chain, budget, memres);
+    return parse_multipart(slot, req, *ct, chain, size, budget, memres);
   }
 
   if (is_req_text_plain(req)) {

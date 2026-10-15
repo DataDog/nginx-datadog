@@ -13,6 +13,7 @@ namespace datadog::nginx::security {
 
 bool parse_multipart(ddwaf_obj &slot, const ngx_http_request_t &req,
                      HttpContentType &ct, const ngx_chain_t &chain,
-                     WafInputBudget &budget, DdwafMemres &memres);
+                     std::size_t size, WafInputBudget &budget,
+                     DdwafMemres &memres);
 
 }  // namespace datadog::nginx::security
