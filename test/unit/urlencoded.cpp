@@ -13,8 +13,9 @@ using dnsec::ddwaf_obj;
 using namespace std::literals::string_view_literals;
 
 namespace {
-std::optional<ddwaf_obj> parse(std::vector<std::string_view> parts,
-                               dnsec::DdwafMemres &memres) {
+std::optional<ddwaf_obj> parse(
+    std::vector<std::string_view> parts, dnsec::DdwafMemres &memres,
+    std::size_t budget_limit = dnsec::WafInputBudget::kDefaultLimit) {
   static ngx_log_t log{};
   static ngx_connection_t empty_conn{.log = &log};
   static ngx_table_elt_t content_type = {
@@ -24,8 +25,9 @@ std::optional<ddwaf_obj> parse(std::vector<std::string_view> parts,
   ddwaf_obj slot;
 
   test::ManagedChain chain{parts};
-  bool success = datadog::nginx::security::parse_body_req(slot, req, chain,
-                                                          chain.size(), memres);
+  dnsec::WafInputBudget budget{budget_limit};
+  bool success = datadog::nginx::security::parse_body_req(
+      slot, req, chain, chain.size(), budget, memres);
 
   if (!success) {
     return std::nullopt;
@@ -138,4 +140,58 @@ TEST_CASE("empty key", "[urlencoded]") {
   REQUIRE(maybe_value);
   REQUIRE(maybe_value->is_string());
   CHECK(maybe_value->string_val_unchecked() == "value");
+}
+
+TEST_CASE("urlencoded keys keep the input order", "[urlencoded]") {
+  std::vector parts = {"b=1&a=2&b=3"sv};
+  dnsec::DdwafMemres memres;
+  auto slot = parse(parts, memres);
+
+  REQUIRE((slot && slot->is_map()));
+  dnsec::ddwaf_map_obj map{*slot};
+  REQUIRE(map.size() == 2);
+  CHECK(map.at_unchecked(0).key() == "b");
+  CHECK(map.at_unchecked(1).key() == "a");
+}
+
+TEST_CASE("urlencoded budget", "[urlencoded]") {
+  // costs: map 4; "a" 5; array 4; "1" 5; "3" 5; "b" 5; "2" 3 (31 in total)
+  std::vector parts = {"a=1&b=2&a=3"sv};
+
+  SECTION("everything fits") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 31);
+    REQUIRE((slot && slot->is_map()));
+    CHECK(dnsec::ddwaf_map_obj{*slot}.size() == 2);
+  }
+
+  SECTION("no room for a key") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 26);
+    REQUIRE((slot && slot->is_map()));
+    dnsec::ddwaf_map_obj map{*slot};
+    REQUIRE(map.size() == 1);
+    CHECK(map.get<dnsec::ddwaf_arr_obj>("a").size() == 2);
+  }
+
+  SECTION("no room for the value: the key is kept") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 29);
+    REQUIRE((slot && slot->is_map()));
+    dnsec::ddwaf_map_obj map{*slot};
+    REQUIRE(map.size() == 2);
+    CHECK(map.at_unchecked(1).key() == "b");
+    CHECK(map.at_unchecked(1).val.o.type == DDWAF_OBJ_INVALID);
+  }
+
+  SECTION("array elements are dropped") {
+    dnsec::DdwafMemres memres;
+    auto slot = parse(parts, memres, 18);
+    REQUIRE((slot && slot->is_map()));
+    dnsec::ddwaf_map_obj map{*slot};
+    REQUIRE(map.size() == 1);
+    auto &arr = map.get<dnsec::ddwaf_arr_obj>("a");
+    REQUIRE(arr.size() == 1);
+    CHECK(arr.at_unchecked(0).string_val_unchecked() == "1");
+  }
 }

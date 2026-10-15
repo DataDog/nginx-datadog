@@ -1,11 +1,14 @@
 #include "body_multipart.h"
 
+#include <algorithm>
 #include <map>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "../ddwaf_memres.h"
 #include "../ddwaf_obj.h"
+#include "body_parsing.h"
 #include "chain_is.h"
 #include "header.h"
 
@@ -109,27 +112,12 @@ auto bind_consume_line(dnsec::HttpContentType &ct) {
   };
 }
 
-struct Buf {
-  dnsec::ddwaf_obj *ptr;
-  std::size_t len;
-  std::size_t cap;
-
-  void extend(dnsec::DdwafObjArrPool<dnsec::ddwaf_obj> &pool) {
-    std::size_t new_cap = cap * 2;
-    if (new_cap == 0) {
-      new_cap = 1;
-    }
-    ptr = pool.realloc(ptr, cap, new_cap);
-    cap = new_cap;
-  }
-
-  dnsec::ddwaf_obj &new_slot(dnsec::DdwafObjArrPool<dnsec::ddwaf_obj> &pool) {
-    if (len == cap) {
-      extend(pool);
-    }
-    return ptr[len++];
-  }
-};
+// Copies str into memres, so it lives as long as the request
+std::string_view copy_string(std::string_view str, dnsec::DdwafMemres &memres) {
+  char *copy = memres.allocate_string(str.size());
+  std::copy(str.begin(), str.end(), copy);
+  return {copy, str.size()};
+}
 
 void remove_final_crlf(std::string &content) {
   // support also terminations with plain LF instead of CRLF
@@ -146,7 +134,7 @@ namespace datadog::nginx::security {
 
 bool parse_multipart(ddwaf_obj &slot, const ngx_http_request_t &req,
                      HttpContentType &ct, const ngx_chain_t &chain,
-                     DdwafMemres &memres) {
+                     WafInputBudget &budget, DdwafMemres &memres) {
   if (ct.boundary.size() == 0) {
     ngx_log_error(NGX_LOG_NOTICE, req.connection->log, 0,
                   "multipart boundary is invalid: %s", ct.boundary.c_str());
@@ -176,8 +164,8 @@ bool parse_multipart(ddwaf_obj &slot, const ngx_http_request_t &req,
     return false;
   }
 
-  DdwafObjArrPool<ddwaf_obj> pool{memres};
-  std::map<std::string, Buf> data;
+  // values by part name; the values are already copied to memres
+  std::map<std::string, std::vector<std::string_view>> data;
 
 start_part:
   // headers after the previous boundary
@@ -218,9 +206,7 @@ start_part:
       }
 
       if (cd) {
-        auto &buf = data[cd->name];
-        buf.new_slot(pool).make_string({content.data(), content.size()},
-                                       memres);
+        data[cd->name].push_back(copy_string(content, memres));
       }
 
       if (line_type == LineType::BOUNDARY && !stream.eof()) {
@@ -235,20 +221,13 @@ start_part:
     return false;
   }
 
-  auto &map = slot.make_map(data.size(), memres);
-  std::size_t i = 0;
-  for (auto &[key, buf] : data) {
-    auto &map_slot = map.at_unchecked(i++);
-    map_slot.set_key(key, memres);
-    if (buf.len == 1) {
-      // if only one element, put the string directly under that key
-      map_slot.shallow_copy_val_from(buf.ptr[0]);
-    } else {
-      map_slot.make_array(buf.ptr, buf.len);
-    }
+  std::vector<KeyValues> groups;
+  groups.reserve(data.size());
+  for (auto &[name, values] : data) {
+    groups.push_back({copy_string(name, memres), std::move(values)});
   }
 
-  return true;
+  return make_grouped_map(slot, groups, budget, memres);
 }
 
 }  // namespace datadog::nginx::security

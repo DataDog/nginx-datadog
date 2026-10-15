@@ -328,8 +328,9 @@ class Context {
     return stage_->compare_exchange_strong(from, to, std::memory_order_acq_rel);
   }
 
-  std::unique_ptr<DdwafContext> waf_ctx_;
+  // memres_ must outlive waf_ctx_: libddwaf borrows the input
   DdwafMemres memres_;
+  std::unique_ptr<DdwafContext> waf_ctx_;
   std::optional<std::string> client_ip_;
 
   // max request or response body data we parse

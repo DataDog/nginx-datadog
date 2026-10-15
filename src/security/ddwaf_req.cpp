@@ -44,49 +44,57 @@ class JsonWriter : public rapidjson::Writer<rapidjson::StringBuffer> {
 };
 
 void ddwaf_object_to_json(JsonWriter &w, const ddwaf_object &dobj);
+void ddwaf_map_to_json(JsonWriter &w, const dnsec::ddwaf_map_obj &map);
+void ddwaf_array_to_json(JsonWriter &w, const dnsec::ddwaf_arr_obj &arr);
 
 // NOLINTNEXTLINE(misc-no-recursion)
 void ddwaf_object_to_json(JsonWriter &w, const ddwaf_object &dobj) {
-  switch (dobj.type) {
-    case DDWAF_OBJ_MAP:
-      w.StartObject();
-      for (std::size_t i = 0; i < dobj.nbEntries; i++) {
-        auto &&e = dobj.array[i];
-        w.Key(e.parameterName, e.parameterNameLength, false);
-        ddwaf_object_to_json(w, e);
-      }
-      w.EndObject(dobj.nbEntries);
-      break;
-    case DDWAF_OBJ_ARRAY:
-      w.StartArray();
-      for (std::size_t i = 0; i < dobj.nbEntries; i++) {
-        auto &&e = dobj.array[i];
-        ddwaf_object_to_json(w, e);
-      }
-      w.EndArray(dobj.nbEntries);
-      break;
-    case DDWAF_OBJ_STRING:
-      w.String(dobj.stringValue, dobj.nbEntries, false);
-      break;
-    case DDWAF_OBJ_SIGNED:
-      w.Int64(dobj.intValue);
-      break;
-    case DDWAF_OBJ_UNSIGNED:
-      w.Uint64(dobj.uintValue);
-      break;
-    case DDWAF_OBJ_FLOAT:
-      w.Double(dobj.f64);
-      break;
-    case DDWAF_OBJ_BOOL:
-      w.Bool(dobj.boolean);
-      break;
-    case DDWAF_OBJ_INVALID:
-    case DDWAF_OBJ_NULL:
-      w.Null();
-      break;
+  const ddwaf_obj &obj = ddwaf_obj::from(dobj);
+  if (obj.is_map()) {
+    ddwaf_map_to_json(w, ddwaf_obj::cast_unchecked<dnsec::ddwaf_map_obj>(obj));
+  } else if (obj.is_array()) {
+    ddwaf_array_to_json(w,
+                        ddwaf_obj::cast_unchecked<dnsec::ddwaf_arr_obj>(obj));
+  } else if (obj.is_string()) {
+    std::string_view const sv = obj.string_val_unchecked();
+    // rapidjson asserts on a null pointer
+    w.String(sv.data() != nullptr ? sv.data() : "", sv.size(), false);
+  } else if (dobj.type == DDWAF_OBJ_SIGNED) {
+    w.Int64(dobj.via.i64.val);
+  } else if (dobj.type == DDWAF_OBJ_UNSIGNED) {
+    w.Uint64(dobj.via.u64.val);
+  } else if (dobj.type == DDWAF_OBJ_FLOAT) {
+    w.Double(dobj.via.f64.val);
+  } else if (dobj.type == DDWAF_OBJ_BOOL) {
+    w.Bool(dobj.via.b8.val);
+  } else {
+    // invalid, null or unknown
+    w.Null();
   }
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
+void ddwaf_map_to_json(JsonWriter &w, const dnsec::ddwaf_map_obj &map) {
+  w.StartObject();
+  for (const dnsec::ddwaf_kv_obj &entry : map) {
+    std::string_view const key = entry.key();
+    w.Key(key.data() != nullptr ? key.data() : "", key.size(), false);
+    ddwaf_object_to_json(w, entry.val.raw());
+  }
+  w.EndObject(map.size());
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+void ddwaf_array_to_json(JsonWriter &w, const dnsec::ddwaf_arr_obj &arr) {
+  w.StartArray();
+  for (const ddwaf_obj &elem : arr) {
+    ddwaf_object_to_json(w, elem.raw());
+  }
+  w.EndArray(arr.size());
+}
+
+// Holds references into the WAF result. Never copy values out of it: small
+// strings live inside the object.
 class Action {
  public:
   enum class type : unsigned char {
@@ -97,7 +105,7 @@ class Action {
     UNKNOWN,
   };
 
-  Action(dnsec::ddwaf_map_obj action) : action_{action} {}
+  explicit Action(const dnsec::ddwaf_kv_obj &action) : action_{action} {}
 
   auto type() const {
     auto key = action_.key();
@@ -117,7 +125,7 @@ class Action {
   auto raw_type() const { return action_.key(); }
 
   int get_int_param(std::string_view k) const {
-    ddwaf_obj v = action_.get(k);
+    const ddwaf_obj &v = params().get(k);
 
     if (v.is_numeric()) {
       return v.numeric_val<int>();
@@ -140,7 +148,7 @@ class Action {
   }
 
   std::string_view get_string_param(std::string_view k) const {
-    ddwaf_obj v = action_.get(k);
+    const ddwaf_obj &v = params().get(k);
 
     if (v.is_string()) {
       return v.string_val_unchecked();
@@ -151,46 +159,12 @@ class Action {
   }
 
  private:
-  ddwaf_map_obj action_;
-};
-
-class ActionsResult {
- public:
-  ActionsResult(ddwaf_map_obj actions) : actions_{actions} {}
-
-  class Iterator {
-   public:
-    using difference_type = ddwaf_obj::nb_entries_t;      // NOLINT
-    using value_type = Action;                            // NOLINT
-    using pointer = value_type *;                         // NOLINT
-    using reference = value_type &;                       // NOLINT
-    using iterator_category = std::forward_iterator_tag;  // NOLINT
-
-    Iterator(ddwaf_map_obj actions, ddwaf_obj::nb_entries_t i)
-        : actions_{actions}, i_{i} {}
-    Iterator &operator++() {
-      ++i_;
-      return *this;
-    }
-
-    bool operator!=(const Iterator &other) const { return i_ != other.i_; }
-
-    Action operator*() const {
-      return Action{actions_.at_unchecked<ddwaf_map_obj>(i_)};
-    }
-
-   private:
-    ddwaf_map_obj actions_;
-    ddwaf_obj::nb_entries_t i_;
-  };
-
-  Iterator begin() const { return Iterator{ddwaf_map_obj{actions_}, 0}; }
-  Iterator end() const {
-    return Iterator{ddwaf_map_obj{actions_}, actions_.size()};
+  const ddwaf_map_obj &params() const {
+    return ddwaf_obj::cast<ddwaf_map_obj>(action_.val);
   }
 
- private:
-  ddwaf_map_obj actions_;
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+  const dnsec::ddwaf_kv_obj &action_;
 };
 
 BlockSpecification create_block_request_action(const Action &action) {
@@ -219,8 +193,9 @@ BlockSpecification create_redirect_request_action(const Action &action) {
 }
 
 std::optional<BlockSpecification> resolve_block_spec(
-    const ActionsResult &actions) {
-  for (Action act : actions) {
+    const ddwaf_map_obj &actions) {
+  for (const dnsec::ddwaf_kv_obj &entry : actions) {
+    Action const act{entry};
     auto type = act.type();
 
     if (type == Action::type::UNKNOWN) {
@@ -253,10 +228,10 @@ constexpr int kMaxPlainSchemaAllowed = 260;
 constexpr int kMaxSchemaSize = 25000;
 
 template <typename Func>
-bool handle_schema(ngx_log_t &log, const ddwaf_obj &obj, Func &&f) {
-  ngx_str_t key = to_ngx_str(obj.key());
+bool handle_schema(ngx_log_t &log, const ddwaf_kv_obj &attr, Func &&f) {
+  ngx_str_t key = to_ngx_str(attr.key());
 
-  if (!obj.key().starts_with("_dd.appsec.s."sv)) {
+  if (!attr.key().starts_with("_dd.appsec.s."sv)) {
     return false;
   }
 
@@ -265,7 +240,7 @@ bool handle_schema(ngx_log_t &log, const ddwaf_obj &obj, Func &&f) {
 
   rapidjson::StringBuffer buffer;
   JsonWriter w(buffer);
-  ddwaf_object_to_json(w, obj);
+  ddwaf_object_to_json(w, attr.val.raw());
 
   std::string_view json = {buffer.GetString(), buffer.GetLength()};
   std::string b64;
@@ -301,11 +276,12 @@ bool handle_schema(ngx_log_t &log, const ddwaf_obj &obj, Func &&f) {
 }
 
 template <typename Func>
-void handle_non_schema_attribute(ngx_log_t &log, const ddwaf_obj &obj,
+void handle_non_schema_attribute(ngx_log_t &log, const ddwaf_kv_obj &attr,
                                  Func &&f) {
-  ngx_str_t key = to_ngx_str(obj.key());
+  ngx_str_t key = to_ngx_str(attr.key());
+  const ddwaf_obj &obj = attr.val;
 
-  if (obj.key().starts_with("_dd.appsec.s."sv)) {
+  if (attr.key().starts_with("_dd.appsec.s."sv)) {
     return;
   }
 
@@ -336,27 +312,35 @@ DdwafContext::DdwafContext(std::shared_ptr<OwnedDdwafHandle> &handle)
   }
 
   ddwaf_handle ddwaf_h = handle->get();
-  ctx_ = ddwaf_context_init(ddwaf_h);
+  ctx_ = ddwaf_context_init(ddwaf_h, ddwaf_get_default_allocator());
   if (!ctx_.resource) {
     throw std::runtime_error{"failed to initialize WAF context"};
   }
 }
 
 DdwafContext::WafRunResult DdwafContext::run(ngx_log_t &log,
-                                             ddwaf_object &persistent_data) {
-  LibddwafOwnedMap result{{}};
+                                             ddwaf_obj &persistent_data) {
+  // The input is borrowed (null allocator): libddwaf never frees it.
+  LibddwafOwnedMap result;
   DDWAF_RET_CODE const code =
-      ddwaf_run(ctx_.resource, &persistent_data, nullptr, &result,
-                Library::waf_timeout());
+      ddwaf_context_eval(ctx_.resource, &persistent_data.raw(), nullptr,
+                         &result.o, Library::waf_timeout());
 
   WafRunResult waf_result;
   waf_result.ret_code = code;
 
-  LibddwafOwnedMap &iresult = results_.emplace_back(std::move(result));
+  if (code < 0 || !result.is_map()) {
+    ngx_log_error(NGX_LOG_ERR, &log, 0, "libddwaf evaluation failed: %d",
+                  static_cast<int>(code));
+    return waf_result;
+  }
 
-  std::optional<ddwaf_obj> maybe_keep = iresult.get_opt<ddwaf_obj>("keep"sv);
+  // moving the map header is safe: its entries are on the heap
+  const LibddwafOwnedMap &iresult = results_.emplace_back(std::move(result));
+
+  const ddwaf_obj *maybe_keep = iresult.get_opt<ddwaf_obj>("keep"sv);
   if (maybe_keep && maybe_keep->is_bool()) {
-    keep_ |= ddwaf_bool_obj{*maybe_keep};
+    keep_ |= static_cast<bool>(ddwaf_obj::cast<ddwaf_bool_obj>(*maybe_keep));
   } else {
     // should not happen
     ngx_log_error(NGX_LOG_INFO, &log, 0,
@@ -364,43 +348,43 @@ DdwafContext::WafRunResult DdwafContext::run(ngx_log_t &log,
     keep_ = (code == DDWAF_MATCH);
   }
 
-  std::optional<ddwaf_map_obj> maybe_attributes =
-      iresult.get_opt<ddwaf_map_obj>("attributes"sv);
-  if (maybe_attributes) {
-    ddwaf_map_obj &attributes = *maybe_attributes;
-    for (auto &&a : attributes) {
-      bool is_schema = handle_schema(log, a, [&a, this](std::string_view json) {
-        collected_tags_.emplace(a.key(), json);
-      });
-      if (!is_schema) {
-        handle_non_schema_attribute(
-            log, a, [&a, this](std::variant<std::string_view, double> v) {
-              if (std::holds_alternative<std::string_view>(v)) {
-                collected_tags_.emplace(a.key(), std::get<std::string_view>(v));
-              } else {
-                collected_metrics_.emplace(a.key(), std::get<double>(v));
-              }
-            });
-      }
-    }
+  if (const auto *attributes = iresult.get_opt<ddwaf_map_obj>("attributes"sv)) {
+    collect_attributes(log, *attributes);
   }
 
   if (code == DDWAF_MATCH) {
-    std::optional<ddwaf_map_obj> actions_arr{
-        iresult.get_opt<ddwaf_map_obj>("actions"sv)};
-    if (actions_arr) {
-      ActionsResult actions_res{*actions_arr};
-      waf_result.block_spec = resolve_block_spec(actions_res);
+    if (const auto *actions = iresult.get_opt<ddwaf_map_obj>("actions"sv)) {
+      waf_result.block_spec = resolve_block_spec(*actions);
     }
   }
 
   return waf_result;
 }
 
+// string_views point into results_
+void DdwafContext::collect_attributes(ngx_log_t &log,
+                                      const ddwaf_map_obj &attributes) {
+  for (const ddwaf_kv_obj &a : attributes) {
+    bool is_schema = handle_schema(log, a, [&a, this](std::string_view json) {
+      collected_tags_.emplace(a.key(), json);
+    });
+    if (is_schema) {
+      continue;
+    }
+    handle_non_schema_attribute(
+        log, a, [&a, this](std::variant<std::string_view, double> v) {
+          if (std::holds_alternative<std::string_view>(v)) {
+            collected_tags_.emplace(a.key(), std::get<std::string_view>(v));
+          } else {
+            collected_metrics_.emplace(a.key(), std::get<double>(v));
+          }
+        });
+  }
+}
+
 bool DdwafContext::has_matches() const {
   for (const libddwaf_owned_ddwaf_obj<ddwaf_map_obj> &result : results_) {
-    std::optional<ddwaf_arr_obj> maybe_events =
-        result.get_opt<ddwaf_arr_obj>("events");
+    const ddwaf_arr_obj *maybe_events = result.get_opt<ddwaf_arr_obj>("events");
     if (maybe_events && maybe_events->size() > 0) {
       return true;
     }
@@ -414,17 +398,16 @@ bool DdwafContext::report_matches(
     return false;
   }
 
-  std::vector<ddwaf_arr_obj> events_arrs;
+  std::vector<const ddwaf_arr_obj *> events_arrs;
   for (LibddwafOwnedMap &result : results_) {
-    std::optional<ddwaf_arr_obj> maybe_events =
-        result.get_opt<ddwaf_arr_obj>("events");
+    const ddwaf_arr_obj *maybe_events = result.get_opt<ddwaf_arr_obj>("events");
     if (!maybe_events) {
       continue;
     }
     if (maybe_events->size() == 0) {
       continue;
     }
-    events_arrs.push_back(*maybe_events);
+    events_arrs.push_back(maybe_events);
   }
 
   if (events_arrs.empty()) {
@@ -437,9 +420,9 @@ bool DdwafContext::report_matches(
   w.ConstLiteralKey("triggers"sv);
 
   w.StartArray();
-  for (const ddwaf_arr_obj &events : events_arrs) {
-    for (auto &&evt : events) {
-      ddwaf_object_to_json(w, evt);
+  for (const ddwaf_arr_obj *events : events_arrs) {
+    for (const ddwaf_obj &evt : *events) {
+      ddwaf_object_to_json(w, evt.raw());
     }
   }
   w.EndArray(results_.size());
