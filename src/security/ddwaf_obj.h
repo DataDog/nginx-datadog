@@ -372,7 +372,20 @@ struct __attribute__((__may_alias__)) ddwaf_arr_obj : ddwaf_obj {
   }
 
   std::size_t size() const { return size_unchecked(); }
-  void set_size(std::size_t size) { set_size_unchecked(size); }
+
+  // Keeps the capacity, so append() can fill the array again.
+  void clear() noexcept { set_size_unchecked(0); }
+
+  // Grows the array by one, within its capacity, and returns the new slot.
+  // Throws if the array is full.
+  ddwaf_obj &append() {
+    std::size_t const index = size();
+    if (index >= capacity_unchecked()) {
+      throw std::length_error("ddwaf array is full");
+    }
+    set_size_unchecked(index + 1);
+    return at_unchecked(index);
+  }
 
   bool empty() const { return size() == 0; }
 
@@ -433,7 +446,6 @@ struct __attribute__((__may_alias__)) ddwaf_map_obj : ddwaf_obj {
   ddwaf_kv_obj &at_unchecked(std::size_t index) const { return begin()[index]; }
 
   std::size_t size() const { return size_unchecked(); }
-  void set_size(std::size_t size) { set_size_unchecked(size); }
 
   bool empty() const { return size() == 0; }
 

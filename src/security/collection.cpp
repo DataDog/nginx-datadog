@@ -162,21 +162,19 @@ class ReqSerializer {
 
         entry.set_key(key);
         auto &arr_val = entry.val.make_array(num_occurr, memres_);
-        arr_val.set_size(0);
+        arr_val.clear();
         indexed_entries.insert({key, &arr_val});
 
         if (!it.is_delete()) {
-          arr_val.at_unchecked(0).make_string(value);
-          arr_val.set_size(1);
+          arr_val.append().make_string(value);
         }
       } else {
         // subsequent occurrence of this key
         auto &arr_val = *ie->second;
         if (!it.is_delete()) {
-          arr_val.at_unchecked(arr_val.size()).make_string(value);
-          arr_val.set_size(arr_val.size() + 1);
+          arr_val.append().make_string(value);
         } else {
-          arr_val.set_size(0);
+          arr_val.clear();
         }
       }
     }

@@ -171,15 +171,14 @@ bool make_grouped_map(ddwaf_obj &slot, std::span<const KeyValues> groups,
         break;
       }
       ddwaf_arr_obj &arr = entry.val.make_array(group.values.size(), memres);
-      arr.set_size(0);
+      arr.clear();
       for (std::string_view value : group.values) {
         std::optional<std::string_view> kept_value =
             budget.charge_string(value, true);
         if (!kept_value) {
           break;
         }
-        arr.at_unchecked(arr.size()).make_string(*kept_value);
-        arr.set_size(arr.size() + 1);
+        arr.append().make_string(*kept_value);
       }
     }
     kept++;

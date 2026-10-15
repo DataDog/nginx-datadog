@@ -1,6 +1,7 @@
 #include <security/ddwaf_obj.h>
 
 #include <catch2/catch_test_macros.hpp>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -52,6 +53,25 @@ TEST_CASE("containers over 65535 elements are large", "[ddwaf_obj]") {
   ddwaf_map_obj &map = map_obj.make_map(70000, memres);
   CHECK(map_obj.o.type == DDWAF_OBJ_LARGE_MAP);
   CHECK(map.size() == 70000);
+}
+
+TEST_CASE("append fills an array up to its capacity", "[ddwaf_obj]") {
+  dnsec::DdwafMemres memres;
+  ddwaf_obj obj;
+  ddwaf_arr_obj &arr = obj.make_array(2, memres);
+  arr.clear();
+
+  arr.append().make_number(1);
+  arr.append().make_number(2);
+  CHECK(arr.size() == 2);
+  CHECK(arr.at(1).numeric_val<int>() == 2);
+  CHECK_THROWS_AS(arr.append(), std::length_error);
+  CHECK(arr.size() == 2);
+
+  arr.clear();
+  CHECK(arr.empty());
+  arr.append().make_number(3);
+  CHECK(arr.at(0).numeric_val<int>() == 3);
 }
 
 TEST_CASE("numeric_val<double> accepts zero and negative values",
