@@ -33,6 +33,9 @@ extern "C" {
 #include <ngx_http.h>
 #include <ngx_http_core_module.h>
 #include <ngx_http_request.h>
+#if __has_include(<ngx_http_priority.h>)  // Requirement added in Nginx 1.31.7
+#include <ngx_http_priority.h>
+#endif
 #include <ngx_http_v2.h>
 #include <ngx_log.h>
 #include <ngx_regex.h>
