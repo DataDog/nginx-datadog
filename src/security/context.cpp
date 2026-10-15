@@ -513,12 +513,12 @@ std::optional<BlockSpecification> Context::run_waf_start(
   dnsec::ClientIp ip_resolver{dnsec::Library::custom_ip_header(), req};
   auto client_ip = ip_resolver.resolve();
 
-  ddwaf_object *data = collect_request_data(req, client_ip, memres_);
+  ddwaf_obj &data = collect_request_data(req, client_ip, memres_);
 
   client_ip_ = std::move(client_ip);
 
   auto &&log = *req.connection->log;
-  auto [_, block_spec] = waf_ctx_->run(log, *data);
+  auto [_, block_spec] = waf_ctx_->run(log, data);
 
   if (block_spec) {
     stage_->store(stage::AFTER_BEGIN_WAF_BLOCK, std::memory_order_release);
@@ -1697,7 +1697,7 @@ std::optional<BlockSpecification> Context::run_waf_req_post(
   }
 
   auto &&log = *request.connection->log;
-  auto [_, block_spec] = waf_ctx_->run(log, input->raw());
+  auto [_, block_spec] = waf_ctx_->run(log, *input);
   return block_spec;
 }
 
@@ -1744,11 +1744,11 @@ std::optional<BlockSpecification> Context::run_waf_end(
   }
 
   bool extract_schema = Library::api_security_should_sample();
-  ddwaf_object *resp_data = collect_response_data(
-      request, body_chain, body_size, extract_schema, memres_);
+  ddwaf_obj &resp_data = collect_response_data(request, body_chain, body_size,
+                                               extract_schema, memres_);
 
   auto &&log = *request.connection->log;
-  auto [_, block_spec] = waf_ctx_->run(log, *resp_data);
+  auto [_, block_spec] = waf_ctx_->run(log, resp_data);
 
   return block_spec;
 }

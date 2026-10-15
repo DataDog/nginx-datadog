@@ -52,8 +52,8 @@ class ReqSerializer {
  public:
   explicit ReqSerializer(dnsec::DdwafMemres &memres) : memres_{memres} {}
 
-  ddwaf_object *serialize(const ngx_http_request_t &request,
-                          const std::optional<std::string> &client_ip) {
+  dnsec::ddwaf_obj &serialize(const ngx_http_request_t &request,
+                              const std::optional<std::string> &client_ip) {
     dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
     dnsec::ddwaf_map_obj &root_map = root->make_map(6, memres_);
 
@@ -64,12 +64,12 @@ class ReqSerializer {
     set_request_cookie(request, root_map.at_unchecked(4));
     set_client_ip(client_ip, root_map.at_unchecked(5));
 
-    return &root->raw();
+    return *root;
   }
 
-  ddwaf_object *serialize_end(const ngx_http_request_t &request,
-                              ngx_chain_t *body_chain, std::size_t body_size,
-                              bool extract_schema) {
+  dnsec::ddwaf_obj &serialize_end(const ngx_http_request_t &request,
+                                  ngx_chain_t *body_chain,
+                                  std::size_t body_size, bool extract_schema) {
     dnsec::ddwaf_obj *root = memres_.allocate_objects<dnsec::ddwaf_obj>(1);
     std::size_t nb_entries = 2;
     if (extract_schema) {
@@ -96,7 +96,7 @@ class ReqSerializer {
       inner_map.at_unchecked(0).set_key("extract-schema"sv).val.make_bool(true);
     }
 
-    return &root->raw();
+    return *root;
   }
 
  private:
@@ -409,17 +409,16 @@ class ReqSerializer {
 
 namespace datadog::nginx::security {
 
-ddwaf_object *collect_request_data(const ngx_http_request_t &request,
-                                   const std::optional<std::string> &client_ip,
-                                   DdwafMemres &memres) {
+ddwaf_obj &collect_request_data(const ngx_http_request_t &request,
+                                const std::optional<std::string> &client_ip,
+                                DdwafMemres &memres) {
   ReqSerializer rs{memres};
   return rs.serialize(request, client_ip);
 }
 
-ddwaf_object *collect_response_data(const ngx_http_request_t &request,
-                                    ngx_chain_t *body_chain,
-                                    std::size_t body_size, bool extract_schema,
-                                    DdwafMemres &memres) {
+ddwaf_obj &collect_response_data(const ngx_http_request_t &request,
+                                 ngx_chain_t *body_chain, std::size_t body_size,
+                                 bool extract_schema, DdwafMemres &memres) {
   ReqSerializer rs{memres};
   return rs.serialize_end(request, body_chain, body_size, extract_schema);
 }

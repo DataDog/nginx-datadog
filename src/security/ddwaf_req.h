@@ -26,7 +26,7 @@ class DdwafContext {
     std::optional<BlockSpecification> block_spec;
   };
 
-  WafRunResult run(ngx_log_t& log, ddwaf_object& persistent_data);
+  WafRunResult run(ngx_log_t& log, ddwaf_obj& persistent_data);
 
   bool has_matches() const;
   bool keep() const { return keep_; }

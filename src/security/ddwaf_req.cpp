@@ -319,12 +319,12 @@ DdwafContext::DdwafContext(std::shared_ptr<OwnedDdwafHandle> &handle)
 }
 
 DdwafContext::WafRunResult DdwafContext::run(ngx_log_t &log,
-                                             ddwaf_object &persistent_data) {
+                                             ddwaf_obj &persistent_data) {
   // The input is borrowed (null allocator): libddwaf never frees it.
   LibddwafOwnedMap result;
   DDWAF_RET_CODE const code =
-      ddwaf_context_eval(ctx_.resource, &persistent_data, nullptr, &result.o,
-                         Library::waf_timeout());
+      ddwaf_context_eval(ctx_.resource, &persistent_data.raw(), nullptr,
+                         &result.o, Library::waf_timeout());
 
   WafRunResult waf_result;
   waf_result.ret_code = code;
