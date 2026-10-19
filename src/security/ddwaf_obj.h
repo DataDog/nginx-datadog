@@ -246,7 +246,6 @@ struct __attribute__((__may_alias__)) ddwaf_str_obj : ddwaf_obj {
   ddwaf_str_obj(const ddwaf_arr_obj &) = delete;
 
   std::string_view value() const { return {stringValue, nbEntries}; }
-  char *buffer() { return const_cast<char *>(stringValue); }
 };
 
 // NOLINTNEXTLINE(readability-identifier-naming)
@@ -371,7 +370,6 @@ class ddwaf_owned_obj {  // NOLINT(readability-identifier-naming)
 };
 
 using ddwaf_owned_map = ddwaf_owned_obj<ddwaf_map_obj>;  // NOLINT
-using ddwaf_owned_arr = ddwaf_owned_obj<ddwaf_arr_obj>;  // NOLINT
 
 struct DdwafObjectFreeFunctor {
   void operator()(ddwaf_object &res) { ddwaf_object_free(&res); }
@@ -411,16 +409,4 @@ struct __attribute__((__may_alias__)) libddwaf_owned_ddwaf_obj : T {
   ~libddwaf_owned_ddwaf_obj() { ddwaf_object_free(this); }
 };
 
-namespace impl {
-void deep_copy(DdwafMemres &memres, ddwaf_obj &dst, const ddwaf_obj &src);
-}  // namespace impl
-
-template <typename T>
-ddwaf_owned_obj<T> ddwaf_obj_clone(const T &obj) {
-  ddwaf_owned_obj<T> clone;
-
-  impl::deep_copy(clone.memres(), clone.get(), obj);
-
-  return clone;
-}
 }  // namespace datadog::nginx::security
