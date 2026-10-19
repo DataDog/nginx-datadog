@@ -355,6 +355,47 @@ static_assert(alignof(ddwaf_kv_obj) == alignof(ddwaf_object));
 static_assert(std::is_standard_layout_v<ddwaf_kv_obj>);
 static_assert(std::is_trivially_destructible_v<ddwaf_kv_obj>);
 
+// What the union design relies on, besides the union itself (a union and its
+// members are always pointer-interconvertible):
+// - ddwaf_obj* and ddwaf_object* convert to each other (set_array(),
+//   array_ptr_unchecked()): each member is pointer-interconvertible with its
+//   ddwaf_obj_base, which is pointer-interconvertible with its o.
+// - any.o can be read whatever member is active: o is in the common initial
+//   sequence of ddwaf_obj_base and each member.
+// libc++ has neither std::is_pointer_interconvertible_with_class nor
+// std::is_corresponding_member, so with it we use clang builtins, or check
+// the definition directly.
+#ifdef __cpp_lib_is_pointer_interconvertible
+static_assert(std::is_pointer_interconvertible_with_class(&ddwaf_obj_base::o));
+#else
+// the definition, for a standard-layout class with a single member
+static_assert(std::is_standard_layout_v<ddwaf_obj_base> &&
+              offsetof(ddwaf_obj_base, o) == 0);
+#endif
+
+namespace impl {
+template <typename T>
+constexpr bool is_ddwaf_obj_member() {
+#if defined(__cpp_lib_is_pointer_interconvertible) && \
+    defined(__cpp_lib_is_layout_compatible)
+  return std::is_pointer_interconvertible_base_of_v<ddwaf_obj_base, T> &&
+         std::is_corresponding_member<ddwaf_obj_base, T, ddwaf_object,
+                                      ddwaf_object>(&ddwaf_obj_base::o, &T::o);
+#elif defined(__clang__)
+  // layout-compatible: the common initial sequence is all of both classes
+  return __is_pointer_interconvertible_base_of(ddwaf_obj_base, T) &&
+         __is_layout_compatible(ddwaf_obj_base, T);
+#else
+#error "no way to check pointer interconvertibility and common initial sequence"
+#endif
+}
+}  // namespace impl
+
+static_assert(impl::is_ddwaf_obj_member<ddwaf_str_obj>());
+static_assert(impl::is_ddwaf_obj_member<ddwaf_bool_obj>());
+static_assert(impl::is_ddwaf_obj_member<ddwaf_arr_obj>());
+static_assert(impl::is_ddwaf_obj_member<ddwaf_map_obj>());
+
 // Owns the memory of the object. Holds the union, never a bare member.
 template <typename T = ddwaf_obj>
 class ddwaf_owned_obj {  // NOLINT(readability-identifier-naming)
