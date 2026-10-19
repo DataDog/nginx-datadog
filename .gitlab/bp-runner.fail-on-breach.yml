@@ -20,8 +20,8 @@ experiments:
           - name: high_load/only-tracing/nginx-utilization
             thresholds:
               - cpu_usage_percentage < 49 %
-              - rss < 300000000 bytes
+              - rss < 300 MB
           - name: normal_operation/only-tracing/nginx-utilization
             thresholds:
               - cpu_usage_percentage < 17 %
-              - rss < 120000000 bytes
+              - rss < 120 MB
