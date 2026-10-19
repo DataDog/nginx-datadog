@@ -17,6 +17,7 @@ endif()
 if(NGINX_DATADOG_ASM_ENABLED)
     list(APPEND UNIT_TEST_SOURCES
         json.cpp multipart.cpp urlencoded.cpp test_limiter.cpp client_ip.cpp
+        collection.cpp
         ddwaf_obj.cpp
         util.cpp)
 endif()

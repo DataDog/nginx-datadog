@@ -163,6 +163,8 @@ class ReqSerializer {
 
         entry.set_key(key);
         auto &arr_val = entry.make_array(num_occurr, memres_);
+        // empty until a copy that is not deleted is written
+        entry.nbEntries = 0;
         indexed_entries.insert({key, &arr_val});
 
         if (!it.is_delete()) {
