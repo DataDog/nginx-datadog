@@ -11,7 +11,17 @@ experiments:
           - name: high_load/only-tracing
             thresholds:
               - throughput > 3700 op/s
+              - agg_http_req_duration_p95 < 0.45 ms
           - name: normal_operation/only-tracing
             thresholds:
               - threshold: agg_http_req_duration_p50 < 0.130 ms
                 warning_range: 2
+              - agg_http_req_duration_p95 < 0.19 ms
+          - name: high_load/only-tracing/nginx-utilization
+            thresholds:
+              - cpu_usage_percentage < 49 %
+              - rss < 300 MB
+          - name: normal_operation/only-tracing/nginx-utilization
+            thresholds:
+              - cpu_usage_percentage < 17 %
+              - rss < 120 MB
