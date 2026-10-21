@@ -56,7 +56,7 @@ class DdwafMemres {
   // A map entry (key + value) takes the space of two objects.
   // A template only because ddwaf_kv_obj is incomplete here; ddwaf_obj.h
   // checks its layout.
-  template <std::same_as<ddwaf_kv_obj> KV>
+  template <std::same_as<ddwaf_kv_obj> KV = ddwaf_kv_obj>
   KV *allocate_kvs(std::size_t num_entries) {
     if (num_entries == 0) {
       return nullptr;

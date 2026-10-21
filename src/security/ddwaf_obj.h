@@ -624,7 +624,7 @@ inline ddwaf_map_obj &ddwaf_obj::make_map(ddwaf_kv_obj *entries,
 
 inline ddwaf_map_obj &ddwaf_obj::make_map(std::size_t size,
                                           DdwafMemres &memres) {
-  return make_map(memres.allocate_kvs<ddwaf_kv_obj>(size), size);
+  return make_map(memres.allocate_kvs(size), size);
 }
 
 inline ddwaf_obj_base &ddwaf_obj::active() noexcept {
