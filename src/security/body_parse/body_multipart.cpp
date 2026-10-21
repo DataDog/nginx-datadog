@@ -112,12 +112,6 @@ auto bind_consume_line(dnsec::HttpContentType &ct) {
   };
 }
 
-std::string_view copy_string(std::string_view str, dnsec::DdwafMemres &memres) {
-  char *copy = memres.allocate_string(str.size());
-  std::copy(str.begin(), str.end(), copy);
-  return {copy, str.size()};
-}
-
 void remove_final_crlf(std::string &content) {
   // support also terminations with plain LF instead of CRLF
   if (content.size() >= 1 && content.back() == '\n') {
@@ -205,7 +199,7 @@ start_part:
       }
 
       if (cd) {
-        data[cd->name].push_back(copy_string(content, memres));
+        data[cd->name].push_back(memres.copy_string(content));
       }
 
       if (line_type == LineType::BOUNDARY && !stream.eof()) {
@@ -223,7 +217,7 @@ start_part:
   std::vector<KeyValues> groups;
   groups.reserve(data.size());
   for (auto &[name, values] : data) {
-    groups.push_back({copy_string(name, memres), std::move(values)});
+    groups.push_back({memres.copy_string(name), std::move(values)});
   }
 
   return make_grouped_map(slot, groups, budget, memres);

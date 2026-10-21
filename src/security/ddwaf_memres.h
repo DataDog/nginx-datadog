@@ -7,7 +7,9 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -74,6 +76,13 @@ class DdwafMemres {
     strings_stored_ += len;
 
     return p;
+  }
+
+  // Copies the string into the arena.
+  std::string_view copy_string(std::string_view sv) {
+    char *s = allocate_string(sv.size());
+    std::memcpy(s, sv.data(), sv.size());
+    return {s, sv.size()};
   }
 
   void clear() {

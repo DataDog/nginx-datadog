@@ -7,7 +7,6 @@
 #include <cassert>
 #include <concepts>
 #include <cstddef>
-#include <cstring>
 #include <limits>
 #include <new>
 #include <stdexcept>
@@ -600,9 +599,7 @@ inline ddwaf_str_obj &ddwaf_obj::make_string(std::string_view sv) {
 
 inline ddwaf_str_obj &ddwaf_obj::make_string(std::string_view sv,
                                              DdwafMemres &memres) {
-  char *s = memres.allocate_string(sv.size());
-  std::memcpy(s, sv.data(), sv.size());
-  return make_string({s, sv.size()});
+  return make_string(memres.copy_string(sv));
 }
 
 inline ddwaf_arr_obj &ddwaf_obj::make_array(ddwaf_obj *elems,
