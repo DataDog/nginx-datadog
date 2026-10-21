@@ -215,8 +215,13 @@ class ToDdwafObjHandler
     if (bufs_.size() == 1) {
       return false;  // top-level value
     }
-    bool const in_map = bufs_[bufs_.size() - 2].cur_obj().is_map();
-    return !in_map || bufs_.back().len % 2 == 0;
+    return !is_in_map() || bufs_.back().len % 2 == 0;
+  }
+
+  // Whether the innermost open container is a map. Needs one to be open.
+  bool is_in_map() const {
+    assert(bufs_.size() > 1);
+    return bufs_[bufs_.size() - 2].cur_obj().is_map();
   }
 
   // Returns false to stop the parsing.
@@ -253,23 +258,29 @@ class ToDdwafObjHandler
     if (!budget_.charge_container(next_is_element())) {
       return false;
     }
+    // The slot gets an empty container. This is how we remember the type
+    // while the container is open. pop_container then fills the slot.
+    make_empty_container(get_slot(), type);
     // bufs_ has one entry for the top level, plus one per open container
     if (bufs_.size() > dnsec::WafInputBudget::kMaxContainerDepth) {
       // too deep: keep the container, but empty
-      if (type == ContainerType::MAP) {
-        get_slot().make_map(nullptr, 0);
-      } else {
-        get_slot().make_array(nullptr, 0);
-      }
       skipped_depth_ = 1;
-      return true;
-    }
-    if (type == ContainerType::MAP) {
-      push_map();
     } else {
-      push_array();
+      // open a new buffer for the container's contents
+      bufs_.emplace_back(Buf{nullptr, 0, 0});
     }
     return true;
+  }
+
+  static void make_empty_container(ddwaf_obj &slot, ContainerType type) {
+    switch (type) {
+      case ContainerType::MAP:
+        slot.make_map(nullptr, 0);
+        break;
+      case ContainerType::ARRAY:
+        slot.make_array(nullptr, 0);
+        break;
+    }
   }
 
   void end_container() {
@@ -295,21 +306,8 @@ class ToDdwafObjHandler
     return buf.cur_obj();
   }
 
-  // Open a new buffer for the container's contents. Its slot in the parent
-  // gets an empty array or map. This is how we remember the container type
-  // while it is open. pop_container then fills the slot with the contents.
-  void push_array() {
-    get_slot().make_array(nullptr, 0);
-    bufs_.emplace_back(Buf{nullptr, 0, 0});
-  }
-
-  void push_map() {
-    get_slot().make_map(nullptr, 0);
-    bufs_.emplace_back(Buf{nullptr, 0, 0});
-  }
-
   void pop_container() {
-    bool const is_map = bufs_[bufs_.size() - 2].cur_obj().is_map();
+    bool const is_map = is_in_map();
     if (is_map && bufs_.back().len % 2 != 0) {
       // truncated input: keep the last key, with a null value
       get_slot().make_null();
