@@ -4,7 +4,7 @@
 #include <security/ddwaf_memres.h>
 #include <security/ddwaf_obj.h>
 
-#include "../unit/managed_chain.h"
+#include "../unit/security/managed_chain.h"
 
 extern "C" {
 #include <ngx_core.h>

@@ -16,15 +16,15 @@ endif()
 
 if(NGINX_DATADOG_ASM_ENABLED)
     list(APPEND UNIT_TEST_SOURCES
-        client_ip.cpp
-        collection.cpp
-        ddwaf_obj.cpp
-        json.cpp
-        multipart.cpp
-        test_limiter.cpp
-        urlencoded.cpp
-        util.cpp
-        waf_input_budget.cpp)
+        security/client_ip.cpp
+        security/collection.cpp
+        security/ddwaf_obj.cpp
+        security/json.cpp
+        security/multipart.cpp
+        security/test_limiter.cpp
+        security/urlencoded.cpp
+        security/util.cpp
+        security/waf_input_budget.cpp)
 endif()
 
 if(NGINX_DATADOG_RUM_ENABLED)
