@@ -1,6 +1,6 @@
 import gdb
 
-# libddwaf v2 object types
+# libddwaf v2 object types, from DDWAF_OBJ_TYPE in libddwaf/include/ddwaf.h
 DDWAF_OBJ_INVALID = 0x00
 DDWAF_OBJ_NULL = 0x01
 DDWAF_OBJ_BOOL = 0x02
@@ -18,11 +18,11 @@ DDWAF_OBJ_LARGE_MAP = 0xC0
 
 class PrintDDWAFObject(gdb.Command):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(PrintDDWAFObject, self).__init__("print_ddwaf_object",
                                                gdb.COMMAND_DATA)
 
-    def invoke(self, arg, from_tty):
+    def invoke(self, arg: str, from_tty: bool) -> None:
         self.dont_repeat()
         obj = gdb.parse_and_eval(arg)
         if obj.type.code in (gdb.TYPE_CODE_REF, gdb.TYPE_CODE_RVALUE_REF):
@@ -31,15 +31,16 @@ class PrintDDWAFObject(gdb.Command):
             obj = obj.cast(
                 gdb.lookup_type('ddwaf_object').pointer()).dereference()
         # a ddwaf_obj (or one of its members) wraps a ddwaf_object at offset 0
-        t = obj.type.strip_typedefs()
-        if (t.code in (gdb.TYPE_CODE_UNION, gdb.TYPE_CODE_STRUCT)
-                and t.tag != 'ddwaf_object'
-                and not any(f.name == 'type' for f in t.fields())):
+        underlying_type = obj.type.strip_typedefs()
+        if (underlying_type.code in (gdb.TYPE_CODE_UNION, gdb.TYPE_CODE_STRUCT)
+                and underlying_type.tag != 'ddwaf_object'
+                and not any(f.name == 'type'
+                            for f in underlying_type.fields())):
             obj = obj.address.cast(
                 gdb.lookup_type('ddwaf_object').pointer()).dereference()
         self.print_object(obj, "")
 
-    def print_object(self, obj, indent):
+    def print_object(self, obj: gdb.Value, indent: str) -> None:
         obj_type = int(obj['type'])
         via = obj['via']
         if obj_type == DDWAF_OBJ_SIGNED:
@@ -62,7 +63,8 @@ class PrintDDWAFObject(gdb.Command):
         else:
             print("<invalid>")
 
-    def print_container(self, obj, indent, is_map):
+    def print_container(self, obj: gdb.Value, indent: str,
+                        is_map: bool) -> None:
         obj_type = int(obj['type'])
         member = {
             DDWAF_OBJ_ARRAY: 'array',
@@ -87,7 +89,7 @@ class PrintDDWAFObject(gdb.Command):
                 print(f"{indent}- ", end="")
                 self.print_object(ptr[i], indent + "  ")
 
-    def read_string(self, obj):
+    def read_string(self, obj: gdb.Value) -> str:
         obj_type = int(obj['type'])
         via = obj['via']
         if obj_type == DDWAF_OBJ_SMALL_STRING:
