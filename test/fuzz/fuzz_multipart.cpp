@@ -36,8 +36,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     parts.emplace_back(fdp.ConsumeBytes<char>(21));
   }
 
-  // Set up memory resources for parsing
+  // Set up memory resources and the size budget for parsing
   dnsec::DdwafMemres memres;
+  dnsec::WafInputBudget budget;
 
   // Prepare the ngx_http_request_t structure
   dnsec::ddwaf_obj slot;
@@ -57,7 +58,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       return 0;
     }
 
-    parse_multipart(slot, req, *ct, chain, memres);
+    parse_multipart(slot, req, *ct, chain, budget, memres);
   } catch (const std::exception &) {
     // Ignore exceptions to allow fuzzing to continue
   }
