@@ -429,6 +429,7 @@ class ddwaf_owned_obj {  // NOLINT(readability-identifier-naming)
   T &get() { return cast<T>(obj_); }
   const T &get() const { return cast<T>(obj_); }
   ddwaf_obj &obj() { return obj_; }
+  const ddwaf_obj &obj() const { return obj_; }
   DdwafMemres &memres() { return memres_; }
 
  private:
@@ -500,7 +501,7 @@ class libddwaf_owned_ddwaf_obj {
   // rare: libddwaf did not write the object
   [[gnu::noinline, gnu::cold]] static const ddwaf_obj &empty() noexcept {
     static const ddwaf_owned_obj<T> kEmpty;
-    return const_cast<ddwaf_owned_obj<T> &>(kEmpty).obj();  // NOLINT
+    return kEmpty.obj();
   }
 
   mutable ddwaf_obj obj_;
