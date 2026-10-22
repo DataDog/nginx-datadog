@@ -13,8 +13,8 @@ extern "C" {
 namespace datadog::nginx::security {
 class NgxChainInputStream {
  public:
-  NgxChainInputStream(const ngx_chain_t *chain, std::size_t limit)
-      : current_{chain}, left_{limit} {
+  NgxChainInputStream(const ngx_chain_t *chain, std::size_t max_bytes)
+      : current_{chain}, bytes_left_{max_bytes} {
     if (!current_) {
       throw std::invalid_argument{"chain must not be null"};
     }
@@ -87,14 +87,14 @@ class NgxChainInputStream {
 
   bool eof() const {
     if (pos_ == end_) {
-      return current_->next == nullptr || left_ == 0;
+      return current_->next == nullptr || bytes_left_ == 0;
     }
     return false;
   }
 
  private:
   bool advance_buffer() {
-    if (left_ == 0 || !current_->next) {
+    if (bytes_left_ == 0 || !current_->next) {
       return false;
     }
     current_ = current_->next;
@@ -102,19 +102,19 @@ class NgxChainInputStream {
     return true;
   }
 
-  // the limit can fall in the middle of a buffer
+  // max_bytes can end in the middle of a buffer
   void enter_buffer() {
     pos_ = current_->buf->pos;
-    auto const size =
-        std::min(static_cast<std::size_t>(current_->buf->last - pos_), left_);
+    auto const size = std::min(
+        static_cast<std::size_t>(current_->buf->last - pos_), bytes_left_);
     end_ = pos_ + size;
-    left_ -= size;
+    bytes_left_ -= size;
   }
 
   const ngx_chain_t *current_;
   u_char *pos_{};
   u_char *end_{};
   std::size_t global_pos_{};
-  std::size_t left_;  // bytes we may still expose
+  std::size_t bytes_left_;  // bytes we may still expose
 };
 }  // namespace datadog::nginx::security
