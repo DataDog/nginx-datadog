@@ -3,3 +3,4 @@ src/rum @DataDog/injection-platform @DataDog/apm-proxy
 src/security/ @DataDog/asm-cpp @DataDog/apm-proxy
 test/cases/baggage_span_tags @DataDog/apm-sdk-capabilities @DataDog/apm-proxy
 test/cases/rum @DataDog/injection-platform @DataDog/apm-proxy
+test/unit/security/ @DataDog/asm-cpp @DataDog/apm-proxy

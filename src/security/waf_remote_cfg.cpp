@@ -115,7 +115,7 @@ class CurrentAppSecConfig {
  public:
   void set_config(const ParsedConfigKey &key,
                   const dnsec::ddwaf_map_obj &new_config) {
-    dnsec::Library::Diagnostics diag{{}};
+    dnsec::Library::Diagnostics diag;
     bool res =
         dnsec::Library::update_waf_config(key.full_key(), new_config, diag);
 
@@ -337,17 +337,13 @@ class ConfigurationEndListener : public rc::Listener {
 };
 
 class AppSecConfigService {
-  std::shared_ptr<dnsec::ddwaf_owned_map> default_config_;
   CurrentAppSecConfig current_config_;
   std::shared_ptr<dn::NgxLogger> logger_;
 
   static inline std::unique_ptr<AppSecConfigService> instance_;  // NOLINT
 
-  AppSecConfigService(dnsec::ddwaf_owned_map default_config,
-                      std::shared_ptr<datadog::nginx::NgxLogger> logger)
-      : default_config_{std::make_shared<dnsec::ddwaf_owned_map>(
-            std::move(default_config))},
-        logger_{std::move(logger)} {}
+  AppSecConfigService(std::shared_ptr<datadog::nginx::NgxLogger> logger)
+      : logger_{std::move(logger)} {}
 
  public:
   AppSecConfigService(const AppSecConfigService &) = delete;
@@ -356,13 +352,12 @@ class AppSecConfigService {
   AppSecConfigService &operator=(AppSecConfigService &&) = delete;
   ~AppSecConfigService() = default;
 
-  static void initialize(dnsec::ddwaf_owned_map default_config,
-                         std::shared_ptr<datadog::nginx::NgxLogger> logger) {
+  static void initialize(std::shared_ptr<datadog::nginx::NgxLogger> logger) {
     if (instance_) {
       throw std::logic_error{"AppSecConfigService already initialized"};
     }
     instance_ = std::unique_ptr<AppSecConfigService>{
-        new AppSecConfigService{std::move(default_config), std::move(logger)}};
+        new AppSecConfigService{std::move(logger)}};
   }
 
   static bool has_instance() { return static_cast<bool>(instance_); }
@@ -465,10 +460,9 @@ void ParsedConfigKey::parse_config_key() {
 
 namespace datadog::nginx::security {
 
-void register_default_config(
-    ddwaf_owned_map default_config,
+void init_remote_cfg_service(
     std::shared_ptr<datadog::nginx::NgxLogger> logger) {
-  AppSecConfigService::initialize(std::move(default_config), std::move(logger));
+  AppSecConfigService::initialize(std::move(logger));
 }
 
 void register_with_remote_cfg(datadog::tracing::DatadogAgentConfig &ddac,

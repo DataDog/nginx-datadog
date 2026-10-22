@@ -17,9 +17,10 @@ namespace dnsec = datadog::nginx::security;
 using dnsec::ddwaf_obj;
 
 namespace {
-std::optional<ddwaf_obj> parse(std::string_view content_type,
-                               std::vector<std::string_view> parts,
-                               dnsec::DdwafMemres &memres) {
+std::optional<ddwaf_obj> parse(
+    std::string_view content_type, std::vector<std::string_view> parts,
+    dnsec::DdwafMemres &memres,
+    std::size_t budget_limit = dnsec::WafInputBudget::kDefaultLimit) {
   static ngx_log_t log{};
   static ngx_connection_t empty_conn{.log = &log};
   ddwaf_obj slot;
@@ -30,7 +31,8 @@ std::optional<ddwaf_obj> parse(std::string_view content_type,
                              std::string{content_type}};
   }
   test::ManagedChain chain{parts};
-  bool success = parse_multipart(slot, req, *ct, chain, memres);
+  dnsec::WafInputBudget budget{budget_limit};
+  bool success = parse_multipart(slot, req, *ct, chain, budget, memres);
 
   if (!success) {
     return std::nullopt;
@@ -171,15 +173,15 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     CHECK(map.size() == 2);
-    std::optional<ddwaf_obj> v1 = map.get_opt("field1");
+    const ddwaf_obj *v1 = map.get_opt("field1");
     REQUIRE(v1);
-    CHECK((v1->is_string() && v1->string_val_unchecked() == "value1"));
+    CHECK((v1->is_string() && v1->string_val() == "value1"));
 
-    std::optional<ddwaf_obj> v2 = map.get_opt("field2");
+    const ddwaf_obj *v2 = map.get_opt("field2");
     REQUIRE(v2);
-    CHECK((v2->is_string() && v2->string_val_unchecked() == "LONG VALUE LONG"));
+    CHECK((v2->is_string() && v2->string_val() == "LONG VALUE LONG"));
   }
 
   SECTION("using just LF instead of CRLF") {
@@ -195,12 +197,12 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
-    std::optional<ddwaf_obj> v1 = map.get_opt("field1");
+    const ddwaf_obj *v1 = map.get_opt("field1");
     REQUIRE(v1);
     CHECK(v1->is_string());
-    CHECK(v1->string_val_unchecked() == "value1");
+    CHECK(v1->string_val() == "value1");
   }
 
   SECTION("field name is repeated") {
@@ -220,18 +222,18 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
-    std::optional<ddwaf_obj> v1 = map.get_opt("field1");
+    const ddwaf_obj *v1 = map.get_opt("field1");
     REQUIRE(v1);
     REQUIRE(v1->is_array());
 
-    auto arr_v1 = dnsec::ddwaf_arr_obj{*v1};
+    const dnsec::ddwaf_arr_obj &arr_v1 = dnsec::cast(*v1);
     CHECK(arr_v1.size() == 2);
     CHECK((arr_v1.at_unchecked(0).is_string() &&
-           arr_v1.at_unchecked(0).string_val_unchecked() == "value1"));
+           arr_v1.at_unchecked(0).string_val() == "value1"));
     CHECK((arr_v1.at_unchecked(1).is_string() &&
-           arr_v1.at_unchecked(1).string_val_unchecked() == "value2"));
+           arr_v1.at_unchecked(1).string_val() == "value2"));
   }
 
   SECTION("unquoted field name") {
@@ -247,7 +249,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE((*map.begin()).key() == "field1");
   }
@@ -265,7 +267,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE(map.get_opt("fiéld 1"));
   }
@@ -284,7 +286,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE(map.get_opt("field1"));
   }
@@ -303,7 +305,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE((*map.begin()).key() == "field1");
   }
@@ -322,7 +324,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE((*map.begin()).key() == "field1");
   }
@@ -340,7 +342,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE(map.get_opt("field1"));
   }
@@ -358,7 +360,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.get_opt("field1"));
   }
 
@@ -376,7 +378,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.get_opt("field1"));
   }
 
@@ -393,7 +395,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.get_opt("field1"));
   }
 
@@ -411,7 +413,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE(map.get_opt("field1"));
   }
@@ -430,7 +432,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE(map.get_opt("field1"));
   }
@@ -449,7 +451,7 @@ TEST_CASE("valid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE(obj->is_map());
-    auto map = dnsec::ddwaf_map_obj{*obj};
+    const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
     REQUIRE(map.size() == 1);
     REQUIRE(map.get_opt("field1"));
   }
@@ -491,9 +493,9 @@ TEST_CASE("truncated multipart examples", "[multipart]") {
   auto single_value = [](auto obj) {
     REQUIRE(obj);
     REQUIRE((obj && obj->is_map() && obj->size_unchecked() == 1));
-    auto value = *dnsec::ddwaf_map_obj{*obj}.begin();
-    REQUIRE(value.is_string());
-    return value.string_val_unchecked();
+    auto value = *dnsec::cast<dnsec::ddwaf_map_obj>(*obj).begin();
+    REQUIRE(value.val.is_string());
+    return value.val.string_val();
   };
 
   SECTION("Ends before boundary without CRLF") {
@@ -664,10 +666,10 @@ TEST_CASE("truncated multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE((obj->is_map() && obj->size_unchecked() == 2));
-    auto second = dnsec::ddwaf_map_obj{*obj}.get_opt("field");
+    auto second = dnsec::cast<dnsec::ddwaf_map_obj>(*obj).get_opt("field");
     REQUIRE(second);
     CHECK(second->is_string());
-    CHECK(second->string_val_unchecked() == "");
+    CHECK(second->string_val() == "");
   }
 
   SECTION("EOF after a partial header (7)") {
@@ -684,10 +686,10 @@ TEST_CASE("truncated multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE((obj->is_map() && obj->size_unchecked() == 2));
-    auto second = dnsec::ddwaf_map_obj{*obj}.get_opt("field");
+    auto second = dnsec::cast<dnsec::ddwaf_map_obj>(*obj).get_opt("field");
     REQUIRE(second);
     CHECK(second->is_string());
-    CHECK(second->string_val_unchecked() == "");
+    CHECK(second->string_val() == "");
   }
 
   SECTION("EOF after a partial header (8)") {
@@ -705,10 +707,10 @@ TEST_CASE("truncated multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE((obj->is_map() && obj->size_unchecked() == 2));
-    auto second = dnsec::ddwaf_map_obj{*obj}.get_opt("field");
+    auto second = dnsec::cast<dnsec::ddwaf_map_obj>(*obj).get_opt("field");
     REQUIRE(second);
     CHECK(second->is_string());
-    CHECK(second->string_val_unchecked() == "");
+    CHECK(second->string_val() == "");
   }
 
   SECTION("EOF after a full header") {
@@ -725,10 +727,10 @@ TEST_CASE("truncated multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE((obj->is_map() && obj->size_unchecked() == 2));
-    auto second = dnsec::ddwaf_map_obj{*obj}.get_opt("field2");
+    auto second = dnsec::cast<dnsec::ddwaf_map_obj>(*obj).get_opt("field2");
     REQUIRE(second);
     CHECK(second->is_string());
-    CHECK(second->string_val_unchecked() == "");
+    CHECK(second->string_val() == "");
   }
 }
 
@@ -764,10 +766,10 @@ TEST_CASE("invalid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE((obj->is_map() && obj->size_unchecked() == 1));
-    auto value = *dnsec::ddwaf_map_obj{*obj}.begin();
+    auto value = *dnsec::cast<dnsec::ddwaf_map_obj>(*obj).begin();
     CHECK(value.key() == "field1");
-    REQUIRE(value.is_string());
-    CHECK((value.string_val_unchecked() == "value2"));
+    REQUIRE(value.val.is_string());
+    CHECK((value.val.string_val() == "value2"));
   }
 
   SECTION("part has no Content-Disposition header") {
@@ -787,10 +789,10 @@ TEST_CASE("invalid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE((obj->is_map() && obj->size_unchecked() == 1));
-    auto value = *dnsec::ddwaf_map_obj{*obj}.begin();
+    auto value = *dnsec::cast<dnsec::ddwaf_map_obj>(*obj).begin();
     CHECK(value.key() == "field1");
-    REQUIRE(value.is_string());
-    CHECK((value.string_val_unchecked() == "value2"));
+    REQUIRE(value.val.is_string());
+    CHECK((value.val.string_val() == "value2"));
   }
 
   SECTION("two boundaries in immediate succession") {
@@ -807,10 +809,10 @@ TEST_CASE("invalid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE((obj && obj->is_map() && obj->size_unchecked() == 1));
-    auto value = *dnsec::ddwaf_map_obj{*obj}.begin();
+    auto value = *dnsec::cast<dnsec::ddwaf_map_obj>(*obj).begin();
     CHECK(value.key() == "field1");
-    REQUIRE(value.is_string());
-    CHECK((value.string_val_unchecked() == "value2"));
+    REQUIRE(value.val.is_string());
+    CHECK((value.val.string_val() == "value2"));
   }
 
   SECTION("no CRLF after headers") {
@@ -830,10 +832,10 @@ TEST_CASE("invalid multipart examples", "[multipart]") {
 
     REQUIRE(obj);
     REQUIRE((obj && obj->is_map() && obj->size_unchecked() == 1));
-    auto value = *dnsec::ddwaf_map_obj{*obj}.begin();
+    auto value = *dnsec::cast<dnsec::ddwaf_map_obj>(*obj).begin();
     CHECK(value.key() == "field2");
-    REQUIRE(value.is_string());
-    CHECK((value.string_val_unchecked() == "value2"));
+    REQUIRE(value.val.is_string());
+    CHECK((value.val.string_val() == "value2"));
   }
 
   SECTION("eof after first boundary") {
@@ -858,4 +860,29 @@ TEST_CASE("invalid multipart examples", "[multipart]") {
               },
               memres);
   }
+}
+
+TEST_CASE("multipart budget", "[multipart]") {
+  // costs: map 4; "field1" 10; "value1" 8; "field2" 10; then the second
+  // value has 40 - 32 - 2 = 6 bytes left
+  dnsec::DdwafMemres memres;
+  std::optional<ddwaf_obj> obj =
+      parse("multipart/form-data; boundary=myboundary",
+            {"--myboundary\r\n"
+             "Content-Disposition: form-data; name=\"field1\"\r\n"
+             "\r\n"
+             "value1\r\n"
+             "--myboundary\r\n"
+             "Content-Disposition: form-data; name=\"field2\"\r\n"
+             "\r\n"
+             "LONG VALUE LONG\r\n"
+             "--myboundary--\r\n"},
+            memres, 40);
+
+  REQUIRE(obj);
+  REQUIRE(obj->is_map());
+  const dnsec::ddwaf_map_obj &map = dnsec::cast(*obj);
+  REQUIRE(map.size() == 2);
+  CHECK(map.get("field1").string_val() == "value1");
+  CHECK(map.get("field2").string_val() == "LONG V");
 }

@@ -26,7 +26,7 @@ class DdwafContext {
     std::optional<BlockSpecification> block_spec;
   };
 
-  WafRunResult run(ngx_log_t& log, ddwaf_object& persistent_data);
+  WafRunResult run(ngx_log_t& log, ddwaf_obj& persistent_data);
 
   bool has_matches() const;
   bool keep() const { return keep_; }
@@ -44,6 +44,8 @@ class DdwafContext {
   bool report_matches(const std::function<void(std::string_view)>& f);
 
  private:
+  void collect_attributes(ngx_log_t& log, const ddwaf_map_obj& attributes);
+
   struct DdwafContextFreeFunctor {
     void operator()(ddwaf_context ctx) { ddwaf_context_destroy(ctx); }
   };
