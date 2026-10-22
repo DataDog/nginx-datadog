@@ -58,7 +58,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
       return 0;
     }
 
-    parse_multipart(slot, req, *ct, chain, budget, memres);
+    parse_multipart(slot, req, *ct, chain, chain.size(), budget, memres);
   } catch (const std::exception &) {
     // Ignore exceptions to allow fuzzing to continue
   }
