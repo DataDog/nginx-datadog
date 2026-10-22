@@ -14,6 +14,7 @@
 #include "../ddwaf_memres.h"
 #include "../ddwaf_obj.h"
 #include "../waf_input_budget.h"
+#include "chain_is.h"
 
 extern "C" {
 #include <ngx_core.h>
@@ -36,30 +37,18 @@ class RapidNgxChainInputStream {
   using Ch = char;
 
   RapidNgxChainInputStream(const ngx_chain_t *chain, size_t max_bytes)
-      : current_{chain}, bytes_left_{max_bytes} {
-    if (!current_) {
-      throw std::invalid_argument{"chain must not be null"};
-    }
-    enter_buffer();
-  }
+      : is_{chain, max_bytes} {}
 
-  Ch Peek() {  // NOLINT
-    if (make_readable()) {
-      return *pos_;
-    }
-    return '\0';
+  Ch Peek() const {  // NOLINT
+    return is_.eof() ? '\0' : static_cast<Ch>(*is_);
   }
 
   Ch Take() {  // NOLINT
-    if (make_readable()) {
-      read_++;
-      return *pos_++;
-    }
-    return '\0';
+    return is_.eof() ? '\0' : static_cast<Ch>(is_.read());
   }
 
   std::size_t Tell() const {  // NOLINT
-    return read_;
+    return is_.position();
   }
 
   void Put(Ch) {  // NOLINT
@@ -69,38 +58,7 @@ class RapidNgxChainInputStream {
   size_t PutEnd(Ch *) { return 0; }     // NOLINT
 
  private:
-  bool advance_buffer() {
-    if (bytes_left_ == 0 || !current_->next) {
-      return false;
-    }
-    current_ = current_->next;
-    enter_buffer();
-    return true;
-  }
-
-  // max_bytes can end in the middle of a buffer
-  void enter_buffer() {
-    pos_ = current_->buf->pos;
-    auto const size = std::min(
-        static_cast<std::size_t>(current_->buf->last - pos_), bytes_left_);
-    end_ = pos_ + size;
-    bytes_left_ -= size;
-  }
-
-  bool make_readable() {
-    while (pos_ == end_) {
-      if (!advance_buffer()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  const ngx_chain_t *current_;
-  u_char *pos_{};
-  u_char *end_{};
-  std::size_t read_{};
-  std::size_t bytes_left_;  // bytes we may still expose
+  dnsec::NgxChainInputStream is_;
 };
 
 /* Rapidjson event handler for serializing into ddwaf_obj, allowing for
