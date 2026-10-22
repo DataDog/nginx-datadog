@@ -87,7 +87,7 @@ class NgxChainInputStream {
 
   bool eof() const {
     if (pos_ == end_) {
-      return current_ == nullptr || current_->next == nullptr || left_ == 0;
+      return current_->next == nullptr || left_ == 0;
     }
     return false;
   }
