@@ -104,6 +104,17 @@ TEST_CASE("objects", "[json]") {
   CHECK(map.get<dnsec::ddwaf_arr_obj>("e").size() == 1);
 }
 
+TEST_CASE("object split over buffers, some empty", "[json]") {
+  std::vector parts = {""sv, R"({"a": )"sv, ""sv, ""sv, R"("b"})"sv, ""sv};
+  dnsec::DdwafMemres memres;
+  auto slot = parse(parts, memres);
+  REQUIRE((slot && slot->is_map()));
+
+  const dnsec::ddwaf_map_obj &map = dnsec::cast(*slot);
+  CHECK(map.size() == 1);
+  CHECK(map.get("a").string_val() == "b");
+}
+
 TEST_CASE("object truncated after a key", "[json]") {
   std::vector parts = {R"({"a": "b", "c")"sv};
   dnsec::DdwafMemres memres;
