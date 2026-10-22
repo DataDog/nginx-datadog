@@ -13,7 +13,7 @@ extern "C" {
 namespace datadog::nginx::security {
 class NgxChainInputStream {
  public:
-  NgxChainInputStream(const ngx_chain_t *chain, std::size_t limit = SIZE_MAX)
+  NgxChainInputStream(const ngx_chain_t *chain, std::size_t limit)
       : current_{chain}, left_{limit} {
     if (!current_) {
       throw std::invalid_argument{"chain must not be null"};

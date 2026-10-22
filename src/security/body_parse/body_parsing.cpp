@@ -86,7 +86,7 @@ bool is_resp_text_plain(const ngx_http_request_t &req) {
 char *linearize_chain(const ngx_chain_t &chain, std::size_t size,
                       dnsec::DdwafMemres &memres) {
   char *buf = memres.allocate_string(size);
-  dnsec::NgxChainInputStream stream{&chain};
+  dnsec::NgxChainInputStream stream{&chain, size};
   auto read = stream.read(reinterpret_cast<std::uint8_t *>(buf), size);
   if (read < size) {
     throw std::runtime_error(
