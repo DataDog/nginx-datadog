@@ -7,7 +7,7 @@ ARG NGINX_VERSION
 
 ENV MUSL_CLANG_SANITIZE=address,undefined
 
-COPY ngx_http_copy_filter_ubsan.patch ngx_http_huff_encode_ubsan.patch /tmp/
+COPY ngx_http_copy_filter_ubsan.patch /tmp/
 
 RUN set -eux; \
     addgroup -S nginx; \
@@ -23,7 +23,6 @@ RUN set -eux; \
     ld_opt="$ld_opt -Wl,-Bdynamic"; \
     cd "/tmp/nginx-${NGINX_VERSION}"; \
     patch -p1 < /tmp/ngx_http_copy_filter_ubsan.patch; \
-    patch -p1 < /tmp/ngx_http_huff_encode_ubsan.patch; \
     ./configure \
       --prefix=/etc/nginx \
       --sbin-path=/usr/sbin/nginx \
@@ -58,8 +57,7 @@ RUN set -eux; \
     make install; \
     rm -rf "/tmp/nginx-${NGINX_VERSION}" \
       "/tmp/nginx-${NGINX_VERSION}.tar.gz" \
-      /tmp/ngx_http_copy_filter_ubsan.patch \
-      /tmp/ngx_http_huff_encode_ubsan.patch
+      /tmp/ngx_http_copy_filter_ubsan.patch
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV ASAN_OPTIONS=halt_on_error=1:detect_leaks=0
