@@ -35,13 +35,12 @@ class RapidNgxChainInputStream {
  public:
   using Ch = char;
 
-  RapidNgxChainInputStream(const ngx_chain_t *chain, size_t limit)
-      : current_{chain}, limit_{limit} {
+  RapidNgxChainInputStream(const ngx_chain_t *chain, size_t max_bytes)
+      : current_{chain}, bytes_left_{max_bytes} {
     if (!current_) {
       throw std::invalid_argument{"chain must not be null"};
     }
-    pos_ = current_->buf->pos;
-    end_ = current_->buf->last;
+    enter_buffer();
   }
 
   Ch Peek() {  // NOLINT
@@ -71,17 +70,21 @@ class RapidNgxChainInputStream {
 
  private:
   bool advance_buffer() {
-    if (read_ >= limit_) {
+    if (bytes_left_ == 0 || !current_->next) {
       return false;
     }
+    current_ = current_->next;
+    enter_buffer();
+    return true;
+  }
 
-    if (current_->next) {
-      current_ = current_->next;
-      pos_ = current_->buf->pos;
-      end_ = current_->buf->last;
-      return true;
-    }
-    return false;
+  // max_bytes can end in the middle of a buffer
+  void enter_buffer() {
+    pos_ = current_->buf->pos;
+    auto const size = std::min(
+        static_cast<std::size_t>(current_->buf->last - pos_), bytes_left_);
+    end_ = pos_ + size;
+    bytes_left_ -= size;
   }
 
   bool make_readable() {
@@ -97,7 +100,7 @@ class RapidNgxChainInputStream {
   u_char *pos_{};
   u_char *end_{};
   std::size_t read_{};
-  std::size_t limit_{};
+  std::size_t bytes_left_;  // bytes we may still expose
 };
 
 /* Rapidjson event handler for serializing into ddwaf_obj, allowing for

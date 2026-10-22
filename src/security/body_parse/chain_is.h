@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 
@@ -12,13 +13,13 @@ extern "C" {
 namespace datadog::nginx::security {
 class NgxChainInputStream {
  public:
-  NgxChainInputStream(const ngx_chain_t *chain) : current_{chain} {
+  NgxChainInputStream(const ngx_chain_t *chain, std::size_t max_bytes)
+      : current_{chain}, bytes_left_{max_bytes} {
     if (!current_) {
       throw std::invalid_argument{"chain must not be null"};
     }
 
-    pos_ = current_->buf->pos;
-    end_ = current_->buf->last;
+    enter_buffer();
   }
   NgxChainInputStream(const NgxChainInputStream &) = default;
   NgxChainInputStream &operator=(const NgxChainInputStream &) = default;
@@ -86,25 +87,34 @@ class NgxChainInputStream {
 
   bool eof() const {
     if (pos_ == end_) {
-      return current_ == nullptr || current_->next == nullptr;
+      return current_->next == nullptr || bytes_left_ == 0;
     }
     return false;
   }
 
  private:
   bool advance_buffer() {
-    if (current_->next) {
-      current_ = current_->next;
-      pos_ = current_->buf->pos;
-      end_ = current_->buf->last;
-      return true;
+    if (bytes_left_ == 0 || !current_->next) {
+      return false;
     }
-    return false;
+    current_ = current_->next;
+    enter_buffer();
+    return true;
+  }
+
+  // max_bytes can end in the middle of a buffer
+  void enter_buffer() {
+    pos_ = current_->buf->pos;
+    auto const size = std::min(
+        static_cast<std::size_t>(current_->buf->last - pos_), bytes_left_);
+    end_ = pos_ + size;
+    bytes_left_ -= size;
   }
 
   const ngx_chain_t *current_;
   u_char *pos_{};
   u_char *end_{};
   std::size_t global_pos_{};
+  std::size_t bytes_left_;  // bytes we may still expose
 };
 }  // namespace datadog::nginx::security

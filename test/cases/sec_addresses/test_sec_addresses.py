@@ -562,6 +562,66 @@ class TestSecAddresses(case.TestCase):
             result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
             'matched value')
 
+    def do_post_large_buffer(self, content_type, req_body):
+        status, _, _ = self.orch.send_nginx_http_request(
+            '/http_large_buffer',
+            80,
+            method='POST',
+            headers={'content-type': content_type},
+            req_body=req_body)
+        self.assertEqual(status, 200)
+        return self.orch.find_first_appsec_report()
+
+    # Only the first 40 KiB of the body are inspected, even if nginx passes
+    # more in one chunk. The *_before_limit tests show the same body shape is
+    # inspected when the match comes first.
+    PAD = 'x' * (48 * 1024)
+
+    def test_json_before_limit(self):
+        result = self.do_post_large_buffer(
+            'application/json', '{"b":"matched value","a":"' + self.PAD + '"}')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_json_past_limit(self):
+        result = self.do_post_large_buffer(
+            'application/json', '{"a":"' + self.PAD + '","b":"matched value"}')
+        self.assertIsNone(result)
+
+    def test_urlencoded_before_limit(self):
+        result = self.do_post_large_buffer('application/x-www-form-urlencoded',
+                                           'b=matched+value&a=' + self.PAD)
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_urlencoded_past_limit(self):
+        result = self.do_post_large_buffer(
+            'application/x-www-form-urlencoded',
+            'a=' + self.PAD + '&b=matched+value')
+        self.assertIsNone(result)
+
+    def test_multipart_before_limit(self):
+        result = self.do_post_large_buffer(
+            'multipart/form-data; boundary="bound"',
+            '--bound\r\nContent-Disposition: form-data; name="b"\r\n\r\n'
+            'matched value\r\n'
+            '--bound\r\nContent-Disposition: form-data; name="a"\r\n\r\n' +
+            self.PAD + '\r\n--bound--\r\n')
+        self.assertEqual(
+            result['triggers'][0]['rule_matches'][0]['parameters'][0]['value'],
+            'matched value')
+
+    def test_multipart_past_limit(self):
+        result = self.do_post_large_buffer(
+            'multipart/form-data; boundary="bound"',
+            '--bound\r\nContent-Disposition: form-data; name="a"\r\n\r\n' +
+            self.PAD + '\r\n'
+            '--bound\r\nContent-Disposition: form-data; name="b"\r\n\r\n'
+            'matched value\r\n--bound--\r\n')
+        self.assertIsNone(result)
+
     def test_multipart_large_value(self):
         # payload larger than 40k
         result = self.do_post(
