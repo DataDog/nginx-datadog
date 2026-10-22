@@ -73,3 +73,18 @@ TEST_CASE("chain stream bulk read skips empty buffers", "[chain_is]") {
   CHECK(std::string_view{reinterpret_cast<char *>(buf), 4} == "abcd");
   CHECK(is.eof());
 }
+
+TEST_CASE("chain stream counts the bytes read", "[chain_is]") {
+  std::vector<std::string_view> parts{"ab", "", "cdef"};
+  test::ManagedChain chain{parts};
+  dnsec::NgxChainInputStream is{&static_cast<ngx_chain_t &>(chain),
+                                chain.size()};
+  CHECK(is.position() == 0);
+  is.read();
+  CHECK(is.position() == 1);
+  std::uint8_t buf[2];
+  is.read(buf, sizeof buf);
+  CHECK(is.position() == 3);
+  read_bytes(is);
+  CHECK(is.position() == 6);
+}
