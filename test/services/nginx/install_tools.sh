@@ -39,7 +39,13 @@ if command -v apt-get >/dev/null 2>&1; then
 
 elif command -v apk >/dev/null 2>&1; then
     apk update
-    apk add procps gdb
+    # The sanitizer toolchain image pins musl and musl-dev. Naming them
+    # removes the pin, so musl can be upgraded to match musl-dbg.
+    set -- procps gdb musl musl-dbg
+    if apk info -e musl-dev >/dev/null; then
+        set -- "$@" musl-dev
+    fi
+    apk add --upgrade "$@"
     if ! command -v nginx >/dev/null 2>&1; then
         >&2 echo 'nginx must already be installed on Alpine-flavored base images'
         exit 1

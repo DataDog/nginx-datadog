@@ -23,10 +23,11 @@ void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc,
       ddwaf_map_obj &obj_map = object.make_map(obj.MemberCount(), memres);
       size_t i = 0;
       for (auto &kv : obj) {
-        std::string_view const key = kv.name.GetString();
-        ddwaf_obj &element = obj_map.at_unchecked(i++);
-        element.set_key(key, memres);
-        json_to_obj_impl(memres, element, kv.value, max_depth - 1);
+        std::string_view const key{kv.name.GetString(),
+                                   kv.name.GetStringLength()};
+        ddwaf_kv_obj &entry = obj_map.at_unchecked(i++);
+        entry.set_key(key, memres);
+        json_to_obj_impl(memres, entry.val, kv.value, max_depth - 1);
       }
       break;
     }
@@ -69,37 +70,6 @@ void json_to_obj_impl(DdwafMemres &memres, ddwaf_obj &object, const D &doc,
   }
 }
 
-void deep_copy(DdwafMemres &memres, ddwaf_obj &dst, const ddwaf_obj &src) {
-  switch (src.type) {
-    case DDWAF_OBJ_MAP: {
-      ddwaf_map_obj src_map{src};
-      ddwaf_map_obj &r = dst.make_map(src.nbEntries, memres);
-      size_t i = 0;
-      for (auto &&obj : src_map) {
-        ddwaf_obj &new_dst = r.at_unchecked(i++);
-        new_dst.set_key(obj.key(), memres);
-        deep_copy(memres, new_dst, obj);
-      }
-      break;
-    }
-    case DDWAF_OBJ_ARRAY: {
-      ddwaf_arr_obj src_arr{src};
-      ddwaf_arr_obj &r = dst.make_array(src.nbEntries, memres);
-      size_t i = 0;
-      for (auto &&elem : src_arr) {
-        ddwaf_obj &new_dst = r.at_unchecked(i++);
-        deep_copy(memres, new_dst, elem);
-      }
-      break;
-    }
-    case DDWAF_OBJ_STRING: {
-      dst.make_string(src.string_val_unchecked(), memres);
-      break;
-    }
-    default:
-      dst.shallow_copy_val_from(src);
-  }
-}
 }  // namespace impl
 
 ddwaf_owned_obj<ddwaf_obj> json_to_object(

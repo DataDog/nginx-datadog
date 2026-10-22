@@ -31,13 +31,17 @@ struct HashedLowercaseStringView {
 
 class Library {
  public:
-  using Diagnostics = libddwaf_ddwaf_owned_obj<ddwaf_map_obj>;
+  using Diagnostics = libddwaf_owned_ddwaf_obj<ddwaf_map_obj>;
 
   static constexpr std::string_view kBundledRuleset =
       "datadog/0/NONE/none/bundled_rule_data";
+  // must not contain /ASM_DD/ (see the bundled ruleset handling)
+  static constexpr std::string_view kObfuscatorConfigPath =
+      "datadog/0/NONE/none/obfuscator";
 
-  static std::optional<ddwaf_owned_map> initialize_security_library(
-      const datadog_main_conf_t &conf);
+  // Returns false if appsec is explicitly disabled. Returns true otherwise,
+  // even if appsec stays inactive until remote config enables it.
+  static bool initialize_security_library(const datadog_main_conf_t &conf);
 
   // Initialize shared memory zone for API security rate limiter
   static ngx_int_t initialize_api_security_shared_memory(ngx_conf_t *cf);

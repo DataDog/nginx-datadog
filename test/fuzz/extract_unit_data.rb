@@ -28,6 +28,6 @@ def write_sections_to_files(sections)
   end
 end
 
-input_file = '../unit/multipart.cpp'
+input_file = '../unit/security/multipart.cpp'
 sections = extract_sections(input_file)
 write_sections_to_files(sections)
