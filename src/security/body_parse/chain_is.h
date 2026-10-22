@@ -20,18 +20,17 @@ class NgxChainInputStream {
     }
 
     enter_buffer();
+    skip_exhausted_buffers();
   }
   NgxChainInputStream(const NgxChainInputStream &) = default;
   NgxChainInputStream &operator=(const NgxChainInputStream &) = default;
   NgxChainInputStream(NgxChainInputStream &&) = delete;
   NgxChainInputStream &operator=(NgxChainInputStream &&) = delete;
 
-  std::uint8_t operator*() {
-    if (pos_ == end_) {
-      if (!advance_buffer()) {
-        assert("peek over eof" == 0);
-        return 0;
-      }
+  std::uint8_t operator*() const {
+    if (eof()) {
+      assert("peek over eof" == 0);
+      return 0;
     }
     return *pos_;
   }
@@ -41,29 +40,25 @@ class NgxChainInputStream {
   }
 
   std::uint8_t read() {
-    if (pos_ == end_) {
-      if (!advance_buffer()) {
-        assert("read over eof" == 0);
-        return 0;
-      }
+    if (eof()) {
+      assert("read over eof" == 0);
+      return 0;
     }
     global_pos_++;
-    return *pos_++;
+    std::uint8_t const ch = *pos_++;
+    skip_exhausted_buffers();
+    return ch;
   }
 
   std::size_t read(std::uint8_t *buffer, size_t buf_size) {
     std::size_t read = 0;
-    while (read < buf_size) {
-      if (pos_ == end_) {
-        if (!advance_buffer()) {
-          return read;
-        }
-      }
+    while (read < buf_size && !eof()) {
       std::size_t read_now =
           std::min(static_cast<std::size_t>(end_ - pos_), buf_size - read);
       std::copy_n(pos_, read_now, buffer + read);
       pos_ += read_now;
       read += read_now;
+      skip_exhausted_buffers();
     }
     return read;
   }
@@ -85,21 +80,16 @@ class NgxChainInputStream {
     return w - begin;
   }
 
-  bool eof() const {
-    if (pos_ == end_) {
-      return current_->next == nullptr || bytes_left_ == 0;
-    }
-    return false;
-  }
+  // We never stay at the end of a buffer if more data follows
+  bool eof() const { return pos_ == end_; }
 
  private:
-  bool advance_buffer() {
-    if (bytes_left_ == 0 || !current_->next) {
-      return false;
+  // Moves past used up and empty buffers, until one has data left
+  void skip_exhausted_buffers() {
+    while (pos_ == end_ && bytes_left_ > 0 && current_->next) {
+      current_ = current_->next;
+      enter_buffer();
     }
-    current_ = current_->next;
-    enter_buffer();
-    return true;
   }
 
   // max_bytes can end in the middle of a buffer
