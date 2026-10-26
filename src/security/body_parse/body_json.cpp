@@ -14,7 +14,7 @@
 #include "../ddwaf_memres.h"
 #include "../ddwaf_obj.h"
 #include "../waf_input_budget.h"
-#include "chain_is.h"
+#include "chain_input_stream.h"
 
 extern "C" {
 #include <ngx_core.h>
@@ -37,18 +37,18 @@ class RapidNgxChainInputStream {
   using Ch = char;
 
   RapidNgxChainInputStream(const ngx_chain_t *chain, size_t max_bytes)
-      : is_{chain, max_bytes} {}
+      : input_stream_{chain, max_bytes} {}
 
   Ch Peek() const {  // NOLINT
-    return is_.eof() ? '\0' : static_cast<Ch>(*is_);
+    return input_stream_.eof() ? '\0' : static_cast<Ch>(input_stream_.peek());
   }
 
   Ch Take() {  // NOLINT
-    return is_.eof() ? '\0' : static_cast<Ch>(is_.read());
+    return input_stream_.eof() ? '\0' : static_cast<Ch>(input_stream_.read());
   }
 
   std::size_t Tell() const {  // NOLINT
-    return is_.position();
+    return input_stream_.bytes_read();
   }
 
   void Put(Ch) {  // NOLINT
@@ -58,7 +58,7 @@ class RapidNgxChainInputStream {
   size_t PutEnd(Ch *) { return 0; }     // NOLINT
 
  private:
-  dnsec::NgxChainInputStream is_;
+  dnsec::NgxChainInputStream input_stream_;
 };
 
 /* Rapidjson event handler for serializing into ddwaf_obj, allowing for
@@ -321,9 +321,10 @@ bool parse_json(ddwaf_obj &slot, const ngx_http_request_t &req,
 
   ToDdwafObjHandler handler{slot, budget, memres};
   rapidjson::Reader reader;
-  RapidNgxChainInputStream is{&chain, limit};
+  RapidNgxChainInputStream input_stream{&chain, limit};
   rapidjson::ParseResult res =
-      reader.Parse<parse_flags, RapidNgxChainInputStream>(is, handler);
+      reader.Parse<parse_flags, RapidNgxChainInputStream>(input_stream,
+                                                          handler);
   ddwaf_obj *json_obj = handler.finish(req);
   if (budget.exhausted()) {
     ngx_log_debug(NGX_LOG_DEBUG_HTTP, req.connection->log, 0,

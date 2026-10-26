@@ -22,10 +22,7 @@ class NgxChainInputStream {
     enter_buffer();
     skip_exhausted_buffers();
   }
-  NgxChainInputStream(const NgxChainInputStream &) = default;
-  NgxChainInputStream &operator=(const NgxChainInputStream &) = default;
-
-  std::uint8_t operator*() const {
+  std::uint8_t peek() const {
     if (eof()) {
       assert("peek over eof" == 0);
       return 0;
@@ -38,7 +35,7 @@ class NgxChainInputStream {
       assert("read over eof" == 0);
       return 0;
     }
-    read_count_++;
+    bytes_read_++;
     std::uint8_t const ch = *pos_++;
     skip_exhausted_buffers();
     return ch;
@@ -54,7 +51,7 @@ class NgxChainInputStream {
       read += read_now;
       skip_exhausted_buffers();
     }
-    read_count_ += read;
+    bytes_read_ += read;
     return read;
   }
 
@@ -78,8 +75,7 @@ class NgxChainInputStream {
   // We never stay at the end of a buffer if more data follows
   bool eof() const { return pos_ == end_; }
 
-  // Number of bytes read so far
-  std::size_t position() const { return read_count_; }
+  std::size_t bytes_read() const { return bytes_read_; }
 
  private:
   // Moves past used up and empty buffers, until one has data left
@@ -102,7 +98,7 @@ class NgxChainInputStream {
   const ngx_chain_t *current_;
   u_char *pos_{};
   u_char *end_{};
-  std::size_t read_count_{};
+  std::size_t bytes_read_{};
   std::size_t bytes_left_;  // bytes we may still expose
 };
 }  // namespace datadog::nginx::security

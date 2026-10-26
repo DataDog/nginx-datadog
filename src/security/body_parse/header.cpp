@@ -6,7 +6,7 @@
 #include <string_view>
 
 #include "../decode.h"
-#include "chain_is.h"
+#include "chain_input_stream.h"
 #include "generator.h"
 
 using namespace std::literals;
@@ -195,14 +195,13 @@ initial_line:
           co_return;
         }
 
-        ch = *is;  // peek; do not consume has it may be part of the next header
-                   // or the end of the headers
+        ch = is.peek();  // Do not consume the next byte.
         if (is_ext_ws(ch)) {
           // We're folding
           // skip the current ws and then the rest of the ws
           do {
             is.read();
-          } while (!is.eof() && is_ext_ws(*is) /* peek */);
+          } while (!is.eof() && is_ext_ws(is.peek()));
 
           // at this point either eof, or we do ch = is.read() (returns non-ws)
           // and restart the loop

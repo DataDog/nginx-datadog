@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "chain_is.h"
+#include "chain_input_stream.h"
 
 namespace datadog::nginx::security {
 
