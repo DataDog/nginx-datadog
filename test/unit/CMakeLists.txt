@@ -16,6 +16,7 @@ endif()
 
 if(NGINX_DATADOG_ASM_ENABLED)
     list(APPEND UNIT_TEST_SOURCES
+        security/chain_input_stream.cpp
         security/client_ip.cpp
         security/collection.cpp
         security/ddwaf_obj.cpp

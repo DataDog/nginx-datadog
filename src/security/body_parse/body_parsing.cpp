@@ -14,7 +14,7 @@
 #include "../decode.h"
 #include "body_json.h"
 #include "body_multipart.h"
-#include "chain_is.h"
+#include "chain_input_stream.h"
 #include "header.h"
 
 extern "C" {

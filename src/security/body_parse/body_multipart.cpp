@@ -9,7 +9,7 @@
 #include "../ddwaf_memres.h"
 #include "../ddwaf_obj.h"
 #include "body_parsing.h"
-#include "chain_is.h"
+#include "chain_input_stream.h"
 #include "header.h"
 
 extern "C" {
