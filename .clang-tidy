@@ -18,6 +18,7 @@ Checks: >
   bugprone-unused-raii,
   bugprone-virtual-near-miss,
   misc-unused-using-decls,
+  readability-braces-around-statements,
   readability-delete-null-pointer,
   readability-redundant-control-flow,
   readability-redundant-string-cstr
@@ -32,5 +33,14 @@ Checks: >
 # performance-noexcept-move-constructor
 # readability-redundant-member-init
 # readability-simplify-boolean-expr
+# CheckOption rationale: a brace-less if/return whose entire body fits on the
+# condition line (e.g. `if (cond) return;`) stays exempt from this check, so we
+# don't force braces onto trivial guard clauses. This matches the option the
+# dd-trace-cpp maintainer added in DataDog/dd-trace-cpp#390 when first enabling
+# this rule there, in response to review feedback that an unconditional
+# brace-everywhere approach was too aggressive.
+CheckOptions:
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: 1
 WarningsAsErrors: '*'
 FormatStyle: file
