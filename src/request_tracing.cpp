@@ -104,8 +104,9 @@ void add_baggage_span_tags(datadog_loc_conf_t *conf, tracing::Baggage &baggage,
 static void add_upstream_name(const ngx_http_request_t *request,
                               dd::Span &span) {
   if (!request->upstream || !request->upstream->upstream ||
-      !request->upstream->upstream->host.data)
+      !request->upstream->upstream->host.data) {
     return;
+  }
   auto host = request->upstream->upstream->host;
   auto host_str = to_string(host);
   span.set_tag("upstream.name", host_str);
