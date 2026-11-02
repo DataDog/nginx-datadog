@@ -42,8 +42,9 @@ ngx_int_t on_enter_block(ngx_http_request_t *request) noexcept try {
       !loc_conf->rum_enable)
     return NGX_DECLINED;
 #else
-  if (!is_datadog_tracing_enabled(request, core_loc_conf, loc_conf))
+  if (!is_datadog_tracing_enabled(request, core_loc_conf, loc_conf)) {
     return NGX_DECLINED;
+  }
 #endif
 
   auto context = get_datadog_context(request);
