@@ -339,6 +339,12 @@ static ngx_int_t datadog_module_init(ngx_conf_t *cf) noexcept {
 }
 
 static ngx_int_t datadog_init_worker(ngx_cycle_t *cycle) noexcept try {
+  // Cache processes exit without calling datadog_exit_worker.
+  // They serve no requests, so they need no tracer.
+  if (ngx_process != NGX_PROCESS_WORKER && ngx_process != NGX_PROCESS_SINGLE) {
+    return NGX_OK;
+  }
+
   auto main_conf = static_cast<datadog_main_conf_t *>(
       ngx_http_cycle_get_module_main_conf(cycle, ngx_http_datadog_module));
   if (!main_conf) {
