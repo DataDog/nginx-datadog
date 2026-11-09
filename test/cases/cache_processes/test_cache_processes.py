@@ -28,7 +28,8 @@ class TestCacheProcesses(case.TestCase):
         self.orch.reload_nginx()
         exit_lines = [
             self.orch.wait_for_log_message(
-                'nginx', r'cache (manager|loader) process \d+ exited',
+                'nginx',
+                r'cache (manager|loader) process \d+ exited',
                 timeout_secs=10) for _ in range(2)
         ]
         self.assertTrue(any('cache manager' in line for line in exit_lines))
