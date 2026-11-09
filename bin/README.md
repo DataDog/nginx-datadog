@@ -20,4 +20,5 @@ This directory contains programs (scripts) used by the build mostly.
   a link to the gzipped tarball of the corresponding source release.
 - [release.py](release.py) Downloads nginx module artifacts from a GitLab CI
   pipeline, compresses and signs them, and then publishes a draft prerelease
-  to GitHub.
+  to GitHub. Ingress images are built and signed in GitLab CI. Public
+  publication is a manual step in GitLab CI.

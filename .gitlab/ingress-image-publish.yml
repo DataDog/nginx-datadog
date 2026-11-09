@@ -1,45 +1,46 @@
-# Build release inputs internally. Public registry credentials stay in public-images.
+# Build and sign internally. Public registry credentials stay in public-images.
 .ingress-image-source:
   stage: ingress-image-build
   image: $NYDUS_IMAGE
-  tags: ["docker-in-docker:$ARCH"]
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64"]
+  tags: ["docker-in-docker:amd64"]
+  interruptible: false
+  variables:
+    CI_ENABLE_CONTAINER_IMAGE_BUILDS: "true"
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
   script:
     - |
       set -euo pipefail
       source_repository="${CI_REGISTRY}/ingress-nginx-injection"
-      manifest="ingress-image-manifest/${ARCH}/versions"
-      mkdir -p "$(dirname "${manifest}")"
-      : > "${manifest}"
+      image_tags=()
 
-      case "${INGRESS_IMAGE_RELEASE_MODE}" in
-        release) tag_suffix="dd.${CI_COMMIT_TAG}" ;;
-        dev) tag_suffix="dev.${CI_COMMIT_SHORT_SHA}" ;;
-        *) echo "Unknown release mode: ${INGRESS_IMAGE_RELEASE_MODE}" >&2; exit 1 ;;
-      esac
+      for version in $(printf '%s\n' artifacts-ingress/{amd64,arm64}/* | cut -d/ -f3 | sort -u); do
+        image_tag="v${version}-${CI_JOB_ID}"
+        image="${source_repository}:${image_tag}"
+        for arch in amd64 arm64; do
+          module_context="artifacts-ingress/${arch}/${version}"
+          test -f "${module_context}/ngx_http_datadog_module.so"
+          docker build --progress=plain --no-cache \
+            --provenance=false --sbom=false \
+            --build-context "build=${module_context}" \
+            --platform "linux/${arch}" --tag "${image}-${arch}" \
+            injection/ingress-nginx
+          docker push "${image}-${arch}"
+        done
 
-      for module_dir in artifacts-ingress/"${ARCH}"/*; do
-        version="$(basename "${module_dir}")"
-        module="${module_dir}/ngx_http_datadog_module.so"
-        test -f "${module}"
-        image="${source_repository}:v${version}-${tag_suffix}-${ARCH}"
-        build_context="$(mktemp -d)"
-        cp "${module}" "${build_context}/"
-        docker build --progress=plain --no-cache \
-          --build-context "build=${build_context}" \
-          --platform "linux/${ARCH}" --tag "${image}" \
-          injection/ingress-nginx
-        docker push "${image}"
-        rm -rf "${build_context}"
-        echo "${version}" >> "${manifest}"
+        docker buildx imagetools create --tag "${image}" \
+          "${image}-amd64" "${image}-arm64"
+        digest="$(crane digest "${image}")"
+        ddsign sign "${image}@${digest}"
+        ddsign verify --roles=ci "${image}@${digest}"
+        image_tags+=("${image_tag}@${digest}")
       done
-      test -s "${manifest}"
+      printf 'INGRESS_IMAGE_TAGS=%s\n' "${image_tags[*]}" > ingress-images.env
   artifacts:
-    paths:
-      - ingress-image-manifest/$ARCH/versions
-    expire_in: 1 day
+    reports:
+      dotenv: ingress-images.env
+    expire_in: 1 week
 
 build-ingress-injection-images:
   extends: .ingress-image-source
@@ -131,13 +132,11 @@ build-ingress-injection-images:
     - "build-ingress-nginx-all: [arm64, 1.14.5]"
     - "build-ingress-nginx-all: [arm64, 1.15.0]"
     - "build-ingress-nginx-all: [arm64, 1.15.1]"
-  variables:
-    INGRESS_IMAGE_RELEASE_MODE: release
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
     - when: never
 
-# Run this before the matching dev publish job when testing the release path.
+# Use the same build and signing path for branch images.
 build-ingress-injection-images-dev:
   extends: .ingress-image-source
   dependencies:
@@ -147,66 +146,52 @@ build-ingress-injection-images-dev:
     - "build-ingress-nginx-fast: [arm64, 1.13.9]"
     - "build-ingress-nginx-fast: [arm64, 1.14.5]"
     - "build-ingress-nginx-fast: [arm64, 1.15.1]"
-  variables:
-    INGRESS_IMAGE_RELEASE_MODE: dev
   rules:
     - if: $CI_COMMIT_BRANCH
-      when: manual
-      allow_failure: true
     - when: never
 
 .ingress-image-publish:
   stage: ingress-image-publish
   image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.4@sha256:eaf703c35f95d7326be30ffb485d143262de6b0a254b6f7f00f1573ec1817031
   tags: ["arch:amd64"]
+  interruptible: false
+  resource_group: ingress-image-publish-$INGRESS_IMAGE_RELEASE_MODE
+  timeout: 3 hours
   variables:
     INGRESS_IMAGE_PUBLIC_REGISTRIES: dockerhub
   script:
     - |
       set -euo pipefail
-      amd64_versions=ingress-image-manifest/amd64/versions
-      arm64_versions=ingress-image-manifest/arm64/versions
-      test -s "${amd64_versions}"
-      test -s "${arm64_versions}"
-      diff -u "${amd64_versions}" "${arm64_versions}"
-
-      case "${INGRESS_IMAGE_RELEASE_MODE}" in
-        release) tag_suffix="dd.${CI_COMMIT_TAG}" ;;
-        dev) tag_suffix="dev.${CI_COMMIT_SHORT_SHA}" ;;
-        *) echo "Unknown release mode: ${INGRESS_IMAGE_RELEASE_MODE}" >&2; exit 1 ;;
-      esac
-
+      : "${INGRESS_IMAGE_TAGS:?The signed image build must succeed first}"
       source_repository="${CI_REGISTRY}/ingress-nginx-injection"
-      while read -r version; do
-        image_tag="v${version}-${tag_suffix}"
-        sources="${source_repository}:${image_tag}-amd64,${source_repository}:${image_tag}-arm64"
+      for image_tag in ${INGRESS_IMAGE_TAGS}; do
+        version="${image_tag%@*}"
+        version="${version%-*}"
         if [[ "${INGRESS_IMAGE_RELEASE_MODE}" == release ]]; then
-          destinations="ingress-nginx-injection:${image_tag},ingress-nginx-injection:v${version}"
+          destinations="ingress-nginx-injection:${version}-dd.${CI_COMMIT_TAG},ingress-nginx-injection:${version}"
         else
-          destinations="ingress-nginx-injection-dev:${image_tag}"
+          destinations="ingress-nginx-injection-dev:${version}-dev.${CI_COMMIT_SHORT_SHA}"
         fi
         dd-pkg publish-image \
-          --sources "${sources}" \
+          --sources "${source_repository}:${image_tag}" \
+          --merge-strategy none \
           --destinations "${destinations}" \
           --registries "${INGRESS_IMAGE_PUBLIC_REGISTRIES}"
-      done < "${amd64_versions}"
+      done
 
 publish-ingress-injection-images:
   extends: .ingress-image-publish
-  dependencies:
-    - "build-ingress-injection-images: [amd64]"
-    - "build-ingress-injection-images: [arm64]"
+  dependencies: [build-ingress-injection-images]
   variables:
     INGRESS_IMAGE_RELEASE_MODE: release
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      when: manual
     - when: never
 
 publish-ingress-injection-images-dev:
   extends: .ingress-image-publish
-  dependencies:
-    - "build-ingress-injection-images-dev: [amd64]"
-    - "build-ingress-injection-images-dev: [arm64]"
+  dependencies: [build-ingress-injection-images-dev]
   variables:
     INGRESS_IMAGE_RELEASE_MODE: dev
   rules:

@@ -1,13 +1,10 @@
 # Build init container for ingress-nginx
 FROM registry.ddbuild.io/images/mirror/alpine:latest
 
-ARG MODULE_PATH
-
 WORKDIR /datadog/
 
-COPY init_module.sh .
-COPY --from=build ngx_http_datadog_module.so* .
-
-RUN chmod +x init_module.sh \
- && cp init_module.sh /usr/local/bin/init_module.sh
+# COPY needs no target CPU, so CI can package both architectures without emulation.
+COPY --chmod=0755 init_module.sh .
+COPY --chmod=0755 init_module.sh /usr/local/bin/init_module.sh
+COPY --from=build ngx_http_datadog_module.so .
 
