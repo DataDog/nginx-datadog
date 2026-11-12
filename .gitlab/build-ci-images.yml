@@ -1,6 +1,9 @@
 include:
   - local: ".gitlab/common.yml"
 
+variables:
+  CI_IMAGE_TAG: "buildx-$CI_PIPELINE_ID"
+
 stages:
   - build
   - sign
@@ -51,9 +54,9 @@ build-ci-images:
           --progress=plain \
           --platform "linux/$ARCH" \
           "${extra_args[@]}" \
-          --tag "$image:latest-$ARCH" \
+          --tag "$image:${CI_IMAGE_TAG}-$ARCH" \
           "$context"
-        docker push "$image:latest-$ARCH"
+        docker push "$image:${CI_IMAGE_TAG}-$ARCH"
       done
 
 assemble-and-sign-ci-images:
@@ -73,13 +76,13 @@ assemble-and-sign-ci-images:
       for image_name in nginx_musl_toolchain test uwsgi; do
         image="$CI_REGISTRY/$image_name"
         docker buildx imagetools create \
-          --tag "$image:latest" \
-          "$image:latest-amd64" \
-          "$image:latest-arm64"
+          --tag "$image:${CI_IMAGE_TAG}" \
+          "$image:${CI_IMAGE_TAG}-amd64" \
+          "$image:${CI_IMAGE_TAG}-arm64"
 
-        digest=$(crane digest "$image:latest")
-        ddsign sign "$image:latest@$digest"
-        ddsign verify "$image:latest@$digest"
+        digest=$(crane digest "$image:${CI_IMAGE_TAG}")
+        ddsign sign "$image:${CI_IMAGE_TAG}@$digest"
+        ddsign verify "$image:${CI_IMAGE_TAG}@$digest"
 
         case "$image_name" in
           nginx_musl_toolchain) variable=NGINX_CI_BUILD_IMAGE ;;
