@@ -2,7 +2,7 @@ include:
   - local: ".gitlab/common.yml"
 
 variables:
-  CI_IMAGE_TAG: "buildx-$CI_PIPELINE_ID"
+  NGINX_CI_CANDIDATE_TAG: "buildx-$CI_PIPELINE_ID"
 
 stages:
   - build
@@ -54,9 +54,9 @@ build-ci-images:
           --progress=plain \
           --platform "linux/$ARCH" \
           "${extra_args[@]}" \
-          --tag "$image:${CI_IMAGE_TAG}-$ARCH" \
+          --tag "$image:${NGINX_CI_CANDIDATE_TAG}-$ARCH" \
           "$context"
-        docker push "$image:${CI_IMAGE_TAG}-$ARCH"
+        docker push "$image:${NGINX_CI_CANDIDATE_TAG}-$ARCH"
       done
 
 assemble-and-sign-ci-images:
@@ -76,13 +76,13 @@ assemble-and-sign-ci-images:
       for image_name in nginx_musl_toolchain test uwsgi; do
         image="$CI_REGISTRY/$image_name"
         docker buildx imagetools create \
-          --tag "$image:${CI_IMAGE_TAG}" \
-          "$image:${CI_IMAGE_TAG}-amd64" \
-          "$image:${CI_IMAGE_TAG}-arm64"
+          --tag "$image:${NGINX_CI_CANDIDATE_TAG}" \
+          "$image:${NGINX_CI_CANDIDATE_TAG}-amd64" \
+          "$image:${NGINX_CI_CANDIDATE_TAG}-arm64"
 
-        digest=$(crane digest "$image:${CI_IMAGE_TAG}")
-        ddsign sign "$image:${CI_IMAGE_TAG}@$digest"
-        ddsign verify "$image:${CI_IMAGE_TAG}@$digest"
+        digest=$(crane digest "$image:${NGINX_CI_CANDIDATE_TAG}")
+        ddsign sign "$image:${NGINX_CI_CANDIDATE_TAG}@$digest"
+        ddsign verify "$image:${NGINX_CI_CANDIDATE_TAG}@$digest"
 
         case "$image_name" in
           nginx_musl_toolchain) variable=NGINX_CI_BUILD_IMAGE ;;
