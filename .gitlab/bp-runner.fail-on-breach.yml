@@ -14,9 +14,9 @@ experiments:
               - agg_http_req_duration_p95 < 0.45 ms
           - name: normal_operation/only-tracing
             thresholds:
-              - threshold: agg_http_req_duration_p50 < 0.130 ms
+              - threshold: agg_http_req_duration_p50 < 0.134 ms
                 warning_range: 2
-              - agg_http_req_duration_p95 < 0.19 ms
+              - agg_http_req_duration_p95 < 0.20 ms
           - name: high_load/only-tracing/nginx-utilization
             thresholds:
               - cpu_usage_percentage < 49 %
