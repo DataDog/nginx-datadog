@@ -109,6 +109,18 @@ TEST_ARGS="cases.package.module.TestClass.test_method" NGINX_VERSION=<version> m
 
 For more information on tests, see [test/README.md](../test/README.md).
 
+## Release Ingress Images
+
+For a stable `vX.Y.Z` tag, `build-ingress-injection-images` builds both architectures in CI,
+creates the multi-architecture images, and signs and verifies their digests with `ddsign`.
+Run the manual `publish-ingress-injection-images` job in that pipeline to copy those exact
+images to Docker Hub through artifact-gateway. It sets the existing `v<controller>-dd.vX.Y.Z`
+and `v<controller>` tags. Publishing an old release again will also reset the controller tags.
+
+On branches, CI builds and signs images for the fast test versions. Use the manual
+`publish-ingress-injection-images-dev` job to test publication to `ingress-nginx-injection-dev`.
+Before the first publish, confirm the gateway policy and dev repository setup with Agent Delivery.
+
 ## Update CI Images
 
 The CI build, test, and uWSGI images are built for amd64 and arm64. CI uses image digests from

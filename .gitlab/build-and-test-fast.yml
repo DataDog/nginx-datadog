@@ -59,6 +59,13 @@ lint:
   script:
     - bin/lint.sh
 
+test-ingress-image-publish:
+  extends: .build-and-test-fast
+  image: $TEST_IMAGE
+  tags: ["arch:amd64"]
+  script:
+    - python3 .gitlab/test_ingress_image_publish.py
+
 shellcheck:
   extends: .build-and-test-fast
   image: $NGINX_CI_BUILD_IMAGE

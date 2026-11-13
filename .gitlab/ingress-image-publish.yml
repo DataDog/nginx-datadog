@@ -1,0 +1,201 @@
+# Build and sign internally. Public registry credentials stay in public-images.
+.ingress-image-source:
+  stage: ingress-image-build
+  image: $NYDUS_IMAGE
+  tags: ["docker-in-docker:amd64"]
+  interruptible: false
+  variables:
+    CI_ENABLE_CONTAINER_IMAGE_BUILDS: "true"
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  script:
+    - |
+      set -euo pipefail
+      source_repository="${CI_REGISTRY}/ingress-nginx-injection"
+      image_tags=()
+
+      for version in $(printf '%s\n' artifacts-ingress/{amd64,arm64}/* | cut -d/ -f3 | sort -u); do
+        image_tag="v${version}-${CI_JOB_ID}"
+        image="${source_repository}:${image_tag}"
+        for arch in amd64 arm64; do
+          module_context="artifacts-ingress/${arch}/${version}"
+          test -f "${module_context}/ngx_http_datadog_module.so"
+          docker build --progress=plain --no-cache \
+            --provenance=false --sbom=false \
+            --build-context "build=${module_context}" \
+            --platform "linux/${arch}" --tag "${image}-${arch}" \
+            injection/ingress-nginx
+          docker push "${image}-${arch}"
+        done
+
+        docker buildx imagetools create --tag "${image}" \
+          "${image}-amd64" "${image}-arm64"
+        digest="$(crane digest "${image}")"
+        ddsign sign "${image}@${digest}"
+        ddsign verify --roles=ci "${image}@${digest}"
+        image_tags+=("${image_tag}@${digest}")
+      done
+      printf 'INGRESS_IMAGE_TAGS=%s\n' "${image_tags[*]}" > ingress-images.env
+  artifacts:
+    reports:
+      dotenv: ingress-images.env
+    expire_in: 1 week
+
+build-ingress-injection-images:
+  extends: .ingress-image-source
+  # Matrix jobs must be named explicitly for artifact dependencies.
+  dependencies:
+    - "build-ingress-nginx-all: [amd64, 1.10.0]"
+    - "build-ingress-nginx-all: [amd64, 1.10.1]"
+    - "build-ingress-nginx-all: [amd64, 1.10.2]"
+    - "build-ingress-nginx-all: [amd64, 1.10.3]"
+    - "build-ingress-nginx-all: [amd64, 1.10.4]"
+    - "build-ingress-nginx-all: [amd64, 1.10.5]"
+    - "build-ingress-nginx-all: [amd64, 1.10.6]"
+    - "build-ingress-nginx-all: [amd64, 1.11.0]"
+    - "build-ingress-nginx-all: [amd64, 1.11.1]"
+    - "build-ingress-nginx-all: [amd64, 1.11.2]"
+    - "build-ingress-nginx-all: [amd64, 1.11.3]"
+    - "build-ingress-nginx-all: [amd64, 1.11.4]"
+    - "build-ingress-nginx-all: [amd64, 1.11.5]"
+    - "build-ingress-nginx-all: [amd64, 1.11.6]"
+    - "build-ingress-nginx-all: [amd64, 1.11.7]"
+    - "build-ingress-nginx-all: [amd64, 1.11.8]"
+    - "build-ingress-nginx-all: [amd64, 1.12.0]"
+    - "build-ingress-nginx-all: [amd64, 1.12.1]"
+    - "build-ingress-nginx-all: [amd64, 1.12.2]"
+    - "build-ingress-nginx-all: [amd64, 1.12.3]"
+    - "build-ingress-nginx-all: [amd64, 1.12.4]"
+    - "build-ingress-nginx-all: [amd64, 1.12.5]"
+    - "build-ingress-nginx-all: [amd64, 1.12.6]"
+    - "build-ingress-nginx-all: [amd64, 1.12.7]"
+    - "build-ingress-nginx-all: [amd64, 1.12.8]"
+    - "build-ingress-nginx-all: [amd64, 1.13.0]"
+    - "build-ingress-nginx-all: [amd64, 1.13.1]"
+    - "build-ingress-nginx-all: [amd64, 1.13.2]"
+    - "build-ingress-nginx-all: [amd64, 1.13.3]"
+    - "build-ingress-nginx-all: [amd64, 1.13.4]"
+    - "build-ingress-nginx-all: [amd64, 1.13.5]"
+    - "build-ingress-nginx-all: [amd64, 1.13.6]"
+    - "build-ingress-nginx-all: [amd64, 1.13.7]"
+    - "build-ingress-nginx-all: [amd64, 1.13.8]"
+    - "build-ingress-nginx-all: [amd64, 1.13.9]"
+    - "build-ingress-nginx-all: [amd64, 1.14.0]"
+    - "build-ingress-nginx-all: [amd64, 1.14.1]"
+    - "build-ingress-nginx-all: [amd64, 1.14.2]"
+    - "build-ingress-nginx-all: [amd64, 1.14.3]"
+    - "build-ingress-nginx-all: [amd64, 1.14.4]"
+    - "build-ingress-nginx-all: [amd64, 1.14.5]"
+    - "build-ingress-nginx-all: [amd64, 1.15.0]"
+    - "build-ingress-nginx-all: [amd64, 1.15.1]"
+    - "build-ingress-nginx-all: [arm64, 1.10.0]"
+    - "build-ingress-nginx-all: [arm64, 1.10.1]"
+    - "build-ingress-nginx-all: [arm64, 1.10.2]"
+    - "build-ingress-nginx-all: [arm64, 1.10.3]"
+    - "build-ingress-nginx-all: [arm64, 1.10.4]"
+    - "build-ingress-nginx-all: [arm64, 1.10.5]"
+    - "build-ingress-nginx-all: [arm64, 1.10.6]"
+    - "build-ingress-nginx-all: [arm64, 1.11.0]"
+    - "build-ingress-nginx-all: [arm64, 1.11.1]"
+    - "build-ingress-nginx-all: [arm64, 1.11.2]"
+    - "build-ingress-nginx-all: [arm64, 1.11.3]"
+    - "build-ingress-nginx-all: [arm64, 1.11.4]"
+    - "build-ingress-nginx-all: [arm64, 1.11.5]"
+    - "build-ingress-nginx-all: [arm64, 1.11.6]"
+    - "build-ingress-nginx-all: [arm64, 1.11.7]"
+    - "build-ingress-nginx-all: [arm64, 1.11.8]"
+    - "build-ingress-nginx-all: [arm64, 1.12.0]"
+    - "build-ingress-nginx-all: [arm64, 1.12.1]"
+    - "build-ingress-nginx-all: [arm64, 1.12.2]"
+    - "build-ingress-nginx-all: [arm64, 1.12.3]"
+    - "build-ingress-nginx-all: [arm64, 1.12.4]"
+    - "build-ingress-nginx-all: [arm64, 1.12.5]"
+    - "build-ingress-nginx-all: [arm64, 1.12.6]"
+    - "build-ingress-nginx-all: [arm64, 1.12.7]"
+    - "build-ingress-nginx-all: [arm64, 1.12.8]"
+    - "build-ingress-nginx-all: [arm64, 1.13.0]"
+    - "build-ingress-nginx-all: [arm64, 1.13.1]"
+    - "build-ingress-nginx-all: [arm64, 1.13.2]"
+    - "build-ingress-nginx-all: [arm64, 1.13.3]"
+    - "build-ingress-nginx-all: [arm64, 1.13.4]"
+    - "build-ingress-nginx-all: [arm64, 1.13.5]"
+    - "build-ingress-nginx-all: [arm64, 1.13.6]"
+    - "build-ingress-nginx-all: [arm64, 1.13.7]"
+    - "build-ingress-nginx-all: [arm64, 1.13.8]"
+    - "build-ingress-nginx-all: [arm64, 1.13.9]"
+    - "build-ingress-nginx-all: [arm64, 1.14.0]"
+    - "build-ingress-nginx-all: [arm64, 1.14.1]"
+    - "build-ingress-nginx-all: [arm64, 1.14.2]"
+    - "build-ingress-nginx-all: [arm64, 1.14.3]"
+    - "build-ingress-nginx-all: [arm64, 1.14.4]"
+    - "build-ingress-nginx-all: [arm64, 1.14.5]"
+    - "build-ingress-nginx-all: [arm64, 1.15.0]"
+    - "build-ingress-nginx-all: [arm64, 1.15.1]"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+    - when: never
+
+# Use the same build and signing path for branch images.
+build-ingress-injection-images-dev:
+  extends: .ingress-image-source
+  dependencies:
+    - "build-ingress-nginx-fast: [amd64, 1.13.9]"
+    - "build-ingress-nginx-fast: [amd64, 1.14.5]"
+    - "build-ingress-nginx-fast: [amd64, 1.15.1]"
+    - "build-ingress-nginx-fast: [arm64, 1.13.9]"
+    - "build-ingress-nginx-fast: [arm64, 1.14.5]"
+    - "build-ingress-nginx-fast: [arm64, 1.15.1]"
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - when: never
+
+.ingress-image-publish:
+  stage: ingress-image-publish
+  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.4@sha256:eaf703c35f95d7326be30ffb485d143262de6b0a254b6f7f00f1573ec1817031
+  tags: ["arch:amd64"]
+  interruptible: false
+  resource_group: ingress-image-publish-$INGRESS_IMAGE_RELEASE_MODE
+  timeout: 3 hours
+  variables:
+    INGRESS_IMAGE_PUBLIC_REGISTRIES: dockerhub
+  script:
+    - |
+      set -euo pipefail
+      : "${INGRESS_IMAGE_TAGS:?The signed image build must succeed first}"
+      source_repository="${CI_REGISTRY}/ingress-nginx-injection"
+      for image_tag in ${INGRESS_IMAGE_TAGS}; do
+        version="${image_tag%@*}"
+        version="${version%-*}"
+        if [[ "${INGRESS_IMAGE_RELEASE_MODE}" == release ]]; then
+          destinations="ingress-nginx-injection:${version}-dd.${CI_COMMIT_TAG},ingress-nginx-injection:${version}"
+        else
+          destinations="ingress-nginx-injection-dev:${version}-dev.${CI_COMMIT_SHORT_SHA}"
+        fi
+        dd-pkg publish-image \
+          --sources "${source_repository}:${image_tag}" \
+          --merge-strategy none \
+          --destinations "${destinations}" \
+          --registries "${INGRESS_IMAGE_PUBLIC_REGISTRIES}"
+      done
+
+publish-ingress-injection-images:
+  extends: .ingress-image-publish
+  dependencies: [build-ingress-injection-images]
+  variables:
+    INGRESS_IMAGE_RELEASE_MODE: release
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      when: manual
+    - when: never
+
+publish-ingress-injection-images-dev:
+  extends: .ingress-image-publish
+  dependencies: [build-ingress-injection-images-dev]
+  variables:
+    INGRESS_IMAGE_RELEASE_MODE: dev
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+      allow_failure: true
+    - when: never
