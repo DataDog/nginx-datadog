@@ -5,11 +5,11 @@ variables:
   # This is the source of truth for the toolchain image digest.
   MUSL_TOOLCHAIN_IMAGE_DIGEST: "sha256:fd1ab35b2a51538623740c499606a0f6240947b509b39bd1c754d7a5ee4b8c6b" # 1.0.6
   MUSL_TOOLCHAIN_IMAGE: "$REGISTRY/ci/musl-toolchain-glibc-support/musl-build-env@$MUSL_TOOLCHAIN_IMAGE_DIGEST"
-  NGINX_CI_BUILD_IMAGE_DIGEST: "sha256:257e7b132b45a5881cc12cda3b0fd93fdc142be7c503029d6448ff23f7cc3d32"
+  NGINX_CI_BUILD_IMAGE_DIGEST: "sha256:a3ca8b56b70fc8ffaf3dfa17d26b41150ab46f7767c4630c3efed5ec44bba269"
   NGINX_CI_BUILD_IMAGE: "$CI_REGISTRY/nginx_musl_toolchain@$NGINX_CI_BUILD_IMAGE_DIGEST"
   TEST_IMAGE: "$CI_REGISTRY/test@sha256:543f3a4a74658ffbf5f9b20fbe46d354fa90eb458a76c150e7e6d141bd3d7c77"
   UWSGI_TEST_IMAGE: "$CI_REGISTRY/uwsgi@sha256:7dce67df169410735ea2834f4492261a40037d03b24dce776d61545e67efb1ef"
-  NYDUS_IMAGE: "$REGISTRY/images/nydus:v2.3.8-dd"
+  NYDUS_IMAGE: "registry.ddbuild.io/images/nydus:v2.3.8-dd"
 
 # Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
 # rewriting via CI job token. Defined as a hidden job (not global) so
