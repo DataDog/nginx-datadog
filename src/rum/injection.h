@@ -6,8 +6,6 @@ extern "C" {
 
 #include <injectbrowsersdk.h>
 
-#include <span>
-
 #include "datadog_conf.h"
 
 namespace datadog {
@@ -80,16 +78,6 @@ class InjectionHandler final {
   // body filter chain.
   ngx_int_t output(ngx_http_request_t *r, ngx_chain_t *out,
                    ngx_http_output_body_filter_pt &next_body_filter);
-
-  // Injects the RUM Browser SDK into a chain of buffers at the appropriate
-  // location.
-  // @param pool - Memory pool used for allocation.
-  // @param in - Incoming chain of buffers containing the response body.
-  // @param slices - Pointer to an array of `BytesSlice`.
-  // @param slices_length - Number of elements in the `slices` array.
-  // @return ngx_chain_t* - Chain of buffers with the injected data.
-  ngx_chain_t *inject(ngx_pool_t *pool, ngx_chain_t *in,
-                      std::span<const BytesSlice> slices);
 };
 
 }  // namespace rum
