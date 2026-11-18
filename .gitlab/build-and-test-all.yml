@@ -385,6 +385,13 @@ test-nginx-all-bis:
         BASE_IMAGE: ["nginx:1.31.7", "nginx:1.31.7-alpine"]
         NGINX_VERSION: ["1.31.7"]
         WAF: ["ON", "OFF"]
+
+test-nginx-all-ter:
+  extends:
+    - .test-all
+    - .test-nginx
+  parallel:
+    matrix:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.31.8", "nginx:1.31.8-alpine"]
         NGINX_VERSION: ["1.31.8"]
