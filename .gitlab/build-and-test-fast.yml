@@ -185,7 +185,7 @@ test-nginx-fast:
         NGINX_VERSION: ["1.31.3"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
-        BASE_IMAGE: ["nginx:1.31.9", "nginx:1.31.8-alpine"]
+        BASE_IMAGE: ["nginx:1.31.9", "nginx:1.31.9-alpine"]
         NGINX_VERSION: ["1.31.9"]
         WAF: ["ON", "OFF"]
       - ARCH: ["amd64", "arm64"]
@@ -201,7 +201,7 @@ test-nginx-asan-fast:
     - build-nginx-asan-fast
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.8"
+    NGINX_VERSION: "1.31.9"
     WAF: "ON"
 
 test-nginx-msan-fast:
@@ -212,7 +212,7 @@ test-nginx-msan-fast:
     - build-nginx-msan-fast
   variables:
     ARCH: "amd64"
-    NGINX_VERSION: "1.31.8"
+    NGINX_VERSION: "1.31.9"
     WAF: "ON"
 
 test-ingress-nginx-fast:
