@@ -139,6 +139,7 @@ build-ingress-injection-images:
 # Use the same build and signing path for branch images.
 build-ingress-injection-images-dev:
   extends: .ingress-image-source
+  interruptible: true
   dependencies:
     - "build-ingress-nginx-fast: [amd64, 1.13.9]"
     - "build-ingress-nginx-fast: [amd64, 1.14.5]"
