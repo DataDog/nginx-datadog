@@ -277,14 +277,6 @@ test-nginx-all:
         BASE_IMAGE: ["amazonlinux:2023.11.20260427.1"]
         NGINX_VERSION: ["1.28.3"]
         WAF: ["ON", "OFF"]
-
-# GitLab is not able to handle a matrix with more than 200 jobs!
-test-nginx-all-bis:
-  extends:
-    - .test-all
-    - .test-nginx
-  parallel:
-    matrix:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.29.0", "nginx:1.29.0-alpine"]
         NGINX_VERSION: ["1.29.0"]
@@ -313,6 +305,14 @@ test-nginx-all-bis:
         BASE_IMAGE: ["nginx:1.29.6", "nginx:1.29.6-alpine"]
         NGINX_VERSION: ["1.29.6"]
         WAF: ["ON", "OFF"]
+
+# GitLab is not able to handle a matrix with more than 200 jobs!
+test-nginx-all-bis:
+  extends:
+    - .test-all
+    - .test-nginx
+  parallel:
+    matrix:
       - ARCH: ["amd64", "arm64"]
         BASE_IMAGE: ["nginx:1.29.7", "nginx:1.29.7-alpine"]
         NGINX_VERSION: ["1.29.7"]
