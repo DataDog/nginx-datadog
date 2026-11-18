@@ -1,4 +1,5 @@
 # Build and sign in the internal registry.
+# Build both architectures, then sign and verify the multi-architecture digest.
 .ingress-image-source:
   stage: ingress-image-build
   image: $NYDUS_IMAGE
@@ -48,7 +49,7 @@ build-ingress-injection-images:
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
     - when: never
 
-# Use the same build and signing path for branch images.
+# Build and sign the fast test versions on branches.
 build-ingress-injection-images-dev:
   extends: .ingress-image-source
   interruptible: true
@@ -86,6 +87,8 @@ build-ingress-injection-images-dev:
           --registries "${INGRESS_IMAGE_PUBLIC_REGISTRIES}"
       done
 
+# Manually copy signed digests to Docker Hub through artifact-gateway for stable tags.
+# Publishing an old release again also resets the v<controller> tags.
 publish-ingress-injection-images:
   extends: .ingress-image-publish
   dependencies: [build-ingress-injection-images]
@@ -96,6 +99,8 @@ publish-ingress-injection-images:
       when: manual
     - when: never
 
+# Manually test publication to ingress-nginx-injection-dev.
+# Confirm gateway policy and dev repository setup with Agent Delivery before the first publish.
 publish-ingress-injection-images-dev:
   extends: .ingress-image-publish
   dependencies: [build-ingress-injection-images-dev]
