@@ -52,13 +52,7 @@ build-ingress-injection-images:
 build-ingress-injection-images-dev:
   extends: .ingress-image-source
   interruptible: true
-  dependencies:
-    - "build-ingress-nginx-fast: [amd64, 1.13.9]"
-    - "build-ingress-nginx-fast: [amd64, 1.14.5]"
-    - "build-ingress-nginx-fast: [amd64, 1.15.1]"
-    - "build-ingress-nginx-fast: [arm64, 1.13.9]"
-    - "build-ingress-nginx-fast: [arm64, 1.14.5]"
-    - "build-ingress-nginx-fast: [arm64, 1.15.1]"
+  needs: [build-ingress-nginx-fast]
   rules:
     - if: $CI_COMMIT_BRANCH
     - when: never
