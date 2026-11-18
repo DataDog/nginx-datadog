@@ -22,20 +22,7 @@ include:
   tags: ["arch:amd64"]
   script:
     - set -euo pipefail
-    # Outside a release tag: <last release>-dev.b<branch hash>.glci<pipeline>.g<sha>.
-    # Use the pipeline id: both arches must get one version.
-    - |
-      if [ -n "${CI_COMMIT_TAG:-}" ]; then
-        VERSION="${CI_COMMIT_TAG#v}"
-      else
-        LAST_RELEASE="$(git ls-remote --tags --refs origin 'v*' | sed 's#.*refs/tags/v##' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)"
-        if [ -z "$LAST_RELEASE" ]; then
-          echo "ERROR: no vX.Y.Z tag on origin (or git ls-remote failed, see above)"
-          exit 1
-        fi
-        BRANCH_HASH="$(printf '%s' "$CI_COMMIT_REF_NAME" | sha256sum | cut -c1-6)"
-        VERSION="${LAST_RELEASE}-dev.b${BRANCH_HASH}.glci${CI_PIPELINE_ID}.g${CI_COMMIT_SHA:0:8}"
-      fi
+    - VERSION="$(.gitlab/package-version.sh)"
     - OUTPUT="artifacts/ssi-sources/${ARCH}"
     - mkdir -p "${OUTPUT}"
     - |
