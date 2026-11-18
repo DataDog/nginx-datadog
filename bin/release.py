@@ -7,7 +7,7 @@ tag) and publishes them.
 Usage:
 ======
 To release nginx-datadog modules:
-./release.py --version-tag v1.3.1 --pipeline-id <PIPELINE_ID> nginx-module
+./release.py --version-tag v1.3.1 --pipeline-id <PIPELINE_ID>
 
 Authentication:
 ===============
@@ -255,8 +255,8 @@ OPENRESTY_BUILD_RE: re.Pattern[str] = re.compile(
 
 def release_module(args) -> int:
     """
-    This subcommand function downloads NGINX module artifacts from the release pipeline
-    and publishes them to a GitHub release.
+    Download NGINX module artifacts from the release pipeline
+    and publish them to a GitHub release.
 
     Requirements:
         - You must be logged into the GitHub CLI (gh) to authenticate and interact with the GitHub API.
@@ -352,14 +352,6 @@ if __name__ == "__main__":
         "https://gitlab.ddbuild.io/DataDog/nginx-datadog/-/pipelines/<PIPELINE_ID>",
     )
 
-    subparsers = parser.add_subparsers()
-    subparsers.required = True
-
-    # nginx-module
-    nginx_module_parser = subparsers.add_parser(
-        "nginx-module", help="Release the NGINX module")
-    nginx_module_parser.set_defaults(func=release_module)
-
     options = parser.parse_args()
 
     try:
@@ -376,4 +368,4 @@ if __name__ == "__main__":
         "gpg": gpg_exe,
     })
 
-    sys.exit(options.func(options))
+    sys.exit(release_module(options))
