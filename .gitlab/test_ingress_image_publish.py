@@ -178,19 +178,27 @@ class IngressImageJobsTest(unittest.TestCase):
         self.assertIn(f"v{VERSIONS[0]}-456@{DIGEST}", refs[1])
 
     def test_dependencies_cover_build_matrices(self):
-        """Keep image inputs in step with the existing module build matrices."""
+        """Check release stage ordering and dev matrix artifact inputs."""
         config = CONFIG.read_text()
-        for mode, job in (("all", "build-ingress-injection-images"),
-                          ("fast", "build-ingress-injection-images-dev")):
-            matrix = CONFIG.with_name(f"build-and-test-{mode}.yml").read_text()
-            matrix = matrix.split(f"build-ingress-nginx-{mode}:\n", 1)[1].split("\nbuild-", 1)[0]
-            versions = re.findall(r'^          - "([\d.]+)"$', matrix, re.MULTILINE)
-            job_config = config.split(f"\n{job}:\n", 1)[1].split("\n  rules:", 1)[0]
-            dependencies = re.findall(r'    - "(build-ingress-nginx-[^\"]+)"', job_config)
-            expected = [f"build-ingress-nginx-{mode}: [{arch}, {version}]"
-                        for arch in ("amd64", "arm64") for version in versions]
-            self.assertTrue(versions)
-            self.assertCountEqual(dependencies, expected)
+        release = config.split("\nbuild-ingress-injection-images:\n", 1)[1].split("\nbuild-", 1)[0]
+        source = config.split(".ingress-image-source:\n", 1)[1].split("\nbuild-", 1)[0]
+        self.assertRegex(release, r"(?m)^  extends: \.ingress-image-source$")
+        self.assertNotRegex(release, r"(?m)^  (dependencies|needs|stage):")
+        self.assertNotRegex(source, r"(?m)^  (dependencies|needs|extends):")
+        stage = re.search(r"(?m)^  stage: (\S+)$", source).group(1)
+        pipeline = CONFIG.parent.parent.joinpath(".gitlab-ci.yml").read_text()
+        stages = re.findall(r"(?m)^  - (\S+)$", pipeline.split("stages:\n", 1)[1].split("\n\n", 1)[0])
+        self.assertGreater(stages.index(stage), stages.index("build-all"))
+
+        matrix = CONFIG.with_name("build-and-test-fast.yml").read_text()
+        matrix = matrix.split("build-ingress-nginx-fast:\n", 1)[1].split("\nbuild-", 1)[0]
+        versions = re.findall(r'^          - "([\d.]+)"$', matrix, re.MULTILINE)
+        job_config = config.split("\nbuild-ingress-injection-images-dev:\n", 1)[1].split("\n  rules:", 1)[0]
+        dependencies = re.findall(r'    - "(build-ingress-nginx-[^\"]+)"', job_config)
+        expected = [f"build-ingress-nginx-fast: [{arch}, {version}]"
+                    for arch in ("amd64", "arm64") for version in versions]
+        self.assertTrue(versions)
+        self.assertCountEqual(dependencies, expected)
 
     def test_publish_requires_signed_refs(self):
         result = self.run_job(".ingress-image-publish", INGRESS_IMAGE_RELEASE_MODE="release")
