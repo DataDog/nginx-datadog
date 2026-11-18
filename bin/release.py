@@ -4,9 +4,6 @@ This script automates the release process for the nginx-datadog module.
 It fetches built artifacts from a GitLab CI pipeline (triggered by a version
 tag) and publishes them.
 
-Ingress images are built and signed in GitLab CI. Public publication is a
-manual step in GitLab CI.
-
 Usage:
 ======
 To release nginx-datadog modules:
