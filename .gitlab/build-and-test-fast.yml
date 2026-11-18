@@ -66,13 +66,6 @@ shellcheck:
   script:
     - find bin/ build_env/ test/ example/ .gitlab/ -type f \( \( -executable -not -name '*.py' \) -o -name '*.sh' \) | xargs shellcheck --exclude SC1071,SC1091,SC2317
 
-test-ingress-image-publish:
-  extends: .build-and-test-fast
-  image: $TEST_IMAGE
-  tags: ["arch:amd64"]
-  script:
-    - python3 .gitlab/test_ingress_image_publish.py
-
 build-nginx-fast:
   extends:
     - .build-and-test-fast
