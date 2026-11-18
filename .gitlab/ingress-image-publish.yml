@@ -1,4 +1,4 @@
-# Build and sign internally. Public registry credentials stay in public-images.
+# Build and sign in the internal registry.
 .ingress-image-source:
   stage: ingress-image-build
   image: $NYDUS_IMAGE
