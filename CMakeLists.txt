@@ -48,6 +48,11 @@ if(ENABLE_MSAN)
   set(NGINX_DATADOG_MSAN_CXX_DEFINITIONS
     $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE>)
 
+  # TODO: This is a workaround for an issue in musl-build-env. See IDMPL-1257.
+  # On musl, MSan's strerror_r interceptor crashes.
+  # curl calls strerror_r on each failed connect. So make curl use strerror instead.
+  set(HAVE_STRERROR_R OFF)
+
   function(enable_nginx_datadog_msan target_name)
     if(TARGET ${target_name})
       target_compile_options(${target_name} PRIVATE ${NGINX_DATADOG_MSAN_COMPILE_OPTIONS})
