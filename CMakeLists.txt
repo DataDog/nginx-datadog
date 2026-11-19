@@ -7,7 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 cmake_policy(SET CMP0068 NEW)
 cmake_policy(SET CMP0135 NEW)
 
-set(NGINX_DATADOG_VERSION 1.28.0)
+set(NGINX_DATADOG_VERSION 1.29.0)
 project(ngx_http_datadog_module VERSION ${NGINX_DATADOG_VERSION})
 
 option(NGINX_DATADOG_ASM_ENABLED "Build with libddwaf" ON)
@@ -47,6 +47,11 @@ if(ENABLE_MSAN)
   set(NGINX_DATADOG_MSAN_LINK_OPTIONS -fsanitize=memory -fsanitize-memory-track-origins=2)
   set(NGINX_DATADOG_MSAN_CXX_DEFINITIONS
     $<$<COMPILE_LANGUAGE:CXX>:_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE>)
+
+  # TODO: This is a workaround for an issue in musl-build-env. See IDMPL-1257.
+  # On musl, MSan's strerror_r interceptor crashes.
+  # curl calls strerror_r on each failed connect. So make curl use strerror instead.
+  set(HAVE_STRERROR_R OFF)
 
   function(enable_nginx_datadog_msan target_name)
     if(TARGET ${target_name})
