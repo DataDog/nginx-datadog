@@ -35,7 +35,7 @@ stages:
 
 requirements_json_test:
   rules:
-    - when: on_success
+    - when: never
   variables:
     REQUIREMENTS_BLOCK_JSON_PATH: "metadata/requirements-block.json"
     REQUIREMENTS_ALLOW_JSON_PATH: "metadata/requirements-allow.json"
@@ -73,7 +73,4 @@ macrobenchmarks:
     # so downstream code must treat that literal as unset.
     BP_EXTERNAL_S3_URL: $BP_EXTERNAL_S3_URL
   rules:
-    - if: $NIGHTLY_BENCHMARKS || $CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_REF_NAME =~ /^release\/v/
-      when: always
-    - when: manual
-      allow_failure: true
+    - when: always
