@@ -6,8 +6,6 @@ extern "C" {
 
 #include <injectbrowsersdk.h>
 
-#include <span>
-
 #include "datadog_conf.h"
 
 namespace datadog {
@@ -30,12 +28,22 @@ class InjectionHandler final {
     failed,  ///< no injection point found
   } state_ = state::init;
 
-  // A flag indicating whether padding should be added to the HTML responses.
-  bool output_padding_;
+  // Whether the response announces a Content-Length. If so, the injector pads
+  // the response when it does not inject.
+  bool has_content_length_;
 
   // Pointer to an Injector instance, used to scan and locate where the RUM
   // Browser SDK needs to be injected.
   Injector *injector_;
+
+  // Writes `buf` to the injector and appends what it returns to the chain
+  // ending at `tail`. Ends the injector on the last buffer. Sets `injected`
+  // when the snippet goes in. Returns the new tail, or nullptr if out of
+  // memory.
+  ngx_chain_t **write_to_injector(ngx_pool_t *pool, ngx_chain_t **tail,
+                                  ngx_buf_t *buf, bool &injected);
+  void report_injected(ngx_http_request_t *r, datadog_loc_conf_t *cfg);
+  void report_failed(ngx_http_request_t *r, datadog_loc_conf_t *cfg);
 
  public:
   InjectionHandler();
@@ -71,25 +79,6 @@ class InjectionHandler final {
   // @param r - HTTP request being processed.
   // @return ngx_int_t - Status code indicating success or failure.
   ngx_int_t on_log_request(ngx_http_request_t *r);
-
- private:
-  // Sends the output to the next body filter.
-  // @param r - HTTP request being processed.
-  // @param out - Chain of buffers containing the response to send.
-  // @param next_body_filter - Reference to the next body filter in the NGINX
-  // body filter chain.
-  ngx_int_t output(ngx_http_request_t *r, ngx_chain_t *out,
-                   ngx_http_output_body_filter_pt &next_body_filter);
-
-  // Injects the RUM Browser SDK into a chain of buffers at the appropriate
-  // location.
-  // @param pool - Memory pool used for allocation.
-  // @param in - Incoming chain of buffers containing the response body.
-  // @param slices - Pointer to an array of `BytesSlice`.
-  // @param slices_length - Number of elements in the `slices` array.
-  // @return ngx_chain_t* - Chain of buffers with the injected data.
-  ngx_chain_t *inject(ngx_pool_t *pool, ngx_chain_t *in,
-                      std::span<const BytesSlice> slices);
 };
 
 }  // namespace rum

@@ -22,7 +22,7 @@ services:
       DD_RUM_SESSION_REPLAY_SAMPLE_RATE: "100"
       DD_RUM_TRACK_RESOURCES: "true"
       DD_RUM_TRACK_LONG_TASKS: "true"
-      DD_RUM_TRACK_USER_INTERACTIONS: "true"
+      DD_RUM_TRACK_USER_INTERACTION: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     cap_add:
