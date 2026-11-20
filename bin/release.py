@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
 """
-This script automates the release process for the nginx-datadog module and
-ingress-nginx init container.
-
+This script automates the release process for the nginx-datadog module.
 It fetches built artifacts from a GitLab CI pipeline (triggered by a version
 tag) and publishes them.
 
 Usage:
 ======
 To release nginx-datadog modules:
-./release.py --version-tag v1.3.1 --pipeline-id <PIPELINE_ID> nginx-module
-
-To release ingress-nginx docker init containers:
-./release.py --version-tag v1.3.1 --pipeline-id <PIPELINE_ID> ingress-nginx
+./release.py --version-tag v1.3.1 --pipeline-id <PIPELINE_ID>
 
 Authentication:
 ===============
@@ -37,14 +32,11 @@ import sys
 import tempfile
 import urllib.request
 import tarfile
-import typing
 import zipfile
 
 from pathlib import Path
-from collections import defaultdict
 from typing import Any, Final
 from urllib.parse import quote
-from ingress_nginx import build_init_container, create_multiarch_images
 
 GITLAB_HOST: Final[str] = "https://gitlab.ddbuild.io"
 GITLAB_API: Final[str] = f"{GITLAB_HOST}/api/v4"
@@ -254,90 +246,17 @@ def prepare_release_artifact(work_dir: Path, job_id: int,
 # GitLab matrix job name patterns:
 #   build-nginx-all: [amd64, 1.28.1, ON]
 #   build-openresty-all: [amd64, 1.27.1.2, ON]
-#   build-ingress-nginx-all: [amd64, 1.14.3]
 
 NGINX_BUILD_RE: re.Pattern[str] = re.compile(
     r"build-nginx-all: \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
 OPENRESTY_BUILD_RE: re.Pattern[str] = re.compile(
     r"build-openresty-all: \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
-INGRESS_BUILD_RE: re.Pattern[str] = re.compile(
-    r"build-ingress-nginx-all: \[(amd64|arm64), ([\d.]+)\]")
-
-
-def release_ingress_nginx(args: typing.Any) -> int:
-    """
-    This subcommand function retrieves the modules from the CI pipeline, builds the ingress-nginx init container,
-    and publishes it to a Docker registry.
-
-    Requirements:
-        - You must be logged into the Docker registry to push the built container image.
-    """
-    jobs = get_pipeline_jobs(args.pipeline_id, gitlab_token)
-    if jobs is None:
-        print("ERROR: Pipeline contains unsuccessful jobs. Aborting release.",
-              file=sys.stderr)
-        return 1
-    if not jobs:
-        print(f"ERROR: No jobs found for pipeline {args.pipeline_id}.",
-              file=sys.stderr)
-        return 1
-
-    collected_images = defaultdict(list)
-
-    for job in jobs:
-        match = INGRESS_BUILD_RE.match(job["name"])
-        if not match:
-            continue
-
-        arch, version = match.groups()
-        version = f"v{version}"
-        image_version = f"{version}-dd.{args.version_tag}"
-
-        # Download the module from the job artifacts
-        artifact_path = f"artifacts-ingress/{arch}/{version.lstrip('v')}"
-
-        with tempfile.TemporaryDirectory() as work_dir_str:
-            work_dir = Path(work_dir_str)
-            zip_file = download_job_artifacts_zip(job["id"], gitlab_token)
-
-            so_artifact = f"{artifact_path}/{MODULE_NAME}"
-            if so_artifact not in zip_file.namelist():
-                raise Exception(
-                    f"Job {job['id']} ({job['name']}) doesn't have "
-                    f"'{so_artifact}' in artifacts.")
-
-            module_path = work_dir / MODULE_NAME
-            extract_artifact_from_zip(zip_file, so_artifact, module_path)
-
-            args.push = True
-            args.platform = f"linux/{arch}"
-            args.image_name = f"{args.registry}:{image_version}-{arch}"
-            args.module_path = str(work_dir)
-            build_init_container(args)
-
-            image_no_arch = f"{args.registry}:{image_version}"
-
-            collected_images[image_no_arch].append(args.image_name)
-            collected_images[f"{args.registry}:{version}"].append(
-                args.image_name)
-
-    if not collected_images:
-        print(
-            f"ERROR: No ingress-nginx build jobs matched in pipeline {args.pipeline_id}. "
-            f"Job names: {[j['name'] for j in jobs]}",
-            file=sys.stderr,
-        )
-        return 1
-
-    create_multiarch_images(collected_images)
-
-    return 0
 
 
 def release_module(args) -> int:
     """
-    This subcommand function downloads NGINX module artifacts from the release pipeline
-    and publishes them to a GitHub release.
+    Download NGINX module artifacts from the release pipeline
+    and publish them to a GitHub release.
 
     Requirements:
         - You must be logged into the GitHub CLI (gh) to authenticate and interact with the GitHub API.
@@ -433,23 +352,6 @@ if __name__ == "__main__":
         "https://gitlab.ddbuild.io/DataDog/nginx-datadog/-/pipelines/<PIPELINE_ID>",
     )
 
-    subparsers = parser.add_subparsers()
-    subparsers.required = True
-
-    # nginx-module
-    nginx_module_parser = subparsers.add_parser(
-        "nginx-module", help="Release the NGINX module")
-    nginx_module_parser.set_defaults(func=release_module)
-
-    # ingress-nginx subcommand
-    ingress_nginx_parser = subparsers.add_parser(
-        "ingress-nginx", help="Release ingress-nginx init containers")
-    ingress_nginx_parser.set_defaults(func=release_ingress_nginx)
-    ingress_nginx_parser.add_argument(
-        "--registry",
-        help="Docker registry where images will be pushed",
-        default="datadog/ingress-nginx-injection",
-    )
     options = parser.parse_args()
 
     try:
@@ -466,4 +368,4 @@ if __name__ == "__main__":
         "gpg": gpg_exe,
     })
 
-    sys.exit(options.func(options))
+    sys.exit(release_module(options))
