@@ -3,7 +3,7 @@ variables:
   CI_REGISTRY: "$REGISTRY/ci/nginx-datadog"
   TESTS_IMAGES_REGISTRY: "$CI_REGISTRY/mirror"
   # This is the source of truth for the toolchain image digest.
-  MUSL_TOOLCHAIN_IMAGE_DIGEST: "sha256:fd1ab35b2a51538623740c499606a0f6240947b509b39bd1c754d7a5ee4b8c6b" # 1.0.6
+  MUSL_TOOLCHAIN_IMAGE_DIGEST: "sha256:e2f24231aec45a21625b6d16b9f88d5c43bf100c00ffa43cb24bb0f4cc4be638" # 1.1.1
   MUSL_TOOLCHAIN_IMAGE: "$REGISTRY/ci/musl-toolchain-glibc-support/musl-build-env@$MUSL_TOOLCHAIN_IMAGE_DIGEST"
   NGINX_CI_BUILD_IMAGE_DIGEST: "sha256:257e7b132b45a5881cc12cda3b0fd93fdc142be7c503029d6448ff23f7cc3d32"
   NGINX_CI_BUILD_IMAGE: "$CI_REGISTRY/nginx_musl_toolchain@$NGINX_CI_BUILD_IMAGE_DIGEST"
