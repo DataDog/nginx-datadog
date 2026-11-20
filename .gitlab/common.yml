@@ -82,6 +82,8 @@ variables:
 
 .build-openresty:
   extends: .build
+  variables:
+    OPENRESTY_DOWNLOAD_BASE: https://depot-read-api-bzl.us1.ddbuild.io/openresty.org/download
   script:
     - make build-openresty
     - mkdir -p artifacts-openresty/$ARCH/$RESTY_VERSION/$WAF
