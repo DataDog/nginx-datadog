@@ -1,5 +1,6 @@
 """Service orchestration (docker compose) facilities for testing"""
 
+from . import docker_logs
 from . import formats
 from .lazy_singleton import LazySingleton
 
@@ -19,6 +20,7 @@ import sys
 import threading
 import time
 import traceback
+from typing import TextIO
 import uuid
 
 
@@ -117,38 +119,6 @@ def child_env(parent_env=None):
     return result
 
 
-def to_service_name(container_name):
-    # test_foo_bar_1 -> foo_bar
-    #
-    # Note that the "test_" prefix is the docker compose project name, which
-    # you can override using the COMPOSE_PROJECT_NAME environment
-    # variable.  We use that environment variable to hard-code the name to
-    # "test".  Otherwise, it defaults to the basename of the directory.  Right
-    # now those two are the same, but I don't want the location of these tests
-    # to be able to break this.  See mention of COMPOSE_PROJECT_NAME in
-    # `child_env()`.
-    #
-    # When I run docker compose locally on my machine, the parts of the
-    # container name are separated by underscore ("_"), while when I run
-    # docker compose in CI, hyphen ("-") is used.  Go with whichever is
-    # being used.
-    if "_" in container_name and "-" in container_name:
-        raise Exception(
-            f"Container name {json.dumps(container_name)} contains both underscores and hyphens.  I can't tell which is being used as a delimiter."
-        )
-
-    if "_" in container_name:
-        delimiter = "_"
-    elif "-" in container_name:
-        delimiter = "-"
-    else:
-        raise Exception(
-            f"Container name {json.dumps(container_name)} contains neither underscores nor hyphens.  I don't know which delimiter to use."
-        )
-
-    return delimiter.join(container_name.split(delimiter)[1:-1])
-
-
 def docker_compose_ps(service):
     command = docker_compose_command("ps", "--quiet", service)
     result = subprocess.run(command,
@@ -192,22 +162,6 @@ def nginx_worker_pids(nginx_container, verbose_output):
                if re.match(r"\s*nginx: worker process", cmd))
 
 
-def docker_compose_ps_with_retries(max_attempts, service):
-    assert max_attempts > 0
-    while True:
-        try:
-            result = docker_compose_ps(service)
-            if result == "":
-                raise Exception(
-                    f"docker_compose_ps({json.dumps(service)}) returned an empty string"
-                )
-            return result
-        except Exception:
-            max_attempts -= 1
-            if max_attempts == 0:
-                raise
-
-
 def ready_services():
     """Return the set of names of services that are "ready"."""
     command = docker_compose_command("ps", "--services", "--filter",
@@ -221,7 +175,7 @@ def ready_services():
     return set(result.stdout.strip().split("\n"))
 
 
-# When a function runs on its own thread, like `docker_compose_up`, exceptions
+# When a function runs on its own thread, like `follow_service_logs`, exceptions
 # that escape the function do not terminate the interpreter.  This wrapper
 # calls the rather abrupt `os._exit` with a failure status code if the
 # decorated function raises any exception.
@@ -239,84 +193,72 @@ def exit_on_exception(func):
     return wrapper
 
 
-def remove_terminal_escapes(input_string):
-    pattern = r"\x1b\[[0-9;]*[a-zA-Z]"
-    cleaned_string = re.sub(pattern, "", input_string)
-    return cleaned_string
+def docker_compose_up(verbose_file: TextIO) -> None:
+    command = docker_compose_command("up", "--detach", "--remove-orphans",
+                                     "--force-recreate")
+    with print_duration("Creating and starting all service containers",
+                        verbose_file):
+        subprocess.run(command,
+                       stdin=subprocess.DEVNULL,
+                       stdout=verbose_file,
+                       stderr=verbose_file,
+                       env=child_env(),
+                       check=True)
 
 
-@exit_on_exception
-def docker_compose_up(on_ready, logs, verbose_file):
-    """This function is meant to be executed on its own thread."""
-    containers = {}  # {service: container_id}
-    command = docker_compose_command("up", "--remove-orphans",
-                                     "--force-recreate", "--no-color")
-    before = time.monotonic()
-    with subprocess.Popen(
-            command,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            env=child_env(),
-            encoding="utf8",
-            errors="replace",
-    ) as child:
-        for line in child.stdout:
-            line = remove_terminal_escapes(line)
-            kind, fields = formats.parse_docker_compose_up_line(line)
+def wait_until_services_ready(service_count: int,
+                              verbose_file: TextIO) -> None:
+    with print_duration("Waiting for services to be ready", verbose_file):
+        while len(ready_services()) != service_count:
+            poll_seconds = 0.1
             print(
-                json.dumps([time.monotonic(), kind, fields]),
+                "Not all services are ready.  Going to wait",
+                poll_seconds,
+                "seconds",
                 file=verbose_file,
                 flush=True,
             )
+            time.sleep(poll_seconds)
 
-            if kind == "attach_to_logs":
-                # Done starting containers.  Time to deliver the container IDs
-                # to our caller.
-                after = time.monotonic()
-                print(
-                    f"It took {after - before} seconds to create all service containers.",
-                    file=verbose_file,
-                    flush=True,
-                )
-                with print_duration("Waiting for services to be ready",
-                                    verbose_file):
-                    while len(ready_services()) != len(containers):
-                        poll_seconds = 0.1
-                        print(
-                            "Not all services are ready.  Going to wait",
-                            poll_seconds,
-                            "seconds",
-                            file=verbose_file,
-                            flush=True,
-                        )
-                        time.sleep(poll_seconds)
-                on_ready({"containers": containers})
-            elif kind == "finish_create_container":
-                # Started a container.  Add its container ID to `containers`.
-                container_name = fields["container"]
-                service = to_service_name(container_name)
-                # Consult `docker compose ps` for the service's container ID.
-                # Since we're handling a finish_create_container event, you'd
-                # think that the container would be available now.  However,
-                # there's a race here where docker compose does not yet know
-                # which container corresponds to `service` (even though it just
-                # told us that the container was created).
-                #
-                # Additionally, some `docker compose ps` implementations exit
-                # with a nonzero (error) status when there is no container ID
-                # to report, while others exit with status zero (success) and
-                # don't print any output.  So, we retry (up to a limit) until
-                # `docker compose ps` exits with status zero and produces
-                # output.
-                containers[service] = docker_compose_ps_with_retries(
-                    max_attempts=100, service=service)
-            elif kind == "service_log":
-                # Got a line of logging from some service.  Push it onto the
-                # appropriate queue for consumption by tests.
-                service = fields["service"]
-                payload = fields["payload"]
-                logs[service].put(payload)
+
+def docker_api_host() -> str:
+    """Return the address of the Docker Engine API that `docker` uses.
+
+    This follows DOCKER_HOST and the current docker context.
+    """
+    if child_env().get("DOCKER_TLS_VERIFY"):
+        raise Exception("Docker API over TLS is not supported by the tests.")
+    command = docker_command("context", "inspect", "--format",
+                             "{{.Endpoints.docker.Host}}")
+    result = subprocess.run(command,
+                            stdout=subprocess.PIPE,
+                            env=child_env(),
+                            encoding="utf8",
+                            check=True)
+    return result.stdout.strip()
+
+
+@exit_on_exception
+def follow_service_logs(host: str, service: str, container: str,
+                        log_queue: queue.SimpleQueue[str],
+                        verbose_file: TextIO) -> None:
+    """Push each log line of `service` onto `log_queue` until its container
+    stops.  This function is meant to be executed on its own thread.
+    """
+
+    def on_line(stream: str, line: str) -> None:
+        record = [
+            time.monotonic(), "service_log", {
+                "service": service,
+                "stream": stream,
+                "payload": line
+            }
+        ]
+        verbose_file.write(json.dumps(record) + "\n")
+        verbose_file.flush()
+        log_queue.put(line)
+
+    docker_logs.follow_container_logs(host, container, on_line)
 
 
 @contextlib.contextmanager
@@ -441,8 +383,8 @@ def add_services_in_nginx_etc_hosts(services):
 class Orchestration:
     """A handle for a `docker compose` session.
 
-    `up()` runs `docker compose up` and spawns a thread that consumes its
-    output.
+    `up()` runs `docker compose up --detach` and spawns one thread per service
+    that follows its logs.
 
     `down()` runs `docker compose down`.
 
@@ -464,7 +406,8 @@ class Orchestration:
         )
 
     # Properties (all private)
-    # - `up_thread` is the `threading.Thread` running `docker compose up`.
+    # - `log_threads` is a `list` of `threading.Thread`, one per service, that
+    #   follow the logs of the services.
     # - `logs` is a `dict` that maps service name to a `queue.SimpleQueue` of log
     #   lines.
     # - `containers` is a `dict` {service: container ID} that, per service,
@@ -473,11 +416,11 @@ class Orchestration:
     #   `docker compose` config.
     # - `verbose` is a file-like object to which verbose logging is written.
 
-    def up(self):
+    def up(self) -> None:
         """Start service orchestration.
 
         Run `docker compose up` to bring up the orchestrated services.  Begin
-        parsing their logs on a separate thread.
+        following their logs on separate threads.
         """
         # Before we bring things up, first clean up any detritus left over from
         # previous runs.  Failing to do so can create problems later when we
@@ -495,21 +438,21 @@ class Orchestration:
         self.services = docker_compose_services()
         print("services:", self.services, file=self.verbose, flush=True)
         self.logs = {service: queue.SimpleQueue() for service in self.services}
-        ready_queue = queue.SimpleQueue()
-        self.up_thread = threading.Thread(target=docker_compose_up,
-                                          args=(ready_queue.put, self.logs,
-                                                self.verbose))
-        self.up_thread.start()
-        runtime_info = ready_queue.get()
-        self.containers = runtime_info["containers"]
-        print(runtime_info, file=self.verbose, flush=True)
+        docker_compose_up(self.verbose)
+        self.containers = {
+            service: docker_compose_ps(service)
+            for service in self.services
+        }
+        print({"containers": self.containers}, file=self.verbose, flush=True)
+        self.start_following_logs()
+        wait_until_services_ready(len(self.services), self.verbose)
         add_services_in_nginx_etc_hosts(self.services)
 
-    def down(self):
+    def down(self) -> None:
         """Stop service orchestration.
 
         Run `docker compose down` to bring down the orchestrated services.
-        Join the log-parsing thread.
+        Join the log-following threads.
         """
         if self.has_coverage_data():
             self.create_coverage_tarball()
@@ -532,11 +475,25 @@ class Orchestration:
                       file=self.verbose,
                       flush=True)
 
-            self.up_thread.join(timeout=10)
-            if self.up_thread.is_alive():
-                raise Exception("docker compose up log thread did not exit")
+            for thread in self.log_threads:
+                thread.join(timeout=10)
+                if thread.is_alive():
+                    raise Exception(f"{thread.name} did not exit")
 
         self.verbose.close()
+
+    def start_following_logs(self) -> None:
+        host = docker_api_host()
+        self.log_threads = []
+        for service, container in self.containers.items():
+            if not container:
+                raise Exception(f"Service {service} has no container")
+            thread = threading.Thread(target=follow_service_logs,
+                                      name=f"log thread of {service}",
+                                      args=(host, service, container,
+                                            self.logs[service], self.verbose))
+            thread.start()
+            self.log_threads.append(thread)
 
     @staticmethod
     def has_coverage_data():
