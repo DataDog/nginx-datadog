@@ -79,14 +79,16 @@ The `*.py` directly in this directory are common code shared by the tests.
   attribute `.orch` of type `Orchestration`.  Test cases can use this to share
   a single scoped session of `docker compose` services.
 - [formats.py](formats.py) contains parsing functions for the output of
-  `docker compose up`, `docker compose down`, and the JSON-formatted
-  traces logged by the agent service.
+  `docker compose down`, and the JSON-formatted traces logged by the agent
+  service.
+- [docker_logs.py](docker_logs.py) follows the logs of a container through
+  the Docker Engine API, so that long log lines are never split.
 - [lazy_singleton.py](lazy_singleton.py) defines a generic singleton class,
   which is then used to define a single instance of `Orchestration`, the
   `docker compose` wrapper.
 - [orchestration.py](orchestration.py) defines a `class Orchestration` that
-   manages a thread that runs and consumes the output of `docker compose up`,
-   and has methods for performing operations on the `docker compose` setup,
+   runs `docker compose up`, manages one thread per service that follows its
+   logs, and has methods for performing operations on the `docker compose` setup,
    e.g.
    - sending a request to nginx,
    - retrieving the logs of a service,
