@@ -6,7 +6,6 @@
 
 set -euo pipefail
 
-source_repository="${CI_REGISTRY}/ingress-nginx-injection"
 image_tags=()
 
 main() {
@@ -29,7 +28,7 @@ list_versions() {
 build_and_sign_image() {
     local version="$1"
     local image_tag="v${version}-${CI_JOB_ID}"
-    local image="${source_repository}:${image_tag}"
+    local image="${INGRESS_IMAGE_SOURCE_REPOSITORY}:${image_tag}"
     local arch
     for arch in amd64 arm64; do
         build_and_push_arch_image "${image}" "${version}" "${arch}"

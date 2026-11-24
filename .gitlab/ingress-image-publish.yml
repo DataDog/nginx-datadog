@@ -19,6 +19,7 @@
 
 build-ingress-injection-images:
   extends: .ingress-image-source
+  dependencies: [build-ingress-nginx-all]
   rules:
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
     - when: never
@@ -45,17 +46,16 @@ build-ingress-injection-images-dev:
     - |
       set -euo pipefail
       : "${INGRESS_IMAGE_TAGS:?The signed image build must succeed first}"
-      source_repository="${CI_REGISTRY}/ingress-nginx-injection"
       for image_tag in ${INGRESS_IMAGE_TAGS}; do
-        version="${image_tag%@*}"
-        version="${version%-*}"
+        tag_without_digest="${image_tag%@*}"
+        version="${tag_without_digest%-*}"
         if [[ "${INGRESS_IMAGE_RELEASE_MODE}" == release ]]; then
           destinations="ingress-nginx-injection:${version}-dd.${CI_COMMIT_TAG},ingress-nginx-injection:${version}"
         else
           destinations="ingress-nginx-injection-dev:${version}-dev.${CI_COMMIT_SHORT_SHA}"
         fi
         dd-pkg publish-image \
-          --sources "${source_repository}:${image_tag}" \
+          --sources "${INGRESS_IMAGE_SOURCE_REPOSITORY}:${image_tag}" \
           --merge-strategy none \
           --destinations "${destinations}" \
           --registries "${INGRESS_IMAGE_PUBLIC_REGISTRIES}"
