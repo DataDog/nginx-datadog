@@ -253,7 +253,7 @@ OPENRESTY_BUILD_RE: re.Pattern[str] = re.compile(
     r"build-openresty-all: \[(amd64|arm64), ([\d.]+), (ON|OFF)\]")
 
 
-def release_module(args) -> int:
+def release_module(args: argparse.Namespace) -> int:
     """
     Download NGINX module artifacts from the release pipeline
     and publish them to a GitHub release.

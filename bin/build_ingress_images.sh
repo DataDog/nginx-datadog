@@ -27,6 +27,7 @@ list_versions() {
 
 build_and_sign_image() {
     local version="$1"
+    # image_tag is parsed by publish_ingress_images.sh
     local image_tag="v${version}-${CI_JOB_ID}"
     local image="${INGRESS_IMAGE_SOURCE_REPOSITORY}:${image_tag}"
     local arch
