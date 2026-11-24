@@ -1,3 +1,6 @@
+include:
+  - local: ".gitlab/common.yml"
+
 # Build and sign in the internal registry.
 .ingress-image-build:
   stage: ingress-image-build
@@ -18,6 +21,7 @@
 
 build-ingress-injection-images:
   extends: .ingress-image-build
+  # Not 'needs': it would exceed the 50-job limit and skip waiting for test-all.
   dependencies: [build-ingress-nginx-all]
   rules:
     - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
@@ -34,7 +38,7 @@ build-ingress-injection-images-dev:
 
 .ingress-image-publish:
   stage: ingress-image-publish
-  image: registry.ddbuild.io/agent-delivery/dd-pkg:v0.9.4@sha256:eaf703c35f95d7326be30ffb485d143262de6b0a254b6f7f00f1573ec1817031
+  image: $DD_PKG_IMAGE
   tags: ["arch:amd64"]
   interruptible: false
   resource_group: ingress-image-publish-$INGRESS_IMAGE_RELEASE_MODE

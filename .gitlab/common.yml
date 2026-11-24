@@ -11,6 +11,7 @@ variables:
   TEST_IMAGE: "$CI_REGISTRY/test@sha256:543f3a4a74658ffbf5f9b20fbe46d354fa90eb458a76c150e7e6d141bd3d7c77"
   UWSGI_TEST_IMAGE: "$CI_REGISTRY/uwsgi@sha256:7dce67df169410735ea2834f4492261a40037d03b24dce776d61545e67efb1ef"
   NYDUS_IMAGE: "$REGISTRY/images/nydus:v2.3.8-dd"
+  DD_PKG_IMAGE: "$REGISTRY/agent-delivery/dd-pkg:v0.9.4@sha256:eaf703c35f95d7326be30ffb485d143262de6b0a254b6f7f00f1573ec1817031"
 
 # Git config for repo-defined jobs: submodule cloning and GitHub→GitLab URL
 # rewriting via CI job token. Defined as a hidden job (not global) so
