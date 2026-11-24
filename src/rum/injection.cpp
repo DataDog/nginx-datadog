@@ -7,6 +7,7 @@ extern "C" {
 }
 
 #include <cassert>
+#include <span>
 
 #include "common/headers.h"
 #include "datadog_conf.h"
@@ -25,26 +26,45 @@ bool is_html_content(ngx_str_t *content_type) {
   return content_type_sv.find("text/html") != content_type_sv.npos;
 }
 
-// Appends `buf` itself, without a copy, to the chain ending at `tail`. Returns
-// the new tail, or nullptr if out of memory.
+// Appends `buffer` itself, without a copy, to the chain ending at `tail`.
+// Returns the new tail, or nullptr if out of memory.
 ngx_chain_t **append_as_is(ngx_pool_t *pool, ngx_chain_t **tail,
-                           ngx_buf_t *buf) {
-  ngx_chain_t *cl = ngx_alloc_chain_link(pool);
-  if (cl == nullptr) {
+                           ngx_buf_t *buffer) {
+  ngx_chain_t *link = ngx_alloc_chain_link(pool);
+  if (link == nullptr) {
     return nullptr;
   }
-  cl->buf = buf;
-  cl->next = nullptr;
-  *tail = cl;
-  return &cl->next;
+  link->buf = buffer;
+  link->next = nullptr;
+  *tail = link;
+  return &link->next;
 }
 
 size_t total_length(const InjectorResult &result) {
   size_t length = 0;
-  for (uint32_t i = 0; i < result.slices_length; ++i) {
-    length += result.slices[i].length;
+  for (const BytesSlice &slice :
+       std::span(result.slices, result.slices_length)) {
+    length += slice.length;
   }
   return length;
+}
+
+// Returns a new buffer with a copy of the bytes of `result`, or nullptr if out
+// of memory.
+ngx_buf_t *copy_to_new_buffer(ngx_pool_t *pool, const InjectorResult &result) {
+  size_t length = total_length(result);
+  if (length == 0) {
+    return static_cast<ngx_buf_t *>(ngx_calloc_buf(pool));
+  }
+  ngx_buf_t *buffer = ngx_create_temp_buf(pool, length);
+  if (buffer == nullptr) {
+    return nullptr;
+  }
+  for (const BytesSlice &slice :
+       std::span(result.slices, result.slices_length)) {
+    buffer->last = ngx_cpymem(buffer->last, slice.start, slice.length);
+  }
+  return buffer;
 }
 
 // Appends a buffer with a copy of the bytes of `result` to the chain ending
@@ -54,35 +74,27 @@ size_t total_length(const InjectorResult &result) {
 ngx_chain_t **append_copy(ngx_pool_t *pool, ngx_chain_t **tail,
                           const InjectorResult &result,
                           const ngx_buf_t *flags_from) {
-  size_t length = total_length(result);
   // nginx rejects an empty buffer unless it is special (see ngx_buf_special).
   // last_in_chain alone does not make a buffer special.
-  bool special =
+  bool is_special =
       flags_from != nullptr &&
       (flags_from->flush || flags_from->sync || flags_from->last_buf);
-  if (length == 0 && !special) {
+  if (total_length(result) == 0 && !is_special) {
     return tail;
   }
 
-  ngx_buf_t *buf = length == 0 ? static_cast<ngx_buf_t *>(ngx_calloc_buf(pool))
-                               : ngx_create_temp_buf(pool, length);
-  if (buf == nullptr) {
+  ngx_buf_t *buffer = copy_to_new_buffer(pool, result);
+  if (buffer == nullptr) {
     return nullptr;
   }
-  if (length > 0) {
-    for (uint32_t i = 0; i < result.slices_length; ++i) {
-      buf->last = ngx_cpymem(buf->last, result.slices[i].start,
-                             result.slices[i].length);
-    }
-  }
-  buf->tag = (ngx_buf_tag_t)&ngx_http_datadog_module;
+  buffer->tag = &ngx_http_datadog_module;
   if (flags_from != nullptr) {
-    buf->flush = flags_from->flush;
-    buf->sync = flags_from->sync;
-    buf->last_buf = flags_from->last_buf;
-    buf->last_in_chain = flags_from->last_in_chain;
+    buffer->flush = flags_from->flush;
+    buffer->sync = flags_from->sync;
+    buffer->last_buf = flags_from->last_buf;
+    buffer->last_in_chain = flags_from->last_in_chain;
   }
-  return append_as_is(pool, tail, buf);
+  return append_as_is(pool, tail, buffer);
 }
 
 }  // namespace
@@ -208,88 +220,89 @@ ngx_int_t InjectionHandler::on_header_filter(
 }
 
 ngx_int_t InjectionHandler::on_body_filter(
-    ngx_http_request_t *r, datadog_loc_conf_t *cfg, ngx_chain_t *in,
+    ngx_http_request_t *request, datadog_loc_conf_t *loc_conf, ngx_chain_t *in,
     ngx_http_output_body_filter_pt &next_body_filter) {
-  if (!cfg->rum_enable || in == nullptr || state_ != state::searching) {
-    return next_body_filter(r, in);
+  if (!loc_conf->rum_enable || in == nullptr || state_ != state::searching) {
+    return next_body_filter(request, in);
   }
 
   ngx_chain_t *out = nullptr;
   ngx_chain_t **tail = &out;
-  for (ngx_chain_t *cl = in; cl; cl = cl->next) {
+  for (ngx_chain_t *link = in; link != nullptr; link = link->next) {
     bool injected = false;
     // Once the injector gives up, it returns the bytes as they are, so the
     // buffer goes out without a copy. The last buffer still goes to the
     // injector, to end it.
-    if (cl->buf->last_buf || injector_is_pending(injector_)) {
-      tail = write_to_injector(r->pool, tail, cl->buf, injected);
+    if (link->buf->last_buf || injector_is_pending(injector_)) {
+      tail = write_to_injector(request->pool, tail, link->buf, injected);
     } else {
-      tail = append_as_is(r->pool, tail, cl->buf);
+      tail = append_as_is(request->pool, tail, link->buf);
     }
     if (tail == nullptr) {
-      ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+      ngx_log_error(NGX_LOG_ERR, request->connection->log, 0,
                     "RUM SDK injection failed: insufficient memory available");
       return NGX_ERROR;
     }
     if (injected) {
-      *tail = cl->next;
-      report_injected(r, cfg);
+      *tail = link->next;
+      report_injected(request, loc_conf);
       break;
     }
-    if (cl->buf->last_buf) {
-      report_failed(r, cfg);
+    if (link->buf->last_buf) {
+      report_failed(request, loc_conf);
     }
   }
 
-  return next_body_filter(r, out);
+  return next_body_filter(request, out);
 }
 
 ngx_chain_t **InjectionHandler::write_to_injector(ngx_pool_t *pool,
                                                   ngx_chain_t **tail,
-                                                  ngx_buf_t *buf,
+                                                  ngx_buf_t *buffer,
                                                   bool &injected) {
-  auto result = injector_write(injector_, static_cast<uint8_t *>(buf->pos),
-                               buf->last - buf->pos);
-  buf->pos = buf->last;
+  InjectorResult result =
+      injector_write(injector_, buffer->pos, buffer->last - buffer->pos);
+  buffer->pos = buffer->last;
   injected = result.injected;
-  bool last = buf->last_buf;
+  bool is_last = buffer->last_buf;
 
   // `result` points to injector memory that the next injector call
   // overwrites, so `append_copy` copies it. On the last buffer, the flags go
   // after what the end returns.
-  tail = append_copy(pool, tail, result, last ? nullptr : buf);
-  if (tail == nullptr || !last) {
+  tail = append_copy(pool, tail, result, is_last ? nullptr : buffer);
+  if (tail == nullptr || !is_last) {
     return tail;
   }
   // With a Content-Length, padding keeps the announced length when the
   // snippet is not injected.
-  auto ended = has_content_length_ ? injector_end(injector_)
-                                   : injector_end_without_padding(injector_);
+  InjectorResult ended = has_content_length_
+                             ? injector_end(injector_)
+                             : injector_end_without_padding(injector_);
   injected = injected || ended.injected;
-  return append_copy(pool, tail, ended, buf);
+  return append_copy(pool, tail, ended, buffer);
 }
 
-void InjectionHandler::report_injected(ngx_http_request_t *r,
-                                       datadog_loc_conf_t *cfg) {
+void InjectionHandler::report_injected(ngx_http_request_t *request,
+                                       datadog_loc_conf_t *loc_conf) {
   state_ = state::injected;
-  ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+  ngx_log_error(NGX_LOG_INFO, request->connection->log, 0,
                 "RUM SDK injected successfully");
   datadog::telemetry::counter::increment(
       telemetry::injection_succeed,
-      telemetry::build_tags(cfg->rum_application_id_tag,
-                            cfg->rum_remote_config_tag));
+      telemetry::build_tags(loc_conf->rum_application_id_tag,
+                            loc_conf->rum_remote_config_tag));
 }
 
-void InjectionHandler::report_failed(ngx_http_request_t *r,
-                                     datadog_loc_conf_t *cfg) {
+void InjectionHandler::report_failed(ngx_http_request_t *request,
+                                     datadog_loc_conf_t *loc_conf) {
   state_ = state::failed;
-  ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+  ngx_log_error(NGX_LOG_INFO, request->connection->log, 0,
                 "RUM SDK injection failed: no injection point found");
   datadog::telemetry::counter::increment(
       telemetry::injection_failed,
       telemetry::build_tags("reason:missing_header_tag",
-                            cfg->rum_application_id_tag,
-                            cfg->rum_remote_config_tag));
+                            loc_conf->rum_application_id_tag,
+                            loc_conf->rum_remote_config_tag));
 }
 
 ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t *r) {

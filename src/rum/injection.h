@@ -36,14 +36,15 @@ class InjectionHandler final {
   // Browser SDK needs to be injected.
   Injector *injector_;
 
-  // Writes `buf` to the injector and appends what it returns to the chain
+  // Writes `buffer` to the injector and appends what it returns to the chain
   // ending at `tail`. Ends the injector on the last buffer. Sets `injected`
   // when the snippet goes in. Returns the new tail, or nullptr if out of
   // memory.
   ngx_chain_t **write_to_injector(ngx_pool_t *pool, ngx_chain_t **tail,
-                                  ngx_buf_t *buf, bool &injected);
-  void report_injected(ngx_http_request_t *r, datadog_loc_conf_t *cfg);
-  void report_failed(ngx_http_request_t *r, datadog_loc_conf_t *cfg);
+                                  ngx_buf_t *buffer, bool &injected);
+  void report_injected(ngx_http_request_t *request,
+                       datadog_loc_conf_t *loc_conf);
+  void report_failed(ngx_http_request_t *request, datadog_loc_conf_t *loc_conf);
 
  public:
   InjectionHandler();
@@ -65,14 +66,14 @@ class InjectionHandler final {
       ngx_http_output_header_filter_pt &next_header_filter);
 
   // Handles the body modification of an HTTP request.
-  // @param r - HTTP request being processed.
-  // @param cfg - Location configuration of the module.
+  // @param request - HTTP request being processed.
+  // @param loc_conf - Location configuration of the module.
   // @param in - Incoming chain of buffers containing the response body.
   // @param next_body_filter - Reference to the next body filter in the NGINX
   // body filter chain.
   // @return ngx_int_t - Status code indicating success or failure.
-  ngx_int_t on_body_filter(ngx_http_request_t *r, datadog_loc_conf_t *cfg,
-                           ngx_chain_t *in,
+  ngx_int_t on_body_filter(ngx_http_request_t *request,
+                           datadog_loc_conf_t *loc_conf, ngx_chain_t *in,
                            ngx_http_output_body_filter_pt &next_body_filter);
 
   // Handles the logging phase of an HTTP request.
