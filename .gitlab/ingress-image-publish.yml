@@ -11,33 +11,7 @@
     DDSIGN_ID_TOKEN:
       aud: image-integrity
   script:
-    - |
-      set -euo pipefail
-      source_repository="${CI_REGISTRY}/ingress-nginx-injection"
-      image_tags=()
-
-      for version in $(printf '%s\n' artifacts-ingress/{amd64,arm64}/* | cut -d/ -f3 | sort -u); do
-        image_tag="v${version}-${CI_JOB_ID}"
-        image="${source_repository}:${image_tag}"
-        for arch in amd64 arm64; do
-          module_context="artifacts-ingress/${arch}/${version}"
-          test -f "${module_context}/ngx_http_datadog_module.so"
-          docker build --progress=plain --no-cache \
-            --provenance=false --sbom=false \
-            --build-context "build=${module_context}" \
-            --platform "linux/${arch}" --tag "${image}-${arch}" \
-            injection/ingress-nginx
-          docker push "${image}-${arch}"
-        done
-
-        docker buildx imagetools create --tag "${image}" \
-          "${image}-amd64" "${image}-arm64"
-        digest="$(crane digest "${image}")"
-        ddsign sign "${image}@${digest}"
-        ddsign verify --roles=ci "${image}@${digest}"
-        image_tags+=("${image_tag}@${digest}")
-      done
-      printf 'INGRESS_IMAGE_TAGS=%s\n' "${image_tags[*]}" > ingress-images.env
+    - bin/build_ingress_images.sh ingress-images.env
   artifacts:
     reports:
       dotenv: ingress-images.env
