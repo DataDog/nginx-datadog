@@ -1,5 +1,6 @@
 import contextlib
 import hashlib
+import json
 import string
 import time
 
@@ -285,6 +286,30 @@ class TestRUMInjection(case.TestCase):
         return self.orch.nginx_replace_config(conf_path.read_text(),
                                               conf_path.name)
 
+    def wait_for_rum_metric(self, metric, tag, timeout_secs=10):
+        """Wait for a RUM telemetry series named `metric` with `tag`."""
+        deadline = time.monotonic() + timeout_secs
+        while True:
+            remaining_secs = deadline - time.monotonic()
+            line = self.orch.wait_for_log_message("agent",
+                                                  "Telemetry request: ",
+                                                  timeout_secs=remaining_secs)
+            for series in self._rum_series(line):
+                if series["metric"] == metric and tag in series["tags"]:
+                    return
+
+    def _rum_series(self, telemetry_line):
+        request = json.loads(telemetry_line.split(": ", 1)[1])
+        # Some requests are sent alone, not in a message-batch.
+        messages = (request["payload"] if request["request_type"]
+                    == "message-batch" else [request])
+        for message in messages:
+            if message["request_type"] != "generate-metrics":
+                continue
+            for series in message["payload"]["series"]:
+                if series["namespace"] == "rum":
+                    yield series
+
     def compute_sha256(self, input):
         sha256_hash = hashlib.sha256()
         sha256_hash.update(input)
@@ -387,6 +412,7 @@ class TestRUMInjection(case.TestCase):
         """
         status, lines = self.load_conf("rum_enabled.conf")
         self.assertEqual(0, status, lines)
+        self.orch.sync_service("agent")
 
         status, headers, body = self.orch.send_nginx_http_request(
             "/dd_logo_v_rgb.png")
@@ -397,6 +423,7 @@ class TestRUMInjection(case.TestCase):
             self.compute_sha256(body.encode("utf8")),
             "7fd70efd25882a7d05e38ead11eca64bbc2602d474592db3ce4c4a770a81a8de",
         )
+        self.wait_for_rum_metric("injection.skipped", "reason:content-type")
 
     def test_injection_disabled(self):
         """
@@ -671,7 +698,7 @@ class TestRUMInjection(case.TestCase):
         """
         Verify that when the HTML has no <head> tag the module pads the
         response with spaces instead of injecting the RUM snippet
-        (reason:missing_header_tag).
+        (reason:no_injection_point).
 
         The x-datadog-rum-injected: 1 response header IS set (added in the
         header filter before the body filter discovers no <head>), but the
@@ -721,7 +748,7 @@ class TestRUMInjection(case.TestCase):
         """
         Verify that when the upstream sets a Content-Security-Policy header
         the module still injects the RUM snippet. The CSP header is passed
-        through to the client (on_log_request emits a telemetry counter).
+        through to the client and counted in the CSP telemetry metric.
         """
         service = {"host": "0.0.0.0", "port": 8081}
 
@@ -752,6 +779,7 @@ class TestRUMInjection(case.TestCase):
         try:
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
+            self.orch.sync_service("agent")
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
         finally:
@@ -762,3 +790,5 @@ class TestRUMInjection(case.TestCase):
         self.assertInjection(headers, body)
         headers = self.make_dict_headers(headers)
         self.assertIn("content-security-policy", headers)
+        self.wait_for_rum_metric("injection.content_security_policy",
+                                 "kind:header")

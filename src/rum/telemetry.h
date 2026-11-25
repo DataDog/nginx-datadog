@@ -24,6 +24,8 @@ auto build_tags(T&&... specific_tags) {
   return tags;
 }
 
+// skipped: not tried, decided from the headers or the config.
+// failed: an eligible HTML response we tried but did not inject.
 const extern datadog::telemetry::Counter injection_skipped;
 const extern datadog::telemetry::Counter injection_succeed;
 const extern datadog::telemetry::Counter injection_failed;
