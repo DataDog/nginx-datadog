@@ -299,8 +299,12 @@ class TestRUMInjection(case.TestCase):
                     return
 
     def _rum_series(self, telemetry_line):
-        batch = json.loads(telemetry_line.split(": ", 1)[1])
-        for message in batch["payload"]:
+        request = json.loads(telemetry_line.split(": ", 1)[1])
+        # Some requests are sent alone, not in a message-batch.
+        messages = (request["payload"]
+                    if request["request_type"] == "message-batch" else
+                    [request])
+        for message in messages:
             if message["request_type"] != "generate-metrics":
                 continue
             for series in message["payload"]["series"]:
