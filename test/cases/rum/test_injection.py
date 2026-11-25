@@ -420,8 +420,7 @@ class TestRUMInjection(case.TestCase):
             self.compute_sha256(body.encode("utf8")),
             "7fd70efd25882a7d05e38ead11eca64bbc2602d474592db3ce4c4a770a81a8de",
         )
-        self.wait_for_rum_metric("injection.skipped",
-                                 "reason:unsupported_content_type")
+        self.wait_for_rum_metric("injection.skipped", "reason:content-type")
 
     def test_injection_disabled(self):
         """

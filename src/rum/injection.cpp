@@ -92,7 +92,7 @@ ngx_int_t InjectionHandler::on_header_filter(
 
     datadog::telemetry::counter::increment(
         telemetry::injection_skipped,
-        telemetry::build_tags("reason:unsupported_content_type",
+        telemetry::build_tags("reason:content-type",
                               cfg->rum_application_id_tag,
                               cfg->rum_remote_config_tag));
 
