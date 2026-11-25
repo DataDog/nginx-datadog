@@ -8,9 +8,7 @@ extern "C" {
 
 #include "datadog_conf.h"
 
-namespace datadog {
-namespace nginx {
-namespace rum {
+namespace datadog::nginx::rum {
 
 // Class is responsible for managing the injection of the RUM Browser SDK
 // into HTML responses. It handles the various stages of processing a request,
@@ -36,12 +34,17 @@ class InjectionHandler final {
   // Browser SDK needs to be injected.
   Injector *injector_;
 
-  // Writes `buffer` to the injector and appends what it returns to the chain
-  // ending at `tail`. Ends the injector on the last buffer. Sets `injected`
-  // when the snippet goes in. Returns the new tail, or nullptr if out of
-  // memory.
-  ngx_chain_t **write_to_injector(ngx_pool_t *pool, ngx_chain_t **tail,
-                                  ngx_buf_t *buffer, bool &injected);
+  // Writes `buffer` to the injector and appends the output to `tail`, with the
+  // flags of `flags_from`, if any. Sets `state_` to injected when the snippet
+  // goes in. Returns the new tail, or nullptr if out of memory.
+  ngx_chain_t **append_through_injector(ngx_pool_t *pool, ngx_chain_t **tail,
+                                        ngx_buf_t *buffer,
+                                        const ngx_buf_t *flags_from);
+  // Same, for the last buffer, then ends the injector. The output of the end
+  // gets the flags of `buffer`.
+  ngx_chain_t **append_last_through_injector(ngx_pool_t *pool,
+                                             ngx_chain_t **tail,
+                                             ngx_buf_t *buffer);
   void report_injected(ngx_http_request_t *request,
                        datadog_loc_conf_t *loc_conf);
   void report_failed(ngx_http_request_t *request, datadog_loc_conf_t *loc_conf);
@@ -82,6 +85,4 @@ class InjectionHandler final {
   ngx_int_t on_log_request(ngx_http_request_t *r);
 };
 
-}  // namespace rum
-}  // namespace nginx
-}  // namespace datadog
+}  // namespace datadog::nginx::rum

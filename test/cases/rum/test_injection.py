@@ -335,6 +335,23 @@ class TestRUMInjection(case.TestCase):
 
         self.assertIn("datadog-rum.js", body)
 
+    def assertPadded(self, body: str, original: str) -> None:
+        self.assertTrue(body.startswith(original))
+        padding = body[len(original):]
+        self.assertGreater(len(padding), 0)
+        self.assertEqual(padding.strip(" "), "")
+
+    @contextlib.contextmanager
+    def _upstream(self, app: Callable[..., Any]) -> Iterator[None]:
+        server = make_server("0.0.0.0", 8081, app)
+        thread = Thread(target=server.serve_forever)
+        thread.start()
+        try:
+            yield
+        finally:
+            server.shutdown()
+            thread.join()
+
     def test_injection(self):
         status, lines = self.load_conf("rum_enabled.conf")
         self.assertEqual(0, status, lines)
@@ -369,7 +386,6 @@ class TestRUMInjection(case.TestCase):
         Also verify the plugin set `x-datadog-sdk-injection` to signal
         downstream to let it NGINX inject the RUM SDK.
         """
-        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -389,19 +405,12 @@ class TestRUMInjection(case.TestCase):
             )
 
         q = Queue()
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
             injection_header = q.get(block=True, timeout=2)
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(status, 200)
         self.assertInjection(headers, body)
@@ -631,7 +640,6 @@ class TestRUMInjection(case.TestCase):
         Verify that responses with content_length_n == 0 skip injection
         (reason:no_content).
         """
-        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -641,18 +649,11 @@ class TestRUMInjection(case.TestCase):
                 content_type="text/html",
             )
 
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
@@ -664,7 +665,6 @@ class TestRUMInjection(case.TestCase):
         Verify that responses with Content-Encoding header skip injection
         (reason:compressed_html). The module only checks header presence.
         """
-        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -683,40 +683,16 @@ class TestRUMInjection(case.TestCase):
                 headers={"Content-Encoding": "gzip"},
             )
 
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
         self.assertIsNone(headers.get("x-datadog-rum-injected"))
         self.assertNotIn("datadog-rum.js", body)
-
-    @contextlib.contextmanager
-    def _upstream(self, app: Callable[..., Any]) -> Iterator[None]:
-        server = make_server("0.0.0.0", 8081, app)
-        thread = Thread(target=server.serve_forever)
-        thread.start()
-        try:
-            yield
-        finally:
-            server.shutdown()
-            thread.join()
-
-    def assertPadded(self, body: str, original: str) -> None:
-        self.assertTrue(body.startswith(original))
-        padding = body[len(original):]
-        self.assertGreater(len(padding), 0)
-        self.assertEqual(padding.strip(" "), "")
 
     def test_missing_head_tag_pads_instead_of_injecting(self) -> None:
         """
@@ -839,7 +815,6 @@ class TestRUMInjection(case.TestCase):
         the module still injects the RUM snippet. The CSP header is passed
         through to the client and counted in the CSP telemetry metric.
         """
-        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -861,19 +836,12 @@ class TestRUMInjection(case.TestCase):
                 },
             )
 
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
             self.orch.sync_service("agent")
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(200, status)
         self.assertInjection(headers, body)

@@ -15,9 +15,7 @@ extern "C" {
 #include "string_util.h"
 #include "telemetry.h"
 
-namespace datadog {
-namespace nginx {
-namespace rum {
+namespace datadog::nginx::rum {
 namespace {
 
 bool is_html_content(ngx_str_t *content_type) {
@@ -229,12 +227,13 @@ ngx_int_t InjectionHandler::on_body_filter(
   ngx_chain_t *out = nullptr;
   ngx_chain_t **tail = &out;
   for (ngx_chain_t *link = in; link != nullptr; link = link->next) {
-    bool injected = false;
     // Once the injector gives up, it returns the bytes as they are, so the
     // buffer goes out without a copy. The last buffer still goes to the
     // injector, to end it.
-    if (link->buf->last_buf || injector_is_pending(injector_)) {
-      tail = write_to_injector(request->pool, tail, link->buf, injected);
+    if (link->buf->last_buf) {
+      tail = append_last_through_injector(request->pool, tail, link->buf);
+    } else if (injector_is_pending(injector_)) {
+      tail = append_through_injector(request->pool, tail, link->buf, link->buf);
     } else {
       tail = append_as_is(request->pool, tail, link->buf);
     }
@@ -243,7 +242,7 @@ ngx_int_t InjectionHandler::on_body_filter(
                     "RUM SDK injection failed: insufficient memory available");
       return NGX_ERROR;
     }
-    if (injected) {
+    if (state_ == state::injected) {
       *tail = link->next;
       report_injected(request, loc_conf);
       break;
@@ -256,35 +255,39 @@ ngx_int_t InjectionHandler::on_body_filter(
   return next_body_filter(request, out);
 }
 
-ngx_chain_t **InjectionHandler::write_to_injector(ngx_pool_t *pool,
-                                                  ngx_chain_t **tail,
-                                                  ngx_buf_t *buffer,
-                                                  bool &injected) {
+ngx_chain_t **InjectionHandler::append_through_injector(
+    ngx_pool_t *pool, ngx_chain_t **tail, ngx_buf_t *buffer,
+    const ngx_buf_t *flags_from) {
   InjectorResult result =
       injector_write(injector_, buffer->pos, buffer->last - buffer->pos);
   buffer->pos = buffer->last;
-  injected = result.injected;
-  bool is_last = buffer->last_buf;
-
+  if (result.injected) {
+    state_ = state::injected;
+  }
   // `result` points to injector memory that the next injector call
-  // overwrites, so `append_copy` copies it. On the last buffer, the flags go
-  // after what the end returns.
-  tail = append_copy(pool, tail, result, is_last ? nullptr : buffer);
-  if (tail == nullptr || !is_last) {
-    return tail;
+  // overwrites, so `append_copy` copies it.
+  return append_copy(pool, tail, result, flags_from);
+}
+
+ngx_chain_t **InjectionHandler::append_last_through_injector(
+    ngx_pool_t *pool, ngx_chain_t **tail, ngx_buf_t *buffer) {
+  tail = append_through_injector(pool, tail, buffer, nullptr);
+  if (tail == nullptr) {
+    return nullptr;
   }
   // With a Content-Length, padding keeps the announced length when the
   // snippet is not injected.
   InjectorResult ended = has_content_length_
                              ? injector_end(injector_)
                              : injector_end_without_padding(injector_);
-  injected = injected || ended.injected;
+  if (ended.injected) {
+    state_ = state::injected;
+  }
   return append_copy(pool, tail, ended, buffer);
 }
 
 void InjectionHandler::report_injected(ngx_http_request_t *request,
                                        datadog_loc_conf_t *loc_conf) {
-  state_ = state::injected;
   ngx_log_error(NGX_LOG_INFO, request->connection->log, 0,
                 "RUM SDK injected successfully");
   datadog::telemetry::counter::increment(
@@ -317,6 +320,4 @@ ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t *r) {
   return NGX_OK;
 }
 
-}  // namespace rum
-}  // namespace nginx
-}  // namespace datadog
+}  // namespace datadog::nginx::rum
