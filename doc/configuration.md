@@ -472,7 +472,8 @@ location / {
 
 With this setup, the traffic between Nginx and the backend is not compressed. A `proxy_set_header`
 in a `location` replaces all `proxy_set_header` directives inherited from upper levels, so repeat
-them there if needed.
+them there if needed. If Nginx is behind another proxy or a CDN, also set `gzip_proxied`: by
+default, Nginx does not compress responses to proxied requests.
 
 ## Variables
 
