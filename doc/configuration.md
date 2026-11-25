@@ -448,6 +448,32 @@ output filter chain before a decision can be made. This setting controls the app
 amount of memory that will be allocated in the interim. Beyond this, the ouput filter chain will
 stall. Note that Nginx may still spill the response into a temporary file if configured to do so.
 
+## RUM Injection (RUM builds)
+
+RUM builds inject the Datadog RUM Browser SDK into HTML responses. The injection is controlled by
+the `datadog_rum` and `datadog_rum_config` directives.
+
+### Compressed responses
+
+The SDK is not injected into HTML responses that already have a `Content-Encoding` header, such
+as a gzip response from a proxied backend. These responses are sent unchanged, and Nginx logs
+`RUM SDK injection skipped: compressed html content` at the `info` level.
+
+To inject the SDK and still send compressed HTML to the client, ask the backend for uncompressed
+HTML and let Nginx compress it. The module injects the SDK before the Nginx gzip filter runs.
+
+```nginx
+location / {
+    proxy_pass http://backend:8080;
+    proxy_set_header Accept-Encoding "";
+    gzip on;
+}
+```
+
+With this setup, the traffic between Nginx and the backend is not compressed. A `proxy_set_header`
+in a `location` replaces all `proxy_set_header` directives inherited from upper levels, so repeat
+them there if needed.
+
 ## Variables
 
 Nginx defines [variables](https://nginx.org/en/docs/varindex.html) that may appear in various
