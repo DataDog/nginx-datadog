@@ -695,7 +695,7 @@ class TestRUMInjection(case.TestCase):
         """
         Verify that when the HTML has no <head> tag the module pads the
         response with spaces instead of injecting the RUM snippet
-        (reason:missing_header_tag).
+        (reason:no_injection_point).
 
         The x-datadog-rum-injected: 1 response header IS set (added in the
         header filter before the body filter discovers no <head>), but the

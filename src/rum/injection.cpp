@@ -199,7 +199,7 @@ ngx_int_t InjectionHandler::on_body_filter(
 
     datadog::telemetry::counter::increment(
         telemetry::injection_failed,
-        telemetry::build_tags("reason:missing_header_tag",
+        telemetry::build_tags("reason:no_injection_point",
                               cfg->rum_application_id_tag,
                               cfg->rum_remote_config_tag));
   }
