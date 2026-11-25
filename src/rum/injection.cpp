@@ -92,7 +92,7 @@ ngx_int_t InjectionHandler::on_header_filter(
 
     datadog::telemetry::counter::increment(
         telemetry::injection_skipped,
-        telemetry::build_tags("reason:invalid_content_type",
+        telemetry::build_tags("reason:unsupported_content_type",
                               cfg->rum_application_id_tag,
                               cfg->rum_remote_config_tag));
 
@@ -212,7 +212,7 @@ ngx_int_t InjectionHandler::on_log_request(ngx_http_request_t *r) {
                                        "content-security-policy");
       csp != nullptr) {
     datadog::telemetry::counter::increment(
-        telemetry::injection_failed,
+        telemetry::content_security_policy,
         telemetry::build_tags("status:seen", "kind:header"));
   }
 
