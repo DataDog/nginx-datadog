@@ -1,0 +1,71 @@
+include:
+  - local: ".gitlab/common.yml"
+
+# Build and sign in the internal registry.
+.ingress-image-build:
+  stage: ingress-image-build
+  image: $NYDUS_IMAGE
+  tags: ["docker-in-docker:amd64"]
+  interruptible: false
+  variables:
+    CI_ENABLE_CONTAINER_IMAGE_BUILDS: "true"
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  script:
+    - bin/build_ingress_images.sh ingress-images.env
+  artifacts:
+    reports:
+      dotenv: ingress-images.env
+    expire_in: 1 week
+
+build-ingress-injection-images:
+  extends: .ingress-image-build
+  # Not 'needs': it would exceed the 50-job limit and skip waiting for test-all.
+  dependencies: [build-ingress-nginx-all]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+    - when: never
+
+# Build and sign the fast test versions on branches.
+build-ingress-injection-images-dev:
+  extends: .ingress-image-build
+  interruptible: true
+  needs: [build-ingress-nginx-fast]
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - when: never
+
+.ingress-image-publish:
+  stage: ingress-image-publish
+  image: $DD_PKG_IMAGE
+  tags: ["arch:amd64"]
+  interruptible: false
+  resource_group: ingress-image-publish-$INGRESS_IMAGE_RELEASE_MODE
+  timeout: 3 hours
+  script:
+    - bin/publish_ingress_images.sh "${INGRESS_IMAGE_RELEASE_MODE}"
+
+# Manually copy signed digests to Docker Hub through artifact-gateway for stable tags.
+# Publishing an old release again also resets the v<controller> tags.
+publish-ingress-injection-images:
+  extends: .ingress-image-publish
+  dependencies: [build-ingress-injection-images]
+  variables:
+    INGRESS_IMAGE_RELEASE_MODE: release
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+      when: manual
+    - when: never
+
+# Manually test publication to ingress-nginx-injection-dev.
+publish-ingress-injection-images-dev:
+  extends: .ingress-image-publish
+  dependencies: [build-ingress-injection-images-dev]
+  variables:
+    INGRESS_IMAGE_RELEASE_MODE: dev
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+      allow_failure: true
+    - when: never

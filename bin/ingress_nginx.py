@@ -23,11 +23,9 @@ import subprocess
 import urllib.request
 import tarfile
 import shutil
-import typing
 
 CWD = os.getcwd()
 DRY_RUN = False
-PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
 def get_underlying_nginx_version(ingress_nginx_version: str) -> str:
@@ -170,23 +168,6 @@ def prepare(args) -> int:
     return 0
 
 
-def build_init_container(args) -> int:
-    dockerfile_path = os.path.join(PROJECT_DIR, "injection", "ingress-nginx")
-    run_cmd(
-        f"docker build --progress=plain --no-cache --build-context build={args.module_path} --platform {args.platform} --tag {args.image_name} {dockerfile_path}"
-    )
-
-    if args.push:
-        run_cmd(f"docker push {args.image_name}")
-
-    return 0
-
-
-def create_multiarch_images(tag_map: dict[str, typing.Any]) -> None:
-    for image, tags in tag_map.items():
-        run_cmd(f"docker buildx imagetools create -t {image} {' '.join(tags)}")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Script managing ingress-nginx")
@@ -217,25 +198,6 @@ def main() -> int:
         action="store_true",
         help=
         "Simulate the process without making any changes. Useful for testing what will happen.",
-    )
-
-    # build-init-container subcommand
-    build_init_container_parser = subparsers.add_parser(
-        "build-init-container", help="Build init-container for ingress-nginx")
-    build_init_container_parser.set_defaults(func=build_init_container)
-    build_init_container_parser.add_argument(
-        "--image_name",
-        help="Init-container docker tag name",
-        default="ingress-nginx")
-    build_init_container_parser.add_argument(
-        "--module-path",
-        help="Location of the module to package and publish",
-        required=True,
-    )
-    build_init_container_parser.add_argument(
-        "--push",
-        help="Push the generated init-container to the registry",
-        action="store_true",
     )
 
     args = parser.parse_args()
