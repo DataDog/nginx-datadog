@@ -3,6 +3,8 @@ import hashlib
 import json
 import string
 import time
+from collections.abc import Callable, Iterator
+from typing import Any
 
 import yaml
 
@@ -17,6 +19,8 @@ from werkzeug.serving import make_server
 import logging
 
 STABLE_CONFIG_PATH = "/etc/datadog-agent/application_monitoring.yaml"
+# Bytes the injector looks at before it gives up.
+INJECTOR_SCAN_LIMIT = 10 * 1024
 
 log = logging.getLogger("werkzeug")
 log.disabled = True
@@ -32,7 +36,7 @@ EXPECTED_BIG_CHONK = """<!DOCTYPE html>
   n=o.getElementsByTagName(u)[0];n.parentNode.insertBefore(d,n)
 })(window,document,'script','https://www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js','DD_RUM')
 window.DD_RUM.onReady(function() {
-  window.DD_RUM.init({"applicationId":"<DATADOG_APPLICATION_ID>","clientToken":"<DATADOG_CLIENT_TOKEN>","env":"production","service":"my-web-application","sessionReplaySampleRate":100.0,"sessionSampleRate":100.0,"site":"datadoghq.com","trackLongTasks":true,"trackResources":true,"trackUserInteractions":true,"version":"1.0.0"});
+  window.DD_RUM.init({"applicationId":"\\u003cDATADOG_APPLICATION_ID\\u003e","clientToken":"\\u003cDATADOG_CLIENT_TOKEN\\u003e","env":"production","service":"my-web-application","sessionReplaySampleRate":100.0,"sessionSampleRate":100.0,"site":"datadoghq.com","trackLongTasks":true,"trackResources":true,"trackUserInteractions":true,"version":"1.0.0"});
 });
 </script>
 </head>
@@ -331,6 +335,23 @@ class TestRUMInjection(case.TestCase):
 
         self.assertIn("datadog-rum.js", body)
 
+    def assertPadded(self, body: str, original: str) -> None:
+        self.assertTrue(body.startswith(original))
+        padding = body[len(original):]
+        self.assertGreater(len(padding), 0)
+        self.assertEqual(padding.strip(" "), "")
+
+    @contextlib.contextmanager
+    def _upstream(self, app: Callable[..., Any]) -> Iterator[None]:
+        server = make_server("0.0.0.0", 8081, app)
+        thread = Thread(target=server.serve_forever)
+        thread.start()
+        try:
+            yield
+        finally:
+            server.shutdown()
+            thread.join()
+
     def test_injection(self):
         status, lines = self.load_conf("rum_enabled.conf")
         self.assertEqual(0, status, lines)
@@ -365,7 +386,6 @@ class TestRUMInjection(case.TestCase):
         Also verify the plugin set `x-datadog-sdk-injection` to signal
         downstream to let it NGINX inject the RUM SDK.
         """
-        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -385,19 +405,12 @@ class TestRUMInjection(case.TestCase):
             )
 
         q = Queue()
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
             injection_header = q.get(block=True, timeout=2)
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(status, 200)
         self.assertInjection(headers, body)
@@ -450,7 +463,7 @@ class TestRUMInjection(case.TestCase):
         finally:
             self.orch.nginx_remove_file(STABLE_CONFIG_PATH)
 
-    def test_stable_config_only(self):
+    def test_stable_config_only(self) -> None:
         """
         Verify RUM injection works when configuration comes from the
         stable config file (application_monitoring.yaml), with no
@@ -468,7 +481,7 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "50",
             "DD_RUM_TRACK_RESOURCES": "true",
             "DD_RUM_TRACK_LONG_TASKS": "true",
-            "DD_RUM_TRACK_USER_INTERACTIONS": "true",
+            "DD_RUM_TRACK_USER_INTERACTION": "true",
         }
 
         with self._stable_config(stable_config), self.orch.custom_nginx(
@@ -477,12 +490,13 @@ class TestRUMInjection(case.TestCase):
             self.assertEqual(200, status)
             self.assertInjection(headers, body)
 
-            self.assertIn('"applicationId":"<STABLE_APP_ID>"', body)
-            self.assertIn('"clientToken":"<STABLE_TOKEN>"', body)
+            self.assertIn('"applicationId":"\\u003cSTABLE_APP_ID\\u003e"',
+                          body)
+            self.assertIn('"clientToken":"\\u003cSTABLE_TOKEN\\u003e"', body)
             self.assertIn('"service":"env-only-service"', body)
             self.assertIn('"env":"env-test"', body)
 
-    def test_nginx_config_overlays_stable_config(self):
+    def test_nginx_config_overlays_stable_config(self) -> None:
         """
         Verify that nginx config fields override corresponding stable config
         values (per-field merging). The datadog_rum_config block sets service
@@ -500,7 +514,7 @@ class TestRUMInjection(case.TestCase):
             "DD_RUM_SESSION_REPLAY_SAMPLE_RATE": "100",
             "DD_RUM_TRACK_RESOURCES": "true",
             "DD_RUM_TRACK_LONG_TASKS": "true",
-            "DD_RUM_TRACK_USER_INTERACTIONS": "true",
+            "DD_RUM_TRACK_USER_INTERACTION": "true",
         }
 
         with self._stable_config(stable_config), self.orch.custom_nginx(
@@ -514,11 +528,12 @@ class TestRUMInjection(case.TestCase):
             self.assertIn('"env":"staging"', body)
 
             # stable config values used for fields not in nginx config
-            self.assertIn('"applicationId":"<STABLE_APP_ID>"', body)
-            self.assertIn('"clientToken":"<STABLE_TOKEN>"', body)
+            self.assertIn('"applicationId":"\\u003cSTABLE_APP_ID\\u003e"',
+                          body)
+            self.assertIn('"clientToken":"\\u003cSTABLE_TOKEN\\u003e"', body)
             self.assertIn('"site":"datadoghq.eu"', body)
 
-    def test_nginx_config_takes_full_precedence(self):
+    def test_nginx_config_takes_full_precedence(self) -> None:
         """
         Verify that when a full datadog_rum_config block is present, it
         is used as-is and stable-config values do not leak in.
@@ -532,7 +547,8 @@ class TestRUMInjection(case.TestCase):
 
         self.assertIn('"service":"my-web-application"', body)
         self.assertIn('"env":"production"', body)
-        self.assertIn('"applicationId":"<DATADOG_APPLICATION_ID>"', body)
+        self.assertIn('"applicationId":"\\u003cDATADOG_APPLICATION_ID\\u003e"',
+                      body)
 
     def test_stable_config_remote_configuration_id(self):
         """
@@ -624,7 +640,6 @@ class TestRUMInjection(case.TestCase):
         Verify that responses with content_length_n == 0 skip injection
         (reason:no_content).
         """
-        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -634,18 +649,11 @@ class TestRUMInjection(case.TestCase):
                 content_type="text/html",
             )
 
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
@@ -657,7 +665,6 @@ class TestRUMInjection(case.TestCase):
         Verify that responses with Content-Encoding header skip injection
         (reason:compressed_html). The module only checks header presence.
         """
-        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -676,41 +683,28 @@ class TestRUMInjection(case.TestCase):
                 headers={"Content-Encoding": "gzip"},
             )
 
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
         self.assertIsNone(headers.get("x-datadog-rum-injected"))
         self.assertNotIn("datadog-rum.js", body)
 
-    def test_missing_head_tag_pads_instead_of_injecting(self):
+    def test_missing_head_tag_pads_instead_of_injecting(self) -> None:
         """
-        Verify that when the HTML has no <head> tag the module pads the
-        response with spaces instead of injecting the RUM snippet
-        (reason:no_injection_point).
+        Verify that when the response does not look like an HTML document the
+        module pads the response with spaces instead of injecting the RUM
+        snippet (reason:no_injection_point).
 
         The x-datadog-rum-injected: 1 response header IS set (added in the
-        header filter before the body filter discovers no <head>), but the
-        RUM script is not present in the body.
+        header filter before the body filter finds no injection point), but
+        the RUM script is not present in the body.
         """
-        service = {"host": "0.0.0.0", "port": 8081}
-        original_html = """<html>
-        <body>
-            <p>No head tag here</p>
-        </body>
-        </html>
-        """
+        original_html = "<p>No head tag here</p>"
 
         @Request.application
         def app(request: Request) -> Response:
@@ -720,18 +714,11 @@ class TestRUMInjection(case.TestCase):
                 content_type="text/html",
             )
 
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(200, status)
         headers = self.make_dict_headers(headers)
@@ -739,10 +726,88 @@ class TestRUMInjection(case.TestCase):
         self.assertEqual(headers.get("x-datadog-rum-injected"), "1")
         # But no actual injection happened
         self.assertNotIn("datadog-rum.js", body)
-        # Original content is preserved
-        self.assertIn("No head tag here", body)
-        # Padding spaces were added to fill the content-length delta
-        self.assertGreater(len(body), len(original_html))
+        self.assertPadded(body, original_html)
+
+    def test_chunked_injection(self) -> None:
+        """
+        Verify that a short page streamed without Content-Length is injected
+        once the response ends.
+
+        The page is shorter than 1024 bytes and has no charset, so the injector
+        holds back each chunk until the response ends. The body must come out
+        whole, with the snippet once before </head>.
+        """
+        chunks = [
+            "<html><head><title>Chunked</title></he",
+            "ad><body>Hello, chunks!</body></html>",
+        ]
+
+        # The pause and X-Accel-Buffering: no make nginx pass each chunk to
+        # the module in its own buffer.
+        def stream() -> Iterator[str]:
+            yield chunks[0]
+            time.sleep(0.1)
+            yield chunks[1]
+
+        @Request.application
+        def app(request: Request) -> Response:
+            return Response(stream(),
+                            200,
+                            content_type="text/html",
+                            headers={"X-Accel-Buffering": "no"})
+
+        with self._upstream(app):
+            status, lines = self.load_conf("rum_enabled.conf")
+            self.assertEqual(0, status, lines)
+
+            status, headers, body = self.orch.send_nginx_http_request("/proxy")
+
+        self.assertEqual(200, status)
+        headers = self.make_dict_headers(headers)
+        self.assertEqual(headers.get("transfer-encoding"), "chunked")
+        before, after = "".join(chunks).split("</head>")
+        self.assertTrue(body.startswith(before), body)
+        self.assertTrue(body.endswith("</head>" + after), body)
+        snippet = body[len(before):-len("</head>" + after)]
+        self.assertEqual(snippet.count("datadog-rum.js"), 1, body)
+        self.assertNotIn("<title>", snippet)
+
+    def test_large_page_without_injection_point(self) -> None:
+        """
+        Verify that a large page with no injection point comes out whole.
+
+        The page does not look like HTML, and is much larger than what the
+        injector looks at. It is padded only when it has a Content-Length.
+        """
+        line_count = 6 * INJECTOR_SCAN_LIMIT // len("line 00000\n")
+        page = "".join(f"line {line_number:05d}\n"
+                       for line_number in range(line_count))
+
+        @Request.application
+        def app(request: Request) -> Response:
+            if request.args.get("chunked"):
+                half = len(page) // 2
+                return Response(iter([page[:half], page[half:]]),
+                                200,
+                                content_type="text/html")
+            return Response(page, 200, content_type="text/html")
+
+        with self._upstream(app):
+            status, lines = self.load_conf("rum_enabled.conf")
+            self.assertEqual(0, status, lines)
+
+            status, headers, body = self.orch.send_nginx_http_request("/proxy")
+            self.assertEqual(200, status)
+            headers = self.make_dict_headers(headers)
+            self.assertEqual(int(headers["content-length"]), len(body))
+            self.assertPadded(body, page)
+
+            status, headers, body = self.orch.send_nginx_http_request(
+                "/proxy?chunked=1")
+            self.assertEqual(200, status)
+            headers = self.make_dict_headers(headers)
+            self.assertNotIn("content-length", headers)
+            self.assertEqual(body, page)
 
     def test_csp_header_present_still_injects(self):
         """
@@ -750,7 +815,6 @@ class TestRUMInjection(case.TestCase):
         the module still injects the RUM snippet. The CSP header is passed
         through to the client and counted in the CSP telemetry metric.
         """
-        service = {"host": "0.0.0.0", "port": 8081}
 
         @Request.application
         def app(request: Request) -> Response:
@@ -772,19 +836,12 @@ class TestRUMInjection(case.TestCase):
                 },
             )
 
-        s = make_server(service["host"], service["port"], app)
-        t = Thread(target=s.serve_forever)
-        t.start()
-
-        try:
+        with self._upstream(app):
             status, lines = self.load_conf("rum_enabled.conf")
             self.assertEqual(0, status, lines)
             self.orch.sync_service("agent")
 
             status, headers, body = self.orch.send_nginx_http_request("/proxy")
-        finally:
-            s.shutdown()
-            t.join()
 
         self.assertEqual(200, status)
         self.assertInjection(headers, body)

@@ -6,13 +6,9 @@ extern "C" {
 
 #include <injectbrowsersdk.h>
 
-#include <span>
-
 #include "datadog_conf.h"
 
-namespace datadog {
-namespace nginx {
-namespace rum {
+namespace datadog::nginx::rum {
 
 // Class is responsible for managing the injection of the RUM Browser SDK
 // into HTML responses. It handles the various stages of processing a request,
@@ -30,12 +26,28 @@ class InjectionHandler final {
     failed,  ///< no injection point found
   } state_ = state::init;
 
-  // A flag indicating whether padding should be added to the HTML responses.
-  bool output_padding_;
+  // Whether the response announces a Content-Length. If so, the injector pads
+  // the response when it does not inject.
+  bool has_content_length_;
 
   // Pointer to an Injector instance, used to scan and locate where the RUM
   // Browser SDK needs to be injected.
   Injector *injector_;
+
+  // Writes `buffer` to the injector and appends the output to `tail`, with the
+  // flags of `flags_from`, if any. Sets `state_` to injected when the snippet
+  // goes in. Returns the new tail, or nullptr if out of memory.
+  ngx_chain_t **append_through_injector(ngx_pool_t *pool, ngx_chain_t **tail,
+                                        ngx_buf_t *buffer,
+                                        const ngx_buf_t *flags_from);
+  // Same, for the last buffer, then ends the injector. The output of the end
+  // gets the flags of `buffer`.
+  ngx_chain_t **append_last_through_injector(ngx_pool_t *pool,
+                                             ngx_chain_t **tail,
+                                             ngx_buf_t *buffer);
+  void report_injected(ngx_http_request_t *request,
+                       datadog_loc_conf_t *loc_conf);
+  void report_failed(ngx_http_request_t *request, datadog_loc_conf_t *loc_conf);
 
  public:
   InjectionHandler();
@@ -57,41 +69,20 @@ class InjectionHandler final {
       ngx_http_output_header_filter_pt &next_header_filter);
 
   // Handles the body modification of an HTTP request.
-  // @param r - HTTP request being processed.
-  // @param cfg - Location configuration of the module.
+  // @param request - HTTP request being processed.
+  // @param loc_conf - Location configuration of the module.
   // @param in - Incoming chain of buffers containing the response body.
   // @param next_body_filter - Reference to the next body filter in the NGINX
   // body filter chain.
   // @return ngx_int_t - Status code indicating success or failure.
-  ngx_int_t on_body_filter(ngx_http_request_t *r, datadog_loc_conf_t *cfg,
-                           ngx_chain_t *in,
+  ngx_int_t on_body_filter(ngx_http_request_t *request,
+                           datadog_loc_conf_t *loc_conf, ngx_chain_t *in,
                            ngx_http_output_body_filter_pt &next_body_filter);
 
   // Handles the logging phase of an HTTP request.
   // @param r - HTTP request being processed.
   // @return ngx_int_t - Status code indicating success or failure.
   ngx_int_t on_log_request(ngx_http_request_t *r);
-
- private:
-  // Sends the output to the next body filter.
-  // @param r - HTTP request being processed.
-  // @param out - Chain of buffers containing the response to send.
-  // @param next_body_filter - Reference to the next body filter in the NGINX
-  // body filter chain.
-  ngx_int_t output(ngx_http_request_t *r, ngx_chain_t *out,
-                   ngx_http_output_body_filter_pt &next_body_filter);
-
-  // Injects the RUM Browser SDK into a chain of buffers at the appropriate
-  // location.
-  // @param pool - Memory pool used for allocation.
-  // @param in - Incoming chain of buffers containing the response body.
-  // @param slices - Pointer to an array of `BytesSlice`.
-  // @param slices_length - Number of elements in the `slices` array.
-  // @return ngx_chain_t* - Chain of buffers with the injected data.
-  ngx_chain_t *inject(ngx_pool_t *pool, ngx_chain_t *in,
-                      std::span<const BytesSlice> slices);
 };
 
-}  // namespace rum
-}  // namespace nginx
-}  // namespace datadog
+}  // namespace datadog::nginx::rum
