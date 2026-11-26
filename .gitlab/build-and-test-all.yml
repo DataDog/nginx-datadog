@@ -20,6 +20,8 @@ include:
   stage: test-all
 
 build-nginx-all:
+  rules:
+    - when: never
   extends:
     - .build-all
     - .build-nginx
@@ -76,6 +78,8 @@ build-nginx-all:
         WAF: ["ON", "OFF"]
 
 build-nginx-rum-all:
+  rules:
+    - when: never
   extends:
     - .build-all
     - .build-nginx-rum
@@ -132,6 +136,8 @@ build-nginx-rum-all:
         WAF: ["OFF"]
 
 build-ingress-nginx-all:
+  rules:
+    - when: never
   extends:
     - .build-all
     - .build-ingress-nginx
@@ -184,6 +190,8 @@ build-ingress-nginx-all:
           - "1.15.1"
 
 build-openresty-all:
+  rules:
+    - when: never
   extends:
     - .build-all
     - .build-openresty
@@ -205,6 +213,8 @@ build-openresty-all:
         WAF: ["ON", "OFF"]
 
 test-nginx-all:
+  rules:
+    - when: never
   extends:
     - .test-all
     - .test-nginx
@@ -313,6 +323,8 @@ test-nginx-all:
 
 # GitLab is not able to handle a matrix with more than 200 jobs!
 test-nginx-all-bis:
+  rules:
+    - when: never
   extends:
     - .test-all
     - .test-nginx
@@ -408,6 +420,8 @@ test-nginx-all-bis:
         WAF: ["ON", "OFF"]
 
 test-nginx-rum-all:
+  rules:
+    - when: never
   extends:
     - .test-all
     - .test-nginx-rum
@@ -599,6 +613,8 @@ test-nginx-rum-all:
         WAF: ["OFF"]
 
 test-ingress-nginx-all:
+  rules:
+    - when: never
   extends:
     - .test-all
     - .test-ingress-nginx
@@ -651,6 +667,8 @@ test-ingress-nginx-all:
           - "1.15.1"
 
 test-openresty-all:
+  rules:
+    - when: never
   extends:
     - .test-all
     - .test-openresty
