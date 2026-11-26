@@ -16,6 +16,13 @@ include:
   - local: ".gitlab/ssi-package.yml"
   - local: ".gitlab/ingress-image-publish.yml"
   - local: ".gitlab/one-pipeline.locked.yml"
+  # Manual, allowed-to-fail Speedlab macrobenchmarks measuring this pipeline's build.
+  - project: 'DataDog/apm-reliability/speedlab'
+    ref: 'fayssal/sdk-ci-nginx-datadog'
+    file: '.gitlab/ci-sdk-cpp-nginx.yml'
+    inputs:
+      stage: benchmarks
+      speedlab_ref: 'fayssal/sdk-ci-nginx-datadog'
 
 variables:
   OCI_PACKAGE_NAME: datadog-apm-library-nginx
