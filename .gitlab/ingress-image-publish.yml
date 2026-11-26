@@ -33,9 +33,7 @@ build-ingress-injection-images-dev:
   interruptible: true
   needs: [build-ingress-nginx-fast]
   rules:
-    - if: $CI_COMMIT_BRANCH
     - when: never
-
 .ingress-image-publish:
   stage: ingress-image-publish
   image: $DD_PKG_IMAGE
@@ -65,7 +63,4 @@ publish-ingress-injection-images-dev:
   variables:
     INGRESS_IMAGE_RELEASE_MODE: dev
   rules:
-    - if: $CI_COMMIT_BRANCH
-      when: manual
-      allow_failure: true
     - when: never
