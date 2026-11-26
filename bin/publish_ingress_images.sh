@@ -22,10 +22,13 @@ publish_image() {
     local image_tag="$2"
     local tag_without_digest="${image_tag%@*}"
     local controller_version="${tag_without_digest%-*}"
+    local destinations
+    destinations="$(list_destinations "${mode}" "${controller_version}")"
+    echo "Publishing ${INGRESS_IMAGE_SOURCE_REPOSITORY}:${image_tag} to ${destinations}"
     dd-pkg publish-image \
         --sources "${INGRESS_IMAGE_SOURCE_REPOSITORY}:${image_tag}" \
         --merge-strategy none \
-        --destinations "$(list_destinations "${mode}" "${controller_version}")" \
+        --destinations "${destinations}" \
         --registries dockerhub
 }
 
