@@ -448,12 +448,42 @@ output filter chain before a decision can be made. This setting controls the app
 amount of memory that will be allocated in the interim. Beyond this, the ouput filter chain will
 stall. Note that Nginx may still spill the response into a temporary file if configured to do so.
 
-## RUM Injection (RUM builds)
+## Real User Monitoring (RUM) Injection (RUM builds)
 
-RUM builds inject the Datadog RUM Browser SDK into HTML responses. The injection is controlled by
-the `datadog_rum` and `datadog_rum_config` directives.
+RUM builds inject the Datadog Real User Monitoring (RUM) Browser SDK into HTML responses. The
+injection is controlled by the `datadog_rum` and `datadog_rum_config` directives.
 
-### Compressed responses
+### `datadog_rum` (RUM builds)
+
+- **syntax** `datadog_rum [on|off]`
+- **default**: (undefined: `DD_RUM_ENABLED` decides; if it is not set, RUM is enabled when a RUM
+  configuration is available)
+- **context**: `http`, `server`, `location`
+
+Enables or disables RUM SDK injection.
+
+### `datadog_rum_config` (RUM builds)
+
+- **syntax** `datadog_rum_config <version> { <key> <value>; ... }`
+- **default**: (undefined: the Agent stable configuration is used, if any)
+- **context**: `http`, `server`, `location`
+
+Sets the RUM SDK configuration. `<version>` is the major version of the SDK, such as `"v5"`. Each
+entry of the block is an option of the RUM Browser SDK `init` call.
+
+```nginx
+datadog_rum on;
+datadog_rum_config "v5" {
+    "applicationId" "<DATADOG_APPLICATION_ID>";
+    "clientToken" "<DATADOG_CLIENT_TOKEN>";
+    "site" "datadoghq.com";
+    "service" "my-web-application";
+    "env" "production";
+    "sessionSampleRate" "100";
+}
+```
+
+### Compressed Responses
 
 The SDK is not injected into HTML responses that already have a `Content-Encoding` header, such
 as a gzip response from a proxied backend. These responses are sent unchanged, and Nginx logs
@@ -470,10 +500,13 @@ location / {
 }
 ```
 
-With this setup, the traffic between Nginx and the backend is not compressed. A `proxy_set_header`
-in a `location` replaces all `proxy_set_header` directives inherited from upper levels, so repeat
-them there if needed. If Nginx is behind another proxy or a CDN, also set `gzip_proxied`: by
-default, Nginx does not compress responses to proxied requests.
+With this setup:
+
+- The traffic between Nginx and the backend is not compressed.
+- A `proxy_set_header` in a `location` replaces all `proxy_set_header` directives inherited from
+  upper levels, so repeat them there if needed.
+- If Nginx is behind another proxy or a CDN, also set `gzip_proxied`: by default, Nginx does not
+  compress responses to proxied requests.
 
 ## Variables
 
